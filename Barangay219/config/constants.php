@@ -19,7 +19,7 @@ define('DB_CHARSET', 'utf8mb4');
 // Application Configuration
 define('APP_NAME', 'E-Barangay Information Management System');
 define('APP_VERSION', '1.0.0');
-define('BARANGAY_NAME', 'Barangay 195, Tondo, Manila');
+define('BARANGAY_NAME', 'Barangay 219, Tondo, Manila');
 
 // Base URLs
 // Auto-detect the correct path based on the current script location
