@@ -88,6 +88,7 @@ define('SESSION_NAME', 'EBARANGAY_SESSION');
 
 // Security
 define('PASSWORD_MIN_LENGTH', 8);
+define('PASSWORD_MAX_LENGTH', 16);
 define('CSRF_TOKEN_NAME', 'csrf_token');
 
 // Date Format
