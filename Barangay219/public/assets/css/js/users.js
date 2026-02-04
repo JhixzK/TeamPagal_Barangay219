@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
  * Load all users
  */
 function loadUsers() {
-    fetch('<?php echo API_URL; ?>users.php?action=list')
+    fetch(window.API_URL + 'users.php?action=list')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -79,7 +79,7 @@ function displayUsers(users) {
  * Edit user
  */
 function editUser(id) {
-    fetch(`<?php echo API_URL; ?>users.php?action=get&id=${id}`)
+    fetch(`${window.API_URL}users.php?action=get&id=${id}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -123,7 +123,7 @@ function saveUser() {
         formData.delete('password');
     }
     
-    fetch('<?php echo API_URL; ?>users.php', {
+    fetch(window.API_URL + 'users.php', {
         method: 'POST',
         body: formData
     })
@@ -153,7 +153,7 @@ function suspendUser(id) {
         formData.append('action', 'suspend');
         formData.append('id', id);
         
-        fetch('<?php echo API_URL; ?>users.php', {
+        fetch(window.API_URL + 'users.php', {
             method: 'POST',
             body: formData
         })
@@ -181,7 +181,7 @@ function activateUser(id) {
     formData.append('action', 'activate');
     formData.append('id', id);
     
-    fetch('<?php echo API_URL; ?>users.php', {
+    fetch(window.API_URL + 'users.php', {
         method: 'POST',
         body: formData
     })
@@ -209,7 +209,7 @@ function deleteUser(id) {
         formData.append('action', 'delete');
         formData.append('id', id);
         
-        fetch('<?php echo API_URL; ?>users.php', {
+        fetch(window.API_URL + 'users.php', {
             method: 'POST',
             body: formData
         })
