@@ -1,5 +1,5 @@
 function loadReport(type) {
-    fetch(`<?php echo API_URL; ?>reports.php?action=${type}`)
+    fetch(`${window.API_URL}reports.php?action=${type}`)
         .then(r => r.json())
         .then(d => {
             if (d.success) {
