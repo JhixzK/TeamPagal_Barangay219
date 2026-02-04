@@ -24,4 +24,4 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
-<script src="<?php echo ASSETS_URL; ?>css/js/announcements.js"></script>
+<script src="<?php echo ASSETS_URL; ?>css/js/announcements.js?v=<?php echo time(); ?>"></script>
