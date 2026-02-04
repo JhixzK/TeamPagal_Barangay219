@@ -26,9 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$username || !preg_match('/^[A-Za-z0-9_]{5,30}$/', $username)) {
             $field_errors['username'] = 'Username is required, 5-30 characters, letters, numbers, and underscore only.';
         }
-        // Password: required, min 8 chars, at least 1 letter, 1 number, 1 special char
-        if (!$password || !preg_match('/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/', $password)) {
-            $field_errors['password'] = 'Password must be at least 8 characters, include a letter, a number, and a special character.';
+        // Password: required, min 8 chars, max 16 chars, at least 1 letter and 1 number
+        if (!$password || !preg_match('/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]{' . PASSWORD_MIN_LENGTH . ',' . PASSWORD_MAX_LENGTH . '}$/', $password)) {
+            $field_errors['password'] = 'Password must be 8-16 characters with a mix of letters and numbers.';
         }
         // Password confirmation
         if ($password !== $password_confirm) {
@@ -190,14 +190,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label>Password <span class="text-danger">*</span></label>
-                                    <input type="password" name="password" class="form-control<?php if(isset($field_errors['password'])) echo ' is-invalid'; ?>" minlength="8" required autocomplete="new-password">
+                                    <input type="password" name="password" class="form-control<?php if(isset($field_errors['password'])) echo ' is-invalid'; ?>" minlength="8" maxlength="16" required autocomplete="new-password">
                                     <?php if(isset($field_errors['password'])): ?><div class="invalid-feedback"><?php echo $field_errors['password']; ?></div><?php endif; ?>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label>Confirm Password <span class="text-danger">*</span></label>
-                                    <input type="password" name="password_confirm" class="form-control<?php if(isset($field_errors['password_confirm'])) echo ' is-invalid'; ?>" minlength="8" required autocomplete="new-password">
+                                    <input type="password" name="password_confirm" class="form-control<?php if(isset($field_errors['password_confirm'])) echo ' is-invalid'; ?>" minlength="8" maxlength="16" required autocomplete="new-password">
                                     <?php if(isset($field_errors['password_confirm'])): ?><div class="invalid-feedback"><?php echo $field_errors['password_confirm']; ?></div><?php endif; ?>
                                 </div>
                             </div>
