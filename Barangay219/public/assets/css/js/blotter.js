@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadBlotters() {
-    fetch('<?php echo API_URL; ?>blotter.php?action=list')
+    fetch(window.API_URL + 'blotter.php?action=list')
         .then(r => r.json())
         .then(d => {
             if (d.success) {
@@ -26,7 +26,7 @@ function loadBlotters() {
 }
 
 function viewBlotter(id) {
-    fetch(`<?php echo API_URL; ?>blotter.php?action=get&id=${id}`)
+    fetch(`${window.API_URL}blotter.php?action=get&id=${id}`)
         .then(r => r.json())
         .then(d => {
             if (d.success) {
