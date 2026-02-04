@@ -1,12 +1,11 @@
 <?php
 define('ACCESS_ALLOWED', true);
+$page_title = 'Profile';
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
 
-$page_title = 'Profile';
-include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
 
