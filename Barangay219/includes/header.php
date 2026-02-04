@@ -31,7 +31,8 @@ $userInfo = getUserInfo();
     
     <!-- Define API URL for JavaScript (available on all pages) -->
     <script>
-        window.API_URL = '<?php echo API_URL; ?>';
+        // Provide API URL to client JS (escaped)
+        window.API_URL = '<?php echo addslashes(API_URL); ?>';
     </script>
 </head>
 <body>
