@@ -11,7 +11,9 @@ $allowed_cities = [
 $allowed_provinces = [
     'Metro Manila', 'Bulacan', 'Cavite', 'Laguna', 'Rizal', 'Batangas', 'Pampanga', 'Nueva Ecija', 'Tarlac', 'Bataan', 'Zambales', 'Pangasinan'
 ];
-$barangay = BARANGAY_NAME;
+$barangay = 'Barangay 219, Tondo';
+$city = 'Manila';
+$province = 'Metro Manila';
 $error = '';
 $success = '';
 
@@ -36,15 +38,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $health_info = trim($_POST['health_info'] ?? '');
     $socio_info = trim($_POST['socio_info'] ?? '');
 
-    // Required fields
-    if (!$first_name || !$last_name || !$dob || !$gender || !$civil_status || !$contact || !$house_street || !$city || !$province || !$family_status) {
-        $error = 'Please fill in all required fields.';
-    } elseif (!in_array($city, $allowed_cities)) {
-        $error = 'City is not allowed.';
-    } elseif (!in_array($province, $allowed_provinces)) {
-        $error = 'Province is not allowed.';
-    } elseif ($family_status === 'non-head' && !$role) {
-        $error = 'Please select your relationship to the head of family.';
+    $field_errors = [];
+    // First Name: required, letters only, max 50
+    if (!$first_name || !preg_match('/^[A-Za-z ]+$/', $first_name) || mb_strlen($first_name) > 50) {
+        $field_errors['first_name'] = 'First Name is required, letters only, max 50 characters.';
+    }
+    // Middle Name: optional, letters only, max 50
+    if ($middle_name && (!preg_match('/^[A-Za-z ]+$/', $middle_name) || mb_strlen($middle_name) > 50)) {
+        $field_errors['middle_name'] = 'Middle Name: letters only, max 50 characters.';
+    }
+    // Last Name: required, letters only, max 50
+    if (!$last_name || !preg_match('/^[A-Za-z ]+$/', $last_name) || mb_strlen($last_name) > 50) {
+        $field_errors['last_name'] = 'Last Name is required, letters only, max 50 characters.';
+    }
+    // Suffix: optional, letters only, max 10
+    if ($suffix && (!preg_match('/^[A-Za-z]+$/', $suffix) || mb_strlen($suffix) > 10)) {
+        $field_errors['suffix'] = 'Suffix: letters only, max 10 characters.';
+    }
+    // DOB: required, valid date, not in future
+    if (!$dob || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dob) || strtotime($dob) === false || strtotime($dob) > time()) {
+        $field_errors['dob'] = 'Date of Birth is required, must be a valid date not in the future.';
+    }
+    // Gender: required, must be one of allowed
+    $allowed_genders = ['Male','Female','Other'];
+    if (!$gender || !in_array($gender, $allowed_genders)) {
+        $field_errors['gender'] = 'Gender is required.';
+    }
+    // Civil Status: required, must be one of allowed
+    $allowed_civil = ['Single','Married','Widowed','Separated'];
+    if (!$civil_status || !in_array($civil_status, $allowed_civil)) {
+        $field_errors['civil_status'] = 'Civil Status is required.';
+    }
+    // Contact: required, digits only, max 11
+    if (!$contact || !preg_match('/^\d{11}$/', $contact)) {
+        $field_errors['contact'] = 'Contact Number is required, 11 digits only.';
+    }
+    // Email: optional, valid format, max 100
+    if ($email && (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 100)) {
+        $field_errors['email'] = 'Email: must be valid format, max 100 characters.';
+    }
+    // House/Street: required, letters, numbers, spaces, basic punctuation, max 100
+    if (!$house_street || !preg_match('/^[A-Za-z0-9 .,#\-\/]+$/', $house_street) || mb_strlen($house_street) > 100) {
+        $field_errors['house_street'] = 'House Number/Street: required, max 100 chars, valid characters only.';
+    }
+    // Occupation: optional, letters, spaces, hyphens, max 50
+    if ($occupation && (!preg_match('/^[A-Za-z \-]+$/', $occupation) || mb_strlen($occupation) > 50)) {
+        $field_errors['occupation'] = 'Occupation: letters, spaces, hyphens only, max 50 characters.';
+    }
+    // Socio, ID, Health, Remarks: optional, max 300, valid chars
+    if ($socio_info && (!preg_match('/^[A-Za-z0-9 .,#\-\/]+$/', $socio_info) || mb_strlen($socio_info) > 300)) {
+        $field_errors['socio_info'] = 'Socio-Economic Info: max 300 chars, valid characters only.';
+    }
+    if ($id_numbers && (!preg_match('/^[A-Za-z0-9 .,#\-\/]+$/', $id_numbers) || mb_strlen($id_numbers) > 300)) {
+        $field_errors['id_numbers'] = 'ID Numbers: max 300 chars, valid characters only.';
+    }
+    if ($health_info && (!preg_match('/^[A-Za-z0-9 .,#\-\/]+$/', $health_info) || mb_strlen($health_info) > 300)) {
+        $field_errors['health_info'] = 'Health Info: max 300 chars, valid characters only.';
+    }
+    // Barangay, City, Province: fixed, must match
+    if ($barangay !== 'Barangay 219, Tondo') {
+        $field_errors['barangay'] = 'Barangay must be Barangay 219, Tondo.';
+    }
+    if ($city !== 'Manila') {
+        $field_errors['city'] = 'City must be Manila.';
+    }
+    if ($province !== 'Metro Manila') {
+        $field_errors['province'] = 'Province must be Metro Manila.';
+    }
+    // Family Status: required, must be head or non-head
+    if (!$family_status || !in_array($family_status, ['head','non-head'])) {
+        $field_errors['family_status'] = 'Family Status is required.';
+    }
+    // Role: required if non-head
+    if ($family_status === 'non-head' && !$role) {
+        $field_errors['role'] = 'Relationship to Head is required for Non-Head.';
+    }
+
+    if (count($field_errors) > 0) {
+        $error = 'Please correct the highlighted fields.';
     } else {
         // TODO: Save to database (implement DB logic here)
         $success = 'Registration successful! Your information will be reviewed.';
@@ -83,27 +154,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label>First Name <span class="text-danger">*</span></label>
-                                <input type="text" name="first_name" class="form-control capitalize" required value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>">
+                                <input type="text" name="first_name" class="form-control capitalize<?php if(isset($field_errors['first_name'])) echo ' is-invalid'; ?>" maxlength="50" pattern="[A-Za-z ]+" required value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>">
+                                <?php if(isset($field_errors['first_name'])): ?><div class="invalid-feedback"><?php echo $field_errors['first_name']; ?></div><?php endif; ?>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label>Middle Name</label>
-                                <input type="text" name="middle_name" class="form-control capitalize" value="<?php echo htmlspecialchars($_POST['middle_name'] ?? ''); ?>">
+                                <input type="text" name="middle_name" class="form-control capitalize<?php if(isset($field_errors['middle_name'])) echo ' is-invalid'; ?>" maxlength="50" pattern="[A-Za-z ]*" value="<?php echo htmlspecialchars($_POST['middle_name'] ?? ''); ?>">
+                                <?php if(isset($field_errors['middle_name'])): ?><div class="invalid-feedback"><?php echo $field_errors['middle_name']; ?></div><?php endif; ?>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label>Last Name <span class="text-danger">*</span></label>
-                                <input type="text" name="last_name" class="form-control capitalize" required value="<?php echo htmlspecialchars($_POST['last_name'] ?? ''); ?>">
+                                <input type="text" name="last_name" class="form-control capitalize<?php if(isset($field_errors['last_name'])) echo ' is-invalid'; ?>" maxlength="50" pattern="[A-Za-z ]+" required value="<?php echo htmlspecialchars($_POST['last_name'] ?? ''); ?>">
+                                <?php if(isset($field_errors['last_name'])): ?><div class="invalid-feedback"><?php echo $field_errors['last_name']; ?></div><?php endif; ?>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label>Suffix</label>
-                                <input type="text" name="suffix" class="form-control capitalize" value="<?php echo htmlspecialchars($_POST['suffix'] ?? ''); ?>">
+                                <input type="text" name="suffix" class="form-control capitalize<?php if(isset($field_errors['suffix'])) echo ' is-invalid'; ?>" maxlength="10" pattern="[A-Za-z]*" value="<?php echo htmlspecialchars($_POST['suffix'] ?? ''); ?>">
+                                <?php if(isset($field_errors['suffix'])): ?><div class="invalid-feedback"><?php echo $field_errors['suffix']; ?></div><?php endif; ?>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label>Date of Birth <span class="text-danger">*</span></label>
-                                <input type="date" name="dob" id="dob" class="form-control" required value="<?php echo htmlspecialchars($_POST['dob'] ?? ''); ?>">
+                                <input type="date" name="dob" id="dob" class="form-control<?php if(isset($field_errors['dob'])) echo ' is-invalid'; ?>" required value="<?php echo htmlspecialchars($_POST['dob'] ?? ''); ?>">
+                                <?php if(isset($field_errors['dob'])): ?><div class="invalid-feedback"><?php echo $field_errors['dob']; ?></div><?php endif; ?>
                             </div>
                             <div class="col-md-2 mb-3">
                                 <label>Age</label>
@@ -132,39 +208,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label>Contact Number <span class="text-danger">*</span></label>
-                                <input type="text" name="contact" class="form-control" required value="<?php echo htmlspecialchars($_POST['contact'] ?? ''); ?>">
+                                <input type="text" name="contact" class="form-control<?php if(isset($field_errors['contact'])) echo ' is-invalid'; ?>" maxlength="11" pattern="\d{11}" required value="<?php echo htmlspecialchars($_POST['contact'] ?? ''); ?>">
+                                <?php if(isset($field_errors['contact'])): ?><div class="invalid-feedback"><?php echo $field_errors['contact']; ?></div><?php endif; ?>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label>Email</label>
-                                <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
+                                <input type="email" name="email" class="form-control<?php if(isset($field_errors['email'])) echo ' is-invalid'; ?>" maxlength="100" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
+                                <?php if(isset($field_errors['email'])): ?><div class="invalid-feedback"><?php echo $field_errors['email']; ?></div><?php endif; ?>
                             </div>
                         </div>
                         <div class="mb-3">
                             <label>House Number/Street <span class="text-danger">*</span></label>
-                            <input type="text" name="house_street" class="form-control" required value="<?php echo htmlspecialchars($_POST['house_street'] ?? ''); ?>">
+                            <input type="text" name="house_street" class="form-control<?php if(isset($field_errors['house_street'])) echo ' is-invalid'; ?>" maxlength="100" required value="<?php echo htmlspecialchars($_POST['house_street'] ?? ''); ?>">
+                            <?php if(isset($field_errors['house_street'])): ?><div class="invalid-feedback"><?php echo $field_errors['house_street']; ?></div><?php endif; ?>
                         </div>
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label>Barangay</label>
-                                <input type="text" class="form-control" value="<?php echo htmlspecialchars($barangay); ?>" readonly>
+                                <input type="text" class="form-control" name="barangay" value="<?php echo htmlspecialchars($barangay); ?>" readonly>
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label>City <span class="text-danger">*</span></label>
-                                <select name="city" class="form-control" required>
-                                    <option value="">Select City</option>
-                                    <?php foreach ($allowed_cities as $c): ?>
-                                        <option value="<?php echo $c; ?>" <?php if(($_POST['city'] ?? '')===$c) echo 'selected'; ?>><?php echo $c; ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <label>City</label>
+                                <input type="text" class="form-control" name="city" value="<?php echo htmlspecialchars($city); ?>" readonly>
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label>Province <span class="text-danger">*</span></label>
-                                <select name="province" class="form-control" required>
-                                    <option value="">Select Province</option>
-                                    <?php foreach ($allowed_provinces as $p): ?>
-                                        <option value="<?php echo $p; ?>" <?php if(($_POST['province'] ?? '')===$p) echo 'selected'; ?>><?php echo $p; ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <label>Province</label>
+                                <input type="text" class="form-control" name="province" value="<?php echo htmlspecialchars($province); ?>" readonly>
                             </div>
                         </div>
                         <div class="row">
@@ -191,21 +260,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label>Occupation</label>
-                                <input type="text" name="occupation" class="form-control" value="<?php echo htmlspecialchars($_POST['occupation'] ?? ''); ?>">
+                                <input type="text" name="occupation" class="form-control<?php if(isset($field_errors['occupation'])) echo ' is-invalid'; ?>" maxlength="50" value="<?php echo htmlspecialchars($_POST['occupation'] ?? ''); ?>">
+                                <?php if(isset($field_errors['occupation'])): ?><div class="invalid-feedback"><?php echo $field_errors['occupation']; ?></div><?php endif; ?>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label>ID Numbers</label>
-                                <input type="text" name="id_numbers" class="form-control" value="<?php echo htmlspecialchars($_POST['id_numbers'] ?? ''); ?>">
+                                <input type="text" name="id_numbers" class="form-control<?php if(isset($field_errors['id_numbers'])) echo ' is-invalid'; ?>" maxlength="300" value="<?php echo htmlspecialchars($_POST['id_numbers'] ?? ''); ?>">
+                                <?php if(isset($field_errors['id_numbers'])): ?><div class="invalid-feedback"><?php echo $field_errors['id_numbers']; ?></div><?php endif; ?>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label>Health Info</label>
-                                <input type="text" name="health_info" class="form-control" value="<?php echo htmlspecialchars($_POST['health_info'] ?? ''); ?>">
+                                <input type="text" name="health_info" class="form-control<?php if(isset($field_errors['health_info'])) echo ' is-invalid'; ?>" maxlength="300" value="<?php echo htmlspecialchars($_POST['health_info'] ?? ''); ?>">
+                                <?php if(isset($field_errors['health_info'])): ?><div class="invalid-feedback"><?php echo $field_errors['health_info']; ?></div><?php endif; ?>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label>Socio-Economic Info</label>
-                                <input type="text" name="socio_info" class="form-control" value="<?php echo htmlspecialchars($_POST['socio_info'] ?? ''); ?>">
+                                <input type="text" name="socio_info" class="form-control<?php if(isset($field_errors['socio_info'])) echo ' is-invalid'; ?>" maxlength="300" value="<?php echo htmlspecialchars($_POST['socio_info'] ?? ''); ?>">
+                                <?php if(isset($field_errors['socio_info'])): ?><div class="invalid-feedback"><?php echo $field_errors['socio_info']; ?></div><?php endif; ?>
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">Register</button>
@@ -218,14 +291,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 <script src="<?php echo ASSETS_URL; ?>js/bootstrap.bundle.min.js"></script>
 <script>
-// Auto-capitalize name fields
-['first_name','middle_name','last_name','suffix'].forEach(function(id) {
-    var el = document.querySelector('[name="'+id+'"]');
-    if (el) {
-        el.addEventListener('input', function() {
-            this.value = this.value.replace(/\b\w/g, function(l){ return l.toUpperCase(); });
-        });
-    }
+// Auto-capitalize name fields and restrict input to letters (and space for names)
+function onlyLetters(e) {
+    let v = e.target.value.replace(/[^A-Za-z ]/g, '');
+    e.target.value = v.replace(/\b\w/g, function(l){ return l.toUpperCase(); });
+}
+function onlyLettersSuffix(e) {
+    let v = e.target.value.replace(/[^A-Za-z]/g, '');
+    e.target.value = v.replace(/\b\w/g, function(l){ return l.toUpperCase(); });
+}
+document.querySelector('[name="first_name"]').addEventListener('input', onlyLetters);
+document.querySelector('[name="middle_name"]').addEventListener('input', onlyLetters);
+document.querySelector('[name="last_name"]').addEventListener('input', onlyLetters);
+document.querySelector('[name="suffix"]').addEventListener('input', onlyLettersSuffix);
+// Restrict contact number to digits only
+document.querySelector('[name="contact"]').addEventListener('input', function(e) {
+    this.value = this.value.replace(/[^\d]/g, '').slice(0, 11);
+});
+// Restrict occupation to letters, spaces, hyphens only
+document.querySelector('[name="occupation"]').addEventListener('input', function(e) {
+    this.value = this.value.replace(/[^A-Za-z \-]/g, '');
 });
 // Family status logic
 const familyStatus = document.getElementById('familyStatus');
