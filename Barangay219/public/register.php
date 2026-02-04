@@ -18,6 +18,22 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // Username and Password
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $password_confirm = $_POST['password_confirm'] ?? '';
+        // Username: required, 5-30 chars, alphanumeric/underscore, best practice: check uniqueness in DB (not implemented here)
+        if (!$username || !preg_match('/^[A-Za-z0-9_]{5,30}$/', $username)) {
+            $field_errors['username'] = 'Username is required, 5-30 characters, letters, numbers, and underscore only.';
+        }
+        // Password: required, min 8 chars, at least 1 letter, 1 number, 1 special char
+        if (!$password || !preg_match('/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/', $password)) {
+            $field_errors['password'] = 'Password must be at least 8 characters, include a letter, a number, and a special character.';
+        }
+        // Password confirmation
+        if ($password !== $password_confirm) {
+            $field_errors['password_confirm'] = 'Passwords do not match.';
+        }
     // Validate and sanitize input
     $first_name = trim($_POST['first_name'] ?? '');
     $middle_name = trim($_POST['middle_name'] ?? '');
@@ -164,6 +180,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="alert alert-success"> <?php echo $success; ?> </div>
                     <?php endif; ?>
                     <form method="post" id="registerForm" autocomplete="off" enctype="multipart/form-data">
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label>Username <span class="text-danger">*</span></label>
+                                                        <input type="text" name="username" class="form-control<?php if(isset($field_errors['username'])) echo ' is-invalid'; ?>" maxlength="30" pattern="[A-Za-z0-9_]{5,30}" required value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>">
+                                                        <?php if(isset($field_errors['username'])): ?><div class="invalid-feedback"><?php echo $field_errors['username']; ?></div><?php endif; ?>
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label>Password <span class="text-danger">*</span></label>
+                                                        <input type="password" name="password" class="form-control<?php if(isset($field_errors['password'])) echo ' is-invalid'; ?>" minlength="8" required autocomplete="new-password">
+                                                        <?php if(isset($field_errors['password'])): ?><div class="invalid-feedback"><?php echo $field_errors['password']; ?></div><?php endif; ?>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label>Confirm Password <span class="text-danger">*</span></label>
+                                                        <input type="password" name="password_confirm" class="form-control<?php if(isset($field_errors['password_confirm'])) echo ' is-invalid'; ?>" minlength="8" required autocomplete="new-password">
+                                                        <?php if(isset($field_errors['password_confirm'])): ?><div class="invalid-feedback"><?php echo $field_errors['password_confirm']; ?></div><?php endif; ?>
+                                                    </div>
+                                                </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label>First Name <span class="text-danger">*</span></label>
