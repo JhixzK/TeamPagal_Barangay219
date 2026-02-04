@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadComplaints() {
-    fetch('<?php echo API_URL; ?>complaints.php?action=list')
+    fetch(window.API_URL + 'complaints.php?action=list')
         .then(r => r.json())
         .then(d => {
             if (d.success) {
@@ -26,7 +26,7 @@ function loadComplaints() {
 }
 
 function viewComplaint(id) {
-    fetch(`<?php echo API_URL; ?>complaints.php?action=get&id=${id}`)
+    fetch(`${window.API_URL}complaints.php?action=get&id=${id}`)
         .then(r => r.json())
         .then(d => {
             if (d.success) {
