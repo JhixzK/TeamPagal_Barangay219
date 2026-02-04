@@ -163,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php elseif ($success): ?>
                         <div class="alert alert-success"> <?php echo $success; ?> </div>
                     <?php endif; ?>
-                    <form method="post" id="registerForm" autocomplete="off">
+                    <form method="post" id="registerForm" autocomplete="off" enctype="multipart/form-data">
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label>First Name <span class="text-danger">*</span></label>
@@ -284,22 +284,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <?php if(isset($field_errors['occupation'])): ?><div class="invalid-feedback"><?php echo $field_errors['occupation']; ?></div><?php endif; ?>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label>ID Numbers</label>
-                                <input type="text" name="id_numbers" class="form-control<?php if(isset($field_errors['id_numbers'])) echo ' is-invalid'; ?>" maxlength="300" value="<?php echo htmlspecialchars($_POST['id_numbers'] ?? ''); ?>">
-                                <?php if(isset($field_errors['id_numbers'])): ?><div class="invalid-feedback"><?php echo $field_errors['id_numbers']; ?></div><?php endif; ?>
+                                <label>ID Uploads <span class="text-info">(Required for approval)</span></label>
+                                <input type="file" name="id_uploads[]" class="form-control" accept="application/pdf,image/jpeg,image/png" multiple>
+                                <small class="form-text text-muted">Accepted: PDF, JPG, PNG. Max 5MB each. Recommended: PSA Birth Certificate, Passport, Driver’s License, UMID, Postal ID, SSS ID, PRC ID, Voter’s ID.</small>
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label>Health Info</label>
-                                <input type="text" name="health_info" class="form-control<?php if(isset($field_errors['health_info'])) echo ' is-invalid'; ?>" maxlength="300" value="<?php echo htmlspecialchars($_POST['health_info'] ?? ''); ?>">
-                                <?php if(isset($field_errors['health_info'])): ?><div class="invalid-feedback"><?php echo $field_errors['health_info']; ?></div><?php endif; ?>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label>Socio-Economic Info</label>
-                                <input type="text" name="socio_info" class="form-control<?php if(isset($field_errors['socio_info'])) echo ' is-invalid'; ?>" maxlength="300" value="<?php echo htmlspecialchars($_POST['socio_info'] ?? ''); ?>">
-                                <?php if(isset($field_errors['socio_info'])): ?><div class="invalid-feedback"><?php echo $field_errors['socio_info']; ?></div><?php endif; ?>
-                            </div>
+                            <!-- Health Information and Socio-Economic Information fields removed as requested -->
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="data_privacy" id="data_privacy" required>
+                            <label class="form-check-label" for="data_privacy">
+                                I consent to the collection and processing of my personal data in accordance with the Data Privacy Act of 2012 and the privacy policy of Barangay 219.
+                            </label>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">Register</button>
                         <a href="index.php" class="btn btn-link w-100 mt-2">Back to Login</a>
