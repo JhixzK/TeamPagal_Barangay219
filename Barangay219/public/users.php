@@ -5,14 +5,13 @@
  */
 
 define('ACCESS_ALLOWED', true);
+$page_title = 'User Management';
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
 requireAdmin();
 
-$page_title = 'User Management';
-include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
 
