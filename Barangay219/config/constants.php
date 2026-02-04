@@ -23,38 +23,11 @@ define('BARANGAY_NAME', 'Barangay 195, Tondo, Manila');
 
 // Base URLs
 // Auto-detect the correct path based on the current script location
+
+// Hardcoded base URLs for reliability
 if (!defined('BASE_URL')) {
-    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    
-    // Get the script path (e.g., /Barangay219/Barangay219/public/index.php)
-    $scriptPath = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
-    
-    // Remove filename and 'public' folder to get base path
-    $pathParts = explode('/', trim($scriptPath, '/'));
-    
-    // Find 'public' in the path and get everything before it
-    $publicIndex = array_search('public', $pathParts);
-    if ($publicIndex !== false && $publicIndex > 0) {
-        $baseParts = array_slice($pathParts, 0, $publicIndex);
-        $basePath = '/' . implode('/', $baseParts) . '/';
-    } else {
-        // Fallback: try to detect from document root
-        $documentRoot = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? '');
-        $currentFile = str_replace('\\', '/', __FILE__);
-        
-        if (strpos($currentFile, $documentRoot) === 0) {
-            $relativePath = substr($currentFile, strlen($documentRoot));
-            $pathParts = explode('/', trim(dirname($relativePath), '/'));
-            $basePath = '/' . implode('/', $pathParts) . '/';
-        } else {
-            // Default fallback - flat structure
-            $basePath = '/Barangay219/';
-        }
-    }
-    
-    define('BASE_URL', $protocol . '://' . $host . $basePath . 'public/');
-    define('API_URL', $protocol . '://' . $host . $basePath . 'api/');
+    define('BASE_URL', 'http://localhost/TeamPagal_Barangay219/Barangay219/public/');
+    define('API_URL', 'http://localhost/TeamPagal_Barangay219/Barangay219/api/');
 }
 
 define('ASSETS_URL', BASE_URL . 'assets/');
