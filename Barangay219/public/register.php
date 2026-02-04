@@ -134,6 +134,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="<?php echo ASSETS_URL; ?>style.css" rel="stylesheet">
     <style>
         .capitalize { text-transform: capitalize; }
+        .input-group.suffix-group .form-select:focus {
+    box-shadow: none;
+}
+.input-group.suffix-group:hover .form-select,
+.input-group.suffix-group:focus-within .form-select {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
+}
+.input-group.suffix-group:hover .input-group-text,
+.input-group.suffix-group:focus-within .input-group-text {
+    border-color: #86b7fe;
+    background: #e7f1ff;
+}
     </style>
 </head>
 <body>
@@ -171,8 +184,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label>Suffix</label>
-                                <input type="text" name="suffix" class="form-control capitalize<?php if(isset($field_errors['suffix'])) echo ' is-invalid'; ?>" maxlength="10" pattern="[A-Za-z]*" value="<?php echo htmlspecialchars($_POST['suffix'] ?? ''); ?>">
-                                <?php if(isset($field_errors['suffix'])): ?><div class="invalid-feedback"><?php echo $field_errors['suffix']; ?></div><?php endif; ?>
+                                <select name="suffix" class="form-select<?php if(isset($field_errors['suffix'])) echo ' is-invalid'; ?>">
+                                    <option value="" <?php if(empty($_POST['suffix'])) echo 'selected'; ?>></option>
+                                    <option value="Jr." <?php if(($_POST['suffix'] ?? '')==='Jr.') echo 'selected'; ?>>Jr.</option>
+                                    <option value="Sr." <?php if(($_POST['suffix'] ?? '')==='Sr.') echo 'selected'; ?>>Sr.</option>
+                                    <option value="III" <?php if(($_POST['suffix'] ?? '')==='III') echo 'selected'; ?>>III</option>
+                                    <option value="IV" <?php if(($_POST['suffix'] ?? '')==='IV') echo 'selected'; ?>>IV</option>
+                                    <option value="V" <?php if(($_POST['suffix'] ?? '')==='V') echo 'selected'; ?>>V</option>
+                                </select>
+                                <?php if(isset($field_errors['suffix'])): ?><div class="invalid-feedback d-block"><?php echo $field_errors['suffix']; ?></div><?php endif; ?>
                             </div>
                         </div>
                         <div class="row">
@@ -297,57 +317,4 @@ function onlyLetters(e) {
     e.target.value = v.replace(/\b\w/g, function(l){ return l.toUpperCase(); });
 }
 function onlyLettersSuffix(e) {
-    let v = e.target.value.replace(/[^A-Za-z]/g, '');
-    e.target.value = v.replace(/\b\w/g, function(l){ return l.toUpperCase(); });
-}
-document.querySelector('[name="first_name"]').addEventListener('input', onlyLetters);
-document.querySelector('[name="middle_name"]').addEventListener('input', onlyLetters);
-document.querySelector('[name="last_name"]').addEventListener('input', onlyLetters);
-document.querySelector('[name="suffix"]').addEventListener('input', onlyLettersSuffix);
-// Restrict contact number to digits only
-document.querySelector('[name="contact"]').addEventListener('input', function(e) {
-    this.value = this.value.replace(/[^\d]/g, '').slice(0, 11);
-});
-// Restrict occupation to letters, spaces, hyphens only
-document.querySelector('[name="occupation"]').addEventListener('input', function(e) {
-    this.value = this.value.replace(/[^A-Za-z \-]/g, '');
-});
-// Family status logic
-const familyStatus = document.getElementById('familyStatus');
-const roleDiv = document.getElementById('roleDiv');
-const roleSelect = document.getElementById('roleSelect');
-const roleRequired = document.getElementById('roleRequired');
-function updateRoleVisibility() {
-    if (familyStatus.value === 'non-head') {
-        roleDiv.style.display = '';
-        roleRequired.style.display = '';
-        roleSelect.required = true;
-    } else {
-        roleDiv.style.display = 'none';
-        roleRequired.style.display = 'none';
-        roleSelect.required = false;
-        roleSelect.value = '';
-    }
-}
-familyStatus.addEventListener('change', updateRoleVisibility);
-window.addEventListener('DOMContentLoaded', updateRoleVisibility);
-// Auto-calculate age from DOB
-document.getElementById('dob').addEventListener('change', function() {
-    var dob = this.value;
-    var ageInput = document.getElementById('age');
-    if (dob) {
-        var today = new Date();
-        var birthDate = new Date(dob);
-        var age = today.getFullYear() - birthDate.getFullYear();
-        var m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
-        ageInput.value = age > 0 ? age : '';
-    } else {
-        ageInput.value = '';
-    }
-});
-</script>
-</body>
-</html>
+    let v = e.target.value.replace(/[^A-Za
