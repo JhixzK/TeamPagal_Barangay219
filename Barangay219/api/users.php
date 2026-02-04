@@ -137,8 +137,13 @@ function createUser() {
         return;
     }
     
-    if (strlen($password) < PASSWORD_MIN_LENGTH) {
-        sendResponse(false, 'Password must be at least ' . PASSWORD_MIN_LENGTH . ' characters', null, 400);
+    if (strlen($password) < PASSWORD_MIN_LENGTH || strlen($password) > PASSWORD_MAX_LENGTH) {
+        sendResponse(false, 'Password must be ' . PASSWORD_MIN_LENGTH . '-' . PASSWORD_MAX_LENGTH . ' characters', null, 400);
+        return;
+    }
+    
+    if (!preg_match('/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]*$/', $password)) {
+        sendResponse(false, 'Password must contain a mix of letters and numbers', null, 400);
         return;
     }
     
@@ -260,10 +265,16 @@ function updateUser() {
         }
         
         if (!empty($password)) {
-            if (strlen($password) < PASSWORD_MIN_LENGTH) {
-                sendResponse(false, 'Password must be at least ' . PASSWORD_MIN_LENGTH . ' characters', null, 400);
+            if (strlen($password) < PASSWORD_MIN_LENGTH || strlen($password) > PASSWORD_MAX_LENGTH) {
+                sendResponse(false, 'Password must be ' . PASSWORD_MIN_LENGTH . '-' . PASSWORD_MAX_LENGTH . ' characters', null, 400);
                 return;
             }
+            
+            if (!preg_match('/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]*$/', $password)) {
+                sendResponse(false, 'Password must contain a mix of letters and numbers', null, 400);
+                return;
+            }
+            
             $updates[] = "password = ?";
             $params[] = password_hash($password, PASSWORD_DEFAULT);
         }
