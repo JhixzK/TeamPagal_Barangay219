@@ -1,12 +1,11 @@
 <?php
 define('ACCESS_ALLOWED', true);
+$page_title = 'Announcements';
 require_once __DIR__ . '/../includes/header.php';
 
 requireLogin();
 requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_KAGAWA, ROLE_SK_CHAIRMAN]);
 
-$page_title = 'Announcements';
-include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
 
