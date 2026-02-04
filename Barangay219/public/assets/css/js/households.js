@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadHouseholds() {
-    fetch('<?php echo API_URL; ?>households.php?action=list')
+    fetch(window.API_URL + 'households.php?action=list')
         .then(r => r.json())
         .then(d => {
             if (d.success) {
@@ -32,7 +32,7 @@ function loadHouseholds() {
 function saveHousehold() {
     const formData = new FormData(document.getElementById('householdForm'));
     formData.append('action', document.getElementById('householdId').value ? 'update' : 'create');
-    fetch('<?php echo API_URL; ?>households.php', { method: 'POST', body: formData })
+    fetch(window.API_URL + 'households.php', { method: 'POST', body: formData })
         .then(r => r.json())
         .then(d => {
             if (d.success) {
@@ -43,7 +43,7 @@ function saveHousehold() {
 }
 
 function viewHousehold(id) {
-    fetch(`<?php echo API_URL; ?>households.php?action=get&id=${id}`)
+    fetch(`${window.API_URL}households.php?action=get&id=${id}`)
         .then(r => r.json())
         .then(d => {
             if (d.success) {
@@ -57,7 +57,7 @@ function deleteHousehold(id) {
         const fd = new FormData();
         fd.append('action', 'delete');
         fd.append('id', id);
-        fetch('<?php echo API_URL; ?>households.php', { method: 'POST', body: fd })
+        fetch(window.API_URL + 'households.php', { method: 'POST', body: fd })
             .then(r => r.json())
             .then(d => { if (d.success) loadHouseholds(); });
     }
