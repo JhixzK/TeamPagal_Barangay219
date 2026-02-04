@@ -121,6 +121,7 @@ function createHousehold() {
     $family_head_id = intval($_POST['family_head_id'] ?? 0);
     $address = sanitizeInput($_POST['address'] ?? '');
     $registration_date = $_POST['registration_date'] ?? date('Y-m-d');
+    $total_members = max(1, intval($_POST['total_members'] ?? 1));
     
     // Validation
     if (!$family_head_id || empty($address)) {
@@ -138,11 +139,11 @@ function createHousehold() {
             return;
         }
         
-        // Insert household
+        // Insert household (allow provided total_members)
         $sql = "INSERT INTO households (family_head_id, address, total_members, registration_date) 
-                VALUES (?, ?, 1, ?)";
+                VALUES (?, ?, ?, ?)";
         
-        $db->query($sql, [$family_head_id, $address, $registration_date]);
+        $db->query($sql, [$family_head_id, $address, $total_members, $registration_date]);
         $householdId = $db->lastInsertId();
         
         // Update resident's household_id
