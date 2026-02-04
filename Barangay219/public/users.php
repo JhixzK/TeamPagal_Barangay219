@@ -126,4 +126,4 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
 
-<script src="<?php echo ASSETS_URL; ?>css/js/users.js"></script>
+<script src="<?php echo ASSETS_URL; ?>css/js/users.js?v=<?php echo time(); ?>"></script>
