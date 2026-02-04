@@ -25,4 +25,4 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
-<script src="<?php echo ASSETS_URL; ?>css/js/blotter.js"></script>
+<script src="<?php echo ASSETS_URL; ?>css/js/blotter.js?v=<?php echo time(); ?>"></script>
