@@ -32,15 +32,30 @@
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     
     <script>
-    // Ensure API_URL is available
-    if (typeof window.API_URL === 'undefined') {
-        window.API_URL = '<?php echo API_URL; ?>';
+    // Ensure API_URL is available and valid
+    if (typeof window.API_URL === 'undefined' || window.API_URL === null) {
+        window.API_URL = '<?php echo addslashes(API_URL); ?>';
     }
-    
+
+    // If API_URL looks like unprocessed PHP or contains '<', use fallback computed from current location
+    (function() {
+        function looksInvalid(u) {
+            if (!u || typeof u !== 'string') return true;
+            return u.indexOf('<?') !== -1 || u.indexOf('%3C') !== -1 || u.trim() === '' || u.charAt(0) === '<';
+        }
+
+        if (looksInvalid(window.API_URL)) {
+            // Fallback: construct API path relative to current origin and app root
+            var fallback = window.location.origin + '/TeamPagal_Barangay219/Barangay219/api/';
+            console.warn('API_URL contained unprocessed PHP; using fallback API_URL:', fallback);
+            window.API_URL = fallback;
+        }
+    })();
+
     // Logout function
     function logout() {
         if (confirm('Are you sure you want to logout?')) {
-            const apiUrl = window.API_URL || '<?php echo API_URL; ?>';
+            const apiUrl = window.API_URL || '<?php echo addslashes(API_URL); ?>';
             fetch(apiUrl + 'auth.php?action=logout', {
                 method: 'POST',
                 headers: {
