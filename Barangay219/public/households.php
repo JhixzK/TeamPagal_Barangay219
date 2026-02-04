@@ -59,9 +59,15 @@ include __DIR__ . '/../includes/sidebar.php';
                         <label for="address" class="form-label">Address <span class="text-danger">*</span></label>
                         <textarea class="form-control" id="address" name="address" rows="2" required></textarea>
                     </div>
-                    <div class="mb-3">
-                        <label for="registration_date" class="form-label">Registration Date</label>
-                        <input type="date" class="form-control" id="registration_date" name="registration_date">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="total_members" class="form-label">Total Members</label>
+                            <input type="number" min="1" class="form-control" id="total_members" name="total_members" value="1">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="registration_date" class="form-label">Registration Date</label>
+                            <input type="date" class="form-control" id="registration_date" name="registration_date">
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -74,4 +80,4 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
-<script src="<?php echo ASSETS_URL; ?>css/js/households.js"></script>
+<script src="<?php echo ASSETS_URL; ?>css/js/households.js?v=<?php echo time(); ?>"></script>
