@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadCertificates() {
-    fetch('<?php echo API_URL; ?>certificates.php?action=list')
+    fetch(window.API_URL + 'certificates.php?action=list')
         .then(r => r.json())
         .then(d => {
             if (d.success) {
@@ -32,7 +32,7 @@ function updateStatus(id, status) {
     fd.append('action', 'update');
     fd.append('id', id);
     fd.append('status', status);
-    fetch('<?php echo API_URL; ?>certificates.php', { method: 'POST', body: fd })
+    fetch(window.API_URL + 'certificates.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(d => {
             if (d.success) {
