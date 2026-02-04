@@ -180,25 +180,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="alert alert-success"> <?php echo $success; ?> </div>
                     <?php endif; ?>
                     <form method="post" id="registerForm" autocomplete="off" enctype="multipart/form-data">
-                                                <div class="row">
-                                                    <div class="col-md-6 mb-3">
-                                                        <label>Username <span class="text-danger">*</span></label>
-                                                        <input type="text" name="username" class="form-control<?php if(isset($field_errors['username'])) echo ' is-invalid'; ?>" maxlength="30" pattern="[A-Za-z0-9_]{5,30}" required value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>">
-                                                        <?php if(isset($field_errors['username'])): ?><div class="invalid-feedback"><?php echo $field_errors['username']; ?></div><?php endif; ?>
-                                                    </div>
-                                                    <div class="col-md-6 mb-3">
-                                                        <label>Password <span class="text-danger">*</span></label>
-                                                        <input type="password" name="password" class="form-control<?php if(isset($field_errors['password'])) echo ' is-invalid'; ?>" minlength="8" required autocomplete="new-password">
-                                                        <?php if(isset($field_errors['password'])): ?><div class="invalid-feedback"><?php echo $field_errors['password']; ?></div><?php endif; ?>
-                                                    </div>
-                                                </div>
-                                                <div class="row">
-                                                    <div class="col-md-6 mb-3">
-                                                        <label>Confirm Password <span class="text-danger">*</span></label>
-                                                        <input type="password" name="password_confirm" class="form-control<?php if(isset($field_errors['password_confirm'])) echo ' is-invalid'; ?>" minlength="8" required autocomplete="new-password">
-                                                        <?php if(isset($field_errors['password_confirm'])): ?><div class="invalid-feedback"><?php echo $field_errors['password_confirm']; ?></div><?php endif; ?>
-                                                    </div>
-                                                </div>
+                        <div class="mb-4 p-3 border rounded bg-light">
+                            <h5 class="mb-3 text-primary">Account Information</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label>Username <span class="text-danger">*</span></label>
+                                    <input type="text" name="username" class="form-control<?php if(isset($field_errors['username'])) echo ' is-invalid'; ?>" maxlength="30" pattern="[A-Za-z0-9_]{5,30}" required value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>">
+                                    <?php if(isset($field_errors['username'])): ?><div class="invalid-feedback"><?php echo $field_errors['username']; ?></div><?php endif; ?>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label>Password <span class="text-danger">*</span></label>
+                                    <input type="password" name="password" class="form-control<?php if(isset($field_errors['password'])) echo ' is-invalid'; ?>" minlength="8" required autocomplete="new-password">
+                                    <?php if(isset($field_errors['password'])): ?><div class="invalid-feedback"><?php echo $field_errors['password']; ?></div><?php endif; ?>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label>Confirm Password <span class="text-danger">*</span></label>
+                                    <input type="password" name="password_confirm" class="form-control<?php if(isset($field_errors['password_confirm'])) echo ' is-invalid'; ?>" minlength="8" required autocomplete="new-password">
+                                    <?php if(isset($field_errors['password_confirm'])): ?><div class="invalid-feedback"><?php echo $field_errors['password_confirm']; ?></div><?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-4 p-3 border rounded bg-light">
+                            <h5 class="mb-3 text-primary">Personal Information</h5>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label>First Name <span class="text-danger">*</span></label>
@@ -312,6 +317,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </select>
                             </div>
                         </div>
+                        <!-- Family Members section will be injected here by JS -->
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label>Occupation</label>
@@ -342,6 +348,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 </div>
 <script src="<?php echo ASSETS_URL; ?>js/bootstrap.bundle.min.js"></script>
+<script src="<?php echo ASSETS_URL; ?>js/register.js"></script>
 <script>
 // Auto-capitalize name fields and restrict input to letters (and space for names)
 function onlyLetters(e) {
