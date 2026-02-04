@@ -50,6 +50,9 @@ if (isLoggedIn()) {
                     <i class="bi bi-box-arrow-in-right"></i> Login
                 </button>
             </form>
+            <div class="mt-3 text-center">
+                <a href="register.php" class="btn btn-outline-secondary w-100">Register as Resident</a>
+            </div>
         </div>
     </div>
 
