@@ -20,6 +20,12 @@ $menu_items = [
         'roles' => ['barangay_captain', 'secretary', 'treasurer', 'kagawad', 'sk_chairman']
     ],
     [
+        'title' => 'Applications',
+        'icon' => 'bi-file-earmark-person',
+        'url' => 'applications.php',
+        'roles' => ['barangay_captain', 'secretary']
+    ],
+    [
         'title' => 'Residents',
         'icon' => 'bi-people',
         'url' => 'residents.php',
