@@ -45,6 +45,12 @@ define('ROLE_SECRETARY', 'secretary');
 define('ROLE_TREASURER', 'treasurer');
 define('ROLE_KAGAWA', 'kagawad');
 define('ROLE_SK_CHAIRMAN', 'sk_chairman');
+define('ROLE_RESIDENT', 'resident');
+
+// Application/Registration
+define('APPLICATION_STATUS_PENDING', 'pending');
+define('APPLICATION_STATUS_APPROVED', 'approved');
+define('APPLICATION_STATUS_REJECTED', 'rejected');
 
 // Certificate Types
 define('CERT_BARANGAY_CLEARANCE', 'barangay_clearance');
