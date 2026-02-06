@@ -26,7 +26,12 @@
    - Choose file: `database/seeds.sql`
    - Click "Go"
 
-5. **Fix Password Hash (if needed)**
+5. **Run Resident Registration Workflow Migration**
+   - For approval-based registration: visit `run-migration.php` in your browser
+   - Or import `database/migrations/001_resident_registration_workflow.sql` in phpMyAdmin
+   - This creates `resident_applications`, `application_audit_log`, and adds required columns
+
+6. **Fix Password Hash (if needed)**
    - If login doesn't work, access: http://localhost/e-barangay-system/e-barangay-system/fix-password.php
    - Copy the generated SQL
    - Run it in phpMyAdmin SQL tab
