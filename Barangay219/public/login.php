@@ -38,8 +38,8 @@ if (isLoggedIn()) {
             
             <form id="loginForm">
                 <div class="mb-3">
-                    <label for="username" class="form-label">Username</label>
-                    <input type="text" class="form-control" id="username" name="username" required autofocus>
+                    <label for="username" class="form-label">Resident ID / Username</label>
+                    <input type="text" class="form-control" id="username" name="username" required autofocus placeholder="BR219-YYYY-NNNNN or username">
                 </div>
                 <div class="mb-3">
                     <label for="password" class="form-label">Password</label>
@@ -51,6 +51,7 @@ if (isLoggedIn()) {
             </form>
             <div class="mt-3 text-center">
                 <a href="register.php" class="btn btn-outline-secondary w-100">Register as Resident</a>
+                <a href="activate-account.php" class="btn btn-link w-100 mt-2">Activate Account (after approval)</a>
             </div>
         </div>
     </div>
