@@ -120,13 +120,19 @@ function canAccessModule($module) {
     if ($role === ROLE_BARANGAY_CAPTAIN) {
         return true;
     }
+
+    // Applications module for secretary and captain
+    if ($module === 'applications') {
+        return in_array($role, [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY]);
+    }
     
     // Define role permissions
     $permissions = [
-        ROLE_SECRETARY => ['residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'dashboard'],
+        ROLE_SECRETARY => ['residents', 'applications', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'dashboard'],
         ROLE_TREASURER => ['certificates', 'reports', 'dashboard'],
         ROLE_KAGAWA => ['blotters', 'complaints', 'announcements', 'dashboard'],
-        ROLE_SK_CHAIRMAN => ['announcements', 'dashboard']
+        ROLE_SK_CHAIRMAN => ['announcements', 'dashboard'],
+        ROLE_RESIDENT => ['dashboard', 'announcements', 'profile']
     ];
     
     return isset($permissions[$role]) && in_array($module, $permissions[$role]);
