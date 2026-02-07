@@ -34,6 +34,63 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
     </div>
 
+    <!-- Blotter View Modal -->
+    <div class="modal fade blotterModal" id="viewBlotterModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Blotter Case Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>Case Information</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold">Case Title:</label>
+                            <p id="viewCaseTitle"></p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Incident Date:</label>
+                            <p id="viewIncidentDate"></p>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Incident Location:</label>
+                        <p id="viewIncidentLocation"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Description:</label>
+                        <p id="viewDescription"></p>
+                    </div>
+                    
+                    <hr>
+                    <h6>Complainants</h6>
+                    <div id="viewComplainantsInfo"></div>
+                    
+                    <hr>
+                    <h6>Respondents</h6>
+                    <div id="viewRespondentsInfo"></div>
+                    
+                    <hr>
+                    <h6>Case Status</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Status:</label>
+                            <p id="viewStatus"></p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Settlement Date:</label>
+                            <p id="viewSettlementDate"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Blotter Modal -->
     <div class="modal fade blotterModal" id="blotterModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
@@ -173,6 +230,16 @@ include __DIR__ . '/../includes/sidebar.php';
     .blotterModal .modal-body {
         scrollbar-width: thin;
         scrollbar-color: #888 #f1f1f1;
+    }
+
+    /* Card styling for view modal */
+    .blotterModal .card {
+        border: 1px solid #e0e0e0;
+        background-color: #f9f9f9;
+    }
+    .blotterModal .card-body p {
+        font-size: 0.95rem;
+        color: #333;
     }
 </style>
 
