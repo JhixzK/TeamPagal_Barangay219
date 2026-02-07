@@ -32,8 +32,8 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 
     <!-- Blotter Modal -->
-    <div class="modal fade" id="blotterModal" tabindex="-1">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal fade blotterModal" id="blotterModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="blotterModalTitle">Add New Blotter Case</h5>
@@ -44,16 +44,18 @@ include __DIR__ . '/../includes/sidebar.php';
                         <input type="hidden" id="blotterId" name="id">
 
                         <h6>Case Information</h6>
-                        <div class="row">
-                            <div class="col-md-8 mb-3">
+                        <div class="row g-2">
+                            <div class="col-12 col-lg-8 mb-3">
                                 <label class="form-label">Case Title <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="case_title" name="case_title" required>
                             </div>
-                            <div class="col-md-2 mb-3">
+                            <div class="col-12 col-lg-4 mb-3">
                                 <label class="form-label">Incident Date <span class="text-danger">*</span></label>
                                 <input type="date" class="form-control" id="incident_date" name="incident_date" required>
                             </div>
-                            <div class="col-md-2 mb-3">
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-12 mb-3">
                                 <label class="form-label">Incident Location <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="incident_location" name="incident_location" required>
                             </div>
@@ -81,8 +83,8 @@ include __DIR__ . '/../includes/sidebar.php';
 
                         <hr>
                         <h6>Case Status</h6>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
+                        <div class="row g-2">
+                            <div class="col-12 col-md-6 mb-3">
                                 <label class="form-label">Case Status <span class="text-danger">*</span></label>
                                 <select class="form-select" id="status" name="status" required>
                                     <option value="pending">Pending</option>
@@ -92,7 +94,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <option value="referred">Referred</option>
                                 </select>
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-12 col-md-6 mb-3">
                                 <label class="form-label">Settlement Date <span class="text-danger">*</span></label>
                                 <input type="date" class="form-control" id="settlement_date" name="settlement_date" required>
                             </div>
@@ -107,6 +109,58 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
     </div>
 </div>
+
+<style>
+    /* Scrollbar styling for data table container */
+    .data-table {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    .data-table::-webkit-scrollbar {
+        width: 8px;
+    }
+    .data-table::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    .data-table::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+    .data-table::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+    /* Firefox scrollbar styling */
+    .data-table {
+        scrollbar-width: thin;
+        scrollbar-color: #888 #f1f1f1;
+    }
+
+    /* Scrollbar styling for modal */
+    .blotterModal .modal-body {
+        max-height: 70vh;
+        overflow-y: auto !important;
+    }
+    .blotterModal .modal-body::-webkit-scrollbar {
+        width: 8px;
+    }
+    .blotterModal .modal-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    .blotterModal .modal-body::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+    .blotterModal .modal-body::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+    /* Firefox scrollbar styling */
+    .blotterModal .modal-body {
+        scrollbar-width: thin;
+        scrollbar-color: #888 #f1f1f1;
+    }
+</style>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
 <script src="<?php echo ASSETS_URL; ?>css/js/blotter.js?v=<?php echo time(); ?>"></script>
