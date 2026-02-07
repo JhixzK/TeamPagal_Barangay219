@@ -424,14 +424,50 @@ if (houseField) {
     });
 }
 
-// Birth date - calculate age
-document.getElementById('birth_date').addEventListener('change', function() {
-    const dob = this.value;
-    if (dob) {
-        const age = Math.floor((new Date() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
-        document.getElementById('ageDisplay').value = age;
+// Birth date - calculate age automatically
+function calculateAge(dateString) {
+    if (!dateString) {
+        document.getElementById('ageDisplay').value = '';
+        return;
     }
-});
+    
+    const birthDate = new Date(dateString);
+    const today = new Date();
+    
+    // Validate the date
+    if (isNaN(birthDate.getTime())) {
+        document.getElementById('ageDisplay').value = '';
+        return;
+    }
+    
+    // Calculate age
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const month = today.getMonth() - birthDate.getMonth();
+    const day = today.getDate() - birthDate.getDate();
+    
+    // Adjust age if birthday hasn't occurred this year
+    if (month < 0 || (month === 0 && day < 0)) {
+        age--;
+    }
+    
+    // Display the age
+    if (age >= 0) {
+        document.getElementById('ageDisplay').value = age;
+    } else {
+        document.getElementById('ageDisplay').value = '';
+    }
+}
+
+// Attach event listeners for birth date calculation
+const birthDateField = document.getElementById('birth_date');
+if (birthDateField) {
+    birthDateField.addEventListener('change', function() {
+        calculateAge(this.value);
+    });
+    birthDateField.addEventListener('input', function() {
+        calculateAge(this.value);
+    });
+}
 
 // Toggle additional fields for special categories
 ['is_pwd','is_solo','is_ip'].forEach(id => {
