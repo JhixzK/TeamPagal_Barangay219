@@ -186,16 +186,16 @@ function addComplainantRow(data = {}) {
     div.className = 'row mb-3 party-row';
     div.innerHTML = `
         <div class="col-md-5">
-            <label class="form-label">Complainant Name</label>
-            <input type="text" class="form-control" placeholder="Full name" data-name name="complainant_name">
+            <label class="form-label">Complainant Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" placeholder="Full name" data-name name="complainant_name" required>
         </div>
         <div class="col-md-4">
-            <label class="form-label">Barangay</label>
-            <input type="text" class="form-control" placeholder="Barangay" data-barangay name="complainant_barangay">
+            <label class="form-label">Barangay <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" placeholder="Barangay" data-barangay name="complainant_barangay" required>
         </div>
         <div class="col-md-2">
-            <label class="form-label">Contact Number</label>
-            <input type="text" class="form-control" placeholder="Phone/Mobile" data-contact name="complainant_contact">
+            <label class="form-label">Contact Number <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" placeholder="Phone/Mobile" data-contact name="complainant_contact" required>
         </div>
         <div class="col-md-1">
             <label class="form-label" style="visibility:hidden;">Action</label>
@@ -217,16 +217,16 @@ function addRespondentRow(data = {}) {
     div.className = 'row mb-3 party-row';
     div.innerHTML = `
         <div class="col-md-5">
-            <label class="form-label">Respondent Name</label>
-            <input type="text" class="form-control" placeholder="Full name" data-name name="respondent_name">
+            <label class="form-label">Respondent Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" placeholder="Full name" data-name name="respondent_name" required>
         </div>
         <div class="col-md-4">
-            <label class="form-label">Barangay</label>
-            <input type="text" class="form-control" placeholder="Barangay" data-barangay name="respondent_barangay">
+            <label class="form-label">Barangay <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" placeholder="Barangay" data-barangay name="respondent_barangay" required>
         </div>
         <div class="col-md-2">
-            <label class="form-label">Contact Number</label>
-            <input type="text" class="form-control" placeholder="Phone/Mobile" data-contact name="respondent_contact">
+            <label class="form-label">Contact Number <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" placeholder="Phone/Mobile" data-contact name="respondent_contact" required>
         </div>
         <div class="col-md-1">
             <label class="form-label" style="visibility:hidden;">Action</label>
