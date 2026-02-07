@@ -29,6 +29,15 @@ function validatePhoneInput(input) {
     });
 }
 
+// Name input validation - only allow letters and spaces, no numbers
+function validateNameInput(input) {
+    input.addEventListener('input', function() {
+        // Remove any non-letter and non-space characters
+        let value = this.value.replace(/[^a-zA-Z\s]/g, '');
+        this.value = value;
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     loadBlotters();
     initBlotterModal();
@@ -168,6 +177,10 @@ function initBlotterModal() {
     addComplainantRow();
     addRespondentRow();
 
+    // Add name validation to case title
+    const caseTitleInput = document.getElementById('case_title');
+    validateNameInput(caseTitleInput);
+
     document.getElementById('addComplainantBtn').addEventListener('click', addComplainantRow);
     document.getElementById('addRespondentBtn').addEventListener('click', addRespondentRow);
     document.getElementById('blotterForm').addEventListener('submit', submitBlotterForm);
@@ -185,6 +198,10 @@ function resetBlotterForm() {
     if (titleEl) titleEl.textContent = 'Add New Blotter Case';
     const submitBtn = document.querySelector('#blotterForm .btn-primary');
     if (submitBtn) submitBtn.textContent = 'Save Blotter Case';
+    
+    // Reapply name validation to case title
+    const caseTitleInput = document.getElementById('case_title');
+    validateNameInput(caseTitleInput);
 }
 
 function deleteBlotter(id) {
@@ -237,6 +254,13 @@ function addComplainantRow(data = {}) {
     if (data.barangay) div.querySelector('[data-barangay]').value = data.barangay;
     if (data.contact) div.querySelector('[data-contact]').value = data.contact;
 
+    // Add name input validation to all name fields
+    const nameInput = div.querySelector('[data-name]');
+    validateNameInput(nameInput);
+    
+    const barangayInput = div.querySelector('[data-barangay]');
+    validateNameInput(barangayInput);
+
     // Add phone input validation
     const contactInput = div.querySelector('[data-contact]');
     validatePhoneInput(contactInput);
@@ -275,6 +299,13 @@ function addRespondentRow(data = {}) {
     if (data.address) div.querySelector('[data-address]').value = data.address;
     if (data.barangay) div.querySelector('[data-barangay]').value = data.barangay;
     if (data.contact) div.querySelector('[data-contact]').value = data.contact;
+
+    // Add name input validation to all name fields
+    const nameInput = div.querySelector('[data-name]');
+    validateNameInput(nameInput);
+    
+    const barangayInput = div.querySelector('[data-barangay]');
+    validateNameInput(barangayInput);
 
     // Add phone input validation
     const contactInput = div.querySelector('[data-contact]');
