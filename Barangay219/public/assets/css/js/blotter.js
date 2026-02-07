@@ -41,6 +41,30 @@ function validateNameInput(input) {
 document.addEventListener('DOMContentLoaded', function() {
     loadBlotters();
     initBlotterModal();
+    
+    // Add search functionality
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            const searchTerm = this.value.toLowerCase();
+            const tableRows = document.querySelectorAll('#blotterTableBody tr');
+            
+            tableRows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            // Show message if no results found
+            const visibleRows = Array.from(tableRows).filter(row => row.style.display !== 'none');
+            if (visibleRows.length === 0 && searchTerm !== '') {
+                // You can add a custom message here if needed
+            }
+        });
+    }
 });
 
 function loadBlotters() {
