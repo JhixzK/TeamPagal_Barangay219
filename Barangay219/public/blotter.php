@@ -54,13 +54,13 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <input type="date" class="form-control" id="incident_date" name="incident_date" required>
                             </div>
                             <div class="col-md-2 mb-3">
-                                <label class="form-label">Incident Location</label>
-                                <input type="text" class="form-control" id="incident_location" name="incident_location">
+                                <label class="form-label">Incident Location <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="incident_location" name="incident_location" required>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            <label class="form-label">Description <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
                         </div>
 
                         <hr>
@@ -83,8 +83,8 @@ include __DIR__ . '/../includes/sidebar.php';
                         <h6>Case Status</h6>
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                <label class="form-label">Case Status</label>
-                                <select class="form-select" id="status" name="status">
+                                <label class="form-label">Case Status <span class="text-danger">*</span></label>
+                                <select class="form-select" id="status" name="status" required>
                                     <option value="pending">Pending</option>
                                     <option value="under_investigation">Under Investigation</option>
                                     <option value="resolved">Resolved</option>
@@ -93,8 +93,8 @@ include __DIR__ . '/../includes/sidebar.php';
                                 </select>
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label class="form-label">Settlement Date</label>
-                                <input type="date" class="form-control" id="settlement_date" name="settlement_date">
+                                <label class="form-label">Settlement Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="settlement_date" name="settlement_date" required>
                             </div>
                         </div>
                     </div>
