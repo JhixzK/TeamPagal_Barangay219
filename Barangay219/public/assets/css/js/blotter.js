@@ -4,6 +4,31 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
     console.warn('API_URL invalid or missing; using fallback:', window.API_URL);
 }
 
+// Phone number input validation - only allow + and digits, max 13 characters, always starts with +63
+function validatePhoneInput(input) {
+    input.addEventListener('input', function() {
+        // Always ensure it starts with +63
+        if (!this.value.startsWith('+63')) {
+            this.value = '+63';
+            return;
+        }
+        // Remove any non-digit and non-plus characters
+        let value = this.value.replace(/[^\d+]/g, '');
+        // Limit to 13 characters (+63 + 10 digits)
+        value = value.substring(0, 13);
+        this.value = value;
+    });
+    
+    // Add blur event to ensure +63 is always present
+    input.addEventListener('blur', function() {
+        if (this.value.trim() === '' || this.value === '+63') {
+            this.value = '+63';
+        } else if (!this.value.startsWith('+63')) {
+            this.value = '+63';
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     loadBlotters();
     initBlotterModal();
@@ -104,7 +129,7 @@ function editBlotter(id) {
             try {
                 const comps = JSON.parse(info.complainant_name);
                 if (Array.isArray(comps)) {
-                    comps.forEach(c => addComplainantRow({ name: c.name || '', barangay: c.barangay || '', contact: c.contact || '' }));
+                    comps.forEach(c => addComplainantRow({ name: c.name || '', address: c.address || '', barangay: c.barangay || '', contact: c.contact || '' }));
                 } else {
                     addComplainantRow({ name: info.complainant_name });
                 }
@@ -114,7 +139,7 @@ function editBlotter(id) {
             try {
                 const resps = JSON.parse(info.respondent_name);
                 if (Array.isArray(resps)) {
-                    resps.forEach(r => addRespondentRow({ name: r.name || '', barangay: r.barangay || '', contact: r.contact || '' }));
+                    resps.forEach(r => addRespondentRow({ name: r.name || '', address: r.address || '', barangay: r.barangay || '', contact: r.contact || '' }));
                 } else {
                     addRespondentRow({ name: info.respondent_name });
                 }
@@ -185,17 +210,21 @@ function addComplainantRow(data = {}) {
     const div = document.createElement('div');
     div.className = 'row mb-3 party-row';
     div.innerHTML = `
-        <div class="col-md-5">
+        <div class="col-md-4">
             <label class="form-label">Complainant Name <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Full name" data-name name="complainant_name" required>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <label class="form-label">Address <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" placeholder="Address" data-address name="complainant_address" required>
+        </div>
+        <div class="col-md-2">
             <label class="form-label">Barangay <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Barangay" data-barangay name="complainant_barangay" required>
         </div>
         <div class="col-md-2">
             <label class="form-label">Contact Number <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" placeholder="Phone/Mobile" data-contact name="complainant_contact" required>
+            <input type="text" class="form-control" placeholder="+63xxxxxxxxxx" data-contact name="complainant_contact" maxlength="13" pattern="\+63\d{10}" value="+63" required>
         </div>
         <div class="col-md-1">
             <label class="form-label" style="visibility:hidden;">Action</label>
@@ -204,8 +233,13 @@ function addComplainantRow(data = {}) {
     `;
     // populate
     if (data.name) div.querySelector('[data-name]').value = data.name;
+    if (data.address) div.querySelector('[data-address]').value = data.address;
     if (data.barangay) div.querySelector('[data-barangay]').value = data.barangay;
     if (data.contact) div.querySelector('[data-contact]').value = data.contact;
+
+    // Add phone input validation
+    const contactInput = div.querySelector('[data-contact]');
+    validatePhoneInput(contactInput);
 
     div.querySelector('.remove-party').addEventListener('click', () => div.remove());
     container.appendChild(div);
@@ -216,17 +250,21 @@ function addRespondentRow(data = {}) {
     const div = document.createElement('div');
     div.className = 'row mb-3 party-row';
     div.innerHTML = `
-        <div class="col-md-5">
+        <div class="col-md-4">
             <label class="form-label">Respondent Name <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Full name" data-name name="respondent_name" required>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <label class="form-label">Address <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" placeholder="Address" data-address name="respondent_address" required>
+        </div>
+        <div class="col-md-2">
             <label class="form-label">Barangay <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Barangay" data-barangay name="respondent_barangay" required>
         </div>
         <div class="col-md-2">
-            <label class="form-label">Contact Number <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" placeholder="Phone/Mobile" data-contact name="respondent_contact" required>
+            <label class="form-label">Contact Number <span class="text-danger\">*</span></label>
+            <input type="text" class="form-control" placeholder="+63xxxxxxxxxx" data-contact name="respondent_contact" maxlength="13" pattern="\+63\d{10}" value="+63" required>
         </div>
         <div class="col-md-1">
             <label class="form-label" style="visibility:hidden;">Action</label>
@@ -234,8 +272,14 @@ function addRespondentRow(data = {}) {
         </div>
     `;
     if (data.name) div.querySelector('[data-name]').value = data.name;
+    if (data.address) div.querySelector('[data-address]').value = data.address;
     if (data.barangay) div.querySelector('[data-barangay]').value = data.barangay;
     if (data.contact) div.querySelector('[data-contact]').value = data.contact;
+
+    // Add phone input validation
+    const contactInput = div.querySelector('[data-contact]');
+    validatePhoneInput(contactInput);
+
     div.querySelector('.remove-party').addEventListener('click', () => div.remove());
     container.appendChild(div);
 }
@@ -255,16 +299,18 @@ function submitBlotterForm(e) {
     const comps = [];
     document.querySelectorAll('#complainantsContainer .party-row').forEach(row => {
         const name = row.querySelector('[data-name]').value.trim();
+        const address = row.querySelector('[data-address]').value.trim();
         const barangay = row.querySelector('[data-barangay]').value.trim();
         const contact = row.querySelector('[data-contact]').value.trim();
-        if (name) comps.push({ name, barangay, contact });
+        if (name) comps.push({ name, address, barangay, contact });
     });
     const resps = [];
     document.querySelectorAll('#respondentsContainer .party-row').forEach(row => {
         const name = row.querySelector('[data-name]').value.trim();
+        const address = row.querySelector('[data-address]').value.trim();
         const barangay = row.querySelector('[data-barangay]').value.trim();
         const contact = row.querySelector('[data-contact]').value.trim();
-        if (name) resps.push({ name, barangay, contact });
+        if (name) resps.push({ name, address, barangay, contact });
     });
 
     payload.append('complainants', JSON.stringify(comps));
