@@ -188,7 +188,7 @@ ALTER TABLE `announcements`
 -- Insert default admin user (password: admin123)
 -- Password hash for 'admin123' using bcrypt
 INSERT INTO users (username, password, email, role, status) VALUES
-('admin', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'admin@barangay219.gov.ph', 'barangay_captain', 'active')
+('admin', '<NEW_BCRYPT_HASH>', 'admin@barangay219.gov.ph', 'barangay_captain', 'active')
 ON DUPLICATE KEY UPDATE password = VALUES(password);
 
 -- Sample residents (optional - for testing)
