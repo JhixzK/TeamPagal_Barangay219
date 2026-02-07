@@ -225,27 +225,26 @@ function addComplainantRow(data = {}) {
     const id = 'comp_' + Date.now() + Math.floor(Math.random()*1000);
     const container = document.getElementById('complainantsContainer');
     const div = document.createElement('div');
-    div.className = 'row mb-3 party-row';
+    div.className = 'row mb-3 g-2 party-row';
     div.innerHTML = `
-        <div class="col-md-4">
+        <div class="col-12 col-md-4">
             <label class="form-label">Complainant Name <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Full name" data-name name="complainant_name" required>
         </div>
-        <div class="col-md-3">
+        <div class="col-12 col-md-3">
             <label class="form-label">Address <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Address" data-address name="complainant_address" required>
         </div>
-        <div class="col-md-2">
+        <div class="col-12 col-md-2">
             <label class="form-label">Barangay <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Barangay" data-barangay name="complainant_barangay" required>
         </div>
-        <div class="col-md-2">
+        <div class="col-12 col-md-2">
             <label class="form-label">Contact Number <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="+63xxxxxxxxxx" data-contact name="complainant_contact" maxlength="13" pattern="\+63\d{10}" value="+63" required>
         </div>
-        <div class="col-md-1">
-            <label class="form-label" style="visibility:hidden;">Action</label>
-            <button type="button" class="btn btn-danger btn-sm remove-party" style="display:block; width:100%;">&times;</button>
+        <div class="col-12 col-md-1 d-flex align-items-end">
+            <button type="button" class="btn btn-danger btn-sm remove-party" style="width:100%;">&times;</button>
         </div>
     `;
     // populate
@@ -272,27 +271,26 @@ function addComplainantRow(data = {}) {
 function addRespondentRow(data = {}) {
     const container = document.getElementById('respondentsContainer');
     const div = document.createElement('div');
-    div.className = 'row mb-3 party-row';
+    div.className = 'row mb-3 g-2 party-row';
     div.innerHTML = `
-        <div class="col-md-4">
+        <div class="col-12 col-md-4">
             <label class="form-label">Respondent Name <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Full name" data-name name="respondent_name" required>
         </div>
-        <div class="col-md-3">
+        <div class="col-12 col-md-3">
             <label class="form-label">Address <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Address" data-address name="respondent_address" required>
         </div>
-        <div class="col-md-2">
+        <div class="col-12 col-md-2">
             <label class="form-label">Barangay <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Barangay" data-barangay name="respondent_barangay" required>
         </div>
-        <div class="col-md-2">
-            <label class="form-label">Contact Number <span class="text-danger\">*</span></label>
+        <div class="col-12 col-md-2">
+            <label class="form-label">Contact Number <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="+63xxxxxxxxxx" data-contact name="respondent_contact" maxlength="13" pattern="\+63\d{10}" value="+63" required>
         </div>
-        <div class="col-md-1">
-            <label class="form-label" style="visibility:hidden;">Action</label>
-            <button type="button" class="btn btn-danger btn-sm remove-party" style="display:block; width:100%;">&times;</button>
+        <div class="col-12 col-md-1 d-flex align-items-end">
+            <button type="button" class="btn btn-danger btn-sm remove-party" style="width:100%;">&times;</button>
         </div>
     `;
     if (data.name) div.querySelector('[data-name]').value = data.name;
