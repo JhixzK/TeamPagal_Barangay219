@@ -127,15 +127,66 @@ function viewBlotter(id) {
         .then(r => r.json())
         .then(d => {
             if (d.success) {
-                // show a simple modal-like alert for now
                 const info = d.data;
-                let comp = info.complainant_name;
-                try { const c = JSON.parse(info.complainant_name); comp = Array.isArray(c) ? c.map(x=>x.name).join(', ') : comp; } catch(e){}
-                let resp = info.respondent_name;
-                try { const r = JSON.parse(info.respondent_name); resp = Array.isArray(r) ? r.map(x=>x.name).join(', ') : resp; } catch(e){}
-                alert(`Case: ${info.case_title}\nComplainant(s): ${comp}\nRespondent(s): ${resp}\n\nDescription:\n${info.description}`);
+                
+                // Populate Case Information
+                document.getElementById('viewCaseTitle').textContent = info.case_title || '-';
+                document.getElementById('viewIncidentDate').textContent = formatDate(info.incident_date) || '-';
+                document.getElementById('viewIncidentLocation').textContent = info.incident_location || '-';
+                document.getElementById('viewDescription').textContent = info.description || '-';
+                
+                // Populate Complainants
+                let complainantsHTML = '';
+                try {
+                    const comps = JSON.parse(info.complainant_name);
+                    if (Array.isArray(comps)) {
+                        complainantsHTML = comps.map((c, idx) => `
+                            <div class="card mb-2">
+                                <div class="card-body py-2">
+                                    <p class="mb-1"><strong>Complainant ${idx + 1}:</strong> ${c.name || '-'}</p>
+                                    <p class="mb-1"><strong>Address:</strong> ${c.address || '-'}</p>
+                                    <p class="mb-1"><strong>Barangay:</strong> ${c.barangay || '-'}</p>
+                                    <p class="mb-0"><strong>Contact:</strong> ${c.contact || '-'}</p>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                } catch(e) {
+                    complainantsHTML = `<p>${info.complainant_name || '-'}</p>`;
+                }
+                document.getElementById('viewComplainantsInfo').innerHTML = complainantsHTML || '<p>-</p>';
+                
+                // Populate Respondents
+                let respondentsHTML = '';
+                try {
+                    const resps = JSON.parse(info.respondent_name);
+                    if (Array.isArray(resps)) {
+                        respondentsHTML = resps.map((r, idx) => `
+                            <div class="card mb-2">
+                                <div class="card-body py-2">
+                                    <p class="mb-1"><strong>Respondent ${idx + 1}:</strong> ${r.name || '-'}</p>
+                                    <p class="mb-1"><strong>Address:</strong> ${r.address || '-'}</p>
+                                    <p class="mb-1"><strong>Barangay:</strong> ${r.barangay || '-'}</p>
+                                    <p class="mb-0"><strong>Contact:</strong> ${r.contact || '-'}</p>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                } catch(e) {
+                    respondentsHTML = `<p>${info.respondent_name || '-'}</p>`;
+                }
+                document.getElementById('viewRespondentsInfo').innerHTML = respondentsHTML || '<p>-</p>';
+                
+                // Populate Case Status
+                document.getElementById('viewStatus').textContent = info.status || '-';
+                document.getElementById('viewSettlementDate').textContent = formatDate(info.settlement_date) || '-';
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('viewBlotterModal'));
+                modal.show();
             }
-        });
+        })
+        .catch(err => { console.error(err); alert('Error loading blotter details'); });
 }
 
 function editBlotter(id) {
