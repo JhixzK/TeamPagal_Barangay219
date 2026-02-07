@@ -8,7 +8,7 @@
 define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../config/constants.php';
 
-$barangay = 'Barangay 220, Tondo';
+$barangay = 'Barangay 219, Tondo';
 $city = 'Manila';
 $province = 'Metro Manila';
 
