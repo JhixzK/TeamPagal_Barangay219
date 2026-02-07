@@ -5,7 +5,7 @@
 -- Password hash for 'admin123' using bcrypt (properly generated)
 -- IMPORTANT: If login doesn't work, run fix-password.php in your browser to generate a new hash
 INSERT INTO users (username, password, email, role, status) VALUES
-('admin', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'admin@barangay195.gov.ph', 'barangay_captain', 'active')
+('admin', '<NEW_BCRYPT_HASH>', 'admin@barangay195.gov.ph', 'barangay_captain', 'active')
 ON DUPLICATE KEY UPDATE password = VALUES(password);
 
 -- Note: The password hash above is a properly generated bcrypt hash for 'admin123'
