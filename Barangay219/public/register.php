@@ -46,12 +46,12 @@ $valid_id_types = [
         <div class="col-lg-8">
             <div class="card shadow">
                 <div class="card-header bg-primary text-white text-center py-3">
-                    <h4 class="mb-0"><i class="bi bi-person-plus"></i> Resident Registration</h4>
+                    <h4 class="mb-0">Resident Registration</h4>
                     <p class="mb-0 small mt-1"><?php echo $barangay; ?> • <?php echo $city; ?>, <?php echo $province; ?></p>
                 </div>
                 <div class="card-body p-4">
                     <div class="note-box mb-4">
-                        <i class="bi bi-info-circle"></i> <strong>No username or password needed.</strong> 
+                        <strong>No username or password needed.</strong> 
                         Your application will be reviewed by the barangay. After approval, you will receive your Resident ID and instructions to activate your account.
                     </div>
                     <div id="alertContainer"></div>
@@ -60,19 +60,19 @@ $valid_id_types = [
                         <!-- 1. Personal Information -->
                         <div class="card section-card mb-4">
                             <div class="card-body">
-                                <h5 class="section-title mb-3"><i class="bi bi-person"></i> Personal Information</h5>
+                                <h5 class="section-title mb-3">Personal Information</h5>
                                 <div class="row">
                                     <div class="col-md-4 mb-3">
                                         <label>First Name <span class="text-danger">*</span></label>
-                                        <input type="text" name="first_name" class="form-control" maxlength="100" required>
+                                        <input type="text" name="first_name" class="form-control" maxlength="50" autocomplete="given-name" required>
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label>Middle Name</label>
-                                        <input type="text" name="middle_name" class="form-control" maxlength="100">
+                                        <input type="text" name="middle_name" class="form-control" maxlength="50" autocomplete="additional-name">
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label>Last Name <span class="text-danger">*</span></label>
-                                        <input type="text" name="last_name" class="form-control" maxlength="100" required>
+                                        <input type="text" name="last_name" class="form-control" maxlength="50" autocomplete="family-name" required>
                                     </div>
                                 </div>
                                 <div class="row">
@@ -108,7 +108,7 @@ $valid_id_types = [
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label>Place of Birth</label>
-                                        <input type="text" name="place_of_birth" class="form-control" maxlength="150">
+                                        <input type="text" name="place_of_birth" class="form-control" maxlength="100">
                                     </div>
                                     <div class="col-md-3 mb-3">
                                         <label>Civil Status <span class="text-danger">*</span></label>
@@ -123,7 +123,7 @@ $valid_id_types = [
                                     </div>
                                     <div class="col-md-3 mb-3">
                                         <label>Citizenship</label>
-                                        <input type="text" name="citizenship" class="form-control" value="Filipino" maxlength="50">
+                                        <input type="text" name="citizenship" class="form-control" value="Filipino" maxlength="30">
                                     </div>
                                 </div>
                             </div>
@@ -132,11 +132,11 @@ $valid_id_types = [
                         <!-- 2. Family & Household -->
                         <div class="card section-card mb-4">
                             <div class="card-body">
-                                <h5 class="section-title mb-3"><i class="bi bi-house-heart"></i> Family & Household Information</h5>
+                                <h5 class="section-title mb-3">Family & Household Information</h5>
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label>Family Code / Head of Family ID</label>
-                                        <input type="text" name="family_code" class="form-control" maxlength="50" placeholder="ID only, no names">
+                                        <input type="text" name="family_code" class="form-control" maxlength="30" placeholder="ID only, no names">
                                         <small class="text-muted">If applicable</small>
                                     </div>
                                     <div class="col-md-6 mb-3">
@@ -158,19 +158,19 @@ $valid_id_types = [
                         <!-- 3. Address & Residency -->
                         <div class="card section-card mb-4">
                             <div class="card-body">
-                                <h5 class="section-title mb-3"><i class="bi bi-geo-alt"></i> Address & Residency</h5>
+                                <h5 class="section-title mb-3">Address & Residency</h5>
                                 <div class="row">
                                     <div class="col-md-4 mb-3">
                                         <label>House Number</label>
-                                        <input type="text" name="house_number" class="form-control" maxlength="50">
+                                        <input type="text" name="house_number" class="form-control" maxlength="30">
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label>Street</label>
-                                        <input type="text" name="street" class="form-control" maxlength="150">
+                                        <input type="text" name="street" class="form-control" maxlength="100">
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label>Purok/Sitio</label>
-                                        <input type="text" name="purok_sitio" class="form-control" maxlength="100">
+                                        <input type="text" name="purok_sitio" class="form-control" maxlength="80">
                                     </div>
                                 </div>
                                 <input type="hidden" name="barangay" value="<?php echo htmlspecialchars($barangay); ?>">
@@ -202,15 +202,15 @@ $valid_id_types = [
                         <!-- 4. Contact & Emergency -->
                         <div class="card section-card mb-4">
                             <div class="card-body">
-                                <h5 class="section-title mb-3"><i class="bi bi-telephone"></i> Contact & Emergency Information</h5>
+                                <h5 class="section-title mb-3">Contact & Emergency Information</h5>
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label>Mobile Number <span class="text-danger">*</span></label>
-                                        <input type="tel" name="mobile_number" class="form-control" maxlength="11" pattern="\d{10,11}" required placeholder="09xxxxxxxxx">
+                                        <input type="tel" name="mobile_number" class="form-control" maxlength="11" inputmode="numeric" autocomplete="tel" required placeholder="09xxxxxxxxx">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label>Email (optional)</label>
-                                        <input type="email" name="email" class="form-control" maxlength="100">
+                                        <input type="email" name="email" class="form-control" maxlength="100" autocomplete="email">
                                     </div>
                                 </div>
                                 <hr>
@@ -218,15 +218,15 @@ $valid_id_types = [
                                 <div class="row">
                                     <div class="col-md-4 mb-3">
                                         <label>Name <span class="text-danger">*</span></label>
-                                        <input type="text" name="emergency_contact_name" class="form-control" maxlength="150" required>
+                                        <input type="text" name="emergency_contact_name" class="form-control" maxlength="100" required>
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label>Number <span class="text-danger">*</span></label>
-                                        <input type="tel" name="emergency_contact_number" class="form-control" maxlength="20" required>
+                                        <input type="tel" name="emergency_contact_number" class="form-control" maxlength="11" inputmode="numeric" required>
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label>Relationship <span class="text-danger">*</span></label>
-                                        <input type="text" name="emergency_contact_relationship" class="form-control" maxlength="50" required placeholder="e.g. Spouse, Parent">
+                                        <input type="text" name="emergency_contact_relationship" class="form-control" maxlength="30" required placeholder="e.g. Spouse, Parent">
                                     </div>
                                 </div>
                             </div>
@@ -235,7 +235,7 @@ $valid_id_types = [
                         <!-- 5. Education & Employment -->
                         <div class="card section-card mb-4">
                             <div class="card-body">
-                                <h5 class="section-title mb-3"><i class="bi bi-briefcase"></i> Education & Employment</h5>
+                                <h5 class="section-title mb-3">Education & Employment</h5>
                                 <div class="row">
                                     <div class="col-md-4 mb-3">
                                         <label>Educational Attainment</label>
@@ -263,7 +263,7 @@ $valid_id_types = [
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label>Occupation</label>
-                                        <input type="text" name="occupation" class="form-control" maxlength="100">
+                                        <input type="text" name="occupation" class="form-control" maxlength="80">
                                     </div>
                                 </div>
                             </div>
@@ -272,7 +272,7 @@ $valid_id_types = [
                         <!-- 6. Special Categories -->
                         <div class="card section-card mb-4">
                             <div class="card-body">
-                                <h5 class="section-title mb-3"><i class="bi bi-heart"></i> Special Categories (Optional)</h5>
+                                <h5 class="section-title mb-3">Special Categories (Optional)</h5>
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <div class="form-check">
@@ -286,21 +286,21 @@ $valid_id_types = [
                                             <input class="form-check-input" type="checkbox" name="is_pwd" id="is_pwd" value="1">
                                             <label class="form-check-label" for="is_pwd">PWD</label>
                                         </div>
-                                        <input type="text" name="pwd_id_number" class="form-control mt-1" placeholder="PWD ID No." maxlength="50" style="display:none" id="pwdIdField">
+                                        <input type="text" name="pwd_id_number" class="form-control mt-1" placeholder="PWD ID No." maxlength="30" style="display:none" id="pwdIdField">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" name="is_solo_parent" id="is_solo" value="1">
                                             <label class="form-check-label" for="is_solo">Solo Parent</label>
                                         </div>
-                                        <input type="text" name="solo_parent_id_number" class="form-control mt-1" placeholder="Solo Parent ID No." maxlength="50" style="display:none" id="soloIdField">
+                                        <input type="text" name="solo_parent_id_number" class="form-control mt-1" placeholder="Solo Parent ID No." maxlength="30" style="display:none" id="soloIdField">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" name="is_ip_member" id="is_ip" value="1">
                                             <label class="form-check-label" for="is_ip">IP Member</label>
                                         </div>
-                                        <input type="text" name="ip_group" class="form-control mt-1" placeholder="IP Group" maxlength="100" style="display:none" id="ipGroupField">
+                                        <input type="text" name="ip_group" class="form-control mt-1" placeholder="IP Group" maxlength="80" style="display:none" id="ipGroupField">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <div class="form-check">
@@ -315,7 +315,7 @@ $valid_id_types = [
                         <!-- 7. Identification & Verification -->
                         <div class="card section-card mb-4">
                             <div class="card-body">
-                                <h5 class="section-title mb-3"><i class="bi bi-card-checklist"></i> Identification & Verification</h5>
+                                <h5 class="section-title mb-3">Identification & Verification</h5>
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label>Valid ID Type <span class="text-danger">*</span></label>
@@ -328,7 +328,7 @@ $valid_id_types = [
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label>Valid ID Number <span class="text-danger">*</span></label>
-                                        <input type="text" name="valid_id_number" class="form-control" maxlength="100" required>
+                                        <input type="text" name="valid_id_number" class="form-control" maxlength="50" required>
                                     </div>
                                 </div>
                                 <div class="row">
@@ -354,7 +354,7 @@ $valid_id_types = [
 
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
-                                <i class="bi bi-send"></i> Submit Application
+                                Submit Application
                             </button>
                             <a href="<?php echo BASE_URL; ?>login.php" class="btn btn-outline-secondary btn-lg">Back to Login</a>
                         </div>
@@ -368,6 +368,63 @@ $valid_id_types = [
 <script>
 window.API_URL = '<?php echo addslashes(API_URL); ?>';
 
+// Professional name field validation - Letters, spaces, hyphens, apostrophes, periods only
+const nameFields = ['first_name', 'middle_name', 'last_name', 'place_of_birth', 'citizenship', 'emergency_contact_name', 'emergency_contact_relationship', 'occupation', 'ip_group', 'street', 'purok_sitio'];
+nameFields.forEach(fieldName => {
+    const field = document.querySelector(`input[name="${fieldName}"]`);
+    if (field) {
+        field.addEventListener('input', function() {
+            // Only allow letters, spaces, hyphens, apostrophes, periods
+            this.value = this.value.replace(/[^a-zA-Z\s\-'.,]/g, '').trim();
+            // Prevent multiple consecutive spaces
+            this.value = this.value.replace(/\s+/g, ' ');
+        });
+        field.addEventListener('blur', function() {
+            // Trim whitespace on blur
+            this.value = this.value.trim();
+        });
+    }
+});
+
+// Professional number field validation - Digits only for phone numbers
+const phoneFields = ['mobile_number', 'emergency_contact_number'];
+phoneFields.forEach(fieldName => {
+    const field = document.querySelector(`input[name="${fieldName}"]`);
+    if (field) {
+        field.addEventListener('input', function() {
+            // Remove all non-digits
+            let digits = this.value.replace(/[^0-9]/g, '');
+            // Limit to 11 digits (Philippine standard)
+            this.value = digits.slice(0, 11);
+        });
+    }
+});
+
+// Professional ID field validation - Letters, numbers, hyphens, slashes, spaces, periods
+const idFields = ['valid_id_number', 'pwd_id_number', 'solo_parent_id_number', 'family_code'];
+idFields.forEach(fieldName => {
+    const field = document.querySelector(`input[name="${fieldName}"]`);
+    if (field) {
+        field.addEventListener('input', function() {
+            // Allow: letters, numbers, hyphens, slashes, spaces, periods
+            this.value = this.value.replace(/[^a-zA-Z0-9\-\/\s.]/g, '').trim();
+            // Prevent multiple consecutive spaces
+            this.value = this.value.replace(/\s+/g, ' ');
+        });
+    }
+});
+
+// House number - alphanumeric
+const houseField = document.querySelector(`input[name="house_number"]`);
+if (houseField) {
+    houseField.addEventListener('input', function() {
+        // Allow letters, numbers, hyphens, slashes, spaces
+        this.value = this.value.replace(/[^a-zA-Z0-9\-\/\s]/g, '').trim();
+        this.value = this.value.replace(/\s+/g, ' ');
+    });
+}
+
+// Birth date - calculate age
 document.getElementById('birth_date').addEventListener('change', function() {
     const dob = this.value;
     if (dob) {
@@ -376,6 +433,7 @@ document.getElementById('birth_date').addEventListener('change', function() {
     }
 });
 
+// Toggle additional fields for special categories
 ['is_pwd','is_solo','is_ip'].forEach(id => {
     document.getElementById(id).addEventListener('change', function() {
         const f = document.getElementById(id === 'is_pwd' ? 'pwdIdField' : id === 'is_solo' ? 'soloIdField' : 'ipGroupField');
@@ -383,6 +441,7 @@ document.getElementById('birth_date').addEventListener('change', function() {
     });
 });
 
+// Form submission
 document.getElementById('registerForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
@@ -394,11 +453,11 @@ document.getElementById('registerForm').addEventListener('submit', async functio
         const r = await fetch(API_URL + 'register.php', { method: 'POST', body: fd });
         const data = await r.json();
         if (data.success) {
-            alc.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle"></i> ' + data.message + '<br><strong>Reference:</strong> ' + (data.data?.application_ref || '') + '</div>';
+            alc.innerHTML = '<div class="alert alert-success"> ' + data.message + '<br><strong>Reference:</strong> ' + (data.data?.application_ref || '') + '</div>';
             this.reset();
             document.getElementById('ageDisplay').value = '';
         } else {
-            alc.innerHTML = '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> ' + data.message + '</div>';
+            alc.innerHTML = '<div class="alert alert-danger"> ' + data.message + '</div>';
         }
     } catch (err) {
         alc.innerHTML = '<div class="alert alert-danger">Network error. Please try again.</div>';
