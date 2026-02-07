@@ -183,19 +183,23 @@ function addComplainantRow(data = {}) {
     const id = 'comp_' + Date.now() + Math.floor(Math.random()*1000);
     const container = document.getElementById('complainantsContainer');
     const div = document.createElement('div');
-    div.className = 'row mb-2 party-row';
+    div.className = 'row mb-3 party-row';
     div.innerHTML = `
         <div class="col-md-5">
-            <input type="text" class="form-control" placeholder="Complainant Name" data-name name="complainant_name">
+            <label class="form-label">Complainant Name</label>
+            <input type="text" class="form-control" placeholder="Full name" data-name name="complainant_name">
         </div>
         <div class="col-md-4">
+            <label class="form-label">Barangay</label>
             <input type="text" class="form-control" placeholder="Barangay" data-barangay name="complainant_barangay">
         </div>
         <div class="col-md-2">
-            <input type="text" class="form-control" placeholder="Contact Number" data-contact name="complainant_contact">
+            <label class="form-label">Contact Number</label>
+            <input type="text" class="form-control" placeholder="Phone/Mobile" data-contact name="complainant_contact">
         </div>
         <div class="col-md-1">
-            <button type="button" class="btn btn-danger btn-sm remove-party">&times;</button>
+            <label class="form-label" style="visibility:hidden;">Action</label>
+            <button type="button" class="btn btn-danger btn-sm remove-party" style="display:block; width:100%;">&times;</button>
         </div>
     `;
     // populate
@@ -210,19 +214,23 @@ function addComplainantRow(data = {}) {
 function addRespondentRow(data = {}) {
     const container = document.getElementById('respondentsContainer');
     const div = document.createElement('div');
-    div.className = 'row mb-2 party-row';
+    div.className = 'row mb-3 party-row';
     div.innerHTML = `
         <div class="col-md-5">
-            <input type="text" class="form-control" placeholder="Respondent Name" data-name name="respondent_name">
+            <label class="form-label">Respondent Name</label>
+            <input type="text" class="form-control" placeholder="Full name" data-name name="respondent_name">
         </div>
         <div class="col-md-4">
+            <label class="form-label">Barangay</label>
             <input type="text" class="form-control" placeholder="Barangay" data-barangay name="respondent_barangay">
         </div>
         <div class="col-md-2">
-            <input type="text" class="form-control" placeholder="Contact Number" data-contact name="respondent_contact">
+            <label class="form-label">Contact Number</label>
+            <input type="text" class="form-control" placeholder="Phone/Mobile" data-contact name="respondent_contact">
         </div>
         <div class="col-md-1">
-            <button type="button" class="btn btn-danger btn-sm remove-party">&times;</button>
+            <label class="form-label" style="visibility:hidden;">Action</label>
+            <button type="button" class="btn btn-danger btn-sm remove-party" style="display:block; width:100%;">&times;</button>
         </div>
     `;
     if (data.name) div.querySelector('[data-name]').value = data.name;
