@@ -12,8 +12,11 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <div class="main-content">
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3 gap-3 flex-wrap">
             <h2><i class="bi bi-journal-text"></i> Blotter Management</h2>
+            <div class="flex-grow-1 min-width-search">
+                <input type="text" class="form-control" id="searchInput" placeholder="Search by case title, complainant, or status...">
+            </div>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#blotterModal" onclick="resetBlotterForm()">
                 <i class="bi bi-plus-circle"></i> Add New Blotter
             </button>
@@ -111,6 +114,17 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <style>
+    /* Search bar responsive styling */
+    .min-width-search {
+        min-width: 250px;
+    }
+    @media (max-width: 768px) {
+        .min-width-search {
+            min-width: 150px;
+            flex-basis: 100%;
+        }
+    }
+
     /* Scrollbar styling for data table container */
     .data-table {
         max-height: 600px;
