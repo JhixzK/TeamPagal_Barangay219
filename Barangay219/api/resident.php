@@ -61,7 +61,8 @@ function listResidents() {
         $total = $db->fetchOne($countSql)['total'];
         
         // Get residents - ordered by ID so new residents appear at the end
-        $sql = "SELECT r.*, h.address as household_address, h.total_members
+        $sql = "SELECT r.*, h.address as household_address, h.total_members,
+                (SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count
                 FROM residents r
                 LEFT JOIN households h ON r.household_id = h.id
                 ORDER BY r.id ASC
@@ -97,7 +98,8 @@ function getResident() {
     try {
         $db = Database::getInstance();
         
-        $sql = "SELECT r.*, h.address as household_address, h.total_members, h.family_head_id
+        $sql = "SELECT r.*, h.address as household_address, h.total_members, h.family_head_id,
+                (SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count
                 FROM residents r
                 LEFT JOIN households h ON r.household_id = h.id
                 WHERE r.id = ?";
