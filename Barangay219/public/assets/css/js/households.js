@@ -1,8 +1,8 @@
-// Ensure API_URL is valid at runtime (fallback for cached/unprocessed files)
-if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.API_URL.indexOf('<?') !== -1 || window.API_URL.indexOf('%3C') !== -1) {
+if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.API_URL.indexOf('<?') !== -1) {
     window.API_URL = window.location.origin + '/TeamPagal_Barangay219/Barangay219/api/';
-    console.warn('API_URL invalid or missing; using fallback:', window.API_URL);
 }
+
+let currentViewHouseholdId = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     loadHouseholds();
@@ -10,54 +10,91 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         saveHousehold();
     });
+    document.getElementById('householdModal').addEventListener('show.bs.modal', function() {
+        loadResidentsForDropdown();
+    });
+    document.getElementById('btnAddMember').addEventListener('click', addMemberToHousehold);
 });
 
 function loadHouseholds() {
     fetch(window.API_URL + 'households.php?action=list')
-        .then(r => {
-            if (!r.ok) throw new Error('Network response was not ok: ' + r.status);
-            const ct = r.headers.get('content-type') || '';
-            if (!ct.includes('application/json')) throw new Error('Invalid response (not JSON)');
-            return r.json();
-        })
+        .then(r => r.json())
         .then(d => {
             const tbody = document.getElementById('householdsTableBody');
-            if (d.success) {
+            if (d.success && d.data) {
                 tbody.innerHTML = d.data.map(h => `
                     <tr>
                         <td>${h.id}</td>
                         <td>${escapeHtml(h.family_head_name || '-')}</td>
-                        <td>${escapeHtml(h.address)}</td>
+                        <td>${escapeHtml((h.address||'').substring(0,50))}${(h.address||'').length>50?'...':''}</td>
                         <td>${h.total_members}</td>
                         <td>${formatDate(h.registration_date)}</td>
-                                <td>
+                        <td>
                             <button class="btn btn-sm btn-secondary me-1" onclick="editHousehold(${h.id})" title="Edit"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-primary me-1" onclick="viewHousehold(${h.id})" title="View"><i class="bi bi-eye"></i></button>
+                            <button class="btn btn-sm btn-primary me-1" onclick="viewHousehold(${h.id})" title="View Members"><i class="bi bi-eye"></i></button>
                             <button class="btn btn-sm btn-danger" onclick="deleteHousehold(${h.id})" title="Delete"><i class="bi bi-trash"></i></button>
                         </td>
                     </tr>
                 `).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No households found or access denied</td></tr>';
-                console.warn('Households API returned error:', d.message);
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No households found</td></tr>';
             }
         })
-        .catch(err => {
-            console.error('Error loading households:', err);
-            const tbody = document.getElementById('householdsTableBody');
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading households</td></tr>';
+        .catch(() => {
+            document.getElementById('householdsTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading</td></tr>';
         });
+}
+
+function searchHouseholds() {
+    const q = document.getElementById('searchHousehold').value.trim();
+    const url = q ? window.API_URL + 'households.php?action=list&q=' + encodeURIComponent(q) : window.API_URL + 'households.php?action=list';
+    fetch(url)
+        .then(r => r.json())
+        .then(d => {
+            const tbody = document.getElementById('householdsTableBody');
+            if (d.success && d.data) {
+                tbody.innerHTML = d.data.map(h => `
+                    <tr>
+                        <td>${h.id}</td>
+                        <td>${escapeHtml(h.family_head_name || '-')}</td>
+                        <td>${escapeHtml((h.address||'').substring(0,50))}${(h.address||'').length>50?'...':''}</td>
+                        <td>${h.total_members}</td>
+                        <td>${formatDate(h.registration_date)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary me-1" onclick="editHousehold(${h.id})"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-primary me-1" onclick="viewHousehold(${h.id})"><i class="bi bi-eye"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteHousehold(${h.id})"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No results</td></tr>';
+            }
+        });
+}
+
+function loadResidentsForDropdown() {
+    const sel = document.getElementById('family_head_id');
+    if (!sel) return;
+    const currentVal = sel.value;
+    fetch(window.API_URL + 'resident.php?action=list&limit=500')
+        .then(r => r.json())
+        .then(d => {
+            if (d.success && d.data && d.data.residents) {
+                sel.innerHTML = '<option value="">-- Select Resident --</option>' +
+                    d.data.residents.map(r => `<option value="${r.id}">${escapeHtml(r.last_name + ', ' + r.first_name + ' ' + (r.middle_name||''))}</option>`).join('');
+                if (currentVal) sel.value = currentVal;
+            }
+        })
+        .catch(() => {});
 }
 
 function saveHousehold() {
     const form = document.getElementById('householdForm');
     const formData = new FormData(form);
     formData.append('action', document.getElementById('householdId').value ? 'update' : 'create');
-
-    // Ensure numeric fields are sent as numbers
-    if (formData.get('total_members')) {
-        formData.set('total_members', parseInt(formData.get('total_members'), 10));
-    }
+    const total = form.total_members.value;
+    if (total) formData.set('total_members', parseInt(total, 10) || 1);
 
     fetch(window.API_URL + 'households.php', { method: 'POST', body: formData })
         .then(r => r.json())
@@ -66,71 +103,129 @@ function saveHousehold() {
                 bootstrap.Modal.getInstance(document.getElementById('householdModal')).hide();
                 loadHouseholds();
                 form.reset();
+                document.getElementById('householdId').value = '';
             } else {
-                alert('Error: ' + (d.message || 'Failed to save household'));
+                alert('Error: ' + (d.message || 'Failed to save'));
             }
         })
-        .catch(err => {
-            console.error('Error saving household:', err);
-            alert('Error saving household');
-        });
+        .catch(() => alert('Error saving household'));
 }
 
 function viewHousehold(id) {
-    fetch(`${window.API_URL}households.php?action=get&id=${id}`)
+    currentViewHouseholdId = id;
+    fetch(window.API_URL + 'households.php?action=get&id=' + id)
         .then(r => r.json())
         .then(d => {
-            if (d.success) {
-                alert(`Household: ${d.data.family_head_name}\nMembers: ${d.data.total_members}`);
-            }
+            if (!d.success) { alert(d.message || 'Error'); return; }
+            const h = d.data;
+            document.getElementById('viewHouseholdInfo').innerHTML = `
+                <p><strong>Family Head:</strong> ${escapeHtml(h.family_head_name || '-')}</p>
+                <p><strong>Address:</strong> ${escapeHtml(h.address || '-')}</p>
+                <p><strong>Total Members:</strong> ${h.total_members}</p>
+                <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
+            `;
+            const members = h.members || [];
+            document.getElementById('viewHouseholdMembers').innerHTML = members.length
+                ? '<table class="table table-sm"><thead><tr><th>Name</th><th>Birth Date</th><th></th></tr></thead><tbody>' +
+                  members.map(m => {
+                      const name = `${m.first_name} ${m.middle_name || ''} ${m.last_name}`.trim();
+                      return `<tr><td>${escapeHtml(name)}</td><td>${formatDate(m.birth_date)}</td><td>${m.id !== h.family_head_id ? `<button class="btn btn-sm btn-outline-danger" onclick="removeMember(${m.id})">Remove</button>` : '<span class="badge bg-primary">Head</span>'}</td></tr>`;
+                  }).join('') + '</tbody></table>'
+                : '<p class="text-muted">No members yet.</p>';
+            loadResidentsForAddMember(id, members.map(m => m.id));
+            new bootstrap.Modal(document.getElementById('viewHouseholdModal')).show();
         })
-        .catch(err => console.error('Error viewing household:', err));
+        .catch(() => alert('Error loading household'));
 }
 
-function editHousehold(id) {
-    fetch(`${window.API_URL}households.php?action=get&id=${id}`)
-        .then(r => {
-            if (!r.ok) throw new Error('Network response was not ok: ' + r.status);
-            const ct = r.headers.get('content-type') || '';
-            if (!ct.includes('application/json')) throw new Error('Invalid response (not JSON)');
-            return r.json();
-        })
+function loadResidentsForAddMember(householdId, excludeIds) {
+    const sel = document.getElementById('addMemberResident');
+    sel.innerHTML = '<option value="">-- Select resident to add --</option>';
+    sel.dataset.householdId = householdId;
+    fetch(window.API_URL + 'resident.php?action=list&limit=500')
+        .then(r => r.json())
         .then(d => {
-            if (d.success) {
-                const h = d.data;
-                document.getElementById('householdId').value = h.id;
-                document.getElementById('family_head_id').value = h.family_head_id || '';
-                document.getElementById('address').value = h.address || '';
-                document.getElementById('total_members').value = h.total_members || 1;
-                if (h.registration_date) document.getElementById('registration_date').value = h.registration_date;
-                document.getElementById('householdModalTitle').textContent = 'Edit Household';
-
-                const modal = new bootstrap.Modal(document.getElementById('householdModal'));
-                modal.show();
-            } else {
-                console.warn('Edit failed:', d.message);
+            if (d.success && d.data && d.data.residents) {
+                const ids = new Set(excludeIds || []);
+                d.data.residents.forEach(r => {
+                    if (!ids.has(r.id)) {
+                        const name = `${r.last_name}, ${r.first_name} ${r.middle_name || ''}`.trim();
+                        sel.innerHTML += `<option value="${r.id}">${escapeHtml(name)}</option>`;
+                    }
+                });
             }
-        })
-        .catch(err => {
-            console.error('Error editing household:', err);
-            alert('Error loading household details');
         });
 }
 
+function addMemberToHousehold() {
+    const sel = document.getElementById('addMemberResident');
+    const residentId = sel.value;
+    const householdId = currentViewHouseholdId || sel.dataset.householdId;
+    if (!residentId || !householdId) { alert('Select a resident'); return; }
+    const fd = new FormData();
+    fd.append('action', 'add_member');
+    fd.append('household_id', householdId);
+    fd.append('resident_id', residentId);
+    fetch(window.API_URL + 'households.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                viewHousehold(parseInt(householdId));
+            } else alert('Error: ' + (d.message || 'Failed'));
+        });
+}
+
+function removeMember(residentId) {
+    if (!confirm('Remove this member from household?')) return;
+    const fd = new FormData();
+    fd.append('action', 'remove_member');
+    fd.append('resident_id', residentId);
+    fetch(window.API_URL + 'households.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                viewHousehold(currentViewHouseholdId);
+                loadHouseholds();
+            } else alert('Error: ' + (d.message || 'Failed'));
+        });
+}
+
+function editHousehold(id) {
+    Promise.all([
+        fetch(window.API_URL + 'households.php?action=get&id=' + id).then(r => r.json()),
+        fetch(window.API_URL + 'resident.php?action=list&limit=500').then(r => r.json())
+    ]).then(([householdData, residentsData]) => {
+        if (!householdData.success) { alert(householdData.message); return; }
+        const h = householdData.data;
+        const sel = document.getElementById('family_head_id');
+        if (residentsData.success && residentsData.data && residentsData.data.residents) {
+            sel.innerHTML = '<option value="">-- Select Resident --</option>' +
+                residentsData.data.residents.map(r => `<option value="${r.id}">${escapeHtml(r.last_name + ', ' + r.first_name)}</option>`).join('');
+        }
+        document.getElementById('householdId').value = h.id;
+        document.getElementById('family_head_id').value = h.family_head_id || '';
+        document.getElementById('address').value = h.address || '';
+        document.getElementById('total_members').value = h.total_members || 1;
+        document.getElementById('registration_date').value = h.registration_date || '';
+        document.getElementById('householdModalTitle').textContent = 'Edit Household';
+        new bootstrap.Modal(document.getElementById('householdModal')).show();
+    }).catch(() => alert('Error loading household'));
+}
+
 function deleteHousehold(id) {
-    if (confirm('Delete this household?')) {
-        const fd = new FormData();
-        fd.append('action', 'delete');
-        fd.append('id', id);
-        fetch(window.API_URL + 'households.php', { method: 'POST', body: fd })
-            .then(r => r.json())
-            .then(d => { if (d.success) loadHouseholds(); });
-    }
+    if (!confirm('Delete this household? Members will be unlinked.')) return;
+    const fd = new FormData();
+    fd.append('action', 'delete');
+    fd.append('id', id);
+    fetch(window.API_URL + 'households.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => { if (d.success) loadHouseholds(); else alert(d.message || 'Error'); });
 }
 
 function resetForm() {
     document.getElementById('householdForm').reset();
     document.getElementById('householdId').value = '';
+    document.getElementById('householdModalTitle').textContent = 'Add New Household';
 }
 
 function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
