@@ -19,6 +19,9 @@ switch ($action) {
     case 'list':
         listUsers();
         break;
+    case 'activity_logs':
+        getActivityLogs();
+        break;
     
     case 'get':
         getUser();
@@ -183,6 +186,7 @@ function createUser() {
         
         $db->query($sql, $params);
         $userId = $db->lastInsertId();
+        logActivity('create', 'users', $userId, ['username' => $username]);
         
         // Get created user
         $user = $db->fetchOne("SELECT id, username, email, role, status FROM users WHERE id = ?", [$userId]);
@@ -288,6 +292,7 @@ function updateUser() {
         $sql = "UPDATE users SET " . implode(', ', $updates) . " WHERE id = ?";
         
         $db->query($sql, $params);
+        logActivity('update', 'users', $id);
         
         // Get updated user
         $user = $db->fetchOne("SELECT id, username, email, role, status FROM users WHERE id = ?", [$id]);
@@ -404,6 +409,24 @@ function activateUser() {
     } catch (Exception $e) {
         error_log("Activate user error: " . $e->getMessage());
         sendResponse(false, 'Error activating user', null, 500);
+    }
+}
+
+/**
+ * Get user activity logs
+ */
+function getActivityLogs() {
+    try {
+        $db = Database::getInstance();
+        $userId = (int)($_GET['user_id'] ?? 0);
+        $limit = min(100, max(10, (int)($_GET['limit'] ?? 50)));
+        $where = $userId ? "al.user_id = ?" : "1=1";
+        $params = $userId ? [$userId, $limit] : [$limit];
+        $sql = "SELECT al.*, u.username FROM activity_logs al LEFT JOIN users u ON al.user_id = u.id WHERE $where ORDER BY al.created_at DESC LIMIT ?";
+        $logs = $db->fetchAll($sql, $params);
+        sendResponse(true, 'Activity logs', $logs);
+    } catch (Exception $e) {
+        sendResponse(false, 'Error', null, 500);
     }
 }
 
