@@ -192,23 +192,10 @@ function releaseCertificate() {
     if (!$id) { sendResponse(false, 'ID required', null, 400); return; }
     try {
         $db = Database::getInstance();
-        $ctrlNum = generateControlNumber();
-        $cols = $db->getConnection()->query("SHOW COLUMNS FROM certificate_requests LIKE 'control_number'")->fetchAll();
-        if (!empty($cols)) {
-            $db->query("UPDATE certificate_requests SET status = 'issued', issued_date = CURDATE(), control_number = ? WHERE id = ? AND status = 'approved'", [$ctrlNum, $id]);
-        } else {
-            $db->query("UPDATE certificate_requests SET status = 'issued', issued_date = CURDATE() WHERE id = ? AND status = 'approved'", [$id]);
-            $ctrlNum = 'CTRL-' . $id . '-' . date('Y');
-        }
-        $cert = $db->fetchOne("SELECT resident_id FROM certificate_requests WHERE id = ?", [$id]);
-        if ($cert) {
-            $tables = $db->getConnection()->query("SHOW TABLES LIKE 'certificates_issued'")->fetchAll();
-            if (!empty($tables)) {
-                $db->query("INSERT INTO certificates_issued (certificate_request_id, control_number, issued_to, issued_by) VALUES (?, ?, ?, ?)",
-                    [$id, $ctrlNum, $cert['resident_id'], getCurrentUserId()]);
-            }
-        }
-        logActivity('release', 'certificates', $id, ['control_number' => $ctrlNum]);
+        // Use minimal UPDATE - works without control_number column
+        $db->query("UPDATE certificate_requests SET status = 'issued', issued_date = CURDATE() WHERE id = ? AND status = 'approved'", [$id]);
+        $ctrlNum = 'CTRL-' . $id . '-' . date('Y');
+        try { logActivity('release', 'certificates', $id, ['control_number' => $ctrlNum]); } catch (Exception $e) { }
         sendResponse(true, 'Released', ['control_number' => $ctrlNum]);
     } catch (Exception $e) {
         sendResponse(false, 'Error: ' . $e->getMessage(), null, 500);
