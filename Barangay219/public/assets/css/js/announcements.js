@@ -1,56 +1,131 @@
-// Ensure API_URL is valid at runtime (fallback)
-if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.API_URL.indexOf('<?') !== -1 || window.API_URL.indexOf('%3C') !== -1) {
+if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.API_URL.indexOf('<?') !== -1) {
     window.API_URL = window.location.origin + '/TeamPagal_Barangay219/Barangay219/api/';
-    console.warn('API_URL invalid or missing; using fallback:', window.API_URL);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     loadAnnouncements();
+    document.getElementById('btnCreate').addEventListener('click', createAnnouncement);
+    document.getElementById('btnSave').addEventListener('click', saveAnnouncement);
 });
 
 function loadAnnouncements() {
     fetch(window.API_URL + 'announcement.php?action=list')
-        .then(r => {
-            if (!r.ok) throw new Error('Network response was not ok: ' + r.status);
-            const ct = r.headers.get('content-type') || '';
-            if (!ct.includes('application/json')) throw new Error('Invalid response (not JSON)');
-            return r.json();
-        })
+        .then(r => r.json())
         .then(d => {
             const tbody = document.getElementById('announcementsTableBody');
-            if (d.success) {
+            if (d.success && d.data) {
                 tbody.innerHTML = d.data.map(a => `
                     <tr>
                         <td>${a.id}</td>
-                        <td>${a.title}</td>
-                        <td>${a.posted_by_name || '-'}</td>
+                        <td>${escapeHtml(a.title)}</td>
+                        <td>${escapeHtml(a.posted_by_name || '-')}</td>
                         <td>${formatDate(a.date_posted)}</td>
-                        <td><span class="badge bg-${a.status === 'active' ? 'success' : 'secondary'}">${a.status}</span></td>
+                        <td>${a.expiration_date ? formatDate(a.expiration_date) : '-'}</td>
+                        <td><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td>
                         <td>
                             <button class="btn btn-sm btn-primary" onclick="viewAnnouncement(${a.id})">View</button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="editAnnouncement(${a.id})">Edit</button>
+                            <button class="btn btn-sm btn-outline-warning" onclick="archiveAnnouncement(${a.id})">Archive</button>
                         </td>
                     </tr>
                 `).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No announcements found or access denied</td></tr>';
-                console.warn('Announcements API returned error:', d.message);
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No announcements</td></tr>';
             }
         })
-        .catch(err => {
-            console.error('Error loading announcements:', err);
-            const tbody = document.getElementById('announcementsTableBody');
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading announcements</td></tr>';
+        .catch(() => {
+            document.getElementById('announcementsTableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading</td></tr>';
         });
+}
+
+function getStatusColor(s) {
+    const c = { 'active': 'success', 'inactive': 'secondary', 'expired': 'warning', 'archived': 'dark' };
+    return c[s] || 'secondary';
 }
 
 function viewAnnouncement(id) {
-    fetch(`${window.API_URL}announcement.php?action=get&id=${id}`)
+    fetch(window.API_URL + 'announcement.php?action=get&id=' + id)
         .then(r => r.json())
         .then(d => {
-            if (d.success) {
-                alert(`Title: ${d.data.title}\n\nContent: ${d.data.content}`);
-            }
+            if (!d.success) return;
+            const a = d.data;
+            document.getElementById('viewTitle').textContent = a.title;
+            document.getElementById('viewContent').innerHTML = a.content.replace(/\n/g, '<br>');
+            document.getElementById('viewDate').textContent = formatDate(a.date_posted);
+            document.getElementById('viewBy').textContent = a.posted_by_name || '-';
+            document.getElementById('viewFooter').innerHTML = `<button class="btn btn-secondary" data-bs-dismiss="modal">Close</button> <button class="btn btn-primary" onclick="editAnnouncement(${a.id}); bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();">Edit</button>`;
+            new bootstrap.Modal(document.getElementById('viewModal')).show();
         });
 }
 
+function editAnnouncement(id) {
+    fetch(window.API_URL + 'announcement.php?action=get&id=' + id)
+        .then(r => r.json())
+        .then(d => {
+            if (!d.success) return;
+            const a = d.data;
+            document.getElementById('editModalTitle').textContent = 'Edit Announcement';
+            document.getElementById('editId').value = a.id;
+            document.getElementById('editTitle').value = a.title;
+            document.getElementById('editContent').value = a.content;
+            document.getElementById('editDatePosted').value = a.date_posted || '';
+            document.getElementById('editExpiration').value = a.expiration_date || '';
+            document.getElementById('editStatus').value = a.status || 'active';
+            document.getElementById('editStatusRow').style.display = 'block';
+            bootstrap.Modal.getInstance(document.getElementById('createModal'))?.hide();
+            new bootstrap.Modal(document.getElementById('editModal')).show();
+        });
+}
+
+function saveAnnouncement() {
+    const fd = new FormData();
+    fd.append('action', 'update');
+    fd.append('id', document.getElementById('editId').value);
+    fd.append('title', document.getElementById('editTitle').value);
+    fd.append('content', document.getElementById('editContent').value);
+    fd.append('date_posted', document.getElementById('editDatePosted').value);
+    fd.append('expiration_date', document.getElementById('editExpiration').value);
+    fd.append('status', document.getElementById('editStatus').value);
+    fetch(window.API_URL + 'announcement.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+                loadAnnouncements();
+            } else alert(d.message || 'Error');
+        });
+}
+
+function createAnnouncement() {
+    const fd = new FormData();
+    fd.append('action', 'create');
+    fd.append('title', document.getElementById('createTitle').value);
+    fd.append('content', document.getElementById('createContent').value);
+    fd.append('date_posted', document.getElementById('createDatePosted').value);
+    fd.append('expiration_date', document.getElementById('createExpiration').value);
+    fetch(window.API_URL + 'announcement.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                bootstrap.Modal.getInstance(document.getElementById('createModal')).hide();
+                document.getElementById('createTitle').value = '';
+                document.getElementById('createContent').value = '';
+                document.getElementById('createDatePosted').value = new Date().toISOString().slice(0, 10);
+                document.getElementById('createExpiration').value = '';
+                loadAnnouncements();
+            } else alert(d.message || 'Error');
+        });
+}
+
+function archiveAnnouncement(id) {
+    if (!confirm('Archive this announcement?')) return;
+    const fd = new FormData();
+    fd.append('action', 'delete');
+    fd.append('id', id);
+    fetch(window.API_URL + 'announcement.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => { if (d.success) loadAnnouncements(); else alert(d.message || 'Error'); });
+}
+
+function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, x => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[x]); }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
