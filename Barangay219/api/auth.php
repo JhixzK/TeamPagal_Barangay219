@@ -100,6 +100,10 @@ function handleLogin() {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'];
         $_SESSION['role'] = $user['role'];
+        // Log login (after session is set so getCurrentUserId works)
+        try {
+            $db->query("INSERT INTO activity_logs (user_id, action, module, ip_address) VALUES (?, 'login', 'auth', ?)", [$user['id'], $_SERVER['REMOTE_ADDR'] ?? null]);
+        } catch (Exception $e) { /* table may not exist yet */ }
         $_SESSION['email'] = $user['email'];
         $_SESSION['resident_id'] = $user['resident_id'];
         $_SESSION['logged_in'] = true;
