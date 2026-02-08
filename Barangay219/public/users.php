@@ -19,9 +19,14 @@ include __DIR__ . '/../includes/sidebar.php';
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2><i class="bi bi-person-gear"></i> User Management</h2>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" onclick="resetForm()">
-                <i class="bi bi-plus-circle"></i> Add New User
-            </button>
+            <div>
+                <button class="btn btn-outline-secondary me-2" onclick="showActivityLogs()">
+                    <i class="bi bi-clock-history"></i> Activity Logs
+                </button>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" onclick="resetForm()">
+                    <i class="bi bi-plus-circle"></i> Add New User
+                </button>
+            </div>
         </div>
 
         <!-- Users Table -->
@@ -50,6 +55,22 @@ include __DIR__ . '/../includes/sidebar.php';
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Activity Logs Panel -->
+        <div class="card mt-4" id="activityLogsPanel" style="display:none;">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> User Activity Logs</h5>
+                <button class="btn btn-sm btn-secondary" onclick="document.getElementById('activityLogsPanel').style.display='none'">Close</button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>User</th><th>Action</th><th>Module</th><th>Date</th><th>IP</th></tr></thead>
+                        <tbody id="activityLogsBody"><tr><td colspan="5" class="text-center">Loading...</td></tr></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -126,4 +147,5 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
 
+<script>window.CURRENT_USER_ID = <?php echo (int)getCurrentUserId(); ?>;</script>
 <script src="<?php echo ASSETS_URL; ?>css/js/users.js?v=<?php echo time(); ?>"></script>
