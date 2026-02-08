@@ -40,6 +40,14 @@ switch ($action) {
         getHouseholdMembers();
         break;
     
+    case 'add_member':
+        addHouseholdMember();
+        break;
+    
+    case 'remove_member':
+        removeHouseholdMember();
+        break;
+    
     default:
         sendResponse(false, 'Invalid action', null, 400);
         break;
@@ -51,15 +59,23 @@ switch ($action) {
 function listHouseholds() {
     try {
         $db = Database::getInstance();
-        
+        $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
+        $where = '1=1';
+        $params = [];
+        if (!empty($q)) {
+            $term = '%' . $q . '%';
+            $where = "(h.address LIKE ? OR CONCAT(r.first_name, ' ', r.last_name) LIKE ?)";
+            $params = [$term, $term];
+        }
         $sql = "SELECT h.*, 
                        CONCAT(r.first_name, ' ', COALESCE(r.middle_name, ''), ' ', r.last_name) as family_head_name,
                        r.contact_number as family_head_contact
                 FROM households h
                 LEFT JOIN residents r ON h.family_head_id = r.id
+                WHERE $where
                 ORDER BY h.registration_date DESC, h.id DESC";
         
-        $households = $db->fetchAll($sql);
+        $households = $db->fetchAll($sql, $params);
         
         sendResponse(true, 'Households retrieved successfully', $households);
         
@@ -258,6 +274,67 @@ function deleteHousehold() {
     } catch (Exception $e) {
         error_log("Delete household error: " . $e->getMessage());
         sendResponse(false, 'Error deleting household', null, 500);
+    }
+}
+
+/**
+ * Add resident to household
+ */
+function addHouseholdMember() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'Invalid request method', null, 405);
+        return;
+    }
+    $household_id = intval($_POST['household_id'] ?? 0);
+    $resident_id = intval($_POST['resident_id'] ?? 0);
+    if (!$household_id || !$resident_id) {
+        sendResponse(false, 'Household ID and resident ID are required', null, 400);
+        return;
+    }
+    try {
+        $db = Database::getInstance();
+        $household = $db->fetchOne("SELECT id, total_members FROM households WHERE id = ?", [$household_id]);
+        if (!$household) { sendResponse(false, 'Household not found', null, 404); return; }
+        $resident = $db->fetchOne("SELECT id FROM residents WHERE id = ?", [$resident_id]);
+        if (!$resident) { sendResponse(false, 'Resident not found', null, 404); return; }
+        $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$household_id, $resident_id]);
+        $count = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$household_id])['c'];
+        $db->query("UPDATE households SET total_members = ? WHERE id = ?", [$count, $household_id]);
+        sendResponse(true, 'Member added to household');
+    } catch (Exception $e) {
+        error_log("Add member error: " . $e->getMessage());
+        sendResponse(false, 'Error adding member', null, 500);
+    }
+}
+
+/**
+ * Remove resident from household
+ */
+function removeHouseholdMember() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'Invalid request method', null, 405);
+        return;
+    }
+    $resident_id = intval($_POST['resident_id'] ?? 0);
+    if (!$resident_id) {
+        sendResponse(false, 'Resident ID is required', null, 400);
+        return;
+    }
+    try {
+        $db = Database::getInstance();
+        $resident = $db->fetchOne("SELECT household_id FROM residents WHERE id = ?", [$resident_id]);
+        if (!$resident || !$resident['household_id']) {
+            sendResponse(false, 'Resident not in a household', null, 400);
+            return;
+        }
+        $household_id = $resident['household_id'];
+        $db->query("UPDATE residents SET household_id = NULL WHERE id = ?", [$resident_id]);
+        $count = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$household_id])['c'];
+        $db->query("UPDATE households SET total_members = ? WHERE id = ?", [$count ?: 1, $household_id]);
+        sendResponse(true, 'Member removed from household');
+    } catch (Exception $e) {
+        error_log("Remove member error: " . $e->getMessage());
+        sendResponse(false, 'Error removing member', null, 500);
     }
 }
 
