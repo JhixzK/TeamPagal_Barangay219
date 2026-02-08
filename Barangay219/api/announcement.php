@@ -4,10 +4,11 @@ define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
-requireLogin();
-requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_KAGAWA, ROLE_SK_CHAIRMAN]);
-
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
+if ($action !== 'public_list') {
+    requireLogin();
+    requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_KAGAWA, ROLE_SK_CHAIRMAN]);
+}
 
 switch ($action) {
     case 'list': listAnnouncements(); break;
@@ -15,14 +16,33 @@ switch ($action) {
     case 'create': createAnnouncement(); break;
     case 'update': updateAnnouncement(); break;
     case 'delete': deleteAnnouncement(); break;
+    case 'public_list': listAnnouncementsPublic(); break;
     default: sendResponse(false, 'Invalid action', null, 400);
 }
 
 function listAnnouncements() {
     try {
         $db = Database::getInstance();
-        $sql = "SELECT a.*, u.username as posted_by_name FROM announcements a LEFT JOIN users u ON a.posted_by = u.id ORDER BY a.date_posted DESC";
-        sendResponse(true, 'Retrieved', $db->fetchAll($sql));
+        $status = $_GET['status'] ?? '';
+        $where = "1=1";
+        $params = [];
+        if (in_array($status, ['active', 'inactive', 'expired', 'archived'])) {
+            $where .= " AND a.status = ?";
+            $params[] = $status;
+        }
+        $sql = "SELECT a.*, u.username as posted_by_name FROM announcements a LEFT JOIN users u ON a.posted_by = u.id WHERE $where ORDER BY a.date_posted DESC";
+        sendResponse(true, 'Retrieved', $db->fetchAll($sql, $params));
+    } catch (Exception $e) {
+        sendResponse(false, 'Error', null, 500);
+    }
+}
+
+function listAnnouncementsPublic() {
+    try {
+        $db = Database::getInstance();
+        $sql = "SELECT id, title, content, date_posted, expiration_date FROM announcements WHERE status = 'active' AND (expiration_date IS NULL OR expiration_date >= CURDATE()) ORDER BY date_posted DESC LIMIT 20";
+        $list = $db->fetchAll($sql);
+        sendResponse(true, 'Retrieved', $list);
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
     }
@@ -51,6 +71,7 @@ function createAnnouncement() {
         $db = Database::getInstance();
         $db->query("INSERT INTO announcements (title, content, posted_by, date_posted, expiration_date, status) VALUES (?, ?, ?, ?, ?, 'active')", 
                    [$title, $content, getCurrentUserId(), $date_posted, $expiration_date]);
+        logActivity('create', 'announcements', $db->lastInsertId());
         sendResponse(true, 'Created', ['id' => $db->lastInsertId()]);
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
@@ -86,8 +107,13 @@ function deleteAnnouncement() {
     if (!$id) { sendResponse(false, 'ID required', null, 400); return; }
     try {
         $db = Database::getInstance();
-        $db->query("DELETE FROM announcements WHERE id = ?", [$id]);
-        sendResponse(true, 'Deleted');
+        try {
+            $db->query("UPDATE announcements SET status = 'archived' WHERE id = ?", [$id]);
+        } catch (Exception $e) {
+            $db->query("UPDATE announcements SET status = 'inactive' WHERE id = ?", [$id]);
+        }
+        logActivity('archive', 'announcements', $id);
+        sendResponse(true, 'Archived');
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
     }
