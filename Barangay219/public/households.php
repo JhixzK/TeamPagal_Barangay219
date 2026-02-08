@@ -14,9 +14,23 @@ include __DIR__ . '/../includes/sidebar.php';
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2><i class="bi bi-house-door"></i> Households Management</h2>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#householdModal" onclick="resetForm()">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#householdModal" onclick="resetForm(); loadResidentsForDropdown();">
                 <i class="bi bi-plus-circle"></i> Add New Household
             </button>
+        </div>
+
+        <div class="search-bar mb-3">
+            <div class="row">
+                <div class="col-md-6">
+                    <input type="text" class="form-control" id="searchHousehold" placeholder="Search by address or family head...">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" onclick="searchHouseholds()"><i class="bi bi-search"></i> Search</button>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-secondary w-100" onclick="loadHouseholds()"><i class="bi bi-arrow-clockwise"></i> Reset</button>
+                </div>
+            </div>
         </div>
 
         <div class="data-table">
@@ -52,8 +66,11 @@ include __DIR__ . '/../includes/sidebar.php';
                 <div class="modal-body">
                     <input type="hidden" id="householdId" name="id">
                     <div class="mb-3">
-                        <label for="family_head_id" class="form-label">Family Head ID <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="family_head_id" name="family_head_id" required>
+                        <label for="family_head_id" class="form-label">Family Head <span class="text-danger">*</span></label>
+                        <select class="form-select" id="family_head_id" name="family_head_id" required>
+                            <option value="">-- Select Resident --</option>
+                        </select>
+                        <small class="text-muted">Select the head of the household. Add resident first if not in list.</small>
                     </div>
                     <div class="mb-3">
                         <label for="address" class="form-label">Address <span class="text-danger">*</span></label>
@@ -79,5 +96,32 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </div>
 
+<!-- View Household Modal -->
+<div class="modal fade" id="viewHouseholdModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Household Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="viewHouseholdInfo"></div>
+                <hr>
+                <h6>Members</h6>
+                <div id="viewHouseholdMembers"></div>
+                <hr>
+                <h6>Add Member</h6>
+                <div class="input-group mb-2">
+                    <select class="form-select" id="addMemberResident">
+                        <option value="">-- Select resident to add --</option>
+                    </select>
+                    <button class="btn btn-primary" type="button" id="btnAddMember">Add</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php include __DIR__ . '/../includes/footer.php'; ?>
+<script>if (typeof window.API_URL === 'undefined') window.API_URL = '<?php echo addslashes(API_URL); ?>';</script>
 <script src="<?php echo ASSETS_URL; ?>css/js/households.js?v=<?php echo time(); ?>"></script>
