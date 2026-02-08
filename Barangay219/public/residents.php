@@ -168,8 +168,11 @@ include __DIR__ . '/../includes/sidebar.php';
                             <textarea class="form-control" id="address" name="address" rows="2" required></textarea>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label for="household_id" class="form-label">Household ID (Optional)</label>
-                            <input type="number" class="form-control" id="household_id" name="household_id">
+                            <label for="household_id" class="form-label">Household (Optional)</label>
+                            <select class="form-select" id="household_id" name="household_id">
+                                <option value="">-- None --</option>
+                            </select>
+                            <small class="text-muted">Link to a household</small>
                         </div>
                     </div>
                 </div>
@@ -178,6 +181,24 @@ include __DIR__ . '/../includes/sidebar.php';
                     <button type="submit" class="btn btn-primary">Save Resident</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Resident Modal -->
+<div class="modal fade" id="viewResidentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Resident Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="viewResidentBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="btnEditFromView"><i class="bi bi-pencil"></i> Edit</button>
+                <a href="#" id="linkCertificates" class="btn btn-info"><i class="bi bi-file-earmark-text"></i> Certificates</a>
+            </div>
         </div>
     </div>
 </div>
