@@ -7,20 +7,42 @@ let currentPage = 1;
 
 document.addEventListener('DOMContentLoaded', function() {
     loadResidents();
+    loadHouseholdsForDropdown();
     
-    // Form submission
     document.getElementById('residentForm').addEventListener('submit', function(e) {
         e.preventDefault();
         saveResident();
     });
     
-    // Search on Enter key
     document.getElementById('searchInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            searchResidents();
-        }
+        if (e.key === 'Enter') searchResidents();
+    });
+    
+    document.getElementById('residentModal').addEventListener('show.bs.modal', function() {
+        loadHouseholdsForDropdown();
+    });
+    
+    document.getElementById('btnEditFromView').addEventListener('click', function() {
+        const id = this.dataset.residentId;
+        if (id) { bootstrap.Modal.getInstance(document.getElementById('viewResidentModal')).hide(); editResident(parseInt(id)); }
     });
 });
+
+function loadHouseholdsForDropdown() {
+    const sel = document.getElementById('household_id');
+    if (!sel) return;
+    const currentVal = sel.value;
+    fetch((window.API_URL || '') + 'households.php?action=list')
+        .then(r => r.json())
+        .then(d => {
+            if (d.success && d.data) {
+                sel.innerHTML = '<option value="">-- None --</option>' + 
+                    d.data.map(h => `<option value="${h.id}">${escapeHtml(h.family_head_name || 'Household #'+h.id)} - ${escapeHtml((h.address||'').substring(0,40))}...</option>`).join('');
+                if (currentVal) sel.value = currentVal;
+            }
+        })
+        .catch(() => {});
+}
 
 /**
  * Load all residents
@@ -65,25 +87,20 @@ function displayResidents(residents) {
         const fullName = `${escapeHtml(resident.first_name)} ${escapeHtml(resident.middle_name || '')} ${escapeHtml(resident.last_name)} ${escapeHtml(resident.suffix || '')}`.trim();
         const age = calculateAge(resident.birth_date);
         
+        const householdInfo = resident.household_address ? `Household #${resident.household_id}` : '-';
         return `
             <tr>
                 <td>${resident.id}</td>
                 <td>${fullName}</td>
                 <td>${formatDate(resident.birth_date)} (${age} yrs)</td>
                 <td>${formatGender(resident.gender)}</td>
-                <td>${escapeHtml(resident.address)}</td>
+                <td>${escapeHtml((resident.address||'').substring(0,40))}${(resident.address||'').length>40?'...':''}</td>
                 <td>${escapeHtml(resident.contact_number || '-')}</td>
                 <td><span class="badge ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
                 <td>
-                    <button class="btn btn-sm btn-primary" onclick="editResident(${resident.id})" title="Edit">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-info" onclick="viewResident(${resident.id})" title="View">
-                        <i class="bi bi-eye"></i>
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteResident(${resident.id})" title="Delete">
-                        <i class="bi bi-trash"></i>
-                    </button>
+                    <button class="btn btn-sm btn-primary" onclick="editResident(${resident.id})" title="Edit"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-info" onclick="viewResident(${resident.id})" title="View"><i class="bi bi-eye"></i></button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteResident(${resident.id})" title="Delete"><i class="bi bi-trash"></i></button>
                 </td>
             </tr>
         `;
@@ -166,56 +183,70 @@ function searchResidents() {
  */
 function editResident(id) {
     const apiUrl = window.API_URL;
-    if (!apiUrl) {
-        console.error('API_URL is not defined. Please check your configuration.');
-        showAlert('error', 'Configuration error. Please refresh the page.');
-        return;
-    }
-    fetch(`${apiUrl}resident.php?action=get&id=${id}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const resident = data.data;
-                document.getElementById('residentId').value = resident.id;
-                document.getElementById('first_name').value = resident.first_name;
-                document.getElementById('middle_name').value = resident.middle_name || '';
-                document.getElementById('last_name').value = resident.last_name;
-                document.getElementById('suffix').value = resident.suffix || '';
-                document.getElementById('birth_date').value = resident.birth_date;
-                document.getElementById('gender').value = resident.gender;
-                document.getElementById('civil_status').value = resident.civil_status || '';
-                document.getElementById('occupation').value = resident.occupation || '';
-                document.getElementById('citizenship').value = resident.citizenship || 'Filipino';
-                document.getElementById('address').value = resident.address;
-                document.getElementById('contact_number').value = resident.contact_number || '';
-                document.getElementById('household_id').value = resident.household_id || '';
-                document.getElementById('status').value = resident.status;
-                document.getElementById('residentModalTitle').textContent = 'Edit Resident';
-                
-                const modal = new bootstrap.Modal(document.getElementById('residentModal'));
-                modal.show();
-            } else {
-                showAlert('error', data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('error', 'Error loading resident');
-        });
+    if (!apiUrl) { showAlert('error', 'Configuration error.'); return; }
+    Promise.all([
+        fetch(apiUrl + 'households.php?action=list').then(r => r.json()),
+        fetch(apiUrl + 'resident.php?action=get&id=' + id).then(r => r.json())
+    ]).then(([householdsData, residentData]) => {
+        if (!residentData.success) { showAlert('error', residentData.message); return; }
+        const resident = residentData.data;
+        const sel = document.getElementById('household_id');
+        if (householdsData.success && householdsData.data) {
+            sel.innerHTML = '<option value="">-- None --</option>' +
+                householdsData.data.map(h => `<option value="${h.id}">${escapeHtml(h.family_head_name || 'Household #'+h.id)}</option>`).join('');
+        }
+        document.getElementById('residentId').value = resident.id;
+        document.getElementById('first_name').value = resident.first_name;
+        document.getElementById('middle_name').value = resident.middle_name || '';
+        document.getElementById('last_name').value = resident.last_name;
+        document.getElementById('suffix').value = resident.suffix || '';
+        document.getElementById('birth_date').value = resident.birth_date;
+        document.getElementById('gender').value = resident.gender;
+        document.getElementById('civil_status').value = resident.civil_status || '';
+        document.getElementById('occupation').value = resident.occupation || '';
+        document.getElementById('citizenship').value = resident.citizenship || 'Filipino';
+        document.getElementById('address').value = resident.address;
+        document.getElementById('contact_number').value = resident.contact_number || '';
+        document.getElementById('household_id').value = resident.household_id || '';
+        document.getElementById('status').value = resident.status;
+        document.getElementById('residentModalTitle').textContent = 'Edit Resident';
+        new bootstrap.Modal(document.getElementById('residentModal')).show();
+    }).catch(() => showAlert('error', 'Error loading resident'));
 }
 
 /**
  * View resident details
  */
 function viewResident(id) {
-    // Redirect to profile page or show in modal
-    const baseUrl = window.BASE_URL;
-    if (!baseUrl) {
-        console.error('BASE_URL is not defined. Please check your configuration.');
-        showAlert('error', 'Configuration error. Please refresh the page.');
-        return;
-    }
-    window.location.href = `${baseUrl}profile.php?resident_id=${id}`;
+    const apiUrl = window.API_URL;
+    if (!apiUrl) { showAlert('error', 'Configuration error.'); return; }
+    fetch(`${apiUrl}resident.php?action=get&id=${id}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { showAlert('error', data.message); return; }
+            const r = data.data;
+            const fullName = `${r.first_name} ${r.middle_name || ''} ${r.last_name} ${r.suffix || ''}`.trim();
+            const age = calculateAge(r.birth_date);
+            document.getElementById('viewResidentBody').innerHTML = `
+                <table class="table table-sm">
+                    <tr><td><strong>Full Name</strong></td><td>${escapeHtml(fullName)}</td></tr>
+                    <tr><td><strong>Birth Date</strong></td><td>${formatDate(r.birth_date)} (${age} yrs)</td></tr>
+                    <tr><td><strong>Gender</strong></td><td>${formatGender(r.gender)}</td></tr>
+                    <tr><td><strong>Civil Status</strong></td><td>${escapeHtml(r.civil_status || '-')}</td></tr>
+                    <tr><td><strong>Contact</strong></td><td>${escapeHtml(r.contact_number || '-')}</td></tr>
+                    <tr><td><strong>Address</strong></td><td>${escapeHtml(r.address || '-')}</td></tr>
+                    <tr><td><strong>Occupation</strong></td><td>${escapeHtml(r.occupation || '-')}</td></tr>
+                    <tr><td><strong>Citizenship</strong></td><td>${escapeHtml(r.citizenship || '-')}</td></tr>
+                    <tr><td><strong>Household</strong></td><td>${r.household_address ? 'Household #'+r.household_id+' ('+r.total_members+' members)' : 'None'}</td></tr>
+                    <tr><td><strong>Certificates</strong></td><td>${r.certificates_count || 0} issued</td></tr>
+                    <tr><td><strong>Status</strong></td><td><span class="badge ${getStatusClass(r.status)}">${formatStatus(r.status)}</span></td></tr>
+                </table>
+            `;
+            document.getElementById('btnEditFromView').dataset.residentId = id;
+            document.getElementById('linkCertificates').href = (window.BASE_URL || '') + 'certificates.php';
+            new bootstrap.Modal(document.getElementById('viewResidentModal')).show();
+        })
+        .catch(() => showAlert('error', 'Error loading resident'));
 }
 
 /**
