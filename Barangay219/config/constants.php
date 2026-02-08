@@ -56,6 +56,7 @@ define('APPLICATION_STATUS_REJECTED', 'rejected');
 define('CERT_BARANGAY_CLEARANCE', 'barangay_clearance');
 define('CERT_INDIGENCY', 'certificate_indigency');
 define('CERT_RESIDENCY', 'certificate_residency');
+define('CERT_GOOD_MORAL', 'certificate_good_moral');
 define('CERT_TRANSFER_REQUEST', 'transfer_request');
 
 // Status Values
