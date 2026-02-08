@@ -1,16 +1,12 @@
 <?php
-/**
- * E-Barangay - Resident Applications Review (Barangay Staff)
- */
-
 define('ACCESS_ALLOWED', true);
-require_once __DIR__ . '/../config/constants.php';
+require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
 requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY]);
 
-$page_title = 'Resident Applications';
+$page_title = 'Certificate Applications';
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
@@ -18,38 +14,35 @@ include __DIR__ . '/../includes/sidebar.php';
 <div class="main-content">
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="bi bi-file-earmark-person"></i> Resident Applications</h2>
+            <h2><i class="bi bi-file-earmark-person"></i> Certificate Applications</h2>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+                <i class="bi bi-plus-lg"></i> New Application
+            </button>
         </div>
 
         <ul class="nav nav-tabs mb-3" id="statusTabs">
-            <li class="nav-item">
-                <a class="nav-link active" href="#" data-status="pending">Pending</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#" data-status="approved">Approved</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#" data-status="rejected">Rejected</a>
-            </li>
+            <li class="nav-item"><a class="nav-link active" href="#" data-status="">All</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="pending">Pending</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="approved">Approved</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="issued">Released</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
         </ul>
 
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>Ref</th>
-                        <th>Name</th>
-                        <th>Birth Date</th>
-                        <th>Sex</th>
-                        <th>Contact</th>
-                        <th>Submitted</th>
-                        <th>Reviewed</th>
+                        <th>Ref #</th>
+                        <th>Resident</th>
+                        <th>Type</th>
+                        <th>Purpose</th>
+                        <th>Date</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="applicationsTableBody">
-                    <tr><td colspan="9" class="text-center py-4">Loading...</td></tr>
+                    <tr><td colspan="7" class="text-center py-4">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -57,9 +50,53 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </div>
 
-<!-- View Application Modal -->
+<!-- Create Application Modal -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Certificate Application</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Resident <span class="text-danger">*</span></label>
+                    <select class="form-select" id="createResidentId" required>
+                        <option value="">-- Select Resident --</option>
+                    </select>
+                    <small class="text-muted">Or <a href="<?php echo BASE_URL; ?>residents.php">add new resident</a> first</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Certificate Type <span class="text-danger">*</span></label>
+                    <select class="form-select" id="createCertType" required>
+                        <option value="">-- Select Type --</option>
+                        <option value="barangay_clearance">Barangay Clearance</option>
+                        <option value="certificate_residency">Certificate of Residency</option>
+                        <option value="certificate_indigency">Certificate of Indigency</option>
+                        <option value="certificate_good_moral">Certificate of Good Moral</option>
+                        <option value="transfer_request">Transfer Request</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Purpose</label>
+                    <input type="text" class="form-control" id="createPurpose" placeholder="e.g., Employment, Scholarship">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Remarks</label>
+                    <textarea class="form-control" id="createRemarks" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnCreate"><i class="bi bi-check"></i> Create Application</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View/Edit Modal -->
 <div class="modal fade" id="viewModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Application Details - <span id="viewAppRef"></span></h5>
@@ -71,48 +108,21 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </div>
 
-<!-- Approve Modal -->
-<div class="modal fade" id="approveModal" tabindex="-1">
+<!-- Release Modal -->
+<div class="modal fade" id="releaseModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Approve Application</h5>
+                <h5 class="modal-title">Release Certificate</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <input type="hidden" id="approveId">
-                <div class="mb-3">
-                    <label class="form-label">Remarks (optional)</label>
-                    <textarea class="form-control" id="approveRemarks" rows="2"></textarea>
-                </div>
-                <p class="text-muted small">Upon approval, a Resident ID will be generated and the applicant may activate their account.</p>
+                <input type="hidden" id="releaseId">
+                <p>Assign control number and mark as released?</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="btnApprove"><i class="bi bi-check"></i> Approve</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Reject Modal -->
-<div class="modal fade" id="rejectModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Reject Application</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="rejectId">
-                <div class="mb-3">
-                    <label class="form-label">Rejection Reason (optional)</label>
-                    <textarea class="form-control" id="rejectReason" rows="3"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="btnReject"><i class="bi bi-x"></i> Reject</button>
+                <button type="button" class="btn btn-success" id="btnRelease"><i class="bi bi-box-arrow-up"></i> Release</button>
             </div>
         </div>
     </div>
@@ -122,48 +132,49 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <script>
 (function() {
-    let currentStatus = 'pending';
+    let currentStatus = '';
     let currentPage = 1;
 
     function loadApplications() {
         const tbody = document.getElementById('applicationsTableBody');
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><div class="spinner-border"></div></td></tr>';
-        fetch(API_URL + 'applications.php?action=list&status=' + currentStatus + '&page=' + currentPage)
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border"></div></td></tr>';
+        let url = 'certificates.php?action=list&page=' + currentPage;
+        if (currentStatus) url += '&status=' + currentStatus;
+        fetch(API_URL + url)
             .then(r => r.json())
             .then(data => {
                 if (!data.success) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="text-danger">' + data.message + '</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-danger">' + (data.message || 'Error') + '</td></tr>';
                     return;
                 }
-                const apps = data.data.applications || [];
+                const apps = data.data.certificates || data.data || [];
                 if (apps.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No applications found.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No applications found.</td></tr>';
                 } else {
                     tbody.innerHTML = apps.map(a => `
                         <tr>
-                            <td><code>${escapeHtml(a.application_ref)}</code></td>
-                            <td>${escapeHtml(a.last_name + ', ' + a.first_name)}</td>
-                            <td>${escapeHtml(a.birth_date)}</td>
-                            <td>${escapeHtml(a.sex)}</td>
-                            <td>${escapeHtml(a.mobile_number)}</td>
-                            <td>${escapeHtml(a.created_at)}</td>
-                            <td>${a.reviewed_at ? escapeHtml(a.reviewed_at) : '-'}</td>
-                            <td><span class="badge bg-${a.record_status === 'approved' ? 'success' : a.record_status === 'rejected' ? 'danger' : 'warning'}">${a.record_status}</span></td>
+                            <td><code>${esc(a.application_ref || 'APP-'+a.id)}</code></td>
+                            <td>${esc(a.resident_name || '-')}</td>
+                            <td>${esc((a.certificate_type || '').replace(/_/g, ' '))}</td>
+                            <td>${esc((a.purpose || '').substring(0,30))}${(a.purpose||'').length>30?'...':''}</td>
+                            <td>${formatDate(a.created_at)}</td>
+                            <td><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td>
                             <td>
                                 <button class="btn btn-sm btn-outline-primary" onclick="viewApp(${a.id})"><i class="bi bi-eye"></i></button>
-                                ${a.record_status === 'pending' ? `
-                                <button class="btn btn-sm btn-success" onclick="openApprove(${a.id})"><i class="bi bi-check"></i></button>
-                                <button class="btn btn-sm btn-danger" onclick="openReject(${a.id})"><i class="bi bi-x"></i></button>
+                                ${a.status === 'pending' ? `
+                                <button class="btn btn-sm btn-success" onclick="updateStatus(${a.id}, 'approved')">Approve</button>
+                                <button class="btn btn-sm btn-danger" onclick="rejectApp(${a.id})">Reject</button>
                                 ` : ''}
+                                ${a.status === 'approved' ? `<button class="btn btn-sm btn-info" onclick="openRelease(${a.id})">Release</button>` : ''}
+                                ${a.status === 'issued' ? (a.control_number ? `<small>${esc(a.control_number)}</small>` : '') : ''}
                             </td>
                         </tr>
                     `).join('');
                 }
-                renderPagination(data.data.total_pages, data.data.page);
+                const totalPages = data.data.total_pages || 1;
+                renderPagination(totalPages, data.data.page || 1);
             })
-            .catch(() => {
-                tbody.innerHTML = '<tr><td colspan="9" class="text-danger">Failed to load.</td></tr>';
-            });
+            .catch(() => { tbody.innerHTML = '<tr><td colspan="7" class="text-danger">Failed to load.</td></tr>'; });
     }
 
     function renderPagination(totalPages, page) {
@@ -171,7 +182,7 @@ include __DIR__ . '/../includes/sidebar.php';
         if (totalPages <= 1) { ul.innerHTML = ''; return; }
         let html = '';
         if (page > 1) html += '<li class="page-item"><a class="page-link" href="#" data-p="' + (page - 1) + '">Prev</a></li>';
-        for (let i = 1; i <= totalPages; i++) {
+        for (let i = 1; i <= Math.min(totalPages, 10); i++) {
             html += '<li class="page-item' + (i === page ? ' active' : '') + '"><a class="page-link" href="#" data-p="' + i + '">' + i + '</a></li>';
         }
         if (page < totalPages) html += '<li class="page-item"><a class="page-link" href="#" data-p="' + (page + 1) + '">Next</a></li>';
@@ -181,91 +192,128 @@ include __DIR__ . '/../includes/sidebar.php';
         });
     }
 
-    function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+    function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+    function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
+    function getStatusColor(s) {
+        const c = { 'pending':'warning','approved':'info','issued':'success','rejected':'danger','released':'success' };
+        return c[s] || 'secondary';
+    }
 
     window.viewApp = function(id) {
-        fetch(API_URL + 'applications.php?action=get&id=' + id)
+        fetch(API_URL + 'certificates.php?action=get&id=' + id)
             .then(r => r.json())
             .then(data => {
                 if (!data.success) return alert(data.message);
                 const a = data.data;
-                document.getElementById('viewAppRef').textContent = a.application_ref;
-                const sections = [
-                    ['Personal', { 'Full Name': (a.first_name + ' ' + (a.middle_name || '') + ' ' + a.last_name + ' ' + (a.suffix || '')).trim(), 'Sex': a.sex, 'Birth Date': a.birth_date, 'Place of Birth': a.place_of_birth, 'Civil Status': a.civil_status, 'Citizenship': a.citizenship }],
-                    ['Family', { 'Family Code': a.family_code, 'Relationship to Head': a.relationship_to_head }],
-                    ['Address', { 'House/Street': (a.house_number || '') + ' ' + (a.street || ''), 'Purok/Sitio': a.purok_sitio, 'Barangay': a.barangay, 'City': a.city, 'Province': a.province, 'Length of Residency': a.length_of_residency_years ? a.length_of_residency_years + ' years' : '' }],
-                    ['Contact', { 'Mobile': a.mobile_number, 'Email': a.email, 'Emergency': a.emergency_contact_name + ' - ' + a.emergency_contact_number + ' (' + a.emergency_contact_relationship + ')' }],
-                    ['Education & Employment', { 'Educational Attainment': a.educational_attainment, 'Employment Status': a.employment_status, 'Occupation': a.occupation }],
-                    ['Special', { 'Senior Citizen': a.is_senior_citizen ? 'Yes' : 'No', 'PWD': a.is_pwd ? 'Yes' : 'No', 'Solo Parent': a.is_solo_parent ? 'Yes' : 'No', 'IP Member': a.is_ip_member ? 'Yes' : 'No', '4Ps': a.is_4ps_beneficiary ? 'Yes' : 'No' }],
-                    ['ID', { 'Valid ID Type': a.valid_id_type, 'Valid ID Number': a.valid_id_number }]
-                ];
-                let html = '';
-                sections.forEach(([title, kv]) => {
-                    html += '<h6 class="text-primary mt-3">' + title + '</h6><table class="table table-sm"><tbody>';
-                    Object.entries(kv).forEach(([k, v]) => { if (v) html += '<tr><td>' + escapeHtml(k) + '</td><td>' + escapeHtml(v) + '</td></tr>'; });
-                    html += '</tbody></table>';
-                });
+                document.getElementById('viewAppRef').textContent = a.application_ref || 'APP-' + a.id;
+                const html = `
+                    <table class="table table-sm">
+                        <tr><td><strong>Resident</strong></td><td>${esc(a.resident_name)}</td></tr>
+                        <tr><td><strong>Certificate Type</strong></td><td>${esc((a.certificate_type||'').replace(/_/g,' '))}</td></tr>
+                        <tr><td><strong>Purpose</strong></td><td>${esc(a.purpose) || '-'}</td></tr>
+                        <tr><td><strong>Status</strong></td><td><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td></tr>
+                        <tr><td><strong>Control Number</strong></td><td>${esc(a.control_number) || '-'}</td></tr>
+                        <tr><td><strong>Created</strong></td><td>${formatDate(a.created_at)}</td></tr>
+                        <tr><td><strong>Issued Date</strong></td><td>${formatDate(a.issued_date) || '-'}</td></tr>
+                    </table>
+                `;
                 document.getElementById('viewModalBody').innerHTML = html;
-                document.getElementById('viewModalFooter').innerHTML = a.record_status === 'pending' ?
-                    '<button class="btn btn-success" onclick="openApprove(' + a.id + '); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();"><i class="bi bi-check"></i> Approve</button>' +
-                    '<button class="btn btn-danger" onclick="openReject(' + a.id + '); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();"><i class="bi bi-x"></i> Reject</button>' : '';
+                let footer = '';
+                if (a.status === 'pending') {
+                    footer = '<button class="btn btn-success" onclick="updateStatus('+a.id+',\'approved\'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Approve</button>' +
+                        '<button class="btn btn-danger" onclick="rejectApp('+a.id+'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Reject</button>';
+                } else if (a.status === 'approved') {
+                    footer = '<button class="btn btn-info" onclick="openRelease('+a.id+'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Release</button>';
+                }
+                footer += '<a href="<?php echo BASE_URL; ?>certificates.php?id='+a.id+'" class="btn btn-primary">View in Certificates</a>';
+                document.getElementById('viewModalFooter').innerHTML = footer;
                 new bootstrap.Modal(document.getElementById('viewModal')).show();
             });
     };
 
-    window.openApprove = function(id) {
-        document.getElementById('approveId').value = id;
-        document.getElementById('approveRemarks').value = '';
-        new bootstrap.Modal(document.getElementById('approveModal')).show();
-    };
-
-    window.openReject = function(id) {
-        document.getElementById('rejectId').value = id;
-        document.getElementById('rejectReason').value = '';
-        new bootstrap.Modal(document.getElementById('rejectModal')).show();
-    };
-
-    document.getElementById('btnApprove').addEventListener('click', function() {
-        const id = document.getElementById('approveId').value;
-        const remarks = document.getElementById('approveRemarks').value;
-        const btn = this;
-        btn.disabled = true;
+    window.updateStatus = function(id, status) {
         const fd = new FormData();
-        fd.append('action', 'approve');
+        fd.append('action', 'update');
         fd.append('id', id);
-        fd.append('remarks', remarks);
-        fetch(API_URL + 'applications.php', { method: 'POST', body: fd })
+        fd.append('status', status);
+        fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
             .then(r => r.json())
-            .then(data => {
-                btn.disabled = false;
-                bootstrap.Modal.getInstance(document.getElementById('approveModal')).hide();
-                if (data.success) {
-                    alert('Approved! Resident ID: ' + (data.data?.resident_code || '') + '\nActivation link: ' + (data.data?.activation_link || ''));
-                    loadApplications();
-                } else {
-                    alert(data.message);
-                }
-            })
-            .catch(() => { btn.disabled = false; alert('Error'); });
-    });
+            .then(d => { if (d.success) { loadApplications(); } else alert(d.message || 'Error'); });
+    };
 
-    document.getElementById('btnReject').addEventListener('click', function() {
-        const id = document.getElementById('rejectId').value;
-        const reason = document.getElementById('rejectReason').value;
-        const btn = this;
-        btn.disabled = true;
+    window.rejectApp = function(id) {
+        const reason = prompt('Rejection reason (optional):');
         const fd = new FormData();
         fd.append('action', 'reject');
         fd.append('id', id);
-        fd.append('rejection_reason', reason);
-        fetch(API_URL + 'applications.php', { method: 'POST', body: fd })
+        if (reason) fd.append('reason', reason);
+        fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
             .then(r => r.json())
-            .then(data => {
-                btn.disabled = false;
-                bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
-                if (data.success) { loadApplications(); } else { alert(data.message); }
+            .then(d => { if (d.success) loadApplications(); else alert(d.message || 'Error'); });
+    };
+
+    window.openRelease = function(id) {
+        document.getElementById('releaseId').value = id;
+        new bootstrap.Modal(document.getElementById('releaseModal')).show();
+    };
+
+    document.getElementById('btnRelease').addEventListener('click', function() {
+        const id = document.getElementById('releaseId').value;
+        const fd = new FormData();
+        fd.append('action', 'release');
+        fd.append('id', id);
+        fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(d => {
+                bootstrap.Modal.getInstance(document.getElementById('releaseModal')).hide();
+                if (d.success) {
+                    alert('Released. Control #: ' + (d.data?.control_number || ''));
+                    loadApplications();
+                } else alert(d.message || 'Error');
+            });
+    });
+
+    // Load residents for create dropdown
+    function loadResidents() {
+        fetch(API_URL + 'resident.php?action=list&limit=500')
+            .then(r => r.json())
+            .then(d => {
+                if (d.success && d.data && d.data.residents) {
+                    const sel = document.getElementById('createResidentId');
+                    sel.innerHTML = '<option value="">-- Select Resident --</option>' +
+                        d.data.residents.map(r => `<option value="${r.id}">${esc(r.last_name + ', ' + r.first_name + ' ' + (r.middle_name||''))}</option>`).join('');
+                }
+            });
+    }
+
+    document.getElementById('btnCreate').addEventListener('click', function() {
+        const residentId = document.getElementById('createResidentId').value;
+        const certType = document.getElementById('createCertType').value;
+        const purpose = document.getElementById('createPurpose').value;
+        const remarks = document.getElementById('createRemarks').value;
+        if (!residentId || !certType) { alert('Resident and certificate type required'); return; }
+        const fd = new FormData();
+        fd.append('action', 'create');
+        fd.append('resident_id', residentId);
+        fd.append('certificate_type', certType);
+        fd.append('purpose', purpose);
+        fd.append('remarks', remarks);
+        this.disabled = true;
+        fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(d => {
+                this.disabled = false;
+                if (d.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('createModal')).hide();
+                    document.getElementById('createResidentId').value = '';
+                    document.getElementById('createCertType').value = '';
+                    document.getElementById('createPurpose').value = '';
+                    document.getElementById('createRemarks').value = '';
+                    alert('Application created. Ref: ' + (d.data?.application_ref || d.data?.id));
+                    loadApplications();
+                } else alert(d.message || 'Error');
             })
-            .catch(() => { btn.disabled = false; alert('Error'); });
+            .catch(() => { this.disabled = false; alert('Error'); });
     });
 
     document.querySelectorAll('#statusTabs .nav-link').forEach(link => {
@@ -273,12 +321,13 @@ include __DIR__ . '/../includes/sidebar.php';
             e.preventDefault();
             document.querySelectorAll('#statusTabs .nav-link').forEach(l => l.classList.remove('active'));
             this.classList.add('active');
-            currentStatus = this.dataset.status;
+            currentStatus = this.dataset.status || '';
             currentPage = 1;
             loadApplications();
         });
     });
 
+    loadResidents();
     loadApplications();
 })();
 </script>
