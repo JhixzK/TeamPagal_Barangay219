@@ -187,6 +187,25 @@ function getUserInfo($userId = null) {
 }
 
 /**
+ * Log user activity for audit trail
+ */
+function logActivity($action, $module, $entityId = null, $details = null) {
+    $userId = getCurrentUserId();
+    if (!$userId) return;
+    try {
+        $db = Database::getInstance();
+        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+        $detailsJson = $details !== null ? json_encode($details) : null;
+        $db->query(
+            "INSERT INTO activity_logs (user_id, action, module, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)",
+            [$userId, $action, $module, $entityId, $detailsJson, $ip]
+        );
+    } catch (Exception $e) {
+        error_log("Activity log error: " . $e->getMessage());
+    }
+}
+
+/**
  * Logout user
  */
 function logout() {
