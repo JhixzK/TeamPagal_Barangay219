@@ -11,40 +11,47 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY]);
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
     case 'list':
+        if (!canModulePermission('households', 'access')) { sendResponse(false, 'Access denied', null, 403); }
         listHouseholds();
         break;
     
     case 'get':
+        if (!canModulePermission('households', 'access')) { sendResponse(false, 'Access denied', null, 403); }
         getHousehold();
         break;
     
     case 'create':
+        if (!canModulePermission('households', 'create')) { sendResponse(false, 'Access denied', null, 403); }
         createHousehold();
         break;
     
     case 'update':
+        if (!canModulePermission('households', 'edit')) { sendResponse(false, 'Access denied', null, 403); }
         updateHousehold();
         break;
     
     case 'delete':
+        if (!canModulePermission('households', 'delete')) { sendResponse(false, 'Access denied', null, 403); }
         deleteHousehold();
         break;
     
     case 'members':
+        if (!canModulePermission('households', 'access')) { sendResponse(false, 'Access denied', null, 403); }
         getHouseholdMembers();
         break;
     
     case 'add_member':
+        if (!canModulePermission('households', 'edit')) { sendResponse(false, 'Access denied', null, 403); }
         addHouseholdMember();
         break;
     
     case 'remove_member':
+        if (!canModulePermission('households', 'edit')) { sendResponse(false, 'Access denied', null, 403); }
         removeHouseholdMember();
         break;
     
