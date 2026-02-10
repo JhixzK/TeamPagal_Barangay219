@@ -28,7 +28,12 @@ include __DIR__ . '/../includes/sidebar.php';
                     <button class="btn btn-primary w-100" onclick="searchHouseholds()"><i class="bi bi-search"></i> Search</button>
                 </div>
                 <div class="col-md-2">
-                    <button class="btn btn-secondary w-100" onclick="loadHouseholds()"><i class="bi bi-arrow-clockwise"></i> Reset</button>
+                    <button class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-secondary w-100" onclick="resetHouseholds()"><i class="bi bi-arrow-clockwise"></i> Reset</button>
                 </div>
             </div>
         </div>
@@ -50,6 +55,32 @@ include __DIR__ . '/../includes/sidebar.php';
                         <tr><td colspan="6" class="text-center"><div class="spinner-border text-primary"></div></td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Filter Households</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Registration From</label>
+                    <input type="date" class="form-control" id="filterFrom">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Registration To</label>
+                    <input type="date" class="form-control" id="filterTo">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
             </div>
         </div>
     </div>
