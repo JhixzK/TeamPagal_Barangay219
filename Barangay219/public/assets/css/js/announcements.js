@@ -6,7 +6,27 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAnnouncements();
     document.getElementById('btnCreate').addEventListener('click', createAnnouncement);
     document.getElementById('btnSave').addEventListener('click', saveAnnouncement);
+    applyAnnouncementPermissions();
 });
+
+const ANNOUNCEMENT_PERMS = {
+    canCreate: window.canModulePermission ? window.canModulePermission('announcements', 'can_create') : true,
+    canEdit: window.canModulePermission ? window.canModulePermission('announcements', 'can_edit') : true,
+    canDelete: window.canModulePermission ? window.canModulePermission('announcements', 'can_delete') : true
+};
+
+function applyAnnouncementPermissions() {
+    if (!ANNOUNCEMENT_PERMS.canCreate) {
+        const openBtn = document.getElementById('btnOpenCreate');
+        if (openBtn) openBtn.style.display = 'none';
+        const createBtn = document.getElementById('btnCreate');
+        if (createBtn) createBtn.style.display = 'none';
+    }
+    if (!ANNOUNCEMENT_PERMS.canEdit) {
+        const saveBtn = document.getElementById('btnSave');
+        if (saveBtn) saveBtn.style.display = 'none';
+    }
+}
 
 function loadAnnouncements() {
     fetch(window.API_URL + 'announcement.php?action=list')
@@ -24,8 +44,8 @@ function loadAnnouncements() {
                         <td><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td>
                         <td>
                             <button class="btn btn-sm btn-primary" onclick="viewAnnouncement(${a.id})">View</button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="editAnnouncement(${a.id})">Edit</button>
-                            <button class="btn btn-sm btn-outline-warning" onclick="archiveAnnouncement(${a.id})">Archive</button>
+                            ${ANNOUNCEMENT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" onclick="editAnnouncement(${a.id})">Edit</button>` : ''}
+                            ${ANNOUNCEMENT_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-warning" onclick="archiveAnnouncement(${a.id})">Archive</button>` : ''}
                         </td>
                     </tr>
                 `).join('');
@@ -53,12 +73,17 @@ function viewAnnouncement(id) {
             document.getElementById('viewContent').innerHTML = a.content.replace(/\n/g, '<br>');
             document.getElementById('viewDate').textContent = formatDate(a.date_posted);
             document.getElementById('viewBy').textContent = a.posted_by_name || '-';
-            document.getElementById('viewFooter').innerHTML = `<button class="btn btn-secondary" data-bs-dismiss="modal">Close</button> <button class="btn btn-primary" onclick="editAnnouncement(${a.id}); bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();">Edit</button>`;
+            const editBtn = ANNOUNCEMENT_PERMS.canEdit ? ` <button class="btn btn-primary" onclick="editAnnouncement(${a.id}); bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();">Edit</button>` : '';
+            document.getElementById('viewFooter').innerHTML = `<button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>${editBtn}`;
             new bootstrap.Modal(document.getElementById('viewModal')).show();
         });
 }
 
 function editAnnouncement(id) {
+    if (!ANNOUNCEMENT_PERMS.canEdit) {
+        alert('Access denied');
+        return;
+    }
     fetch(window.API_URL + 'announcement.php?action=get&id=' + id)
         .then(r => r.json())
         .then(d => {
@@ -78,6 +103,10 @@ function editAnnouncement(id) {
 }
 
 function saveAnnouncement() {
+    if (!ANNOUNCEMENT_PERMS.canEdit) {
+        alert('Access denied');
+        return;
+    }
     const fd = new FormData();
     fd.append('action', 'update');
     fd.append('id', document.getElementById('editId').value);
@@ -97,6 +126,10 @@ function saveAnnouncement() {
 }
 
 function createAnnouncement() {
+    if (!ANNOUNCEMENT_PERMS.canCreate) {
+        alert('Access denied');
+        return;
+    }
     const fd = new FormData();
     fd.append('action', 'create');
     fd.append('title', document.getElementById('createTitle').value);
@@ -118,6 +151,10 @@ function createAnnouncement() {
 }
 
 function archiveAnnouncement(id) {
+    if (!ANNOUNCEMENT_PERMS.canDelete) {
+        alert('Access denied');
+        return;
+    }
     if (!confirm('Archive this announcement?')) return;
     const fd = new FormData();
     fd.append('action', 'delete');
