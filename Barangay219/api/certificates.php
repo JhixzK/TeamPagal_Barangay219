@@ -79,18 +79,39 @@ function listCertificates() {
     try {
         $db = Database::getInstance();
         $status = $_GET['status'] ?? '';
+        $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
+        $type = sanitizeInput($_GET['type'] ?? '');
+        $from = sanitizeInput($_GET['from'] ?? '');
+        $to = sanitizeInput($_GET['to'] ?? '');
         $page = max(1, (int)($_GET['page'] ?? 1));
         $limit = min(50, max(10, (int)($_GET['limit'] ?? ITEMS_PER_PAGE)));
         $offset = ($page - 1) * $limit;
 
         $where = "1=1";
         $params = [];
+        if (!empty($q)) {
+            $term = '%' . $q . '%';
+            $where .= " AND (c.application_ref LIKE ? OR c.control_number LIKE ? OR CONCAT(r.first_name, ' ', r.last_name) LIKE ?)";
+            $params = array_merge($params, [$term, $term, $term]);
+        }
         if (in_array($status, ['pending', 'approved', 'rejected', 'issued'])) {
             $where .= " AND c.status = ?";
             $params[] = $status;
         }
+        if (!empty($type)) {
+            $where .= " AND c.certificate_type = ?";
+            $params[] = $type;
+        }
+        if (!empty($from)) {
+            $where .= " AND DATE(c.created_at) >= ?";
+            $params[] = $from;
+        }
+        if (!empty($to)) {
+            $where .= " AND DATE(c.created_at) <= ?";
+            $params[] = $to;
+        }
 
-        $countSql = "SELECT COUNT(*) as total FROM certificate_requests c WHERE $where";
+        $countSql = "SELECT COUNT(*) as total FROM certificate_requests c LEFT JOIN residents r ON c.resident_id = r.id WHERE $where";
         $total = (int)$db->fetchOne($countSql, $params)['total'];
 
         $sql = "SELECT c.*, CONCAT(r.first_name, ' ', COALESCE(r.middle_name,''), ' ', r.last_name) as resident_name,
