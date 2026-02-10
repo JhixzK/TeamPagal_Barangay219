@@ -4,7 +4,27 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
 
 document.addEventListener('DOMContentLoaded', function() {
     loadComplaints();
+    applyComplaintPermissions();
 });
+
+const COMPLAINT_PERMS = {
+    canCreate: window.canModulePermission ? window.canModulePermission('complaints', 'can_create') : true,
+    canEdit: window.canModulePermission ? window.canModulePermission('complaints', 'can_edit') : true,
+    canDelete: window.canModulePermission ? window.canModulePermission('complaints', 'can_delete') : true
+};
+
+function applyComplaintPermissions() {
+    if (!COMPLAINT_PERMS.canCreate) {
+        const openBtn = document.getElementById('btnOpenCreate');
+        if (openBtn) openBtn.style.display = 'none';
+        const createBtn = document.getElementById('btnCreate');
+        if (createBtn) createBtn.style.display = 'none';
+    }
+    if (!COMPLAINT_PERMS.canEdit) {
+        const saveBtn = document.getElementById('btnSaveComplaint');
+        if (saveBtn) saveBtn.style.display = 'none';
+    }
+}
 
 function loadComplaints(status) {
     let url = 'complaints.php?action=list';
@@ -25,8 +45,8 @@ function loadComplaints(status) {
                         <td><span class="badge bg-${getStatusColor(c.status)}">${c.status}</span></td>
                         <td>
                             <button class="btn btn-sm btn-primary" onclick="viewComplaint(${c.id})">View</button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="editComplaint(${c.id})">Edit</button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteComplaint(${c.id})">Delete</button>
+                            ${COMPLAINT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" onclick="editComplaint(${c.id})">Edit</button>` : ''}
+                            ${COMPLAINT_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteComplaint(${c.id})">Delete</button>` : ''}
                         </td>
                     </tr>
                 `).join('');
@@ -57,12 +77,14 @@ function viewComplaint(id) {
             `;
             const modal = new bootstrap.Modal(document.getElementById('viewModal'));
             document.getElementById('viewModalBody').innerHTML = html;
-            document.getElementById('viewModalFooter').innerHTML = `<button class="btn btn-secondary" data-bs-dismiss="modal">Close</button> <button class="btn btn-primary" onclick="editComplaint(${id}); bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();">Edit</button>`;
+            const editBtn = COMPLAINT_PERMS.canEdit ? ` <button class="btn btn-primary" onclick="editComplaint(${id}); bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();">Edit</button>` : '';
+            document.getElementById('viewModalFooter').innerHTML = `<button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>${editBtn}`;
             modal.show();
         });
 }
 
 function editComplaint(id) {
+    if (!COMPLAINT_PERMS.canEdit) { alert('Access denied'); return; }
     fetch(window.API_URL + 'complaints.php?action=get&id=' + id)
         .then(r => r.json())
         .then(d => {
@@ -82,6 +104,7 @@ function editComplaint(id) {
 }
 
 function saveComplaint() {
+    if (!COMPLAINT_PERMS.canEdit) { alert('Access denied'); return; }
     const fd = new FormData();
     fd.append('action', 'update');
     fd.append('id', document.getElementById('editId').value);
@@ -104,6 +127,7 @@ function saveComplaint() {
 }
 
 function deleteComplaint(id) {
+    if (!COMPLAINT_PERMS.canDelete) { alert('Access denied'); return; }
     if (!confirm('Delete this complaint?')) return;
     const fd = new FormData();
     fd.append('action', 'delete');
