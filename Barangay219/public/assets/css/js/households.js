@@ -4,8 +4,15 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
 
 let currentViewHouseholdId = null;
 
+const HOUSEHOLD_PERMS = {
+    canCreate: window.canModulePermission ? window.canModulePermission('households', 'can_create') : true,
+    canEdit: window.canModulePermission ? window.canModulePermission('households', 'can_edit') : true,
+    canDelete: window.canModulePermission ? window.canModulePermission('households', 'can_delete') : true
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     loadHouseholds();
+    applyHouseholdPermissions();
     document.getElementById('householdForm').addEventListener('submit', function(e) {
         e.preventDefault();
         saveHousehold();
@@ -15,6 +22,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('btnAddMember').addEventListener('click', addMemberToHousehold);
 });
+
+function applyHouseholdPermissions() {
+    if (!HOUSEHOLD_PERMS.canCreate) {
+        const openBtn = document.getElementById('btnOpenCreate');
+        if (openBtn) openBtn.style.display = 'none';
+    }
+    if (!HOUSEHOLD_PERMS.canEdit) {
+        const addMemberBtn = document.getElementById('btnAddMember');
+        if (addMemberBtn) addMemberBtn.style.display = 'none';
+    }
+}
 
 function loadHouseholds() {
     fetch(window.API_URL + 'households.php?action=list')
@@ -30,9 +48,9 @@ function loadHouseholds() {
                         <td>${h.total_members}</td>
                         <td>${formatDate(h.registration_date)}</td>
                         <td>
-                            <button class="btn btn-sm btn-secondary me-1" onclick="editHousehold(${h.id})" title="Edit"><i class="bi bi-pencil"></i></button>
+                            ${HOUSEHOLD_PERMS.canEdit ? `<button class="btn btn-sm btn-secondary me-1" onclick="editHousehold(${h.id})" title="Edit"><i class="bi bi-pencil"></i></button>` : ''}
                             <button class="btn btn-sm btn-primary me-1" onclick="viewHousehold(${h.id})" title="View Members"><i class="bi bi-eye"></i></button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteHousehold(${h.id})" title="Delete"><i class="bi bi-trash"></i></button>
+                            ${HOUSEHOLD_PERMS.canDelete ? `<button class="btn btn-sm btn-danger" onclick="deleteHousehold(${h.id})" title="Delete"><i class="bi bi-trash"></i></button>` : ''}
                         </td>
                     </tr>
                 `).join('');
@@ -61,9 +79,9 @@ function searchHouseholds() {
                         <td>${h.total_members}</td>
                         <td>${formatDate(h.registration_date)}</td>
                         <td>
-                            <button class="btn btn-sm btn-secondary me-1" onclick="editHousehold(${h.id})"><i class="bi bi-pencil"></i></button>
+                            ${HOUSEHOLD_PERMS.canEdit ? `<button class="btn btn-sm btn-secondary me-1" onclick="editHousehold(${h.id})"><i class="bi bi-pencil"></i></button>` : ''}
                             <button class="btn btn-sm btn-primary me-1" onclick="viewHousehold(${h.id})"><i class="bi bi-eye"></i></button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteHousehold(${h.id})"><i class="bi bi-trash"></i></button>
+                            ${HOUSEHOLD_PERMS.canDelete ? `<button class="btn btn-sm btn-danger" onclick="deleteHousehold(${h.id})"><i class="bi bi-trash"></i></button>` : ''}
                         </td>
                     </tr>
                 `).join('');
@@ -90,6 +108,9 @@ function loadResidentsForDropdown() {
 }
 
 function saveHousehold() {
+    const householdId = document.getElementById('householdId').value;
+    if (householdId && !HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
+    if (!householdId && !HOUSEHOLD_PERMS.canCreate) { alert('Access denied'); return; }
     const form = document.getElementById('householdForm');
     const formData = new FormData(form);
     formData.append('action', document.getElementById('householdId').value ? 'update' : 'create');
@@ -125,11 +146,13 @@ function viewHousehold(id) {
                 <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
             `;
             const members = h.members || [];
-            document.getElementById('viewHouseholdMembers').innerHTML = members.length
+                        const allowEditMembers = HOUSEHOLD_PERMS.canEdit;
+                        document.getElementById('viewHouseholdMembers').innerHTML = members.length
                 ? '<table class="table table-sm"><thead><tr><th>Name</th><th>Birth Date</th><th></th></tr></thead><tbody>' +
                   members.map(m => {
                       const name = `${m.first_name} ${m.middle_name || ''} ${m.last_name}`.trim();
-                      return `<tr><td>${escapeHtml(name)}</td><td>${formatDate(m.birth_date)}</td><td>${m.id !== h.family_head_id ? `<button class="btn btn-sm btn-outline-danger" onclick="removeMember(${m.id})">Remove</button>` : '<span class="badge bg-primary">Head</span>'}</td></tr>`;
+                                            const removeBtn = allowEditMembers && m.id !== h.family_head_id ? `<button class="btn btn-sm btn-outline-danger" onclick="removeMember(${m.id})">Remove</button>` : (m.id !== h.family_head_id ? '' : '<span class="badge bg-primary">Head</span>');
+                                            return `<tr><td>${escapeHtml(name)}</td><td>${formatDate(m.birth_date)}</td><td>${removeBtn}</td></tr>`;
                   }).join('') + '</tbody></table>'
                 : '<p class="text-muted">No members yet.</p>';
             loadResidentsForAddMember(id, members.map(m => m.id));
@@ -158,6 +181,7 @@ function loadResidentsForAddMember(householdId, excludeIds) {
 }
 
 function addMemberToHousehold() {
+    if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
     const sel = document.getElementById('addMemberResident');
     const residentId = sel.value;
     const householdId = currentViewHouseholdId || sel.dataset.householdId;
@@ -176,6 +200,7 @@ function addMemberToHousehold() {
 }
 
 function removeMember(residentId) {
+    if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
     if (!confirm('Remove this member from household?')) return;
     const fd = new FormData();
     fd.append('action', 'remove_member');
@@ -191,6 +216,7 @@ function removeMember(residentId) {
 }
 
 function editHousehold(id) {
+    if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
     Promise.all([
         fetch(window.API_URL + 'households.php?action=get&id=' + id).then(r => r.json()),
         fetch(window.API_URL + 'resident.php?action=list&limit=500').then(r => r.json())
@@ -213,6 +239,7 @@ function editHousehold(id) {
 }
 
 function deleteHousehold(id) {
+    if (!HOUSEHOLD_PERMS.canDelete) { alert('Access denied'); return; }
     if (!confirm('Delete this household? Members will be unlinked.')) return;
     const fd = new FormData();
     fd.append('action', 'delete');
