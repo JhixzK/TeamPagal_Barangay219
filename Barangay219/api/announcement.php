@@ -13,9 +13,24 @@ if ($action !== 'public_list') {
 switch ($action) {
     case 'list': listAnnouncements(); break;
     case 'get': getAnnouncement(); break;
-    case 'create': createAnnouncement(); break;
-    case 'update': updateAnnouncement(); break;
-    case 'delete': deleteAnnouncement(); break;
+    case 'create':
+        if (!canPerformModulePermission('announcements', 'can_create')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        createAnnouncement();
+        break;
+    case 'update':
+        if (!canPerformModulePermission('announcements', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        updateAnnouncement();
+        break;
+    case 'delete':
+        if (!canPerformModulePermission('announcements', 'can_delete')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        deleteAnnouncement();
+        break;
     case 'public_list': listAnnouncementsPublic(); break;
     default: sendResponse(false, 'Invalid action', null, 400);
 }
