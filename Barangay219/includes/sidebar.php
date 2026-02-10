@@ -138,6 +138,12 @@ if (empty($avatar_path)) {
                 </a>
             </li>
             <?php endforeach; ?>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="logout(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Logout</span>
+                </a>
+            </li>
         </ul>
     </div>
 </div>
