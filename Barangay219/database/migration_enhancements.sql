@@ -61,3 +61,56 @@ CREATE TABLE IF NOT EXISTS `certificates_issued` (
   KEY `idx_cert_request` (`certificate_request_id`),
   KEY `idx_control_number` (`control_number`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 8. Create role_permissions table for module access control
+CREATE TABLE IF NOT EXISTS `role_permissions` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `role` ENUM('barangay_captain', 'secretary', 'treasurer', 'kagawad', 'sk_chairman', 'resident') NOT NULL,
+  `module` VARCHAR(50) NOT NULL,
+  `can_access` TINYINT(1) NOT NULL DEFAULT 0,
+  `can_create` TINYINT(1) NOT NULL DEFAULT 0,
+  `can_edit` TINYINT(1) NOT NULL DEFAULT 0,
+  `can_delete` TINYINT(1) NOT NULL DEFAULT 0,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_role_module` (`role`, `module`),
+  KEY `idx_role` (`role`),
+  KEY `idx_module` (`module`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Seed default role permissions
+INSERT INTO role_permissions (role, module, can_access, can_create, can_edit, can_delete) VALUES
+('barangay_captain', 'dashboard', 1, 1, 1, 1),
+('barangay_captain', 'applications', 1, 1, 1, 1),
+('barangay_captain', 'residents', 1, 1, 1, 1),
+('barangay_captain', 'households', 1, 1, 1, 1),
+('barangay_captain', 'certificates', 1, 1, 1, 1),
+('barangay_captain', 'blotters', 1, 1, 1, 1),
+('barangay_captain', 'complaints', 1, 1, 1, 1),
+('barangay_captain', 'announcements', 1, 1, 1, 1),
+('barangay_captain', 'reports', 1, 1, 1, 1),
+('barangay_captain', 'users', 1, 1, 1, 1),
+('barangay_captain', 'profile', 1, 1, 1, 1),
+('secretary', 'dashboard', 1, 1, 1, 1),
+('secretary', 'applications', 1, 1, 1, 1),
+('secretary', 'residents', 1, 1, 1, 1),
+('secretary', 'households', 1, 1, 1, 1),
+('secretary', 'certificates', 1, 1, 1, 1),
+('secretary', 'blotters', 1, 1, 1, 1),
+('secretary', 'complaints', 1, 1, 1, 1),
+('secretary', 'announcements', 1, 1, 1, 1),
+('secretary', 'reports', 1, 1, 1, 1),
+('treasurer', 'dashboard', 1, 1, 1, 1),
+('treasurer', 'certificates', 1, 1, 1, 1),
+('treasurer', 'reports', 1, 1, 1, 1),
+('kagawad', 'dashboard', 1, 1, 1, 1),
+('kagawad', 'blotters', 1, 1, 1, 1),
+('kagawad', 'complaints', 1, 1, 1, 1),
+('kagawad', 'announcements', 1, 1, 1, 1),
+('sk_chairman', 'dashboard', 1, 1, 1, 1),
+('sk_chairman', 'announcements', 1, 1, 1, 1),
+('resident', 'dashboard', 1, 0, 0, 0),
+('resident', 'announcements', 1, 0, 0, 0),
+('resident', 'profile', 1, 0, 0, 0)
+ON DUPLICATE KEY UPDATE can_access = VALUES(can_access), can_create = VALUES(can_create), can_edit = VALUES(can_edit), can_delete = VALUES(can_delete);
