@@ -4,6 +4,7 @@
  */
 
 let currentPage = 1;
+let residentFilters = { q: '', status: '', gender: '' };
 
 const RESIDENT_PERMS = {
     canCreate: window.canModulePermission ? window.canModulePermission('residents', 'can_create') : true,
@@ -75,7 +76,16 @@ function loadResidents(page = 1) {
         return;
     }
     const itemsPerPage = window.ITEMS_PER_PAGE || 20;
-    fetch(`${apiUrl}resident.php?action=list&page=${page}&limit=${itemsPerPage}`)
+    const params = new URLSearchParams({
+        action: 'list',
+        page: page.toString(),
+        limit: itemsPerPage.toString()
+    });
+    if (residentFilters.q) params.append('q', residentFilters.q);
+    if (residentFilters.status) params.append('status', residentFilters.status);
+    if (residentFilters.gender) params.append('gender', residentFilters.gender);
+
+    fetch(`${apiUrl}resident.php?${params.toString()}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -169,32 +179,28 @@ function displayPagination(data) {
  */
 function searchResidents() {
     const query = document.getElementById('searchInput').value.trim();
-    
-    if (!query) {
-        loadResidents();
-        return;
-    }
-    
-    const apiUrl = window.API_URL;
-    if (!apiUrl) {
-        console.error('API_URL is not defined. Please check your configuration.');
-        showAlert('error', 'Configuration error. Please refresh the page.');
-        return;
-    }
-    fetch(`${apiUrl}resident.php?action=search&q=${encodeURIComponent(query)}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                displayResidents(data.data);
-                document.getElementById('pagination').innerHTML = '';
-            } else {
-                showAlert('error', data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('error', 'Error searching residents');
-        });
+
+    residentFilters.q = query;
+    loadResidents(1);
+}
+
+function applyFilters() {
+    residentFilters.status = document.getElementById('filterStatus')?.value || '';
+    residentFilters.gender = document.getElementById('filterGender')?.value || '';
+    loadResidents(1);
+    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
+    if (modal) modal.hide();
+}
+
+function resetResidents() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+    residentFilters = { q: '', status: '', gender: '' };
+    const statusSel = document.getElementById('filterStatus');
+    const genderSel = document.getElementById('filterGender');
+    if (statusSel) statusSel.value = '';
+    if (genderSel) genderSel.value = '';
+    loadResidents(1);
 }
 
 /**
