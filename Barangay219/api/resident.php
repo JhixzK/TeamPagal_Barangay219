@@ -62,22 +62,44 @@ function listResidents() {
         $page = intval($_GET['page'] ?? 1);
         $limit = intval($_GET['limit'] ?? ITEMS_PER_PAGE);
         $offset = ($page - 1) * $limit;
+
+        $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
+        $status = sanitizeInput($_GET['status'] ?? '');
+        $gender = sanitizeInput($_GET['gender'] ?? '');
         
         $db = Database::getInstance();
+
+        $where = '1=1';
+        $params = [];
+        if (!empty($q)) {
+            $term = '%' . $q . '%';
+            $where .= " AND (r.first_name LIKE ? OR r.middle_name LIKE ? OR r.last_name LIKE ? OR r.address LIKE ? OR CONCAT(r.first_name, ' ', r.last_name) LIKE ?)";
+            $params = array_merge($params, [$term, $term, $term, $term, $term]);
+        }
+        if (!empty($status)) {
+            $where .= " AND r.status = ?";
+            $params[] = $status;
+        }
+        if (!empty($gender)) {
+            $where .= " AND r.gender = ?";
+            $params[] = $gender;
+        }
         
         // Get total count
-        $countSql = "SELECT COUNT(*) as total FROM residents";
-        $total = $db->fetchOne($countSql)['total'];
+        $countSql = "SELECT COUNT(*) as total FROM residents r WHERE $where";
+        $total = $db->fetchOne($countSql, $params)['total'];
         
         // Get residents - ordered by ID so new residents appear at the end
         $sql = "SELECT r.*, h.address as household_address, h.total_members,
                 (SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count
                 FROM residents r
                 LEFT JOIN households h ON r.household_id = h.id
+                WHERE $where
                 ORDER BY r.id ASC
                 LIMIT ? OFFSET ?";
-        
-        $residents = $db->fetchAll($sql, [$limit, $offset]);
+
+        $queryParams = array_merge($params, [$limit, $offset]);
+        $residents = $db->fetchAll($sql, $queryParams);
         
         sendResponse(true, 'Residents retrieved successfully', [
             'residents' => $residents,
