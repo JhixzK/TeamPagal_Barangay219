@@ -107,6 +107,113 @@ function requireAdmin() {
 }
 
 /**
+ * Get module definitions for role permissions
+ */
+function getModuleList() {
+    return [
+        'dashboard' => ['label' => 'Dashboard', 'crud' => false],
+        'applications' => ['label' => 'Applications', 'crud' => true],
+        'residents' => ['label' => 'Residents', 'crud' => true],
+        'households' => ['label' => 'Households', 'crud' => true],
+        'certificates' => ['label' => 'Certificates', 'crud' => true],
+        'blotters' => ['label' => 'Blotters', 'crud' => true],
+        'complaints' => ['label' => 'Complaints', 'crud' => true],
+        'announcements' => ['label' => 'Announcements', 'crud' => true],
+        'reports' => ['label' => 'Reports', 'crud' => false],
+        'users' => ['label' => 'Users', 'crud' => true]
+    ];
+}
+
+/**
+ * Get legacy role permissions map (used as defaults)
+ */
+function getLegacyModulePermissions() {
+    return [
+        ROLE_SECRETARY => ['residents', 'applications', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'dashboard'],
+        ROLE_TREASURER => ['certificates', 'reports', 'dashboard'],
+        ROLE_KAGAWA => ['blotters', 'complaints', 'announcements', 'dashboard'],
+        ROLE_SK_CHAIRMAN => ['announcements', 'dashboard'],
+        ROLE_RESIDENT => ['dashboard', 'announcements', 'profile']
+    ];
+}
+
+/**
+ * Build default permissions for a role based on legacy access
+ */
+function getDefaultRolePermissions($role) {
+    $modules = getModuleList();
+    $legacy = getLegacyModulePermissions();
+    $allowed = $legacy[$role] ?? [];
+    $defaults = [];
+
+    foreach ($modules as $key => $meta) {
+        $hasAccess = in_array($key, $allowed);
+        $defaults[$key] = [
+            'can_access' => $hasAccess ? 1 : 0,
+            'can_create' => ($hasAccess && $meta['crud']) ? 1 : 0,
+            'can_edit' => ($hasAccess && $meta['crud']) ? 1 : 0,
+            'can_delete' => ($hasAccess && $meta['crud']) ? 1 : 0
+        ];
+    }
+
+    if ($role === ROLE_BARANGAY_CAPTAIN) {
+        foreach ($modules as $key => $meta) {
+            $defaults[$key] = [
+                'can_access' => 1,
+                'can_create' => $meta['crud'] ? 1 : 0,
+                'can_edit' => $meta['crud'] ? 1 : 0,
+                'can_delete' => $meta['crud'] ? 1 : 0
+            ];
+        }
+    }
+
+    return $defaults;
+}
+
+/**
+ * Load permissions from database
+ */
+function getRolePermissions($role, $withDefaults = false) {
+    static $cache = [];
+    $cacheKey = $role . ($withDefaults ? ':defaults' : ':raw');
+
+    if (isset($cache[$cacheKey])) {
+        return $cache[$cacheKey];
+    }
+
+    $permissions = [];
+
+    try {
+        $db = Database::getInstance();
+        $rows = $db->fetchAll(
+            "SELECT module, can_access, can_create, can_edit, can_delete FROM role_permissions WHERE role = ?",
+            [$role]
+        );
+        foreach ($rows as $row) {
+            $permissions[$row['module']] = [
+                'can_access' => (int)$row['can_access'],
+                'can_create' => (int)$row['can_create'],
+                'can_edit' => (int)$row['can_edit'],
+                'can_delete' => (int)$row['can_delete']
+            ];
+        }
+    } catch (Exception $e) {
+        // Table may not exist yet; fall back to defaults
+    }
+
+    if ($withDefaults) {
+        $defaults = getDefaultRolePermissions($role);
+        foreach ($permissions as $module => $perm) {
+            $defaults[$module] = array_merge($defaults[$module], $perm);
+        }
+        $permissions = $defaults;
+    }
+
+    $cache[$cacheKey] = $permissions;
+    return $permissions;
+}
+
+/**
  * Check if user can access a module based on role permissions
  */
 function canAccessModule($module) {
@@ -121,21 +228,55 @@ function canAccessModule($module) {
         return true;
     }
 
-    // Applications module for secretary and captain
-    if ($module === 'applications') {
-        return in_array($role, [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY]);
+    $permissions = getRolePermissions($role, true);
+    if (!isset($permissions[$module])) {
+        return false;
     }
-    
-    // Define role permissions
-    $permissions = [
-        ROLE_SECRETARY => ['residents', 'applications', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'dashboard'],
-        ROLE_TREASURER => ['certificates', 'reports', 'dashboard'],
-        ROLE_KAGAWA => ['blotters', 'complaints', 'announcements', 'dashboard'],
-        ROLE_SK_CHAIRMAN => ['announcements', 'dashboard'],
-        ROLE_RESIDENT => ['dashboard', 'announcements', 'profile']
+
+    return (bool)$permissions[$module]['can_access'];
+}
+
+/**
+ * Check if user has module permission
+ */
+function canModulePermission($module, $permission) {
+    if (!isLoggedIn()) {
+        return false;
+    }
+
+    $role = getCurrentUserRole();
+    if ($role === ROLE_BARANGAY_CAPTAIN) {
+        return true;
+    }
+
+    $permissions = getRolePermissions($role, true);
+    if (!isset($permissions[$module])) {
+        return false;
+    }
+
+    $map = [
+        'access' => 'can_access',
+        'create' => 'can_create',
+        'edit' => 'can_edit',
+        'delete' => 'can_delete'
     ];
-    
-    return isset($permissions[$role]) && in_array($module, $permissions[$role]);
+
+    if (!isset($map[$permission])) {
+        return false;
+    }
+
+    return (bool)$permissions[$module][$map[$permission]];
+}
+
+/**
+ * Require module access for page views
+ */
+function requireModuleAccess($module) {
+    requireLogin();
+    if (!canAccessModule($module)) {
+        header('Location: ' . BASE_URL . 'dashboard.php?error=access_denied');
+        exit();
+    }
 }
 
 /**
