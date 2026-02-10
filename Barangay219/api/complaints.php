@@ -12,9 +12,24 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 switch ($action) {
     case 'list': listComplaints(); break;
     case 'get': getComplaint(); break;
-    case 'create': createComplaint(); break;
-    case 'update': updateComplaint(); break;
-    case 'delete': deleteComplaint(); break;
+    case 'create':
+        if (!canPerformModulePermission('complaints', 'can_create')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        createComplaint();
+        break;
+    case 'update':
+        if (!canPerformModulePermission('complaints', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        updateComplaint();
+        break;
+    case 'delete':
+        if (!canPerformModulePermission('complaints', 'can_delete')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        deleteComplaint();
+        break;
     default: sendResponse(false, 'Invalid action', null, 400);
 }
 
