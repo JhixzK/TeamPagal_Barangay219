@@ -15,7 +15,7 @@ include __DIR__ . '/../includes/sidebar.php';
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2><i class="bi bi-file-earmark-person"></i> Certificate Applications</h2>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+            <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#createModal">
                 <i class="bi bi-plus-lg"></i> New Application
             </button>
         </div>
@@ -134,6 +134,23 @@ include __DIR__ . '/../includes/sidebar.php';
 (function() {
     let currentStatus = '';
     let currentPage = 1;
+    const APP_PERMS = {
+        canCreate: window.canModulePermission ? window.canModulePermission('applications', 'can_create') : true,
+        canEdit: window.canModulePermission ? window.canModulePermission('applications', 'can_edit') : true
+    };
+
+    function applyApplicationPermissions() {
+        if (!APP_PERMS.canCreate) {
+            const openBtn = document.getElementById('btnOpenCreate');
+            if (openBtn) openBtn.style.display = 'none';
+            const createBtn = document.getElementById('btnCreate');
+            if (createBtn) createBtn.style.display = 'none';
+        }
+        if (!APP_PERMS.canEdit) {
+            const releaseBtn = document.getElementById('btnRelease');
+            if (releaseBtn) releaseBtn.style.display = 'none';
+        }
+    }
 
     function loadApplications() {
         const tbody = document.getElementById('applicationsTableBody');
@@ -161,11 +178,11 @@ include __DIR__ . '/../includes/sidebar.php';
                             <td><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td>
                             <td>
                                 <button class="btn btn-sm btn-outline-primary" onclick="viewApp(${a.id})"><i class="bi bi-eye"></i></button>
-                                ${a.status === 'pending' ? `
+                                ${APP_PERMS.canEdit && a.status === 'pending' ? `
                                 <button class="btn btn-sm btn-success" onclick="updateStatus(${a.id}, 'approved')">Approve</button>
                                 <button class="btn btn-sm btn-danger" onclick="rejectApp(${a.id})">Reject</button>
                                 ` : ''}
-                                ${a.status === 'approved' ? `<button class="btn btn-sm btn-info" onclick="openRelease(${a.id})">Release</button>` : ''}
+                                ${APP_PERMS.canEdit && a.status === 'approved' ? `<button class="btn btn-sm btn-info" onclick="openRelease(${a.id})">Release</button>` : ''}
                                 ${a.status === 'issued' ? (a.control_number ? `<small>${esc(a.control_number)}</small>` : '') : ''}
                             </td>
                         </tr>
@@ -219,10 +236,10 @@ include __DIR__ . '/../includes/sidebar.php';
                 `;
                 document.getElementById('viewModalBody').innerHTML = html;
                 let footer = '';
-                if (a.status === 'pending') {
+                if (APP_PERMS.canEdit && a.status === 'pending') {
                     footer = '<button class="btn btn-success" onclick="updateStatus('+a.id+',\'approved\'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Approve</button>' +
                         '<button class="btn btn-danger" onclick="rejectApp('+a.id+'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Reject</button>';
-                } else if (a.status === 'approved') {
+                } else if (APP_PERMS.canEdit && a.status === 'approved') {
                     footer = '<button class="btn btn-info" onclick="openRelease('+a.id+'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Release</button>';
                 }
                 footer += '<a href="<?php echo BASE_URL; ?>certificates.php?id='+a.id+'" class="btn btn-primary">View in Certificates</a>';
@@ -232,6 +249,7 @@ include __DIR__ . '/../includes/sidebar.php';
     };
 
     window.updateStatus = function(id, status) {
+        if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
         const fd = new FormData();
         fd.append('action', 'update');
         fd.append('id', id);
@@ -242,6 +260,7 @@ include __DIR__ . '/../includes/sidebar.php';
     };
 
     window.rejectApp = function(id) {
+        if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
         const reason = prompt('Rejection reason (optional):');
         const fd = new FormData();
         fd.append('action', 'reject');
@@ -253,11 +272,13 @@ include __DIR__ . '/../includes/sidebar.php';
     };
 
     window.openRelease = function(id) {
+        if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
         document.getElementById('releaseId').value = id;
         new bootstrap.Modal(document.getElementById('releaseModal')).show();
     };
 
     document.getElementById('btnRelease').addEventListener('click', function() {
+        if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
         const id = document.getElementById('releaseId').value;
         const fd = new FormData();
         fd.append('action', 'release');
@@ -287,6 +308,7 @@ include __DIR__ . '/../includes/sidebar.php';
     }
 
     document.getElementById('btnCreate').addEventListener('click', function() {
+        if (!APP_PERMS.canCreate) { alert('Access denied'); return; }
         const residentId = document.getElementById('createResidentId').value;
         const certType = document.getElementById('createCertType').value;
         const purpose = document.getElementById('createPurpose').value;
@@ -327,6 +349,7 @@ include __DIR__ . '/../includes/sidebar.php';
         });
     });
 
+    applyApplicationPermissions();
     loadResidents();
     loadApplications();
 })();
