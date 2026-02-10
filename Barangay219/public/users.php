@@ -10,7 +10,6 @@ require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireModuleAccess('users');
 requireAdmin();
 
 include __DIR__ . '/../includes/sidebar.php';
@@ -56,44 +55,6 @@ include __DIR__ . '/../includes/sidebar.php';
                         </tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-
-        <!-- Role Permissions -->
-        <div class="card mt-4" id="rolePermissionsCard">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Role Permissions</h5>
-                <button class="btn btn-sm btn-primary" type="button" onclick="saveRolePermissions()">
-                    <i class="bi bi-save"></i> Save Permissions
-                </button>
-            </div>
-            <div class="card-body">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-4">
-                        <label for="permissionsRole" class="form-label">Role</label>
-                        <select class="form-select" id="permissionsRole"></select>
-                    </div>
-                    <div class="col-md-8">
-                        <small class="text-muted">Toggle access, create, edit, and delete rights per module.</small>
-                    </div>
-                </div>
-
-                <div class="table-responsive mt-3">
-                    <table class="table table-sm align-middle">
-                        <thead>
-                            <tr>
-                                <th>Module</th>
-                                <th class="text-center">Access</th>
-                                <th class="text-center">Create</th>
-                                <th class="text-center">Edit</th>
-                                <th class="text-center">Delete</th>
-                            </tr>
-                        </thead>
-                        <tbody id="permissionsTableBody">
-                            <tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
             </div>
         </div>
 
