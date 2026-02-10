@@ -20,6 +20,29 @@ include __DIR__ . '/../includes/sidebar.php';
             </button>
         </div>
 
+        <div class="search-bar mb-3">
+            <div class="row">
+                <div class="col-md-6">
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search by resident, ref #, or purpose...">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" onclick="searchApplications()">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-secondary w-100" onclick="resetApplications()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <ul class="nav nav-tabs mb-3" id="statusTabs">
             <li class="nav-item"><a class="nav-link active" href="#" data-status="">All</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="pending">Pending</a></li>
@@ -128,12 +151,50 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </div>
 
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Filter Applications</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Certificate Type</label>
+                    <select class="form-select" id="filterType">
+                        <option value="">All</option>
+                        <option value="barangay_clearance">Barangay Clearance</option>
+                        <option value="certificate_residency">Certificate of Residency</option>
+                        <option value="certificate_indigency">Certificate of Indigency</option>
+                        <option value="certificate_good_moral">Certificate of Good Moral</option>
+                        <option value="transfer_request">Transfer Request</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Date From</label>
+                    <input type="date" class="form-control" id="filterFrom">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Date To</label>
+                    <input type="date" class="form-control" id="filterTo">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="applyApplicationFilters()">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php include __DIR__ . '/../includes/footer.php'; ?>
 
 <script>
 (function() {
     let currentStatus = '';
     let currentPage = 1;
+    let applicationFilters = { q: '', type: '', from: '', to: '' };
     const APP_PERMS = {
         canCreate: window.canModulePermission ? window.canModulePermission('applications', 'can_create') : true,
         canEdit: window.canModulePermission ? window.canModulePermission('applications', 'can_edit') : true
@@ -155,9 +216,17 @@ include __DIR__ . '/../includes/sidebar.php';
     function loadApplications() {
         const tbody = document.getElementById('applicationsTableBody');
         tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border"></div></td></tr>';
-        let url = 'certificates.php?action=list&page=' + currentPage;
-        if (currentStatus) url += '&status=' + currentStatus;
-        fetch(API_URL + url)
+        const params = new URLSearchParams({
+            action: 'list',
+            page: currentPage.toString()
+        });
+        if (currentStatus) params.append('status', currentStatus);
+        if (applicationFilters.q) params.append('q', applicationFilters.q);
+        if (applicationFilters.type) params.append('type', applicationFilters.type);
+        if (applicationFilters.from) params.append('from', applicationFilters.from);
+        if (applicationFilters.to) params.append('to', applicationFilters.to);
+
+        fetch(API_URL + 'certificates.php?' + params.toString())
             .then(r => r.json())
             .then(data => {
                 if (!data.success) {
@@ -208,6 +277,41 @@ include __DIR__ . '/../includes/sidebar.php';
             a.addEventListener('click', e => { e.preventDefault(); currentPage = parseInt(a.dataset.p); loadApplications(); });
         });
     }
+
+    window.searchApplications = function() {
+        const query = document.getElementById('searchInput')?.value.trim() || '';
+        applicationFilters.q = query;
+        currentPage = 1;
+        loadApplications();
+    };
+
+    window.applyApplicationFilters = function() {
+        applicationFilters.type = document.getElementById('filterType')?.value || '';
+        applicationFilters.from = document.getElementById('filterFrom')?.value || '';
+        applicationFilters.to = document.getElementById('filterTo')?.value || '';
+        currentPage = 1;
+        loadApplications();
+        const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
+        if (modal) modal.hide();
+    };
+
+    window.resetApplications = function() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) searchInput.value = '';
+        applicationFilters = { q: '', type: '', from: '', to: '' };
+        const typeSel = document.getElementById('filterType');
+        const fromInput = document.getElementById('filterFrom');
+        const toInput = document.getElementById('filterTo');
+        if (typeSel) typeSel.value = '';
+        if (fromInput) fromInput.value = '';
+        if (toInput) toInput.value = '';
+        currentStatus = '';
+        document.querySelectorAll('#statusTabs .nav-link').forEach(l => l.classList.remove('active'));
+        const firstTab = document.querySelector('#statusTabs .nav-link');
+        if (firstTab) firstTab.classList.add('active');
+        currentPage = 1;
+        loadApplications();
+    };
 
     function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
     function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
