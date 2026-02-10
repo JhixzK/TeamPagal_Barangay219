@@ -48,11 +48,6 @@ include __DIR__ . '/../includes/sidebar.php';
                     <h5>User Information</h5>
                     <p><strong>Username:</strong> <?php echo htmlspecialchars(getCurrentUsername()); ?></p>
                     <p><strong>Role:</strong> <?php echo ucfirst(str_replace('_', ' ', getCurrentUserRole())); ?></p>
-                        <div class="mt-3">
-                            <button class="btn btn-danger btn-sm" type="button" onclick="logout()">
-                                <i class="bi bi-box-arrow-right"></i> Logout
-                            </button>
-                        </div>
                 </div>
             </div>
         </div>
