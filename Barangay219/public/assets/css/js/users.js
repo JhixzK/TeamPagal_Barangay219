@@ -9,8 +9,30 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
     console.warn('API_URL invalid or missing; using fallback:', window.API_URL);
 }
 
+const ROLE_OPTIONS = [
+    { value: 'barangay_captain', label: 'Barangay Captain' },
+    { value: 'secretary', label: 'Secretary' },
+    { value: 'treasurer', label: 'Treasurer' },
+    { value: 'kagawad', label: 'Kagawad' },
+    { value: 'sk_chairman', label: 'SK Chairman' }
+];
+
+const MODULES = [
+    { key: 'dashboard', label: 'Dashboard' },
+    { key: 'applications', label: 'Applications' },
+    { key: 'residents', label: 'Residents' },
+    { key: 'households', label: 'Households' },
+    { key: 'certificates', label: 'Certificates' },
+    { key: 'blotters', label: 'Blotters' },
+    { key: 'complaints', label: 'Complaints' },
+    { key: 'announcements', label: 'Announcements' },
+    { key: 'reports', label: 'Reports' },
+    { key: 'users', label: 'Users' }
+];
+
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
+    initPermissionsUI();
     
     // Form submission
     document.getElementById('userForm').addEventListener('submit', function(e) {
@@ -300,6 +322,153 @@ function showActivityLogs() {
             }
         })
         .catch(() => { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading</td></tr>'; });
+}
+
+/**
+ * Initialize role permissions UI
+ */
+function initPermissionsUI() {
+    const roleSelect = document.getElementById('permissionsRole');
+    const tableBody = document.getElementById('permissionsTableBody');
+    if (!roleSelect || !tableBody) {
+        return;
+    }
+
+    roleSelect.innerHTML = ROLE_OPTIONS.map(role =>
+        `<option value="${role.value}">${role.label}</option>`
+    ).join('');
+
+    renderPermissionsTable();
+    roleSelect.addEventListener('change', loadRolePermissions);
+
+    document.getElementById('permissionsTableBody').addEventListener('change', function(e) {
+        const target = e.target;
+        if (!target.classList.contains('perm-checkbox')) {
+            return;
+        }
+
+        const moduleKey = target.getAttribute('data-module');
+        const perm = target.getAttribute('data-perm');
+
+        if (perm !== 'can_access' && target.checked) {
+            const accessBox = document.querySelector(`input[data-module="${moduleKey}"][data-perm="can_access"]`);
+            if (accessBox) {
+                accessBox.checked = true;
+            }
+        }
+
+        if (perm === 'can_access' && !target.checked) {
+            ['can_create', 'can_edit', 'can_delete'].forEach(p => {
+                const box = document.querySelector(`input[data-module="${moduleKey}"][data-perm="${p}"]`);
+                if (box) {
+                    box.checked = false;
+                }
+            });
+        }
+    });
+
+    loadRolePermissions();
+}
+
+function renderPermissionsTable() {
+    const tbody = document.getElementById('permissionsTableBody');
+    if (!tbody) {
+        return;
+    }
+
+    tbody.innerHTML = MODULES.map(module => `
+        <tr>
+            <td>${module.label}</td>
+            <td class="text-center">
+                <input type="checkbox" class="form-check-input perm-checkbox" data-module="${module.key}" data-perm="can_access">
+            </td>
+            <td class="text-center">
+                <input type="checkbox" class="form-check-input perm-checkbox" data-module="${module.key}" data-perm="can_create">
+            </td>
+            <td class="text-center">
+                <input type="checkbox" class="form-check-input perm-checkbox" data-module="${module.key}" data-perm="can_edit">
+            </td>
+            <td class="text-center">
+                <input type="checkbox" class="form-check-input perm-checkbox" data-module="${module.key}" data-perm="can_delete">
+            </td>
+        </tr>
+    `).join('');
+}
+
+function loadRolePermissions() {
+    const roleSelect = document.getElementById('permissionsRole');
+    if (!roleSelect) {
+        return;
+    }
+
+    const role = roleSelect.value;
+    fetch(`${window.API_URL}users.php?action=get_permissions&role=${encodeURIComponent(role)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                applyPermissionsToTable(data.data.permissions || {});
+            } else {
+                showAlert('error', data.message || 'Failed to load permissions');
+            }
+        })
+        .catch(() => {
+            showAlert('error', 'Error loading permissions');
+        });
+}
+
+function applyPermissionsToTable(permissions) {
+    MODULES.forEach(module => {
+        const perm = permissions[module.key] || {};
+        ['can_access', 'can_create', 'can_edit', 'can_delete'].forEach(key => {
+            const box = document.querySelector(`input[data-module="${module.key}"][data-perm="${key}"]`);
+            if (box) {
+                box.checked = !!perm[key];
+            }
+        });
+    });
+}
+
+function saveRolePermissions() {
+    const roleSelect = document.getElementById('permissionsRole');
+    if (!roleSelect) {
+        return;
+    }
+
+    const role = roleSelect.value;
+    const permissions = {};
+
+    MODULES.forEach(module => {
+        const getVal = perm => {
+            const box = document.querySelector(`input[data-module="${module.key}"][data-perm="${perm}"]`);
+            return box ? box.checked : false;
+        };
+
+        permissions[module.key] = {
+            can_access: getVal('can_access'),
+            can_create: getVal('can_create'),
+            can_edit: getVal('can_edit'),
+            can_delete: getVal('can_delete')
+        };
+    });
+
+    fetch(window.API_URL + 'users.php?action=save_permissions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ role, permissions })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message || 'Permissions saved');
+        } else {
+            showAlert('error', data.message || 'Failed to save permissions');
+        }
+    })
+    .catch(() => {
+        showAlert('error', 'Error saving permissions');
+    });
 }
 
 function showAlert(type, message) {
