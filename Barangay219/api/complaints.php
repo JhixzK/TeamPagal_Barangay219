@@ -37,14 +37,30 @@ function listComplaints() {
     try {
         $db = Database::getInstance();
         $status = $_GET['status'] ?? '';
+        $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
+        $from = sanitizeInput($_GET['from'] ?? '');
+        $to = sanitizeInput($_GET['to'] ?? '');
         $page = max(1, (int)($_GET['page'] ?? 1));
         $limit = min(50, max(10, (int)($_GET['limit'] ?? ITEMS_PER_PAGE)));
         $offset = ($page - 1) * $limit;
         $where = "1=1";
         $params = [];
+        if (!empty($q)) {
+            $term = '%' . $q . '%';
+            $where .= " AND (c.complaint_title LIKE ? OR c.complainant_name LIKE ? OR c.respondent_name LIKE ? OR c.narrative LIKE ?)";
+            $params = array_merge($params, [$term, $term, $term, $term]);
+        }
         if (in_array($status, ['pending', 'under_review', 'resolved', 'dismissed'])) {
             $where .= " AND c.status = ?";
             $params[] = $status;
+        }
+        if (!empty($from)) {
+            $where .= " AND DATE(c.filing_date) >= ?";
+            $params[] = $from;
+        }
+        if (!empty($to)) {
+            $where .= " AND DATE(c.filing_date) <= ?";
+            $params[] = $to;
         }
         $countSql = "SELECT COUNT(*) as total FROM complaints c WHERE $where";
         $total = (int)$db->fetchOne($countSql, $params)['total'];
