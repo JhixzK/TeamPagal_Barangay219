@@ -11,37 +11,32 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
+requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY]);
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
     case 'list':
-        if (!canModulePermission('residents', 'access')) { sendResponse(false, 'Access denied', null, 403); }
         listResidents();
         break;
     
     case 'get':
-        if (!canModulePermission('residents', 'access')) { sendResponse(false, 'Access denied', null, 403); }
         getResident();
         break;
     
     case 'create':
-        if (!canModulePermission('residents', 'create')) { sendResponse(false, 'Access denied', null, 403); }
         createResident();
         break;
     
     case 'update':
-        if (!canModulePermission('residents', 'edit')) { sendResponse(false, 'Access denied', null, 403); }
         updateResident();
         break;
     
     case 'delete':
-        if (!canModulePermission('residents', 'delete')) { sendResponse(false, 'Access denied', null, 403); }
         deleteResident();
         break;
     
     case 'search':
-        if (!canModulePermission('residents', 'access')) { sendResponse(false, 'Access denied', null, 403); }
         searchResidents();
         break;
     
