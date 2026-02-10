@@ -18,10 +18,16 @@ $menu_items = [
         'module' => 'dashboard'
     ],
     [
-        'title' => 'Applications',
+        'title' => 'Certificate Applications',
         'icon' => 'bi-file-earmark-person',
         'url' => 'applications.php',
         'module' => 'applications'
+    ],
+    [
+        'title' => 'Resident Applications',
+        'icon' => 'bi-person-lines-fill',
+        'url' => 'resident-applications.php',
+        'module' => 'resident_applications'
     ],
     [
         'title' => 'Residents',
