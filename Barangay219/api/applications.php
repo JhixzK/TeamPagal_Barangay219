@@ -23,9 +23,15 @@ switch ($action) {
         getApplication();
         break;
     case 'approve':
+        if (!canPerformModulePermission('applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         approveApplication();
         break;
     case 'reject':
+        if (!canPerformModulePermission('applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         rejectApplication();
         break;
     default:
