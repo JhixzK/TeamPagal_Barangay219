@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS `role_permissions` (
 INSERT INTO role_permissions (role, module, can_access, can_create, can_edit, can_delete) VALUES
 ('barangay_captain', 'dashboard', 1, 1, 1, 1),
 ('barangay_captain', 'applications', 1, 1, 1, 1),
+('barangay_captain', 'resident_applications', 1, 1, 1, 1),
 ('barangay_captain', 'residents', 1, 1, 1, 1),
 ('barangay_captain', 'households', 1, 1, 1, 1),
 ('barangay_captain', 'certificates', 1, 1, 1, 1),
@@ -94,6 +95,7 @@ INSERT INTO role_permissions (role, module, can_access, can_create, can_edit, ca
 ('barangay_captain', 'profile', 1, 1, 1, 1),
 ('secretary', 'dashboard', 1, 1, 1, 1),
 ('secretary', 'applications', 1, 1, 1, 1),
+('secretary', 'resident_applications', 1, 1, 1, 1),
 ('secretary', 'residents', 1, 1, 1, 1),
 ('secretary', 'households', 1, 1, 1, 1),
 ('secretary', 'certificates', 1, 1, 1, 1),
