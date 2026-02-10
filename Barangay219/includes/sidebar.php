@@ -79,10 +79,56 @@ $menu_items = [
 $filtered_menu = array_filter($menu_items, function($item) use ($role) {
     return in_array($role, $item['roles']);
 });
+// Current user info and avatar
+$current_user = getUserInfo();
+$user_id = getCurrentUserId();
+$avatar_path = '';
+if ($user_id) {
+    $possible_ext = ['png','jpg','jpeg','gif'];
+    foreach ($possible_ext as $ext) {
+        $file = PUBLIC_PATH . '/uploads/profile/' . $user_id . '.' . $ext;
+        if (file_exists($file)) {
+            $avatar_path = BASE_URL . 'uploads/profile/' . $user_id . '.' . $ext;
+            break;
+        }
+    }
+}
+if (empty($avatar_path)) {
+    $avatar_path = ASSETS_URL . 'img/default-avatar.svg';
+}
 ?>
 <div class="sidebar">
     <div class="sidebar-content">
+        <div class="sidebar-profile text-center mb-3" style="padding:0.5rem 1rem;">
+            <a href="<?php echo BASE_URL; ?>profile.php" class="d-flex align-items-center gap-2 text-decoration-none">
+                <img src="<?php echo $avatar_path; ?>" alt="Avatar" class="rounded-circle" style="width:48px;height:48px;object-fit:cover;border:2px solid #fff;box-shadow:0 0 0 2px rgba(13,110,253,0.08);">
+                <div class="d-none d-md-block text-start">
+                    <div style="font-weight:600;color:#212529;">
+                        <?php
+                        $displayName = trim(($current_user['first_name'] ?? '') . ' ' . ($current_user['last_name'] ?? ''));
+                        if (empty($displayName)) {
+                            $displayName = htmlspecialchars($current_user['username'] ?? getCurrentUsername() ?? 'User');
+                        } else {
+                            $displayName = htmlspecialchars($displayName);
+                        }
+                        echo $displayName;
+                        ?>
+                    </div>
+                    <small style="color:#6c757d;">
+                        <span class="badge bg-light text-dark" style="font-size:0.75rem;">
+                            <?php echo ucfirst(str_replace('_', ' ', getCurrentUserRole() ?? '')); ?>
+                        </span>
+                    </small>
+                </div>
+            </a>
+        </div>
         <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link <?php echo ($current_page === 'profile.php') ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>profile.php">
+                    <i class="bi bi-person-circle"></i>
+                    <span>My Profile</span>
+                </a>
+            </li>
             <?php foreach ($filtered_menu as $item): ?>
             <li class="nav-item">
                 <a class="nav-link <?php echo ($current_page === $item['url']) ? 'active' : ''; ?>" 
