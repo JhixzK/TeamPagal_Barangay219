@@ -31,8 +31,26 @@ $userInfo = getUserInfo();
     
     <!-- Define API URL for JavaScript (available on all pages) -->
     <script>
-        // Provide API URL to client JS (escaped)
+        // Provide API URL and permissions to client JS (escaped)
         window.API_URL = '<?php echo addslashes(API_URL); ?>';
+        <?php if (isLoggedIn()): ?>
+        window.CURRENT_ROLE = <?php echo json_encode(getCurrentUserRole()); ?>;
+        window.IS_ADMIN = <?php echo isAdmin() ? 'true' : 'false'; ?>;
+        window.ROLE_PERMISSIONS = <?php echo json_encode(getRolePermissions(getCurrentUserRole())); ?>;
+        window.canModulePermission = function(module, perm) {
+            if (window.IS_ADMIN) return true;
+            var perms = window.ROLE_PERMISSIONS || {};
+            var mod = perms[module] || {};
+            if (!mod.can_access) return false;
+            if (perm === 'can_access' || perm === 'access') return !!mod.can_access;
+            return !!mod[perm];
+        };
+        <?php else: ?>
+        window.CURRENT_ROLE = null;
+        window.IS_ADMIN = false;
+        window.ROLE_PERMISSIONS = {};
+        window.canModulePermission = function() { return false; };
+        <?php endif; ?>
     </script>
 </head>
 <body>
