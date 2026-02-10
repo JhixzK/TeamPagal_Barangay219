@@ -44,6 +44,9 @@ const BLOTTER_PERMS = {
     canDelete: window.canModulePermission ? window.canModulePermission('blotters', 'can_delete') : true
 };
 
+let blotterFilters = { q: '', status: '', from: '', to: '' };
+let searchDebounceTimer = null;
+
 document.addEventListener('DOMContentLoaded', function() {
     loadBlotters();
     initBlotterModal();
@@ -53,23 +56,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('keyup', function() {
-            const searchTerm = this.value.toLowerCase();
-            const tableRows = document.querySelectorAll('#blotterTableBody tr');
-            
-            tableRows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-            
-            // Show message if no results found
-            const visibleRows = Array.from(tableRows).filter(row => row.style.display !== 'none');
-            if (visibleRows.length === 0 && searchTerm !== '') {
-                // You can add a custom message here if needed
-            }
+            const searchTerm = this.value.trim();
+            blotterFilters.q = searchTerm;
+            if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => loadBlotters(), 250);
         });
     }
 });
@@ -82,7 +72,13 @@ function applyBlotterPermissions() {
 }
 
 function loadBlotters() {
-    fetch(window.API_URL + 'blotter.php?action=list')
+    const params = new URLSearchParams({ action: 'list' });
+    if (blotterFilters.q) params.append('q', blotterFilters.q);
+    if (blotterFilters.status) params.append('status', blotterFilters.status);
+    if (blotterFilters.from) params.append('from', blotterFilters.from);
+    if (blotterFilters.to) params.append('to', blotterFilters.to);
+
+    fetch(window.API_URL + 'blotter.php?' + params.toString())
         .then(r => {
             if (!r.ok) throw new Error('Network response was not ok: ' + r.status);
             const ct = r.headers.get('content-type') || '';
@@ -134,6 +130,15 @@ function loadBlotters() {
             const tbody = document.getElementById('blotterTableBody');
             tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading blotters</td></tr>';
         });
+}
+
+function applyFilters() {
+    blotterFilters.status = document.getElementById('filterStatus')?.value || '';
+    blotterFilters.from = document.getElementById('filterFrom')?.value || '';
+    blotterFilters.to = document.getElementById('filterTo')?.value || '';
+    loadBlotters();
+    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
+    if (modal) modal.hide();
 }
 
 function viewBlotter(id) {
