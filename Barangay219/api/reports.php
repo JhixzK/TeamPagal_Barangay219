@@ -10,11 +10,9 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
     case 'statistics': 
-        if (!canModulePermission('dashboard', 'access')) { sendResponse(false, 'Access denied', null, 403); }
         getStatistics(); 
         break;
     case 'recent_activities':
-        if (!canModulePermission('dashboard', 'access')) { sendResponse(false, 'Access denied', null, 403); }
         getRecentActivities();
         break;
     case 'population': 
@@ -23,7 +21,7 @@ switch ($action) {
     case 'complaints':
     case 'announcements':
     case 'applications':
-        if (!canModulePermission('reports', 'access')) { sendResponse(false, 'Access denied', null, 403); }
+        requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER]);
         if ($action === 'population') getPopulationReport();
         elseif ($action === 'certificates') getCertificatesReport();
         elseif ($action === 'blotters') getBlottersReport();
