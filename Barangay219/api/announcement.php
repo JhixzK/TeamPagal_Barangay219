@@ -7,29 +7,15 @@ require_once __DIR__ . '/../includes/auth-check.php';
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 if ($action !== 'public_list') {
     requireLogin();
+    requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_KAGAWA, ROLE_SK_CHAIRMAN]);
 }
 
 switch ($action) {
-    case 'list':
-        if (!canModulePermission('announcements', 'access')) { sendResponse(false, 'Access denied', null, 403); }
-        listAnnouncements();
-        break;
-    case 'get':
-        if (!canModulePermission('announcements', 'access')) { sendResponse(false, 'Access denied', null, 403); }
-        getAnnouncement();
-        break;
-    case 'create':
-        if (!canModulePermission('announcements', 'create')) { sendResponse(false, 'Access denied', null, 403); }
-        createAnnouncement();
-        break;
-    case 'update':
-        if (!canModulePermission('announcements', 'edit')) { sendResponse(false, 'Access denied', null, 403); }
-        updateAnnouncement();
-        break;
-    case 'delete':
-        if (!canModulePermission('announcements', 'delete')) { sendResponse(false, 'Access denied', null, 403); }
-        deleteAnnouncement();
-        break;
+    case 'list': listAnnouncements(); break;
+    case 'get': getAnnouncement(); break;
+    case 'create': createAnnouncement(); break;
+    case 'update': updateAnnouncement(); break;
+    case 'delete': deleteAnnouncement(); break;
     case 'public_list': listAnnouncementsPublic(); break;
     default: sendResponse(false, 'Invalid action', null, 400);
 }
