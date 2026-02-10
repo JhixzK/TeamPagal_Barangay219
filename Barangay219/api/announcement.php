@@ -7,7 +7,7 @@ require_once __DIR__ . '/../includes/auth-check.php';
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 if ($action !== 'public_list') {
     requireLogin();
-    requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_KAGAWA, ROLE_SK_CHAIRMAN]);
+    requireModuleAccess('announcements');
 }
 
 switch ($action) {
