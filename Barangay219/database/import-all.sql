@@ -14,6 +14,8 @@ USE `barangay219_db`;
 -- ============================================
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `announcements`;
+DROP TABLE IF EXISTS `application_audit_log`;
+DROP TABLE IF EXISTS `resident_applications`;
 DROP TABLE IF EXISTS `role_permissions`;
 DROP TABLE IF EXISTS `complaints`;
 DROP TABLE IF EXISTS `blotters`;
@@ -33,9 +35,11 @@ CREATE TABLE `users` (
   `username` VARCHAR(50) NOT NULL UNIQUE,
   `password` VARCHAR(255) NOT NULL,
   `email` VARCHAR(100) DEFAULT NULL,
-  `role` ENUM('barangay_captain', 'secretary', 'treasurer', 'kagawad', 'sk_chairman') NOT NULL,
+  `role` ENUM('barangay_captain', 'secretary', 'treasurer', 'kagawad', 'sk_chairman', 'resident') NOT NULL,
   `resident_id` INT(11) DEFAULT NULL,
   `status` ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
+  `activation_token` VARCHAR(64) DEFAULT NULL,
+  `activation_expires` DATETIME DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -47,22 +51,47 @@ CREATE TABLE `users` (
 -- Residents table - Central entity for all residents
 CREATE TABLE `residents` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `resident_code` VARCHAR(30) DEFAULT NULL,
   `first_name` VARCHAR(100) NOT NULL,
   `middle_name` VARCHAR(100) DEFAULT NULL,
   `last_name` VARCHAR(100) NOT NULL,
   `suffix` VARCHAR(10) DEFAULT NULL,
   `birth_date` DATE NOT NULL,
+  `place_of_birth` VARCHAR(150) DEFAULT NULL,
   `gender` ENUM('male', 'female', 'other') NOT NULL,
   `civil_status` ENUM('single', 'married', 'widowed', 'divorced', 'separated') DEFAULT NULL,
   `occupation` VARCHAR(100) DEFAULT NULL,
   `citizenship` VARCHAR(50) DEFAULT 'Filipino',
   `address` TEXT NOT NULL,
+  `house_number` VARCHAR(30) DEFAULT NULL,
+  `street` VARCHAR(100) DEFAULT NULL,
+  `purok_sitio` VARCHAR(80) DEFAULT NULL,
   `contact_number` VARCHAR(20) DEFAULT NULL,
+  `email` VARCHAR(100) DEFAULT NULL,
+  `length_of_residency_years` INT(11) DEFAULT NULL,
+  `emergency_contact_name` VARCHAR(100) DEFAULT NULL,
+  `emergency_contact_number` VARCHAR(20) DEFAULT NULL,
+  `emergency_contact_relationship` VARCHAR(50) DEFAULT NULL,
+  `educational_attainment` VARCHAR(50) DEFAULT NULL,
+  `employment_status` VARCHAR(50) DEFAULT NULL,
+  `is_senior_citizen` TINYINT(1) DEFAULT 0,
+  `is_pwd` TINYINT(1) DEFAULT 0,
+  `pwd_id_number` VARCHAR(50) DEFAULT NULL,
+  `is_solo_parent` TINYINT(1) DEFAULT 0,
+  `solo_parent_id_number` VARCHAR(50) DEFAULT NULL,
+  `is_ip_member` TINYINT(1) DEFAULT 0,
+  `ip_group` VARCHAR(100) DEFAULT NULL,
+  `is_4ps_beneficiary` TINYINT(1) DEFAULT 0,
+  `record_status` VARCHAR(30) DEFAULT 'active',
+  `remarks` TEXT DEFAULT NULL,
+  `last_updated_by` INT(11) DEFAULT NULL,
+  `last_updated_at` DATETIME DEFAULT NULL,
   `household_id` INT(11) DEFAULT NULL,
   `status` ENUM('active', 'inactive', 'deceased', 'transferred') DEFAULT 'active',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_resident_code` (`resident_code`),
   KEY `idx_household` (`household_id`),
   KEY `idx_name` (`last_name`, `first_name`),
   KEY `idx_status` (`status`),
@@ -157,6 +186,75 @@ CREATE TABLE `announcements` (
   KEY `idx_date_posted` (`date_posted`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Resident Applications table
+CREATE TABLE `resident_applications` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `application_ref` VARCHAR(50) NOT NULL,
+  `first_name` VARCHAR(100) NOT NULL,
+  `middle_name` VARCHAR(100) DEFAULT NULL,
+  `last_name` VARCHAR(100) NOT NULL,
+  `suffix` VARCHAR(10) DEFAULT NULL,
+  `sex` ENUM('male', 'female', 'other') NOT NULL,
+  `birth_date` DATE NOT NULL,
+  `place_of_birth` VARCHAR(150) DEFAULT NULL,
+  `civil_status` VARCHAR(30) DEFAULT NULL,
+  `citizenship` VARCHAR(50) DEFAULT 'Filipino',
+  `family_code` VARCHAR(30) DEFAULT NULL,
+  `relationship_to_head` VARCHAR(50) DEFAULT NULL,
+  `house_number` VARCHAR(30) DEFAULT NULL,
+  `street` VARCHAR(100) DEFAULT NULL,
+  `purok_sitio` VARCHAR(80) DEFAULT NULL,
+  `barangay` VARCHAR(100) DEFAULT NULL,
+  `city` VARCHAR(100) DEFAULT NULL,
+  `province` VARCHAR(100) DEFAULT NULL,
+  `length_of_residency_years` INT(11) DEFAULT NULL,
+  `mobile_number` VARCHAR(20) NOT NULL,
+  `email` VARCHAR(100) DEFAULT NULL,
+  `emergency_contact_name` VARCHAR(100) NOT NULL,
+  `emergency_contact_number` VARCHAR(20) NOT NULL,
+  `emergency_contact_relationship` VARCHAR(50) NOT NULL,
+  `educational_attainment` VARCHAR(50) DEFAULT NULL,
+  `employment_status` VARCHAR(50) DEFAULT NULL,
+  `occupation` VARCHAR(100) DEFAULT NULL,
+  `is_senior_citizen` TINYINT(1) DEFAULT 0,
+  `is_pwd` TINYINT(1) DEFAULT 0,
+  `pwd_id_number` VARCHAR(50) DEFAULT NULL,
+  `is_solo_parent` TINYINT(1) DEFAULT 0,
+  `solo_parent_id_number` VARCHAR(50) DEFAULT NULL,
+  `is_ip_member` TINYINT(1) DEFAULT 0,
+  `ip_group` VARCHAR(100) DEFAULT NULL,
+  `is_4ps_beneficiary` TINYINT(1) DEFAULT 0,
+  `valid_id_type` VARCHAR(50) DEFAULT NULL,
+  `valid_id_number` VARCHAR(100) DEFAULT NULL,
+  `id_document_path` VARCHAR(255) DEFAULT NULL,
+  `proof_of_residency_path` VARCHAR(255) DEFAULT NULL,
+  `data_privacy_consent` TINYINT(1) NOT NULL DEFAULT 1,
+  `record_status` ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+  `reviewed_by` INT(11) DEFAULT NULL,
+  `reviewed_at` DATETIME DEFAULT NULL,
+  `remarks` TEXT DEFAULT NULL,
+  `rejection_reason` TEXT DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_application_ref` (`application_ref`),
+  KEY `idx_status` (`record_status`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Application audit log
+CREATE TABLE `application_audit_log` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `application_id` INT(11) NOT NULL,
+  `action` VARCHAR(50) NOT NULL,
+  `performed_by` INT(11) DEFAULT NULL,
+  `details` JSON DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_application_id` (`application_id`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Role permissions table - Module access control
 CREATE TABLE `role_permissions` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -213,6 +311,7 @@ ON DUPLICATE KEY UPDATE password = VALUES(password);
 INSERT INTO role_permissions (role, module, can_access, can_create, can_edit, can_delete) VALUES
 ('barangay_captain', 'dashboard', 1, 1, 1, 1),
 ('barangay_captain', 'applications', 1, 1, 1, 1),
+('barangay_captain', 'resident_applications', 1, 1, 1, 1),
 ('barangay_captain', 'residents', 1, 1, 1, 1),
 ('barangay_captain', 'households', 1, 1, 1, 1),
 ('barangay_captain', 'certificates', 1, 1, 1, 1),
@@ -224,6 +323,7 @@ INSERT INTO role_permissions (role, module, can_access, can_create, can_edit, ca
 ('barangay_captain', 'profile', 1, 1, 1, 1),
 ('secretary', 'dashboard', 1, 1, 1, 1),
 ('secretary', 'applications', 1, 1, 1, 1),
+('secretary', 'resident_applications', 1, 1, 1, 1),
 ('secretary', 'residents', 1, 1, 1, 1),
 ('secretary', 'households', 1, 1, 1, 1),
 ('secretary', 'certificates', 1, 1, 1, 1),
