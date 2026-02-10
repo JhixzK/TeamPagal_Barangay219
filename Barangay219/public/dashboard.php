@@ -3,6 +3,7 @@ define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
+requireModuleAccess('dashboard');
 
 $page_title = 'Dashboard';
 include __DIR__ . '/../includes/header.php';
