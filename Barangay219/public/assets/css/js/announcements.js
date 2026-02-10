@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', function() {
     applyAnnouncementPermissions();
 });
 
+let announcementFilters = { q: '', status: '', from: '', to: '' };
+
 const ANNOUNCEMENT_PERMS = {
     canCreate: window.canModulePermission ? window.canModulePermission('announcements', 'can_create') : true,
     canEdit: window.canModulePermission ? window.canModulePermission('announcements', 'can_edit') : true,
@@ -29,7 +31,13 @@ function applyAnnouncementPermissions() {
 }
 
 function loadAnnouncements() {
-    fetch(window.API_URL + 'announcement.php?action=list')
+    const params = new URLSearchParams({ action: 'list' });
+    if (announcementFilters.q) params.append('q', announcementFilters.q);
+    if (announcementFilters.status) params.append('status', announcementFilters.status);
+    if (announcementFilters.from) params.append('from', announcementFilters.from);
+    if (announcementFilters.to) params.append('to', announcementFilters.to);
+
+    fetch(window.API_URL + 'announcement.php?' + params.toString())
         .then(r => r.json())
         .then(d => {
             const tbody = document.getElementById('announcementsTableBody');
@@ -56,6 +64,34 @@ function loadAnnouncements() {
         .catch(() => {
             document.getElementById('announcementsTableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading</td></tr>';
         });
+}
+
+function searchAnnouncements() {
+    const query = document.getElementById('searchInput')?.value.trim() || '';
+    announcementFilters.q = query;
+    loadAnnouncements();
+}
+
+function applyAnnouncementFilters() {
+    announcementFilters.status = document.getElementById('filterStatus')?.value || '';
+    announcementFilters.from = document.getElementById('filterFrom')?.value || '';
+    announcementFilters.to = document.getElementById('filterTo')?.value || '';
+    loadAnnouncements();
+    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
+    if (modal) modal.hide();
+}
+
+function resetAnnouncements() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+    announcementFilters = { q: '', status: '', from: '', to: '' };
+    const statusSel = document.getElementById('filterStatus');
+    const fromInput = document.getElementById('filterFrom');
+    const toInput = document.getElementById('filterTo');
+    if (statusSel) statusSel.value = '';
+    if (fromInput) fromInput.value = '';
+    if (toInput) toInput.value = '';
+    loadAnnouncements();
 }
 
 function getStatusColor(s) {
