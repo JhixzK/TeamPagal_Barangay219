@@ -36,7 +36,12 @@ include __DIR__ . '/../includes/sidebar.php';
                     </button>
                 </div>
                 <div class="col-md-2">
-                    <button class="btn btn-secondary w-100" onclick="loadResidents()">
+                    <button class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-secondary w-100" onclick="resetResidents()">
                         <i class="bi bi-arrow-clockwise"></i> Reset
                     </button>
                 </div>
@@ -76,6 +81,43 @@ include __DIR__ . '/../includes/sidebar.php';
                 <ul class="pagination justify-content-center" id="pagination">
                 </ul>
             </nav>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Filter Residents</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="filterStatus">
+                        <option value="">All</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="deceased">Deceased</option>
+                        <option value="transferred">Transferred</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Gender</label>
+                    <select class="form-select" id="filterGender">
+                        <option value="">All</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+            </div>
         </div>
     </div>
 </div>
