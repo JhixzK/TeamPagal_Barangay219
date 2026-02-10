@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_KAGAWA]);
+requireModuleAccess('complaints');
 
 $page_title = 'Complaints';
 include __DIR__ . '/../includes/header.php';
