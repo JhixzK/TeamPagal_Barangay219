@@ -59,6 +59,9 @@ function getStatistics() {
 function getRecentActivities() {
     try {
         $db = Database::getInstance();
+        if (!activityLogsTableExists($db)) {
+            sendResponse(true, 'Recent activities', []);
+        }
         $limit = (int)($_GET['limit'] ?? 10);
         $limit = min(50, max(5, $limit));
         $rows = $db->fetchAll(
@@ -71,6 +74,20 @@ function getRecentActivities() {
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
     }
+}
+
+function activityLogsTableExists($db) {
+    static $exists = null;
+    if ($exists !== null) {
+        return $exists;
+    }
+    try {
+        $result = $db->fetchOne("SHOW TABLES LIKE 'activity_logs'");
+        $exists = !empty($result);
+    } catch (Exception $e) {
+        $exists = false;
+    }
+    return $exists;
 }
 
 function getDateFilter() {
