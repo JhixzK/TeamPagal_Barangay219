@@ -14,7 +14,7 @@ include __DIR__ . '/../includes/sidebar.php';
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h2 class="mb-0"><i class="bi bi-file-earmark-text"></i> Certificate Management</h2>
-            <a href="<?php echo BASE_URL; ?>applications.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New Application</a>
+            <a href="<?php echo BASE_URL; ?>applications.php" class="btn btn-primary" id="btnOpenApplications"><i class="bi bi-plus-lg"></i> New Application</a>
         </div>
         <div class="data-table mt-4">
             <table class="table">
