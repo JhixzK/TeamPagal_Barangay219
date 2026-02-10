@@ -39,11 +39,27 @@ function listAnnouncements() {
     try {
         $db = Database::getInstance();
         $status = $_GET['status'] ?? '';
+        $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
+        $from = sanitizeInput($_GET['from'] ?? '');
+        $to = sanitizeInput($_GET['to'] ?? '');
         $where = "1=1";
         $params = [];
+        if (!empty($q)) {
+            $term = '%' . $q . '%';
+            $where .= " AND (a.title LIKE ? OR a.content LIKE ?)";
+            $params = array_merge($params, [$term, $term]);
+        }
         if (in_array($status, ['active', 'inactive', 'expired', 'archived'])) {
             $where .= " AND a.status = ?";
             $params[] = $status;
+        }
+        if (!empty($from)) {
+            $where .= " AND DATE(a.date_posted) >= ?";
+            $params[] = $from;
+        }
+        if (!empty($to)) {
+            $where .= " AND DATE(a.date_posted) <= ?";
+            $params[] = $to;
         }
         $sql = "SELECT a.*, u.username as posted_by_name FROM announcements a LEFT JOIN users u ON a.posted_by = u.id WHERE $where ORDER BY a.date_posted DESC";
         sendResponse(true, 'Retrieved', $db->fetchAll($sql, $params));
