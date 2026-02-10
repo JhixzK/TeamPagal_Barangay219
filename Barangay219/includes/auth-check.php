@@ -140,6 +140,44 @@ function requireModuleAccess($module) {
 }
 
 /**
+ * Check if user can perform a permission on a module
+ */
+function canPerformModulePermission($module, $permission) {
+    if (!isLoggedIn()) {
+        return false;
+    }
+
+    $role = getCurrentUserRole();
+    if ($role === ROLE_BARANGAY_CAPTAIN) {
+        return true;
+    }
+
+    $permissions = getRolePermissions($role);
+    $modulePerms = $permissions[$module] ?? [];
+
+    if (empty($modulePerms['can_access'])) {
+        return false;
+    }
+
+    if ($permission === 'can_access' || $permission === 'access') {
+        return true;
+    }
+
+    return !empty($modulePerms[$permission]);
+}
+
+/**
+ * Require permission for a module (page use)
+ */
+function requireModulePermission($module, $permission) {
+    requireLogin();
+    if (!canPerformModulePermission($module, $permission)) {
+        header('Location: ' . BASE_URL . 'dashboard.php?error=access_denied');
+        exit();
+    }
+}
+
+/**
  * Get role permissions from database with default fallback
  */
 function getRolePermissions($role) {
