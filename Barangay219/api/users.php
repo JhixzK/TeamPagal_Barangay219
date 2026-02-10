@@ -22,6 +22,14 @@ switch ($action) {
     case 'activity_logs':
         getActivityLogs();
         break;
+
+    case 'get_permissions':
+        getRolePermissionsApi();
+        break;
+
+    case 'save_permissions':
+        saveRolePermissionsApi();
+        break;
     
     case 'get':
         getUser();
@@ -427,6 +435,96 @@ function getActivityLogs() {
         sendResponse(true, 'Activity logs', $logs);
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
+    }
+}
+
+/**
+ * Get permissions for a role
+ */
+function getRolePermissionsApi() {
+    $role = sanitizeInput($_GET['role'] ?? '');
+    if (empty($role)) {
+        sendResponse(false, 'Role is required', null, 400);
+        return;
+    }
+
+    $allowed_roles = [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN, ROLE_RESIDENT];
+    if (!in_array($role, $allowed_roles)) {
+        sendResponse(false, 'Invalid role', null, 400);
+        return;
+    }
+
+    $permissions = getRolePermissions($role);
+    sendResponse(true, 'Role permissions loaded', ['role' => $role, 'permissions' => $permissions]);
+}
+
+/**
+ * Save permissions for a role
+ */
+function saveRolePermissionsApi() {
+    $raw = file_get_contents('php://input');
+    $payload = json_decode($raw, true);
+    $role = sanitizeInput($payload['role'] ?? '');
+    $permissions = $payload['permissions'] ?? [];
+
+    if (empty($role)) {
+        sendResponse(false, 'Role is required', null, 400);
+        return;
+    }
+
+    $allowed_roles = [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN, ROLE_RESIDENT];
+    if (!in_array($role, $allowed_roles)) {
+        sendResponse(false, 'Invalid role', null, 400);
+        return;
+    }
+
+    if (!is_array($permissions)) {
+        sendResponse(false, 'Invalid permissions payload', null, 400);
+        return;
+    }
+
+    if (!rolePermissionsTableExists()) {
+        sendResponse(false, 'role_permissions table is missing. Run the migration to create it.', null, 500);
+        return;
+    }
+
+    $allowed_modules = ['dashboard', 'applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'users', 'profile'];
+
+    try {
+        $db = Database::getInstance();
+        $db->beginTransaction();
+
+        foreach ($permissions as $module => $perms) {
+            if (!in_array($module, $allowed_modules)) {
+                continue;
+            }
+
+            $can_access = !empty($perms['can_access']) ? 1 : 0;
+            $can_create = !empty($perms['can_create']) ? 1 : 0;
+            $can_edit = !empty($perms['can_edit']) ? 1 : 0;
+            $can_delete = !empty($perms['can_delete']) ? 1 : 0;
+
+            $db->query(
+                "INSERT INTO role_permissions (role, module, can_access, can_create, can_edit, can_delete)
+                 VALUES (?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE can_access = VALUES(can_access), can_create = VALUES(can_create), can_edit = VALUES(can_edit), can_delete = VALUES(can_delete)",
+                [$role, $module, $can_access, $can_create, $can_edit, $can_delete]
+            );
+        }
+
+        $db->commit();
+        logActivity('update', 'role_permissions', null, ['role' => $role]);
+        sendResponse(true, 'Permissions saved', null);
+    } catch (Exception $e) {
+        try {
+            $db->rollback();
+        } catch (Exception $rollbackError) {
+        }
+        $message = 'Error saving permissions';
+        if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            $message .= ': ' . $e->getMessage();
+        }
+        sendResponse(false, $message, null, 500);
     }
 }
 
