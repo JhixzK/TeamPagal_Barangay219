@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
     applyComplaintPermissions();
 });
 
+let complaintFilters = { q: '', status: '', from: '', to: '' };
+
 const COMPLAINT_PERMS = {
     canCreate: window.canModulePermission ? window.canModulePermission('complaints', 'can_create') : true,
     canEdit: window.canModulePermission ? window.canModulePermission('complaints', 'can_edit') : true,
@@ -26,10 +28,14 @@ function applyComplaintPermissions() {
     }
 }
 
-function loadComplaints(status) {
-    let url = 'complaints.php?action=list';
-    if (status) url += '&status=' + status;
-    fetch(window.API_URL + url)
+function loadComplaints() {
+    const params = new URLSearchParams({ action: 'list' });
+    if (complaintFilters.q) params.append('q', complaintFilters.q);
+    if (complaintFilters.status) params.append('status', complaintFilters.status);
+    if (complaintFilters.from) params.append('from', complaintFilters.from);
+    if (complaintFilters.to) params.append('to', complaintFilters.to);
+
+    fetch(window.API_URL + 'complaints.php?' + params.toString())
         .then(r => r.json())
         .then(d => {
             const tbody = document.getElementById('complaintsTableBody');
@@ -57,6 +63,34 @@ function loadComplaints(status) {
         .catch(() => {
             document.getElementById('complaintsTableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading</td></tr>';
         });
+}
+
+function searchComplaints() {
+    const query = document.getElementById('searchInput')?.value.trim() || '';
+    complaintFilters.q = query;
+    loadComplaints();
+}
+
+function applyComplaintFilters() {
+    complaintFilters.status = document.getElementById('filterStatus')?.value || '';
+    complaintFilters.from = document.getElementById('filterFrom')?.value || '';
+    complaintFilters.to = document.getElementById('filterTo')?.value || '';
+    loadComplaints();
+    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
+    if (modal) modal.hide();
+}
+
+function resetComplaints() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+    complaintFilters = { q: '', status: '', from: '', to: '' };
+    const statusSel = document.getElementById('filterStatus');
+    const fromInput = document.getElementById('filterFrom');
+    const toInput = document.getElementById('filterTo');
+    if (statusSel) statusSel.value = '';
+    if (fromInput) fromInput.value = '';
+    if (toInput) toInput.value = '';
+    loadComplaints();
 }
 
 function viewComplaint(id) {
