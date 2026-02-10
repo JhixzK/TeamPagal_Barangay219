@@ -9,7 +9,6 @@ if (!isLoggedIn()) {
 }
 
 $current_page = basename($_SERVER['PHP_SELF']);
-$role = getCurrentUserRole();
 
 // Define menu items with permissions
 $menu_items = [
@@ -17,67 +16,67 @@ $menu_items = [
         'title' => 'Dashboard',
         'icon' => 'bi-speedometer2',
         'url' => 'dashboard.php',
-        'roles' => ['barangay_captain', 'secretary', 'treasurer', 'kagawad', 'sk_chairman']
+        'module' => 'dashboard'
     ],
     [
         'title' => 'Applications',
         'icon' => 'bi-file-earmark-person',
         'url' => 'applications.php',
-        'roles' => ['barangay_captain', 'secretary']
+        'module' => 'applications'
     ],
     [
         'title' => 'Residents',
         'icon' => 'bi-people',
         'url' => 'residents.php',
-        'roles' => ['barangay_captain', 'secretary']
+        'module' => 'residents'
     ],
     [
         'title' => 'Households',
         'icon' => 'bi-house-door',
         'url' => 'households.php',
-        'roles' => ['barangay_captain', 'secretary']
+        'module' => 'households'
     ],
     [
         'title' => 'Certificates',
         'icon' => 'bi-file-earmark-text',
         'url' => 'certificates.php',
-        'roles' => ['barangay_captain', 'secretary', 'treasurer']
+        'module' => 'certificates'
     ],
     [
         'title' => 'Blotters',
         'icon' => 'bi-journal-text',
         'url' => 'blotter.php',
-        'roles' => ['barangay_captain', 'secretary', 'kagawad']
+        'module' => 'blotters'
     ],
     [
         'title' => 'Complaints',
         'icon' => 'bi-exclamation-triangle',
         'url' => 'complaints.php',
-        'roles' => ['barangay_captain', 'secretary', 'kagawad']
+        'module' => 'complaints'
     ],
     [
         'title' => 'Announcements',
         'icon' => 'bi-megaphone',
         'url' => 'announcement.php',
-        'roles' => ['barangay_captain', 'secretary', 'kagawad', 'sk_chairman']
+        'module' => 'announcements'
     ],
     [
         'title' => 'Reports',
         'icon' => 'bi-graph-up',
         'url' => 'reports.php',
-        'roles' => ['barangay_captain', 'secretary', 'treasurer']
+        'module' => 'reports'
     ],
     [
         'title' => 'Users',
         'icon' => 'bi-person-gear',
         'url' => 'users.php',
-        'roles' => ['barangay_captain']
+        'module' => 'users'
     ]
 ];
 
 // Filter menu items based on user role
-$filtered_menu = array_filter($menu_items, function($item) use ($role) {
-    return in_array($role, $item['roles']);
+$filtered_menu = array_filter($menu_items, function($item) {
+    return canAccessModule($item['module']);
 });
 // Current user info and avatar
 $current_user = getUserInfo();
