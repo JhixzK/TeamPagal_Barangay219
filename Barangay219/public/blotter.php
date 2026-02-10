@@ -17,7 +17,7 @@ include __DIR__ . '/../includes/sidebar.php';
             <div class="flex-grow-1 min-width-search">
                 <input type="text" class="form-control" id="searchInput" placeholder="Search by case title, complainant, or status...">
             </div>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#blotterModal" onclick="resetBlotterForm()">
+            <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#blotterModal" onclick="resetBlotterForm()">
                 <i class="bi bi-plus-circle"></i> Add New Blotter
             </button>
         </div>
