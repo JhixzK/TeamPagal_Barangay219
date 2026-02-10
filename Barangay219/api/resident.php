@@ -25,14 +25,23 @@ switch ($action) {
         break;
     
     case 'create':
+        if (!canPerformModulePermission('residents', 'can_create')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         createResident();
         break;
     
     case 'update':
+        if (!canPerformModulePermission('residents', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         updateResident();
         break;
     
     case 'delete':
+        if (!canPerformModulePermission('residents', 'can_delete')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         deleteResident();
         break;
     
