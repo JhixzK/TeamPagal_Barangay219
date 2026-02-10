@@ -17,6 +17,9 @@ include __DIR__ . '/../includes/sidebar.php';
             <div class="flex-grow-1 min-width-search">
                 <input type="text" class="form-control" id="searchInput" placeholder="Search by case title, complainant, or status...">
             </div>
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                <i class="bi bi-funnel"></i> Filter
+            </button>
             <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#blotterModal" onclick="resetBlotterForm()">
                 <i class="bi bi-plus-circle"></i> Add New Blotter
             </button>
@@ -165,6 +168,43 @@ include __DIR__ . '/../includes/sidebar.php';
                         <button type="submit" class="btn btn-primary">Save Blotter Case</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Filter Blotters</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="filterStatus">
+                        <option value="">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="under_investigation">Under Investigation</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="settled">Settled</option>
+                        <option value="referred">Referred</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Incident From</label>
+                    <input type="date" class="form-control" id="filterFrom">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Incident To</label>
+                    <input type="date" class="form-control" id="filterTo">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
             </div>
         </div>
     </div>
