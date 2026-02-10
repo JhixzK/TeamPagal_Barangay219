@@ -5,9 +5,17 @@
 
 let currentPage = 1;
 
+const RESIDENT_PERMS = {
+    canCreate: window.canModulePermission ? window.canModulePermission('residents', 'can_create') : true,
+    canEdit: window.canModulePermission ? window.canModulePermission('residents', 'can_edit') : true,
+    canDelete: window.canModulePermission ? window.canModulePermission('residents', 'can_delete') : true
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     loadResidents();
     loadHouseholdsForDropdown();
+
+    applyResidentPermissions();
     
     document.getElementById('residentForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -27,6 +35,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (id) { bootstrap.Modal.getInstance(document.getElementById('viewResidentModal')).hide(); editResident(parseInt(id)); }
     });
 });
+
+function applyResidentPermissions() {
+    if (!RESIDENT_PERMS.canCreate) {
+        const openBtn = document.getElementById('btnOpenCreate');
+        if (openBtn) openBtn.style.display = 'none';
+    }
+    if (!RESIDENT_PERMS.canEdit) {
+        const editBtn = document.getElementById('btnEditFromView');
+        if (editBtn) editBtn.style.display = 'none';
+    }
+}
 
 function loadHouseholdsForDropdown() {
     const sel = document.getElementById('household_id');
@@ -98,9 +117,9 @@ function displayResidents(residents) {
                 <td>${escapeHtml(resident.contact_number || '-')}</td>
                 <td><span class="badge ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
                 <td>
-                    <button class="btn btn-sm btn-primary" onclick="editResident(${resident.id})" title="Edit"><i class="bi bi-pencil"></i></button>
+                    ${RESIDENT_PERMS.canEdit ? `<button class="btn btn-sm btn-primary" onclick="editResident(${resident.id})" title="Edit"><i class="bi bi-pencil"></i></button>` : ''}
                     <button class="btn btn-sm btn-info" onclick="viewResident(${resident.id})" title="View"><i class="bi bi-eye"></i></button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteResident(${resident.id})" title="Delete"><i class="bi bi-trash"></i></button>
+                    ${RESIDENT_PERMS.canDelete ? `<button class="btn btn-sm btn-danger" onclick="deleteResident(${resident.id})" title="Delete"><i class="bi bi-trash"></i></button>` : ''}
                 </td>
             </tr>
         `;
@@ -182,6 +201,10 @@ function searchResidents() {
  * Edit resident
  */
 function editResident(id) {
+    if (!RESIDENT_PERMS.canEdit) {
+        showAlert('error', 'Access denied');
+        return;
+    }
     const apiUrl = window.API_URL;
     if (!apiUrl) { showAlert('error', 'Configuration error.'); return; }
     Promise.all([
@@ -256,6 +279,15 @@ function saveResident() {
     const form = document.getElementById('residentForm');
     const formData = new FormData(form);
     const residentId = document.getElementById('residentId').value;
+
+    if (residentId && !RESIDENT_PERMS.canEdit) {
+        showAlert('error', 'Access denied');
+        return;
+    }
+    if (!residentId && !RESIDENT_PERMS.canCreate) {
+        showAlert('error', 'Access denied');
+        return;
+    }
     
     formData.append('action', residentId ? 'update' : 'create');
     if (residentId) {
@@ -293,6 +325,10 @@ function saveResident() {
  * Delete resident
  */
 function deleteResident(id) {
+    if (!RESIDENT_PERMS.canDelete) {
+        showAlert('error', 'Access denied');
+        return;
+    }
     if (confirm('Are you sure you want to delete this resident?')) {
         const formData = new FormData();
         formData.append('action', 'delete');
