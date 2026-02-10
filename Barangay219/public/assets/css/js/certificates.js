@@ -3,9 +3,22 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
 }
 const BASE_URL = window.location.origin + '/TeamPagal_Barangay219/Barangay219/public/';
 
+const CERT_PERMS = {
+    canEdit: window.canModulePermission ? window.canModulePermission('certificates', 'can_edit') : true,
+    canCreateApplication: window.canModulePermission ? window.canModulePermission('applications', 'can_create') : true
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     loadCertificates();
+    applyCertificatePermissions();
 });
+
+function applyCertificatePermissions() {
+    if (!CERT_PERMS.canCreateApplication) {
+        const btn = document.getElementById('btnOpenApplications');
+        if (btn) btn.style.display = 'none';
+    }
+}
 
 function loadCertificates() {
     fetch(window.API_URL + 'certificates.php?action=list')
@@ -34,11 +47,11 @@ function loadCertificates() {
                                     <i class="bi bi-printer"></i> Print/PDF
                                 </a>
                             ` : ''}
-                            ${c.status === 'pending' ? `
+                            ${CERT_PERMS.canEdit && c.status === 'pending' ? `
                                 <button class="btn btn-sm btn-success" onclick="updateStatus(${c.id}, 'approved')">Approve</button>
                                 <button class="btn btn-sm btn-danger" onclick="rejectCert(${c.id})">Reject</button>
                             ` : ''}
-                            ${c.status === 'approved' ? `
+                            ${CERT_PERMS.canEdit && c.status === 'approved' ? `
                                 <button class="btn btn-sm btn-info" onclick="releaseCert(${c.id})">Release</button>
                             ` : ''}
                             <button class="btn btn-sm btn-outline-secondary" onclick="viewCert(${c.id})">View</button>
@@ -57,6 +70,7 @@ function loadCertificates() {
 }
 
 function updateStatus(id, status) {
+    if (!CERT_PERMS.canEdit) { alert('Access denied'); return; }
     const fd = new FormData();
     fd.append('action', 'update');
     fd.append('id', id);
@@ -67,6 +81,7 @@ function updateStatus(id, status) {
 }
 
 function rejectCert(id) {
+    if (!CERT_PERMS.canEdit) { alert('Access denied'); return; }
     const reason = prompt('Rejection reason (optional):');
     const fd = new FormData();
     fd.append('action', 'reject');
@@ -78,6 +93,7 @@ function rejectCert(id) {
 }
 
 function releaseCert(id) {
+    if (!CERT_PERMS.canEdit) { alert('Access denied'); return; }
     if (!confirm('Release certificate and assign control number?')) return;
     const fd = new FormData();
     fd.append('action', 'release');
