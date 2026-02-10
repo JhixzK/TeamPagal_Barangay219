@@ -15,7 +15,7 @@ include __DIR__ . '/../includes/sidebar.php';
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="mb-0"><i class="bi bi-megaphone"></i> Announcements</h2>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+            <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#createModal">
                 <i class="bi bi-plus-lg"></i> New Announcement
             </button>
         </div>
