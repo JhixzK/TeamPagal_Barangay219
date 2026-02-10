@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireModuleAccess('applications');
+requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY]);
 
 $page_title = 'Certificate Applications';
 include __DIR__ . '/../includes/header.php';
