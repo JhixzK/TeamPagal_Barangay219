@@ -3,6 +3,7 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
 }
 
 let currentViewHouseholdId = null;
+let householdFilters = { q: '', from: '', to: '' };
 
 const HOUSEHOLD_PERMS = {
     canCreate: window.canModulePermission ? window.canModulePermission('households', 'can_create') : true,
@@ -35,7 +36,12 @@ function applyHouseholdPermissions() {
 }
 
 function loadHouseholds() {
-    fetch(window.API_URL + 'households.php?action=list')
+    const params = new URLSearchParams({ action: 'list' });
+    if (householdFilters.q) params.append('q', householdFilters.q);
+    if (householdFilters.from) params.append('from', householdFilters.from);
+    if (householdFilters.to) params.append('to', householdFilters.to);
+
+    fetch(window.API_URL + 'households.php?' + params.toString())
         .then(r => r.json())
         .then(d => {
             const tbody = document.getElementById('householdsTableBody');
@@ -65,30 +71,27 @@ function loadHouseholds() {
 
 function searchHouseholds() {
     const q = document.getElementById('searchHousehold').value.trim();
-    const url = q ? window.API_URL + 'households.php?action=list&q=' + encodeURIComponent(q) : window.API_URL + 'households.php?action=list';
-    fetch(url)
-        .then(r => r.json())
-        .then(d => {
-            const tbody = document.getElementById('householdsTableBody');
-            if (d.success && d.data) {
-                tbody.innerHTML = d.data.map(h => `
-                    <tr>
-                        <td>${h.id}</td>
-                        <td>${escapeHtml(h.family_head_name || '-')}</td>
-                        <td>${escapeHtml((h.address||'').substring(0,50))}${(h.address||'').length>50?'...':''}</td>
-                        <td>${h.total_members}</td>
-                        <td>${formatDate(h.registration_date)}</td>
-                        <td>
-                            ${HOUSEHOLD_PERMS.canEdit ? `<button class="btn btn-sm btn-secondary me-1" onclick="editHousehold(${h.id})"><i class="bi bi-pencil"></i></button>` : ''}
-                            <button class="btn btn-sm btn-primary me-1" onclick="viewHousehold(${h.id})"><i class="bi bi-eye"></i></button>
-                            ${HOUSEHOLD_PERMS.canDelete ? `<button class="btn btn-sm btn-danger" onclick="deleteHousehold(${h.id})"><i class="bi bi-trash"></i></button>` : ''}
-                        </td>
-                    </tr>
-                `).join('');
-            } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No results</td></tr>';
-            }
-        });
+    householdFilters.q = q;
+    loadHouseholds();
+}
+
+function applyFilters() {
+    householdFilters.from = document.getElementById('filterFrom')?.value || '';
+    householdFilters.to = document.getElementById('filterTo')?.value || '';
+    loadHouseholds();
+    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
+    if (modal) modal.hide();
+}
+
+function resetHouseholds() {
+    const searchInput = document.getElementById('searchHousehold');
+    if (searchInput) searchInput.value = '';
+    householdFilters = { q: '', from: '', to: '' };
+    const fromInput = document.getElementById('filterFrom');
+    const toInput = document.getElementById('filterTo');
+    if (fromInput) fromInput.value = '';
+    if (toInput) toInput.value = '';
+    loadHouseholds();
 }
 
 function loadResidentsForDropdown() {
