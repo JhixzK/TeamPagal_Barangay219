@@ -10,9 +10,11 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
     case 'statistics': 
+        requireModuleAccess('dashboard');
         getStatistics(); 
         break;
     case 'recent_activities':
+        requireModuleAccess('dashboard');
         getRecentActivities();
         break;
     case 'population': 
@@ -21,7 +23,7 @@ switch ($action) {
     case 'complaints':
     case 'announcements':
     case 'applications':
-        requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER]);
+        requireModuleAccess('reports');
         if ($action === 'population') getPopulationReport();
         elseif ($action === 'certificates') getCertificatesReport();
         elseif ($action === 'blotters') getBlottersReport();
