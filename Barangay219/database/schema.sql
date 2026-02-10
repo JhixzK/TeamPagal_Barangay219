@@ -5,6 +5,7 @@
 -- Drop existing tables if they exist (for fresh installation)
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `announcements`;
+DROP TABLE IF EXISTS `role_permissions`;
 DROP TABLE IF EXISTS `complaints`;
 DROP TABLE IF EXISTS `blotters`;
 DROP TABLE IF EXISTS `certificate_requests`;
@@ -141,6 +142,23 @@ CREATE TABLE `announcements` (
   KEY `idx_posted_by` (`posted_by`),
   KEY `idx_status` (`status`),
   KEY `idx_date_posted` (`date_posted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Role permissions table - Module access control
+CREATE TABLE `role_permissions` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `role` ENUM('barangay_captain', 'secretary', 'treasurer', 'kagawad', 'sk_chairman', 'resident') NOT NULL,
+  `module` VARCHAR(50) NOT NULL,
+  `can_access` TINYINT(1) NOT NULL DEFAULT 0,
+  `can_create` TINYINT(1) NOT NULL DEFAULT 0,
+  `can_edit` TINYINT(1) NOT NULL DEFAULT 0,
+  `can_delete` TINYINT(1) NOT NULL DEFAULT 0,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_role_module` (`role`, `module`),
+  KEY `idx_role` (`role`),
+  KEY `idx_module` (`module`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Foreign Key Constraints
