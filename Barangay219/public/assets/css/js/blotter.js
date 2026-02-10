@@ -38,9 +38,16 @@ function validateNameInput(input) {
     });
 }
 
+const BLOTTER_PERMS = {
+    canCreate: window.canModulePermission ? window.canModulePermission('blotters', 'can_create') : true,
+    canEdit: window.canModulePermission ? window.canModulePermission('blotters', 'can_edit') : true,
+    canDelete: window.canModulePermission ? window.canModulePermission('blotters', 'can_delete') : true
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     loadBlotters();
     initBlotterModal();
+    applyBlotterPermissions();
     
     // Add search functionality
     const searchInput = document.getElementById('searchInput');
@@ -66,6 +73,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+function applyBlotterPermissions() {
+    if (!BLOTTER_PERMS.canCreate) {
+        const openBtn = document.getElementById('btnOpenCreate');
+        if (openBtn) openBtn.style.display = 'none';
+    }
+}
 
 function loadBlotters() {
     fetch(window.API_URL + 'blotter.php?action=list')
@@ -104,8 +118,8 @@ function loadBlotters() {
                             <td>
                                 <div class="btn-group" role="group">
                                     <button class="btn btn-sm btn-outline-secondary" onclick="viewBlotter(${b.id})">View</button>
-                                    <button class="btn btn-sm btn-primary" onclick="editBlotter(${b.id})">Edit</button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteBlotter(${b.id})">Delete</button>
+                                    ${BLOTTER_PERMS.canEdit ? `<button class="btn btn-sm btn-primary" onclick="editBlotter(${b.id})">Edit</button>` : ''}
+                                    ${BLOTTER_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteBlotter(${b.id})">Delete</button>` : ''}
                                 </div>
                             </td>
                         </tr>`;
@@ -190,6 +204,7 @@ function viewBlotter(id) {
 }
 
 function editBlotter(id) {
+    if (!BLOTTER_PERMS.canEdit) { alert('Access denied'); return; }
     fetch(`${window.API_URL}blotter.php?action=get&id=${id}`)
         .then(r => r.json())
         .then(d => {
@@ -280,6 +295,7 @@ function resetBlotterForm() {
 }
 
 function deleteBlotter(id) {
+    if (!BLOTTER_PERMS.canDelete) { alert('Access denied'); return; }
     if (!confirm('Are you sure you want to delete this blotter case? This action cannot be undone.')) return;
     const fd = new FormData();
     fd.append('id', id);
@@ -424,6 +440,15 @@ function submitBlotterForm(e) {
     const id = document.getElementById('blotterId').value;
     let action = 'create';
     if (id) { action = 'update'; payload.append('id', id); }
+
+    if (action === 'create' && !BLOTTER_PERMS.canCreate) {
+        alert('Access denied');
+        return;
+    }
+    if (action === 'update' && !BLOTTER_PERMS.canEdit) {
+        alert('Access denied');
+        return;
+    }
 
     fetch(window.API_URL + `blotter.php?action=${action}`, { method: 'POST', body: payload })
         .then(r => r.json())
