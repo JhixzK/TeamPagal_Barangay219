@@ -5,19 +5,42 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER]);
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
-    case 'list': listCertificates(); break;
-    case 'get': getCertificate(); break;
-    case 'create': createCertificate(); break;
-    case 'update': updateCertificate(); break;
-    case 'approve': approveCertificate(); break;
-    case 'reject': rejectCertificate(); break;
-    case 'release': releaseCertificate(); break;
-    case 'generate_control': generateControlNumber(); break;
+    case 'list':
+        if (!canModulePermission('certificates', 'access')) { sendResponse(false, 'Access denied', null, 403); }
+        listCertificates();
+        break;
+    case 'get':
+        if (!canModulePermission('certificates', 'access')) { sendResponse(false, 'Access denied', null, 403); }
+        getCertificate();
+        break;
+    case 'create':
+        if (!canModulePermission('certificates', 'create')) { sendResponse(false, 'Access denied', null, 403); }
+        createCertificate();
+        break;
+    case 'update':
+        if (!canModulePermission('certificates', 'edit')) { sendResponse(false, 'Access denied', null, 403); }
+        updateCertificate();
+        break;
+    case 'approve':
+        if (!canModulePermission('certificates', 'edit')) { sendResponse(false, 'Access denied', null, 403); }
+        approveCertificate();
+        break;
+    case 'reject':
+        if (!canModulePermission('certificates', 'edit')) { sendResponse(false, 'Access denied', null, 403); }
+        rejectCertificate();
+        break;
+    case 'release':
+        if (!canModulePermission('certificates', 'edit')) { sendResponse(false, 'Access denied', null, 403); }
+        releaseCertificate();
+        break;
+    case 'generate_control':
+        if (!canModulePermission('certificates', 'edit')) { sendResponse(false, 'Access denied', null, 403); }
+        generateControlNumber();
+        break;
     default: sendResponse(false, 'Invalid action', null, 400);
 }
 
