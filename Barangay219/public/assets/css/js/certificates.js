@@ -8,6 +8,8 @@ const CERT_PERMS = {
     canCreateApplication: window.canModulePermission ? window.canModulePermission('applications', 'can_create') : true
 };
 
+let certificateFilters = { q: '', status: '', type: '', from: '', to: '' };
+
 document.addEventListener('DOMContentLoaded', function() {
     loadCertificates();
     applyCertificatePermissions();
@@ -21,7 +23,14 @@ function applyCertificatePermissions() {
 }
 
 function loadCertificates() {
-    fetch(window.API_URL + 'certificates.php?action=list')
+    const params = new URLSearchParams({ action: 'list' });
+    if (certificateFilters.q) params.append('q', certificateFilters.q);
+    if (certificateFilters.status) params.append('status', certificateFilters.status);
+    if (certificateFilters.type) params.append('type', certificateFilters.type);
+    if (certificateFilters.from) params.append('from', certificateFilters.from);
+    if (certificateFilters.to) params.append('to', certificateFilters.to);
+
+    fetch(window.API_URL + 'certificates.php?' + params.toString())
         .then(r => {
             if (!r.ok) throw new Error('Network response was not ok');
             const ct = r.headers.get('content-type') || '';
@@ -67,6 +76,37 @@ function loadCertificates() {
             const tbody = document.getElementById('certTableBody');
             tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error loading certificates</td></tr>';
         });
+}
+
+function searchCertificates() {
+    const query = document.getElementById('searchInput')?.value.trim() || '';
+    certificateFilters.q = query;
+    loadCertificates();
+}
+
+function applyCertificateFilters() {
+    certificateFilters.status = document.getElementById('filterStatus')?.value || '';
+    certificateFilters.type = document.getElementById('filterType')?.value || '';
+    certificateFilters.from = document.getElementById('filterFrom')?.value || '';
+    certificateFilters.to = document.getElementById('filterTo')?.value || '';
+    loadCertificates();
+    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
+    if (modal) modal.hide();
+}
+
+function resetCertificates() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+    certificateFilters = { q: '', status: '', type: '', from: '', to: '' };
+    const statusSel = document.getElementById('filterStatus');
+    const typeSel = document.getElementById('filterType');
+    const fromInput = document.getElementById('filterFrom');
+    const toInput = document.getElementById('filterTo');
+    if (statusSel) statusSel.value = '';
+    if (typeSel) typeSel.value = '';
+    if (fromInput) fromInput.value = '';
+    if (toInput) toInput.value = '';
+    loadCertificates();
 }
 
 function updateStatus(id, status) {
