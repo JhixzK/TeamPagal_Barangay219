@@ -5,7 +5,7 @@ require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY]);
+requireModuleAccess('households');
 
 include __DIR__ . '/../includes/sidebar.php';
 ?> 
