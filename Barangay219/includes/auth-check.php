@@ -237,6 +237,7 @@ function getDefaultRolePermissions() {
         ROLE_SECRETARY => [
             'dashboard' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'applications' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'resident_applications' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'residents' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'households' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'certificates' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
