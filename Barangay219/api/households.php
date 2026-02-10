@@ -69,12 +69,22 @@ function listHouseholds() {
     try {
         $db = Database::getInstance();
         $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
+        $from = sanitizeInput($_GET['from'] ?? '');
+        $to = sanitizeInput($_GET['to'] ?? '');
         $where = '1=1';
         $params = [];
         if (!empty($q)) {
             $term = '%' . $q . '%';
             $where = "(h.address LIKE ? OR CONCAT(r.first_name, ' ', r.last_name) LIKE ?)";
             $params = [$term, $term];
+        }
+        if (!empty($from)) {
+            $where .= " AND DATE(h.registration_date) >= ?";
+            $params[] = $from;
+        }
+        if (!empty($to)) {
+            $where .= " AND DATE(h.registration_date) <= ?";
+            $params[] = $to;
         }
         $sql = "SELECT h.*, 
                        CONCAT(r.first_name, ' ', COALESCE(r.middle_name, ''), ' ', r.last_name) as family_head_name,
