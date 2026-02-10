@@ -19,7 +19,7 @@ include __DIR__ . '/../includes/sidebar.php';
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2><i class="bi bi-people"></i> Residents Management</h2>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#residentModal" onclick="resetForm()">
+            <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#residentModal" onclick="resetForm()">
                 <i class="bi bi-plus-circle"></i> Add New Resident
             </button>
         </div>
