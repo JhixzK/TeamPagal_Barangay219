@@ -11,7 +11,9 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireModuleAccess('applications');
+if (!canAccessModule('resident_applications')) {
+    sendResponse(false, 'Access denied', null, 403);
+}
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
@@ -23,13 +25,13 @@ switch ($action) {
         getApplication();
         break;
     case 'approve':
-        if (!canPerformModulePermission('applications', 'can_edit')) {
+        if (!canPerformModulePermission('resident_applications', 'can_edit')) {
             sendResponse(false, 'Access denied', null, 403);
         }
         approveApplication();
         break;
     case 'reject':
-        if (!canPerformModulePermission('applications', 'can_edit')) {
+        if (!canPerformModulePermission('resident_applications', 'can_edit')) {
             sendResponse(false, 'Access denied', null, 403);
         }
         rejectApplication();
@@ -45,8 +47,17 @@ function sendResponse($success, $message, $data = null, $code = 200) {
     exit;
 }
 
+function tableExists($db, $table) {
+    $row = $db->fetchOne("SHOW TABLES LIKE ?", [$table]);
+    return !empty($row);
+}
+
 function listApplications() {
     $status = $_GET['status'] ?? 'pending';
+    $q = trim($_GET['q'] ?? '');
+    $sex = trim($_GET['sex'] ?? '');
+    $from = trim($_GET['from'] ?? '');
+    $to = trim($_GET['to'] ?? '');
     $page = max(1, (int)($_GET['page'] ?? 1));
     $limit = min(50, max(10, (int)($_GET['limit'] ?? ITEMS_PER_PAGE)));
     $offset = ($page - 1) * $limit;
@@ -58,17 +69,44 @@ function listApplications() {
 
     try {
         $db = Database::getInstance();
-        $countSql = "SELECT COUNT(*) as total FROM resident_applications WHERE record_status = ?";
-        $total = $db->fetchOne($countSql, [$status])['total'];
+        if (!tableExists($db, 'resident_applications')) {
+            sendResponse(false, 'Resident applications table is missing. Run database/migrations/001_resident_registration_workflow.sql', null, 500);
+        }
+        $where = "record_status = ?";
+        $params = [$status];
 
-        $sql = "SELECT id, application_ref, first_name, middle_name, last_name, sex, birth_date,
-                       civil_status, mobile_number, barangay, city, record_status,
+        if (!empty($q)) {
+            $term = '%' . $q . '%';
+            $where .= " AND (application_ref LIKE ? OR first_name LIKE ? OR middle_name LIKE ? OR last_name LIKE ? OR CONCAT(first_name, ' ', last_name) LIKE ? OR mobile_number LIKE ? OR email LIKE ?)";
+            $params = array_merge($params, [$term, $term, $term, $term, $term, $term, $term]);
+        }
+
+        if (!empty($sex)) {
+            $where .= " AND sex = ?";
+            $params[] = $sex;
+        }
+
+        if (!empty($from)) {
+            $where .= " AND DATE(created_at) >= ?";
+            $params[] = $from;
+        }
+
+        if (!empty($to)) {
+            $where .= " AND DATE(created_at) <= ?";
+            $params[] = $to;
+        }
+
+        $countSql = "SELECT COUNT(*) as total FROM resident_applications WHERE $where";
+        $total = $db->fetchOne($countSql, $params)['total'];
+
+        $sql = "SELECT id, application_ref, first_name, middle_name, last_name, suffix, sex, birth_date,
+                       civil_status, mobile_number, email, barangay, city, record_status,
                        created_at, reviewed_at
                 FROM resident_applications
-                WHERE record_status = ?
+                WHERE $where
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?";
-        $list = $db->fetchAll($sql, [$status, $limit, $offset]);
+        $list = $db->fetchAll($sql, array_merge($params, [$limit, $offset]));
 
         sendResponse(true, 'Applications retrieved', [
             'applications' => $list,
@@ -91,6 +129,9 @@ function getApplication() {
 
     try {
         $db = Database::getInstance();
+        if (!tableExists($db, 'resident_applications')) {
+            sendResponse(false, 'Resident applications table is missing. Run database/migrations/001_resident_registration_workflow.sql', null, 500);
+        }
         $sql = "SELECT * FROM resident_applications WHERE id = ?";
         $app = $db->fetchOne($sql, [$id]);
         if (!$app) {
@@ -131,6 +172,9 @@ function approveApplication() {
 
     try {
         $db = Database::getInstance();
+        if (!tableExists($db, 'resident_applications')) {
+            sendResponse(false, 'Resident applications table is missing. Run database/migrations/001_resident_registration_workflow.sql', null, 500);
+        }
         $db->beginTransaction();
 
         $app = $db->fetchOne("SELECT * FROM resident_applications WHERE id = ? AND record_status = 'pending'", [$id]);
@@ -153,9 +197,9 @@ function approveApplication() {
             contact_number, email, length_of_residency_years,
             emergency_contact_name, emergency_contact_number, emergency_contact_relationship,
             educational_attainment, employment_status,
-            is_senior_citizen, is_pwd, pwd_id_number, is_solo_parent, is_ip_member, is_4ps_beneficiary,
+            is_senior_citizen, is_pwd, pwd_id_number, is_solo_parent, solo_parent_id_number, is_ip_member, ip_group, is_4ps_beneficiary,
             record_status, remarks, last_updated_by, last_updated_at, status, household_id
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active',NULL)";
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
         $db->query($insRes, [
             $residentCode, $app['first_name'], $app['middle_name'] ?: null, $app['last_name'], $app['suffix'] ?: null,
@@ -166,8 +210,9 @@ function approveApplication() {
             $app['emergency_contact_name'], $app['emergency_contact_number'], $app['emergency_contact_relationship'],
             $app['educational_attainment'] ?: null, $app['employment_status'] ?: null,
             $app['is_senior_citizen'] ?? 0, $app['is_pwd'] ?? 0, $app['pwd_id_number'] ?: null,
-            $app['is_solo_parent'] ?? 0, $app['is_ip_member'] ?? 0, $app['is_4ps_beneficiary'] ?? 0,
-            'active', $remarks ?: null, $userId, date('Y-m-d H:i:s')
+            $app['is_solo_parent'] ?? 0, $app['solo_parent_id_number'] ?: null,
+            $app['is_ip_member'] ?? 0, $app['ip_group'] ?: null, $app['is_4ps_beneficiary'] ?? 0,
+            'active', $remarks ?: null, $userId, date('Y-m-d H:i:s'), 'active', null
         ]);
 
         $residentId = $db->lastInsertId();
@@ -231,6 +276,9 @@ function rejectApplication() {
 
     try {
         $db = Database::getInstance();
+        if (!tableExists($db, 'resident_applications')) {
+            sendResponse(false, 'Resident applications table is missing. Run database/migrations/001_resident_registration_workflow.sql', null, 500);
+        }
         $app = $db->fetchOne("SELECT id FROM resident_applications WHERE id = ? AND record_status = 'pending'", [$id]);
         if (!$app) {
             sendResponse(false, 'Application not found or already processed', null, 404);
