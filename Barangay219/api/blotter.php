@@ -36,7 +36,33 @@ switch ($action) {
 function listBlotters() {
     try {
         $db = Database::getInstance();
-        sendResponse(true, 'Retrieved', $db->fetchAll("SELECT * FROM blotters ORDER BY incident_date DESC"));
+        $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
+        $status = sanitizeInput($_GET['status'] ?? '');
+        $from = sanitizeInput($_GET['from'] ?? '');
+        $to = sanitizeInput($_GET['to'] ?? '');
+
+        $where = '1=1';
+        $params = [];
+        if (!empty($q)) {
+            $term = '%' . $q . '%';
+            $where .= " AND (case_title LIKE ? OR complainant_name LIKE ? OR respondent_name LIKE ? OR status LIKE ?)";
+            $params = array_merge($params, [$term, $term, $term, $term]);
+        }
+        if (!empty($status)) {
+            $where .= " AND status = ?";
+            $params[] = $status;
+        }
+        if (!empty($from)) {
+            $where .= " AND DATE(incident_date) >= ?";
+            $params[] = $from;
+        }
+        if (!empty($to)) {
+            $where .= " AND DATE(incident_date) <= ?";
+            $params[] = $to;
+        }
+
+        $sql = "SELECT * FROM blotters WHERE $where ORDER BY incident_date DESC";
+        sendResponse(true, 'Retrieved', $db->fetchAll($sql, $params));
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
     }
