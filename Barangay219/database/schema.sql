@@ -10,7 +10,6 @@ DROP TABLE IF EXISTS `blotters`;
 DROP TABLE IF EXISTS `certificate_requests`;
 DROP TABLE IF EXISTS `households`;
 DROP TABLE IF EXISTS `residents`;
-DROP TABLE IF EXISTS `role_permissions`;
 DROP TABLE IF EXISTS `users`;
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -29,23 +28,6 @@ CREATE TABLE `users` (
   KEY `idx_username` (`username`),
   KEY `idx_role` (`role`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Role permissions table
-CREATE TABLE `role_permissions` (
-  `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `role` VARCHAR(50) NOT NULL,
-  `module` VARCHAR(50) NOT NULL,
-  `can_access` TINYINT(1) NOT NULL DEFAULT 0,
-  `can_create` TINYINT(1) NOT NULL DEFAULT 0,
-  `can_edit` TINYINT(1) NOT NULL DEFAULT 0,
-  `can_delete` TINYINT(1) NOT NULL DEFAULT 0,
-  `updated_by` INT(11) DEFAULT NULL,
-  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_role_module` (`role`, `module`),
-  KEY `idx_role` (`role`),
-  KEY `idx_module` (`module`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Residents table - Central entity for all residents
