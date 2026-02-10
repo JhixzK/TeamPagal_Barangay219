@@ -5,16 +5,30 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_KAGAWA]);
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
-    case 'list': listBlotters(); break;
-    case 'get': getBlotter(); break;
-    case 'create': createBlotter(); break;
-    case 'update': updateBlotter(); break;
-    case 'delete': deleteBlotter(); break;
+    case 'list':
+        if (!canModulePermission('blotters', 'access')) { sendResponse(false, 'Access denied', null, 403); }
+        listBlotters();
+        break;
+    case 'get':
+        if (!canModulePermission('blotters', 'access')) { sendResponse(false, 'Access denied', null, 403); }
+        getBlotter();
+        break;
+    case 'create':
+        if (!canModulePermission('blotters', 'create')) { sendResponse(false, 'Access denied', null, 403); }
+        createBlotter();
+        break;
+    case 'update':
+        if (!canModulePermission('blotters', 'edit')) { sendResponse(false, 'Access denied', null, 403); }
+        updateBlotter();
+        break;
+    case 'delete':
+        if (!canModulePermission('blotters', 'delete')) { sendResponse(false, 'Access denied', null, 403); }
+        deleteBlotter();
+        break;
     default: sendResponse(false, 'Invalid action', null, 400);
 }
 
