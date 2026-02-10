@@ -19,7 +19,8 @@ const ROLE_OPTIONS = [
 
 const MODULES = [
     { key: 'dashboard', label: 'Dashboard' },
-    { key: 'applications', label: 'Applications' },
+    { key: 'applications', label: 'Certificate Applications' },
+    { key: 'resident_applications', label: 'Resident Applications' },
     { key: 'residents', label: 'Residents' },
     { key: 'households', label: 'Households' },
     { key: 'certificates', label: 'Certificates' },
@@ -29,6 +30,8 @@ const MODULES = [
     { key: 'reports', label: 'Reports' },
     { key: 'users', label: 'Users' }
 ];
+
+let userFilters = { q: '', role: '', status: '' };
 
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
@@ -45,7 +48,12 @@ document.addEventListener('DOMContentLoaded', function() {
  * Load all users
  */
 function loadUsers() {
-    fetch(window.API_URL + 'users.php?action=list')
+    const params = new URLSearchParams({ action: 'list' });
+    if (userFilters.q) params.append('q', userFilters.q);
+    if (userFilters.role) params.append('role', userFilters.role);
+    if (userFilters.status) params.append('status', userFilters.status);
+
+    fetch(window.API_URL + 'users.php?' + params.toString())
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -58,6 +66,31 @@ function loadUsers() {
             console.error('Error:', error);
             showAlert('error', 'Error loading users');
         });
+}
+
+function searchUsers() {
+    const query = document.getElementById('searchInput')?.value.trim() || '';
+    userFilters.q = query;
+    loadUsers();
+}
+
+function applyUserFilters() {
+    userFilters.role = document.getElementById('filterRole')?.value || '';
+    userFilters.status = document.getElementById('filterStatus')?.value || '';
+    loadUsers();
+    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
+    if (modal) modal.hide();
+}
+
+function resetUsers() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+    userFilters = { q: '', role: '', status: '' };
+    const roleSel = document.getElementById('filterRole');
+    const statusSel = document.getElementById('filterStatus');
+    if (roleSel) roleSel.value = '';
+    if (statusSel) statusSel.value = '';
+    loadUsers();
 }
 
 /**
