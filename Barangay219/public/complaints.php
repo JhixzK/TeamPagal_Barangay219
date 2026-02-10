@@ -20,6 +20,29 @@ include __DIR__ . '/../includes/sidebar.php';
             </button>
         </div>
 
+        <div class="search-bar mb-3">
+            <div class="row">
+                <div class="col-md-6">
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search by title, complainant, or respondent...">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" onclick="searchComplaints()">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-secondary w-100" onclick="resetComplaints()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
@@ -29,6 +52,42 @@ include __DIR__ . '/../includes/sidebar.php';
                 </thead>
                 <tbody id="complaintsTableBody"><tr><td colspan="7" class="text-center">Loading...</td></tr></tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Filter Complaints</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="filterStatus">
+                        <option value="">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="under_review">Under Review</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="dismissed">Dismissed</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Filing From</label>
+                    <input type="date" class="form-control" id="filterFrom">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Filing To</label>
+                    <input type="date" class="form-control" id="filterTo">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="applyComplaintFilters()">Apply Filters</button>
+            </div>
         </div>
     </div>
 </div>
