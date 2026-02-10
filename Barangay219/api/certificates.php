@@ -12,12 +12,42 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 switch ($action) {
     case 'list': listCertificates(); break;
     case 'get': getCertificate(); break;
-    case 'create': createCertificate(); break;
-    case 'update': updateCertificate(); break;
-    case 'approve': approveCertificate(); break;
-    case 'reject': rejectCertificate(); break;
-    case 'release': releaseCertificate(); break;
-    case 'generate_control': generateControlNumber(); break;
+    case 'create':
+        if (!canPerformModulePermission('certificates', 'can_create') && !canPerformModulePermission('applications', 'can_create')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        createCertificate();
+        break;
+    case 'update':
+        if (!canPerformModulePermission('certificates', 'can_edit') && !canPerformModulePermission('applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        updateCertificate();
+        break;
+    case 'approve':
+        if (!canPerformModulePermission('certificates', 'can_edit') && !canPerformModulePermission('applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        approveCertificate();
+        break;
+    case 'reject':
+        if (!canPerformModulePermission('certificates', 'can_edit') && !canPerformModulePermission('applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        rejectCertificate();
+        break;
+    case 'release':
+        if (!canPerformModulePermission('certificates', 'can_edit') && !canPerformModulePermission('applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        releaseCertificate();
+        break;
+    case 'generate_control':
+        if (!canPerformModulePermission('certificates', 'can_edit') && !canPerformModulePermission('applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        generateControlNumber();
+        break;
     default: sendResponse(false, 'Invalid action', null, 400);
 }
 
