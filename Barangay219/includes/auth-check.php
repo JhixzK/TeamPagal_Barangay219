@@ -113,29 +113,142 @@ function canAccessModule($module) {
     if (!isLoggedIn()) {
         return false;
     }
-    
+
     $role = getCurrentUserRole();
-    
-    // Barangay Captain has full access
     if ($role === ROLE_BARANGAY_CAPTAIN) {
         return true;
     }
 
-    // Applications module for secretary and captain
-    if ($module === 'applications') {
-        return in_array($role, [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY]);
+    $permissions = getRolePermissions($role);
+    if (isset($permissions[$module])) {
+        return !empty($permissions[$module]['can_access']);
     }
-    
-    // Define role permissions
-    $permissions = [
-        ROLE_SECRETARY => ['residents', 'applications', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'dashboard'],
-        ROLE_TREASURER => ['certificates', 'reports', 'dashboard'],
-        ROLE_KAGAWA => ['blotters', 'complaints', 'announcements', 'dashboard'],
-        ROLE_SK_CHAIRMAN => ['announcements', 'dashboard'],
-        ROLE_RESIDENT => ['dashboard', 'announcements', 'profile']
+
+    $defaults = getDefaultRolePermissions();
+    return !empty($defaults[$role][$module]['can_access']);
+}
+
+/**
+ * Require access to a module
+ */
+function requireModuleAccess($module) {
+    requireLogin();
+    if (!canAccessModule($module)) {
+        header('Location: ' . BASE_URL . 'dashboard.php?error=access_denied');
+        exit();
+    }
+}
+
+/**
+ * Get role permissions from database with default fallback
+ */
+function getRolePermissions($role) {
+    static $cache = [];
+
+    if (!$role) {
+        return [];
+    }
+
+    if (isset($cache[$role])) {
+        return $cache[$role];
+    }
+
+    if (!rolePermissionsTableExists()) {
+        $defaults = getDefaultRolePermissions();
+        $cache[$role] = $defaults[$role] ?? [];
+        return $cache[$role];
+    }
+
+    try {
+        $db = Database::getInstance();
+        $rows = $db->fetchAll(
+            "SELECT module, can_access, can_create, can_edit, can_delete FROM role_permissions WHERE role = ?",
+            [$role]
+        );
+    } catch (Exception $e) {
+        $defaults = getDefaultRolePermissions();
+        $cache[$role] = $defaults[$role] ?? [];
+        return $cache[$role];
+    }
+
+    if (empty($rows)) {
+        $defaults = getDefaultRolePermissions();
+        $cache[$role] = $defaults[$role] ?? [];
+        return $cache[$role];
+    }
+
+    $permissions = [];
+    foreach ($rows as $row) {
+        $permissions[$row['module']] = [
+            'can_access' => (bool)$row['can_access'],
+            'can_create' => (bool)$row['can_create'],
+            'can_edit' => (bool)$row['can_edit'],
+            'can_delete' => (bool)$row['can_delete']
+        ];
+    }
+
+    $cache[$role] = $permissions;
+    return $permissions;
+}
+
+/**
+ * Default permissions map
+ */
+function getDefaultRolePermissions() {
+    return [
+        ROLE_SECRETARY => [
+            'dashboard' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'applications' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'residents' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'households' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'certificates' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'blotters' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'complaints' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'announcements' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'reports' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
+        ],
+        ROLE_TREASURER => [
+            'dashboard' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'certificates' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'reports' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
+        ],
+        ROLE_KAGAWA => [
+            'dashboard' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'blotters' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'complaints' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'announcements' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
+        ],
+        ROLE_SK_CHAIRMAN => [
+            'dashboard' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'announcements' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
+        ],
+        ROLE_RESIDENT => [
+            'dashboard' => ['can_access' => true, 'can_create' => false, 'can_edit' => false, 'can_delete' => false],
+            'announcements' => ['can_access' => true, 'can_create' => false, 'can_edit' => false, 'can_delete' => false],
+            'profile' => ['can_access' => true, 'can_create' => false, 'can_edit' => false, 'can_delete' => false]
+        ]
     ];
-    
-    return isset($permissions[$role]) && in_array($module, $permissions[$role]);
+}
+
+/**
+ * Check if the role_permissions table exists
+ */
+function rolePermissionsTableExists() {
+    static $exists = null;
+
+    if ($exists !== null) {
+        return $exists;
+    }
+
+    try {
+        $db = Database::getInstance();
+        $result = $db->fetchOne("SHOW TABLES LIKE 'role_permissions'");
+        $exists = !empty($result);
+    } catch (Exception $e) {
+        $exists = false;
+    }
+
+    return $exists;
 }
 
 /**
