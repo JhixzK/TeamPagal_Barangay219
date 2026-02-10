@@ -12,9 +12,24 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 switch ($action) {
     case 'list': listBlotters(); break;
     case 'get': getBlotter(); break;
-    case 'create': createBlotter(); break;
-    case 'update': updateBlotter(); break;
-    case 'delete': deleteBlotter(); break;
+    case 'create':
+        if (!canPerformModulePermission('blotters', 'can_create')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        createBlotter();
+        break;
+    case 'update':
+        if (!canPerformModulePermission('blotters', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        updateBlotter();
+        break;
+    case 'delete':
+        if (!canPerformModulePermission('blotters', 'can_delete')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        deleteBlotter();
+        break;
     default: sendResponse(false, 'Invalid action', null, 400);
 }
 
