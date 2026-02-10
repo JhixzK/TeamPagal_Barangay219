@@ -73,6 +73,41 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
         </div>
+
+        <!-- Role Permissions Panel -->
+        <div class="card mt-4" id="rolePermissionsPanel">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Role Permissions</h5>
+                <button class="btn btn-sm btn-primary" onclick="saveRolePermissions()">
+                    <i class="bi bi-save"></i> Save Permissions
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label" for="permissionsRole">Role</label>
+                        <select class="form-select" id="permissionsRole"></select>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="text-muted small">Barangay Captain always has full access.</div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Module</th>
+                                <th class="text-center">Access</th>
+                                <th class="text-center">Create</th>
+                                <th class="text-center">Edit</th>
+                                <th class="text-center">Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody id="permissionsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
