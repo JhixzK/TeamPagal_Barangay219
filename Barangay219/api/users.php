@@ -66,14 +66,35 @@ switch ($action) {
 function listUsers() {
     try {
         $db = Database::getInstance();
+
+        $q = sanitizeInput($_GET['q'] ?? '');
+        $role = sanitizeInput($_GET['role'] ?? '');
+        $status = sanitizeInput($_GET['status'] ?? '');
+
+        $where = '1=1';
+        $params = [];
+        if (!empty($q)) {
+            $term = '%' . $q . '%';
+            $where .= " AND (u.username LIKE ? OR u.email LIKE ? OR r.first_name LIKE ? OR r.last_name LIKE ? OR CONCAT(r.first_name, ' ', r.last_name) LIKE ?)";
+            $params = array_merge($params, [$term, $term, $term, $term, $term]);
+        }
+        if (!empty($role)) {
+            $where .= " AND u.role = ?";
+            $params[] = $role;
+        }
+        if (!empty($status)) {
+            $where .= " AND u.status = ?";
+            $params[] = $status;
+        }
         
         $sql = "SELECT u.id, u.username, u.email, u.role, u.status, u.created_at,
                        r.first_name, r.last_name, r.middle_name
                 FROM users u
                 LEFT JOIN residents r ON u.resident_id = r.id
+                WHERE $where
                 ORDER BY u.created_at DESC";
         
-        $users = $db->fetchAll($sql);
+        $users = $db->fetchAll($sql, $params);
         
         // Remove sensitive data
         foreach ($users as &$user) {
@@ -488,7 +509,7 @@ function saveRolePermissionsApi() {
         return;
     }
 
-    $allowed_modules = ['dashboard', 'applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'users', 'profile'];
+    $allowed_modules = ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'users', 'profile'];
 
     try {
         $db = Database::getInstance();
