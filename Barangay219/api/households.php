@@ -11,7 +11,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY]);
+requireModuleAccess('households');
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
