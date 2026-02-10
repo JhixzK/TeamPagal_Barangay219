@@ -5,16 +5,30 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_KAGAWA]);
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
-    case 'list': listComplaints(); break;
-    case 'get': getComplaint(); break;
-    case 'create': createComplaint(); break;
-    case 'update': updateComplaint(); break;
-    case 'delete': deleteComplaint(); break;
+    case 'list':
+        if (!canModulePermission('complaints', 'access')) { sendResponse(false, 'Access denied', null, 403); }
+        listComplaints();
+        break;
+    case 'get':
+        if (!canModulePermission('complaints', 'access')) { sendResponse(false, 'Access denied', null, 403); }
+        getComplaint();
+        break;
+    case 'create':
+        if (!canModulePermission('complaints', 'create')) { sendResponse(false, 'Access denied', null, 403); }
+        createComplaint();
+        break;
+    case 'update':
+        if (!canModulePermission('complaints', 'edit')) { sendResponse(false, 'Access denied', null, 403); }
+        updateComplaint();
+        break;
+    case 'delete':
+        if (!canModulePermission('complaints', 'delete')) { sendResponse(false, 'Access denied', null, 403); }
+        deleteComplaint();
+        break;
     default: sendResponse(false, 'Invalid action', null, 400);
 }
 
