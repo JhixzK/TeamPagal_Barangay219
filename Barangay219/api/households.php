@@ -25,14 +25,23 @@ switch ($action) {
         break;
     
     case 'create':
+        if (!canPerformModulePermission('households', 'can_create')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         createHousehold();
         break;
     
     case 'update':
+        if (!canPerformModulePermission('households', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         updateHousehold();
         break;
     
     case 'delete':
+        if (!canPerformModulePermission('households', 'can_delete')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         deleteHousehold();
         break;
     
