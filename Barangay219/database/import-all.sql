@@ -19,7 +19,6 @@ DROP TABLE IF EXISTS `blotters`;
 DROP TABLE IF EXISTS `certificate_requests`;
 DROP TABLE IF EXISTS `households`;
 DROP TABLE IF EXISTS `residents`;
-DROP TABLE IF EXISTS `role_permissions`;
 DROP TABLE IF EXISTS `users`;
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -42,23 +41,6 @@ CREATE TABLE `users` (
   KEY `idx_username` (`username`),
   KEY `idx_role` (`role`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Role permissions table
-CREATE TABLE `role_permissions` (
-  `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `role` VARCHAR(50) NOT NULL,
-  `module` VARCHAR(50) NOT NULL,
-  `can_access` TINYINT(1) NOT NULL DEFAULT 0,
-  `can_create` TINYINT(1) NOT NULL DEFAULT 0,
-  `can_edit` TINYINT(1) NOT NULL DEFAULT 0,
-  `can_delete` TINYINT(1) NOT NULL DEFAULT 0,
-  `updated_by` INT(11) DEFAULT NULL,
-  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_role_module` (`role`, `module`),
-  KEY `idx_role` (`role`),
-  KEY `idx_module` (`module`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Residents table - Central entity for all residents
@@ -202,64 +184,6 @@ ALTER TABLE `announcements`
 -- ============================================
 -- STEP 5: Insert Initial Data
 -- ============================================
-
--- Default role permissions
-INSERT INTO role_permissions (role, module, can_access, can_create, can_edit, can_delete) VALUES
-('barangay_captain', 'dashboard', 1, 0, 0, 0),
-('barangay_captain', 'applications', 1, 1, 1, 1),
-('barangay_captain', 'residents', 1, 1, 1, 1),
-('barangay_captain', 'households', 1, 1, 1, 1),
-('barangay_captain', 'certificates', 1, 1, 1, 1),
-('barangay_captain', 'blotters', 1, 1, 1, 1),
-('barangay_captain', 'complaints', 1, 1, 1, 1),
-('barangay_captain', 'announcements', 1, 1, 1, 1),
-('barangay_captain', 'reports', 1, 0, 0, 0),
-('barangay_captain', 'users', 1, 1, 1, 1),
-('secretary', 'dashboard', 1, 0, 0, 0),
-('secretary', 'applications', 1, 1, 1, 1),
-('secretary', 'residents', 1, 1, 1, 1),
-('secretary', 'households', 1, 1, 1, 1),
-('secretary', 'certificates', 1, 1, 1, 1),
-('secretary', 'blotters', 1, 1, 1, 1),
-('secretary', 'complaints', 1, 1, 1, 1),
-('secretary', 'announcements', 1, 1, 1, 1),
-('secretary', 'reports', 1, 0, 0, 0),
-('secretary', 'users', 0, 0, 0, 0),
-('treasurer', 'dashboard', 1, 0, 0, 0),
-('treasurer', 'applications', 0, 0, 0, 0),
-('treasurer', 'residents', 0, 0, 0, 0),
-('treasurer', 'households', 0, 0, 0, 0),
-('treasurer', 'certificates', 1, 1, 1, 1),
-('treasurer', 'blotters', 0, 0, 0, 0),
-('treasurer', 'complaints', 0, 0, 0, 0),
-('treasurer', 'announcements', 0, 0, 0, 0),
-('treasurer', 'reports', 1, 0, 0, 0),
-('treasurer', 'users', 0, 0, 0, 0),
-('kagawad', 'dashboard', 1, 0, 0, 0),
-('kagawad', 'applications', 0, 0, 0, 0),
-('kagawad', 'residents', 0, 0, 0, 0),
-('kagawad', 'households', 0, 0, 0, 0),
-('kagawad', 'certificates', 0, 0, 0, 0),
-('kagawad', 'blotters', 1, 1, 1, 1),
-('kagawad', 'complaints', 1, 1, 1, 1),
-('kagawad', 'announcements', 1, 1, 1, 1),
-('kagawad', 'reports', 0, 0, 0, 0),
-('kagawad', 'users', 0, 0, 0, 0),
-('sk_chairman', 'dashboard', 1, 0, 0, 0),
-('sk_chairman', 'applications', 0, 0, 0, 0),
-('sk_chairman', 'residents', 0, 0, 0, 0),
-('sk_chairman', 'households', 0, 0, 0, 0),
-('sk_chairman', 'certificates', 0, 0, 0, 0),
-('sk_chairman', 'blotters', 0, 0, 0, 0),
-('sk_chairman', 'complaints', 0, 0, 0, 0),
-('sk_chairman', 'announcements', 1, 1, 1, 1),
-('sk_chairman', 'reports', 0, 0, 0, 0),
-('sk_chairman', 'users', 0, 0, 0, 0)
-ON DUPLICATE KEY UPDATE
-  can_access = VALUES(can_access),
-  can_create = VALUES(can_create),
-  can_edit = VALUES(can_edit),
-  can_delete = VALUES(can_delete);
 
 -- Insert default admin user (password: admin123)
 -- Password hash for 'admin123' using bcrypt
