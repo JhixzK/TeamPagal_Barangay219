@@ -8,7 +8,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireAnyRole([ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER]);
+requireModuleAccess('certificates');
 
 $id = (int)($_GET['id'] ?? 0);
 if (!$id) { header('Location: ' . BASE_URL . 'certificates.php'); exit; }
