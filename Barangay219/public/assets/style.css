@@ -177,6 +177,104 @@ body {
     margin-bottom: 2rem;
 }
 
+/* Role Permissions Panel */
+.role-permissions-card {
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(16, 24, 40, 0.08);
+    overflow: hidden;
+}
+
+.role-permissions-card .card-header {
+    background: linear-gradient(135deg, #f7f9fc 0%, #ffffff 100%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.role-permissions-card .card-header h5 {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.role-permissions-card .permissions-hint {
+    background: #f1f5f9;
+    padding: 0.4rem 0.6rem;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.permissions-table {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.permissions-table thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.78rem;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    padding: 0.55rem 0.5rem;
+}
+
+.permissions-table tbody tr:nth-child(even) {
+    background: #fbfdff;
+}
+
+.permissions-table tbody tr:hover {
+    background: #f1f5f9;
+}
+
+.permissions-table td {
+    padding: 0.5rem 0.45rem;
+    vertical-align: middle;
+}
+
+.permissions-table td:first-child {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.permissions-table .perm-toggle {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 2.2rem;
+    height: 1.25rem;
+    border-radius: 999px;
+    background: #e2e8f0;
+    border: 1px solid rgba(15, 23, 42, 0.2);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.permissions-table .perm-toggle::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 0.95rem;
+    height: 0.95rem;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+    transition: transform 0.2s ease;
+}
+
+.permissions-table .perm-toggle:checked {
+    background: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.permissions-table .perm-toggle:checked::after {
+    transform: translateX(0.95rem);
+}
+
+.permissions-table .perm-toggle:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
+}
+
 .form-label {
     font-weight: 500;
     color: #495057;
