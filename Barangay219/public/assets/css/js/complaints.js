@@ -5,6 +5,7 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
 document.addEventListener('DOMContentLoaded', function() {
     loadComplaints();
     applyComplaintPermissions();
+    initComplaintStatFilters();
 });
 
 let complaintFilters = { q: '', status: '', from: '', to: '' };
@@ -91,6 +92,27 @@ function resetComplaints() {
     if (fromInput) fromInput.value = '';
     if (toInput) toInput.value = '';
     loadComplaints();
+}
+
+function initComplaintStatFilters() {
+    const container = document.querySelector('.module-stats[data-module="complaints"]');
+    if (!container) return;
+    container.querySelectorAll('[data-status]').forEach(card => {
+        const handleClick = () => {
+            const status = card.getAttribute('data-status') || '';
+            complaintFilters.status = status;
+            const statusSel = document.getElementById('filterStatus');
+            if (statusSel) statusSel.value = status;
+            loadComplaints();
+        };
+        card.addEventListener('click', handleClick);
+        card.addEventListener('keypress', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick();
+            }
+        });
+    });
 }
 
 function viewComplaint(id) {
