@@ -148,6 +148,15 @@ include __DIR__ . '/../includes/sidebar.php';
                     </div>
                 </div>
             </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 report-card">
+                    <div class="card-body">
+                        <h5><i class="bi bi-clock-history"></i> Activity Logs</h5>
+                        <p class="text-muted small">User activity logs with date filter</p>
+                        <button class="btn btn-primary" onclick="loadReport('activity_logs', 'Activity Logs Report')">View Report</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="card mt-4 report-result" id="reportResult" style="display:none;">
