@@ -14,6 +14,7 @@ const HOUSEHOLD_PERMS = {
 document.addEventListener('DOMContentLoaded', function() {
     loadHouseholds();
     applyHouseholdPermissions();
+    initHouseholdStatFilters();
     document.getElementById('householdForm').addEventListener('submit', function(e) {
         e.preventDefault();
         saveHousehold();
@@ -23,6 +24,47 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('btnAddMember').addEventListener('click', addMemberToHousehold);
 });
+
+function initHouseholdStatFilters() {
+    const container = document.querySelector('.module-stats[data-module="households"]');
+    if (!container) return;
+    container.querySelectorAll('[data-range]').forEach(card => {
+        const handleClick = () => {
+            const range = card.getAttribute('data-range') || 'all';
+            const fromInput = document.getElementById('filterFrom');
+            const toInput = document.getElementById('filterTo');
+            const today = new Date();
+            let fromVal = '';
+            let toVal = '';
+            if (range === 'month') {
+                fromVal = formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
+                toVal = formatDateInput(today);
+            } else if (range === 'year') {
+                fromVal = formatDateInput(new Date(today.getFullYear(), 0, 1));
+                toVal = formatDateInput(today);
+            }
+            householdFilters.from = fromVal;
+            householdFilters.to = toVal;
+            if (fromInput) fromInput.value = fromVal;
+            if (toInput) toInput.value = toVal;
+            loadHouseholds();
+        };
+        card.addEventListener('click', handleClick);
+        card.addEventListener('keypress', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick();
+            }
+        });
+    });
+}
+
+function formatDateInput(date) {
+    const d = new Date(date);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + mm + '-' + dd;
+}
 
 function applyHouseholdPermissions() {
     if (!HOUSEHOLD_PERMS.canCreate) {
