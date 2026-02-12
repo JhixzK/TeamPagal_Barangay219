@@ -17,6 +17,10 @@ switch ($action) {
         requireModuleAccess('dashboard');
         getRecentActivities();
         break;
+    case 'module_stats':
+        $module = sanitizeInput($_GET['module'] ?? $_POST['module'] ?? '');
+        getModuleStats($module);
+        break;
     case 'population': 
     case 'certificates': 
     case 'blotters': 
@@ -73,6 +77,217 @@ function getRecentActivities() {
             [$limit]
         );
         sendResponse(true, 'Recent activities', $rows);
+    } catch (Exception $e) {
+        sendResponse(false, 'Error', null, 500);
+    }
+}
+
+function getModuleStats($module) {
+    $allowed = ['residents', 'households', 'applications', 'certificates', 'complaints', 'blotters', 'announcements', 'users', 'reports', 'profile', 'resident_applications'];
+    if (!in_array($module, $allowed, true)) {
+        sendResponse(false, 'Invalid module', null, 400);
+    }
+
+    if ($module === 'users') {
+        requireAdmin();
+    } elseif ($module !== 'profile') {
+        requireModuleAccess($module);
+    }
+
+    try {
+        $db = Database::getInstance();
+        $stats = [];
+
+        switch ($module) {
+            case 'residents':
+                $row = $db->fetchOne(
+                    "SELECT COUNT(*) AS total,\n" .
+                    "COALESCE(SUM(status = 'active'), 0) AS active,\n" .
+                    "COALESCE(SUM(status = 'inactive'), 0) AS inactive,\n" .
+                    "COALESCE(SUM(status = 'deceased'), 0) AS deceased,\n" .
+                    "COALESCE(SUM(status = 'transferred'), 0) AS transferred\n" .
+                    "FROM residents"
+                );
+                $stats = [
+                    'total' => (int)$row['total'],
+                    'active' => (int)$row['active'],
+                    'inactive' => (int)$row['inactive'],
+                    'deceased' => (int)$row['deceased'],
+                    'transferred' => (int)$row['transferred']
+                ];
+                break;
+            case 'households':
+                $row = $db->fetchOne(
+                    "SELECT COUNT(*) AS total_households,\n" .
+                    "COALESCE(SUM(total_members), 0) AS total_members,\n" .
+                    "COALESCE(SUM(registration_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS new_this_month,\n" .
+                    "COALESCE(SUM(registration_date >= DATE_FORMAT(CURDATE(), '%Y-01-01')), 0) AS new_this_year\n" .
+                    "FROM households"
+                );
+                $stats = [
+                    'total_households' => (int)$row['total_households'],
+                    'total_members' => (int)$row['total_members'],
+                    'new_this_month' => (int)$row['new_this_month'],
+                    'new_this_year' => (int)$row['new_this_year']
+                ];
+                break;
+            case 'applications':
+            case 'certificates':
+                $row = $db->fetchOne(
+                    "SELECT COUNT(*) AS total,\n" .
+                    "COALESCE(SUM(status = 'pending'), 0) AS pending,\n" .
+                    "COALESCE(SUM(status = 'approved'), 0) AS approved,\n" .
+                    "COALESCE(SUM(status = 'rejected'), 0) AS rejected,\n" .
+                    "COALESCE(SUM(status = 'issued'), 0) AS issued\n" .
+                    "FROM certificate_requests"
+                );
+                $stats = [
+                    'total' => (int)$row['total'],
+                    'pending' => (int)$row['pending'],
+                    'approved' => (int)$row['approved'],
+                    'rejected' => (int)$row['rejected'],
+                    'issued' => (int)$row['issued']
+                ];
+                break;
+            case 'complaints':
+                $row = $db->fetchOne(
+                    "SELECT COUNT(*) AS total,\n" .
+                    "COALESCE(SUM(status = 'pending'), 0) AS pending,\n" .
+                    "COALESCE(SUM(status = 'under_review'), 0) AS under_review,\n" .
+                    "COALESCE(SUM(status = 'resolved'), 0) AS resolved,\n" .
+                    "COALESCE(SUM(status = 'dismissed'), 0) AS dismissed\n" .
+                    "FROM complaints"
+                );
+                $stats = [
+                    'total' => (int)$row['total'],
+                    'pending' => (int)$row['pending'],
+                    'under_review' => (int)$row['under_review'],
+                    'resolved' => (int)$row['resolved'],
+                    'dismissed' => (int)$row['dismissed']
+                ];
+                break;
+            case 'blotters':
+                $row = $db->fetchOne(
+                    "SELECT COUNT(*) AS total,\n" .
+                    "COALESCE(SUM(status = 'pending'), 0) AS pending,\n" .
+                    "COALESCE(SUM(status = 'resolved'), 0) AS resolved,\n" .
+                    "COALESCE(SUM(status = 'settled'), 0) AS settled\n" .
+                    "FROM blotters"
+                );
+                $stats = [
+                    'total' => (int)$row['total'],
+                    'pending' => (int)$row['pending'],
+                    'resolved' => (int)$row['resolved'],
+                    'settled' => (int)$row['settled']
+                ];
+                break;
+            case 'announcements':
+                $row = $db->fetchOne(
+                    "SELECT COUNT(*) AS total,\n" .
+                    "COALESCE(SUM(status = 'active'), 0) AS active,\n" .
+                    "COALESCE(SUM(status = 'inactive'), 0) AS inactive,\n" .
+                    "COALESCE(SUM(status = 'expired'), 0) AS expired,\n" .
+                    "COALESCE(SUM(status = 'archived'), 0) AS archived\n" .
+                    "FROM announcements"
+                );
+                $stats = [
+                    'total' => (int)$row['total'],
+                    'active' => (int)$row['active'],
+                    'inactive' => (int)$row['inactive'],
+                    'expired' => (int)$row['expired'],
+                    'archived' => (int)$row['archived']
+                ];
+                break;
+            case 'users':
+                $row = $db->fetchOne(
+                    "SELECT COUNT(*) AS total,\n" .
+                    "COALESCE(SUM(status = 'active'), 0) AS active,\n" .
+                    "COALESCE(SUM(status = 'inactive'), 0) AS inactive,\n" .
+                    "COALESCE(SUM(status = 'suspended'), 0) AS suspended\n" .
+                    "FROM users"
+                );
+                $stats = [
+                    'total' => (int)$row['total'],
+                    'active' => (int)$row['active'],
+                    'inactive' => (int)$row['inactive'],
+                    'suspended' => (int)$row['suspended']
+                ];
+                break;
+            case 'reports':
+                $stats = [
+                    'total_residents' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM residents WHERE status = 'active'")['count'],
+                    'total_households' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM households")['count'],
+                    'issued_certificates' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'issued'")['count'],
+                    'pending_applications' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'pending'")['count'],
+                    'pending_complaints' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM complaints WHERE status = 'pending'")['count'],
+                    'active_announcements' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM announcements WHERE status = 'active'")['count']
+                ];
+                break;
+            case 'resident_applications':
+                $tableRow = $db->fetchOne("SHOW TABLES LIKE 'resident_applications'");
+                if (empty($tableRow)) {
+                    $stats = [
+                        'total' => 0,
+                        'pending' => 0,
+                        'approved' => 0,
+                        'rejected' => 0
+                    ];
+                    break;
+                }
+                $row = $db->fetchOne(
+                    "SELECT COUNT(*) AS total,\n" .
+                    "COALESCE(SUM(record_status = 'pending'), 0) AS pending,\n" .
+                    "COALESCE(SUM(record_status = 'approved'), 0) AS approved,\n" .
+                    "COALESCE(SUM(record_status = 'rejected'), 0) AS rejected\n" .
+                    "FROM resident_applications"
+                );
+                $stats = [
+                    'total' => (int)$row['total'],
+                    'pending' => (int)$row['pending'],
+                    'approved' => (int)$row['approved'],
+                    'rejected' => (int)$row['rejected']
+                ];
+                break;
+            case 'profile':
+                $userId = (int)getCurrentUserId();
+                $residentRow = $db->fetchOne("SELECT resident_id FROM users WHERE id = ?", [$userId]);
+                $residentId = (int)($residentRow['resident_id'] ?? 0);
+                if ($residentId) {
+                    $certRow = $db->fetchOne(
+                        "SELECT COUNT(*) AS total,\n" .
+                        "COALESCE(SUM(status = 'issued'), 0) AS issued,\n" .
+                        "COALESCE(SUM(status = 'pending'), 0) AS pending\n" .
+                        "FROM certificate_requests WHERE resident_id = ?",
+                        [$residentId]
+                    );
+                    $hasResidentCol = !empty($db->getConnection()->query("SHOW COLUMNS FROM complaints LIKE 'resident_id'")->fetchAll());
+                    if ($hasResidentCol) {
+                        $compRow = $db->fetchOne(
+                            "SELECT COUNT(*) AS total, COALESCE(SUM(status = 'pending'), 0) AS pending FROM complaints WHERE resident_id = ?",
+                            [$residentId]
+                        );
+                        $complaintsTotal = (int)$compRow['total'];
+                    } else {
+                        $complaintsTotal = 0;
+                    }
+                    $stats = [
+                        'my_certificates_total' => (int)$certRow['total'],
+                        'my_certificates_issued' => (int)$certRow['issued'],
+                        'my_certificates_pending' => (int)$certRow['pending'],
+                        'my_complaints_total' => (int)$complaintsTotal
+                    ];
+                } else {
+                    $stats = [
+                        'my_certificates_total' => 0,
+                        'my_certificates_issued' => 0,
+                        'my_certificates_pending' => 0,
+                        'my_complaints_total' => 0
+                    ];
+                }
+                break;
+        }
+
+        sendResponse(true, 'Module statistics retrieved', $stats);
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
     }
