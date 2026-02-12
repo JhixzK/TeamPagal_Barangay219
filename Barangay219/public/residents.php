@@ -24,6 +24,44 @@ include __DIR__ . '/../includes/sidebar.php';
             </button>
         </div>
 
+        <div class="row g-3 mb-4 module-stats" data-module="residents">
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-primary text-white" data-status="" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-people"></i></div>
+                    <div class="stat-value" data-stat="total">-</div>
+                    <div class="stat-label">Total Residents</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="stat-card bg-success text-white" data-status="active" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-person-check"></i></div>
+                    <div class="stat-value" data-stat="active">-</div>
+                    <div class="stat-label">Active</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="stat-card bg-secondary text-white" data-status="inactive" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-person-dash"></i></div>
+                    <div class="stat-value" data-stat="inactive">-</div>
+                    <div class="stat-label">Inactive</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="stat-card bg-dark text-white" data-status="deceased" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-person-x"></i></div>
+                    <div class="stat-value" data-stat="deceased">-</div>
+                    <div class="stat-label">Deceased</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-info text-white" data-status="transferred" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-arrow-left-right"></i></div>
+                    <div class="stat-value" data-stat="transferred">-</div>
+                    <div class="stat-label">Transferred</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Search Bar -->
         <div class="search-bar">
             <div class="row">
@@ -283,4 +321,5 @@ include __DIR__ . '/../includes/sidebar.php';
     window.ITEMS_PER_PAGE = <?php echo ITEMS_PER_PAGE; ?>;
     window.BASE_URL = '<?php echo BASE_URL; ?>';
 </script>
+<script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/residents.js?v=<?php echo time(); ?>"></script>
