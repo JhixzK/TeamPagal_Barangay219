@@ -27,7 +27,7 @@ $userInfo = getUserInfo();
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <!-- Custom CSS -->
-    <link href="<?php echo ASSETS_URL; ?>style.css" rel="stylesheet">
+    <link href="<?php echo ASSETS_URL; ?>style.css?v=<?php echo time(); ?>" rel="stylesheet">
     
     <!-- Define API URL for JavaScript (available on all pages) -->
     <script>
