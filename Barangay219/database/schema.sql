@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS `application_audit_log`;
 DROP TABLE IF EXISTS `resident_applications`;
 DROP TABLE IF EXISTS `role_permissions`;
 DROP TABLE IF EXISTS `complaints`;
+DROP TABLE IF EXISTS `blotter_hearings`;
 DROP TABLE IF EXISTS `blotters`;
 DROP TABLE IF EXISTS `certificate_requests`;
 DROP TABLE IF EXISTS `households`;
@@ -134,6 +135,22 @@ CREATE TABLE `blotters` (
   KEY `idx_handled_by` (`handled_by`),
   KEY `idx_status` (`status`),
   KEY `idx_incident_date` (`incident_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Blotter Hearings table - Hearing history per blotter case
+CREATE TABLE `blotter_hearings` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `blotter_id` INT(11) NOT NULL,
+  `hearing_date` DATE DEFAULT NULL,
+  `status` ENUM('scheduled', 'completed', 'postponed', 'cancelled') DEFAULT 'scheduled',
+  `outcome` VARCHAR(255) DEFAULT NULL,
+  `notes` TEXT DEFAULT NULL,
+  `next_hearing_date` DATE DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_blotter_id` (`blotter_id`),
+  KEY `idx_hearing_date` (`hearing_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Complaints table - General complaints module
@@ -275,6 +292,9 @@ ALTER TABLE `certificate_requests`
 
 ALTER TABLE `blotters`
   ADD CONSTRAINT `fk_blotters_handled_by` FOREIGN KEY (`handled_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE `blotter_hearings`
+  ADD CONSTRAINT `fk_blotter_hearings_blotter` FOREIGN KEY (`blotter_id`) REFERENCES `blotters` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE `complaints`
   ADD CONSTRAINT `fk_complaints_handled_by` FOREIGN KEY (`handled_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
