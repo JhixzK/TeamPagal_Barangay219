@@ -66,6 +66,8 @@ function listResidents() {
         $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
         $status = sanitizeInput($_GET['status'] ?? '');
         $gender = sanitizeInput($_GET['gender'] ?? '');
+        $age_from = $_GET['age_from'] ?? '';
+        $age_to = $_GET['age_to'] ?? '';
         
         $db = Database::getInstance();
 
@@ -83,6 +85,14 @@ function listResidents() {
         if (!empty($gender)) {
             $where .= " AND r.gender = ?";
             $params[] = $gender;
+        }
+        if ($age_from !== '' && is_numeric($age_from)) {
+            $where .= " AND TIMESTAMPDIFF(YEAR, r.birth_date, CURDATE()) >= ?";
+            $params[] = intval($age_from);
+        }
+        if ($age_to !== '' && is_numeric($age_to)) {
+            $where .= " AND TIMESTAMPDIFF(YEAR, r.birth_date, CURDATE()) <= ?";
+            $params[] = intval($age_to);
         }
         
         // Get total count
@@ -174,8 +184,8 @@ function createResident() {
     $status = sanitizeInput($_POST['status'] ?? RESIDENT_ACTIVE);
     
     // Validation
-    if (empty($first_name) || empty($last_name) || empty($birth_date) || empty($gender) || empty($address)) {
-        sendResponse(false, 'First name, last name, birth date, gender, and address are required', null, 400);
+    if (empty($first_name) || empty($last_name) || empty($birth_date) || empty($gender) || empty($civil_status) || empty($occupation) || empty($citizenship) || empty($contact_number) || empty($address) || empty($status)) {
+        sendResponse(false, 'All fields are required except household and suffix', null, 400);
         return;
     }
     
@@ -252,6 +262,11 @@ function updateResident() {
     $contact_number = sanitizeInput($_POST['contact_number'] ?? '');
     $household_id = intval($_POST['household_id'] ?? 0);
     $status = sanitizeInput($_POST['status'] ?? '');
+
+    if (empty($first_name) || empty($last_name) || empty($birth_date) || empty($gender) || empty($civil_status) || empty($occupation) || empty($citizenship) || empty($contact_number) || empty($address) || empty($status)) {
+        sendResponse(false, 'All fields are required except household and suffix', null, 400);
+        return;
+    }
     
     try {
         $db = Database::getInstance();
