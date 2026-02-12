@@ -4,7 +4,7 @@
  */
 
 let currentPage = 1;
-let residentFilters = { q: '', status: '', gender: '' };
+let residentFilters = { q: '', status: '', gender: '', age_from: '', age_to: '' };
 
 const RESIDENT_PERMS = {
     canCreate: window.canModulePermission ? window.canModulePermission('residents', 'can_create') : true,
@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loadHouseholdsForDropdown();
 
     applyResidentPermissions();
+
+    initResidentFormValidation();
     
     document.getElementById('residentForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -36,6 +38,49 @@ document.addEventListener('DOMContentLoaded', function() {
         if (id) { bootstrap.Modal.getInstance(document.getElementById('viewResidentModal')).hide(); editResident(parseInt(id)); }
     });
 });
+
+function initResidentFormValidation() {
+    const firstName = document.getElementById('first_name');
+    const middleName = document.getElementById('middle_name');
+    const lastName = document.getElementById('last_name');
+    const suffix = document.getElementById('suffix');
+    const contact = document.getElementById('contact_number');
+
+    if (firstName) validateNameInput(firstName);
+    if (middleName) validateNameInput(middleName);
+    if (lastName) validateNameInput(lastName);
+    if (suffix) validateNameInput(suffix, true);
+    if (contact) validatePhoneInput(contact);
+}
+
+// Name input validation - only allow letters, spaces, and dots (for suffix)
+function validateNameInput(input, allowDot = false) {
+    input.addEventListener('input', function() {
+        const regex = allowDot ? /[^a-zA-Z\s.]/g : /[^a-zA-Z\s]/g;
+        this.value = this.value.replace(regex, '');
+    });
+}
+
+// Phone number input validation - only allow + and digits, max 13 characters, always starts with +63
+function validatePhoneInput(input) {
+    input.addEventListener('input', function() {
+        if (!this.value.startsWith('+63')) {
+            this.value = '+63';
+            return;
+        }
+        let value = this.value.replace(/[^\d+]/g, '');
+        value = value.substring(0, 13);
+        this.value = value;
+    });
+
+    input.addEventListener('blur', function() {
+        if (this.value.trim() === '' || this.value === '+63') {
+            this.value = '+63';
+        } else if (!this.value.startsWith('+63')) {
+            this.value = '+63';
+        }
+    });
+}
 
 function applyResidentPermissions() {
     if (!RESIDENT_PERMS.canCreate) {
@@ -84,6 +129,8 @@ function loadResidents(page = 1) {
     if (residentFilters.q) params.append('q', residentFilters.q);
     if (residentFilters.status) params.append('status', residentFilters.status);
     if (residentFilters.gender) params.append('gender', residentFilters.gender);
+    if (residentFilters.age_from) params.append('age_from', residentFilters.age_from);
+    if (residentFilters.age_to) params.append('age_to', residentFilters.age_to);
 
     fetch(`${apiUrl}resident.php?${params.toString()}`)
         .then(response => response.json())
@@ -187,6 +234,8 @@ function searchResidents() {
 function applyFilters() {
     residentFilters.status = document.getElementById('filterStatus')?.value || '';
     residentFilters.gender = document.getElementById('filterGender')?.value || '';
+    residentFilters.age_from = document.getElementById('filterAgeFrom')?.value || '';
+    residentFilters.age_to = document.getElementById('filterAgeTo')?.value || '';
     loadResidents(1);
     const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
     if (modal) modal.hide();
@@ -195,11 +244,15 @@ function applyFilters() {
 function resetResidents() {
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.value = '';
-    residentFilters = { q: '', status: '', gender: '' };
+    residentFilters = { q: '', status: '', gender: '', age_from: '', age_to: '' };
     const statusSel = document.getElementById('filterStatus');
     const genderSel = document.getElementById('filterGender');
+    const ageFrom = document.getElementById('filterAgeFrom');
+    const ageTo = document.getElementById('filterAgeTo');
     if (statusSel) statusSel.value = '';
     if (genderSel) genderSel.value = '';
+    if (ageFrom) ageFrom.value = '';
+    if (ageTo) ageTo.value = '';
     loadResidents(1);
 }
 
@@ -232,13 +285,24 @@ function editResident(id) {
         document.getElementById('birth_date').value = resident.birth_date;
         document.getElementById('gender').value = resident.gender;
         document.getElementById('civil_status').value = resident.civil_status || '';
-        document.getElementById('occupation').value = resident.occupation || '';
+        const occupationSelect = document.getElementById('occupation');
+        if (occupationSelect) {
+            const occupationValue = resident.occupation || '';
+            if (occupationValue && !occupationSelect.querySelector(`option[value="${occupationValue.replace(/"/g, '&quot;')}"]`)) {
+                const opt = document.createElement('option');
+                opt.value = occupationValue;
+                opt.textContent = occupationValue;
+                occupationSelect.appendChild(opt);
+            }
+            occupationSelect.value = occupationValue;
+        }
         document.getElementById('citizenship').value = resident.citizenship || 'Filipino';
         document.getElementById('address').value = resident.address;
         document.getElementById('contact_number').value = resident.contact_number || '';
         document.getElementById('household_id').value = resident.household_id || '';
         document.getElementById('status').value = resident.status;
         document.getElementById('residentModalTitle').textContent = 'Edit Resident';
+        initResidentFormValidation();
         new bootstrap.Modal(document.getElementById('residentModal')).show();
     }).catch(() => showAlert('error', 'Error loading resident'));
 }
@@ -374,7 +438,9 @@ function resetForm() {
     document.getElementById('residentId').value = '';
     document.getElementById('citizenship').value = 'Filipino';
     document.getElementById('status').value = 'active';
+    document.getElementById('contact_number').value = '+63';
     document.getElementById('residentModalTitle').textContent = 'Add New Resident';
+    initResidentFormValidation();
 }
 
 /**
