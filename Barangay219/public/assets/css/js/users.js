@@ -36,6 +36,7 @@ let userFilters = { q: '', role: '', status: '' };
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
     initPermissionsUI();
+    initUserStatFilters();
     
     // Form submission
     document.getElementById('userForm').addEventListener('submit', function(e) {
@@ -43,6 +44,27 @@ document.addEventListener('DOMContentLoaded', function() {
         saveUser();
     });
 });
+
+function initUserStatFilters() {
+    const container = document.querySelector('.module-stats[data-module="users"]');
+    if (!container) return;
+    container.querySelectorAll('[data-status]').forEach(card => {
+        const handleClick = () => {
+            const status = card.getAttribute('data-status') || '';
+            userFilters.status = status;
+            const statusSel = document.getElementById('filterStatus');
+            if (statusSel) statusSel.value = status;
+            loadUsers();
+        };
+        card.addEventListener('click', handleClick);
+        card.addEventListener('keypress', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick();
+            }
+        });
+    });
+}
 
 /**
  * Load all users
