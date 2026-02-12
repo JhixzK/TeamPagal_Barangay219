@@ -110,8 +110,18 @@ include __DIR__ . '/../includes/sidebar.php';
                         <option value="">All</option>
                         <option value="male">Male</option>
                         <option value="female">Female</option>
-                        <option value="other">Other</option>
                     </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Age</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="number" class="form-control" id="filterAgeFrom" placeholder="From" min="0">
+                        </div>
+                        <div class="col-6">
+                            <input type="number" class="form-control" id="filterAgeTo" placeholder="To" min="0">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -155,7 +165,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     
                     <div class="row">
                         <div class="col-md-3 mb-3">
-                            <label for="birth_date" class="form-label">Birth Date <span class="text-danger">*</span></label>
+                            <label for="birth_date" class="form-label">Birth Date <span class="text-danger">*</span> <small class="text-muted">mm/dd/yyyy</small></label>
                             <input type="date" class="form-control" id="birth_date" name="birth_date" required>
                         </div>
                         <div class="col-md-3 mb-3">
@@ -164,12 +174,11 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <option value="">Select Gender</option>
                                 <option value="male">Male</option>
                                 <option value="female">Female</option>
-                                <option value="other">Other</option>
                             </select>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label for="civil_status" class="form-label">Civil Status</label>
-                            <select class="form-select" id="civil_status" name="civil_status">
+                            <label for="civil_status" class="form-label">Civil Status <span class="text-danger">*</span></label>
+                            <select class="form-select" id="civil_status" name="civil_status" required>
                                 <option value="">Select Status</option>
                                 <option value="single">Single</option>
                                 <option value="married">Married</option>
@@ -179,8 +188,8 @@ include __DIR__ . '/../includes/sidebar.php';
                             </select>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label for="status" class="form-label">Status</label>
-                            <select class="form-select" id="status" name="status">
+                            <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
+                            <select class="form-select" id="status" name="status" required>
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
                                 <option value="deceased">Deceased</option>
@@ -191,16 +200,35 @@ include __DIR__ . '/../includes/sidebar.php';
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="occupation" class="form-label">Occupation</label>
-                            <input type="text" class="form-control" id="occupation" name="occupation">
+                            <label for="occupation" class="form-label">Occupation <span class="text-danger">*</span></label>
+                            <select class="form-select" id="occupation" name="occupation" required>
+                                <option value="">Select Occupation</option>
+                                <option value="Student">Student</option>
+                                <option value="Unemployed">Unemployed</option>
+                                <option value="Self-Employed">Self-Employed</option>
+                                <option value="Farmer">Farmer</option>
+                                <option value="Fisherman">Fisherman</option>
+                                <option value="Vendor">Vendor</option>
+                                <option value="Driver">Driver</option>
+                                <option value="Construction Worker">Construction Worker</option>
+                                <option value="Factory Worker">Factory Worker</option>
+                                <option value="Office Staff">Office Staff</option>
+                                <option value="Teacher">Teacher</option>
+                                <option value="Nurse">Nurse</option>
+                                <option value="Barangay Staff">Barangay Staff</option>
+                                <option value="OFW">OFW</option>
+                                <option value="Retired">Retired</option>
+                                <option value="Homemaker">Homemaker</option>
+                                <option value="Other">Other</option>
+                            </select>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label for="citizenship" class="form-label">Citizenship</label>
-                            <input type="text" class="form-control" id="citizenship" name="citizenship" value="Filipino">
+                            <label for="citizenship" class="form-label">Citizenship <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="citizenship" name="citizenship" value="Filipino" required>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label for="contact_number" class="form-label">Contact Number</label>
-                            <input type="text" class="form-control" id="contact_number" name="contact_number">
+                            <label for="contact_number" class="form-label">Contact Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="contact_number" name="contact_number" value="+63" maxlength="13" inputmode="numeric" pattern="\+63\d{10}" required>
                         </div>
                     </div>
                     
