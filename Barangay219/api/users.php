@@ -11,7 +11,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireAdmin(); // Only Barangay Captain can manage users
+requireModuleAccess('users');
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
@@ -28,6 +28,9 @@ switch ($action) {
         break;
 
     case 'save_permissions':
+        if (!canPerformModulePermission('users', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         saveRolePermissionsApi();
         break;
     
@@ -36,22 +39,37 @@ switch ($action) {
         break;
     
     case 'create':
+        if (!canPerformModulePermission('users', 'can_create')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         createUser();
         break;
     
     case 'update':
+        if (!canPerformModulePermission('users', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         updateUser();
         break;
     
     case 'delete':
+        if (!canPerformModulePermission('users', 'can_delete')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         deleteUser();
         break;
     
     case 'suspend':
+        if (!canPerformModulePermission('users', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         suspendUser();
         break;
     
     case 'activate':
+        if (!canPerformModulePermission('users', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
         activateUser();
         break;
     
@@ -501,7 +519,7 @@ function getRolePermissionsApi() {
     $role_normalized = strtolower(trim($role));
 
     $allowed_roles = [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN, ROLE_RESIDENT];
-    if (!in_array($role, $allowed_roles)) {
+    if (!in_array($role_normalized, $allowed_roles, true)) {
         sendResponse(false, 'Invalid role', null, 400);
         return;
     }
@@ -517,12 +535,12 @@ function getRolePermissionsApi() {
                 'can_delete' => true
             ];
         }
-        sendResponse(true, 'Role permissions loaded', ['role' => $role, 'permissions' => $permissions]);
+        sendResponse(true, 'Role permissions loaded', ['role' => $role_normalized, 'permissions' => $permissions]);
         return;
     }
 
-    $permissions = getRolePermissions($role);
-    sendResponse(true, 'Role permissions loaded', ['role' => $role, 'permissions' => $permissions]);
+    $permissions = getRolePermissions($role_normalized);
+    sendResponse(true, 'Role permissions loaded', ['role' => $role_normalized, 'permissions' => $permissions]);
 }
 
 /**
@@ -539,13 +557,14 @@ function saveRolePermissionsApi() {
         return;
     }
 
+    $role_normalized = strtolower(trim($role));
     $allowed_roles = [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN, ROLE_RESIDENT];
-    if (!in_array($role, $allowed_roles)) {
+    if (!in_array($role_normalized, $allowed_roles, true)) {
         sendResponse(false, 'Invalid role', null, 400);
         return;
     }
 
-    if (strtolower(trim($role)) === ROLE_BARANGAY_CAPTAIN) {
+    if ($role_normalized === ROLE_BARANGAY_CAPTAIN) {
         sendResponse(false, 'Barangay Captain permissions are fixed and cannot be edited', null, 403);
         return;
     }
@@ -580,7 +599,7 @@ function saveRolePermissionsApi() {
                 "INSERT INTO role_permissions (role, module, can_access, can_create, can_edit, can_delete)
                  VALUES (?, ?, ?, ?, ?, ?)
                  ON DUPLICATE KEY UPDATE can_access = VALUES(can_access), can_create = VALUES(can_create), can_edit = VALUES(can_edit), can_delete = VALUES(can_delete)",
-                [$role, $module, $can_access, $can_create, $can_edit, $can_delete]
+                [$role_normalized, $module, $can_access, $can_create, $can_edit, $can_delete]
             );
         }
 
