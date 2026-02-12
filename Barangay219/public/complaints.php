@@ -20,6 +20,44 @@ include __DIR__ . '/../includes/sidebar.php';
             </button>
         </div>
 
+        <div class="row g-3 mb-4 module-stats" data-module="complaints">
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-primary text-white" data-status="" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-files"></i></div>
+                    <div class="stat-value" data-stat="total">-</div>
+                    <div class="stat-label">Total Complaints</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-warning text-dark" data-status="pending" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+                    <div class="stat-value" data-stat="pending">-</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="stat-card bg-info text-white" data-status="under_review" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-search"></i></div>
+                    <div class="stat-value" data-stat="under_review">-</div>
+                    <div class="stat-label">Under Review</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="stat-card bg-success text-white" data-status="resolved" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
+                    <div class="stat-value" data-stat="resolved">-</div>
+                    <div class="stat-label">Resolved</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="stat-card bg-secondary text-white" data-status="dismissed" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-x-circle"></i></div>
+                    <div class="stat-value" data-stat="dismissed">-</div>
+                    <div class="stat-label">Dismissed</div>
+                </div>
+            </div>
+        </div>
+
         <div class="search-bar mb-3">
             <div class="row">
                 <div class="col-md-6">
@@ -239,4 +277,5 @@ document.getElementById('btnCreate').addEventListener('click', function() {
         });
 });
 </script>
+<script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/complaints.js?v=<?php echo time(); ?>"></script>
