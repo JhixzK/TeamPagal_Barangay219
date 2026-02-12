@@ -89,7 +89,7 @@ function getModuleStats($module) {
     }
 
     if ($module === 'users') {
-        requireAdmin();
+        requireModuleAccess('users');
     } elseif ($module !== 'profile') {
         requireModuleAccess($module);
     }
