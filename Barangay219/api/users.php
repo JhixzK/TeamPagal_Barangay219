@@ -200,18 +200,25 @@ function createUser() {
         // Hash password
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
         
-        // Insert user
-        $sql = "INSERT INTO users (username, password, email, role, resident_id, status) 
-                VALUES (?, ?, ?, ?, ?, ?)";
-        
-        $params = [
-            $username,
-            $hashedPassword,
-            $email ?: null,
-            $role,
-            $resident_id ?: null,
-            USER_ACTIVE
-        ];
+        // Insert user (column-safe for older schemas)
+        $cols = ['username', 'password', 'role'];
+        $params = [$username, $hashedPassword, $role];
+
+        if (userTableHasColumn($db, 'email')) {
+            $cols[] = 'email';
+            $params[] = $email ?: null;
+        }
+        if (userTableHasColumn($db, 'resident_id')) {
+            $cols[] = 'resident_id';
+            $params[] = $resident_id ?: null;
+        }
+        if (userTableHasColumn($db, 'status')) {
+            $cols[] = 'status';
+            $params[] = USER_ACTIVE;
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($cols), '?'));
+        $sql = "INSERT INTO users (" . implode(', ', $cols) . ") VALUES ($placeholders)";
         
         $db->query($sql, $params);
         $userId = $db->lastInsertId();
@@ -224,8 +231,23 @@ function createUser() {
         
     } catch (Exception $e) {
         error_log("Create user error: " . $e->getMessage());
-        sendResponse(false, 'Error creating user', null, 500);
+        $msg = DEBUG_MODE ? ('Error creating user: ' . $e->getMessage()) : 'Error creating user';
+        sendResponse(false, $msg, null, 500);
     }
+}
+
+function userTableHasColumn($db, $column) {
+    static $cache = [];
+    if (array_key_exists($column, $cache)) {
+        return $cache[$column];
+    }
+    try {
+        $result = $db->fetchOne("SHOW COLUMNS FROM users LIKE ?", [$column]);
+        $cache[$column] = !empty($result);
+    } catch (Exception $e) {
+        $cache[$column] = false;
+    }
+    return $cache[$column];
 }
 
 /**
