@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadHouseholdsForDropdown();
 
     applyResidentPermissions();
+    initResidentStatFilters();
 
     initResidentFormValidation();
     
@@ -38,6 +39,27 @@ document.addEventListener('DOMContentLoaded', function() {
         if (id) { bootstrap.Modal.getInstance(document.getElementById('viewResidentModal')).hide(); editResident(parseInt(id)); }
     });
 });
+
+function initResidentStatFilters() {
+    const container = document.querySelector('.module-stats[data-module="residents"]');
+    if (!container) return;
+    container.querySelectorAll('[data-status]').forEach(card => {
+        const handleClick = () => {
+            const status = card.getAttribute('data-status') || '';
+            residentFilters.status = status;
+            const statusSel = document.getElementById('filterStatus');
+            if (statusSel) statusSel.value = status;
+            loadResidents(1);
+        };
+        card.addEventListener('click', handleClick);
+        card.addEventListener('keypress', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick();
+            }
+        });
+    });
+}
 
 function initResidentFormValidation() {
     const firstName = document.getElementById('first_name');
