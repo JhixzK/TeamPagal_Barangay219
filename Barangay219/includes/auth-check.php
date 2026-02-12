@@ -48,6 +48,10 @@ function getCurrentUserRole() {
     return $_SESSION['role'] ?? null;
 }
 
+function normalizeRole($role) {
+    return $role !== null ? strtolower(trim((string)$role)) : null;
+}
+
 /**
  * Get current username
  */
@@ -59,15 +63,16 @@ function getCurrentUsername() {
  * Check if user has specific role
  */
 function hasRole($role) {
-    return getCurrentUserRole() === $role;
+    return normalizeRole(getCurrentUserRole()) === normalizeRole($role);
 }
 
 /**
  * Check if user has any of the specified roles
  */
 function hasAnyRole($roles) {
-    $userRole = getCurrentUserRole();
-    return in_array($userRole, $roles);
+    $userRole = normalizeRole(getCurrentUserRole());
+    $normalized = array_map('normalizeRole', $roles);
+    return in_array($userRole, $normalized, true);
 }
 
 /**
@@ -114,7 +119,7 @@ function canAccessModule($module) {
         return false;
     }
 
-    $role = getCurrentUserRole();
+    $role = normalizeRole(getCurrentUserRole());
     if ($role === ROLE_BARANGAY_CAPTAIN) {
         return true;
     }
@@ -147,7 +152,7 @@ function canPerformModulePermission($module, $permission) {
         return false;
     }
 
-    $role = getCurrentUserRole();
+    $role = normalizeRole(getCurrentUserRole());
     if ($role === ROLE_BARANGAY_CAPTAIN) {
         return true;
     }
@@ -183,6 +188,9 @@ function requireModulePermission($module, $permission) {
 function getRolePermissions($role) {
     static $cache = [];
 
+    $roleRaw = $role;
+    $role = normalizeRole($role);
+
     if (!$role) {
         return [];
     }
@@ -203,6 +211,12 @@ function getRolePermissions($role) {
             "SELECT module, can_access, can_create, can_edit, can_delete FROM role_permissions WHERE role = ?",
             [$role]
         );
+        if (empty($rows) && $roleRaw && $roleRaw !== $role) {
+            $rows = $db->fetchAll(
+                "SELECT module, can_access, can_create, can_edit, can_delete FROM role_permissions WHERE role = ?",
+                [$roleRaw]
+            );
+        }
     } catch (Exception $e) {
         $defaults = getDefaultRolePermissions();
         $cache[$role] = $defaults[$role] ?? [];
