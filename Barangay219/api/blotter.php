@@ -74,6 +74,9 @@ function getBlotter() {
     try {
         $db = Database::getInstance();
         $b = $db->fetchOne("SELECT * FROM blotters WHERE id = ?", [$id]);
+        if ($b) {
+            $b['hearings'] = $db->fetchAll("SELECT * FROM blotter_hearings WHERE blotter_id = ? ORDER BY hearing_date ASC, id ASC", [$id]);
+        }
         sendResponse($b ? true : false, $b ? 'Found' : 'Not found', $b);
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
@@ -116,13 +119,23 @@ function createBlotter() {
 
     $status = sanitizeInput($_POST['status'] ?? 'pending');
     $settlement_date = $_POST['settlement_date'] ?? null;
+    $hearings_raw = $_POST['hearings'] ?? null;
 
     if (!$case_title || !$complainant_name || !$description) { sendResponse(false, 'Required fields missing', null, 400); return; }
     try {
         $db = Database::getInstance();
         $db->query("INSERT INTO blotters (case_title, complainant_name, respondent_name, incident_date, incident_location, description, status, settlement_date, handled_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                    [$case_title, $complainant_name, $respondent_name, $incident_date, $incident_location, $description, $status, $settlement_date, getCurrentUserId()]);
-        sendResponse(true, 'Created', ['id' => $db->lastInsertId()]);
+        $blotter_id = $db->lastInsertId();
+        if ($hearings_raw !== null) {
+            $hearings = parseHearingsPayload($hearings_raw);
+            if ($hearings === null) {
+                sendResponse(false, 'Invalid hearings data', null, 400);
+                return;
+            }
+            insertHearings($db, $blotter_id, $hearings);
+        }
+        sendResponse(true, 'Created', ['id' => $blotter_id]);
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
     }
@@ -132,6 +145,7 @@ function updateBlotter() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') { sendResponse(false, 'POST required', null, 405); return; }
     $id = intval($_POST['id'] ?? 0);
     if (!$id) { sendResponse(false, 'ID required', null, 400); return; }
+    $hearings_raw = $_POST['hearings'] ?? null;
     $updates = [];
     $params = [];
     foreach (['case_title', 'complainant_name', 'respondent_name', 'incident_date', 'incident_location', 'description', 'status', 'settlement_date'] as $field) {
@@ -145,6 +159,15 @@ function updateBlotter() {
     try {
         $db = Database::getInstance();
         $db->query("UPDATE blotters SET " . implode(', ', $updates) . " WHERE id = ?", $params);
+        if ($hearings_raw !== null) {
+            $hearings = parseHearingsPayload($hearings_raw);
+            if ($hearings === null) {
+                sendResponse(false, 'Invalid hearings data', null, 400);
+                return;
+            }
+            $db->query("DELETE FROM blotter_hearings WHERE blotter_id = ?", [$id]);
+            insertHearings($db, $id, $hearings);
+        }
         sendResponse(true, 'Updated');
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
@@ -168,4 +191,49 @@ function sendResponse($success, $message, $data = null, $httpCode = 200) {
     http_response_code($httpCode);
     echo json_encode(['success' => $success, 'message' => $message, 'data' => $data]);
     exit();
+}
+
+function parseHearingsPayload($raw) {
+    if ($raw === null || $raw === '') {
+        return [];
+    }
+    $decoded = json_decode($raw, true);
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+        return null;
+    }
+    return $decoded;
+}
+
+function normalizeDateValue($value) {
+    $v = trim((string)$value);
+    return $v === '' ? null : $v;
+}
+
+function insertHearings($db, $blotter_id, $hearings) {
+    if (empty($hearings)) {
+        return;
+    }
+    $allowed_statuses = ['scheduled', 'completed', 'postponed', 'cancelled'];
+    foreach ($hearings as $hearing) {
+        if (!is_array($hearing)) {
+            continue;
+        }
+        $hearing_date = normalizeDateValue($hearing['hearing_date'] ?? null);
+        $status = sanitizeInput($hearing['status'] ?? 'scheduled');
+        if (!in_array($status, $allowed_statuses, true)) {
+            $status = 'scheduled';
+        }
+        $outcome = sanitizeInput($hearing['outcome'] ?? '');
+        $notes = sanitizeInput($hearing['notes'] ?? '');
+        $next_hearing_date = normalizeDateValue($hearing['next_hearing_date'] ?? null);
+
+        if (!$hearing_date && !$outcome && !$notes && !$next_hearing_date) {
+            continue;
+        }
+
+        $db->query(
+            "INSERT INTO blotter_hearings (blotter_id, hearing_date, status, outcome, notes, next_hearing_date) VALUES (?, ?, ?, ?, ?, ?)",
+            [$blotter_id, $hearing_date, $status, $outcome, $notes, $next_hearing_date]
+        );
+    }
 }
