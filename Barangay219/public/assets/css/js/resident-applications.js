@@ -20,6 +20,7 @@ let appFilters = { q: '', sex: '', from: '', to: '' };
 document.addEventListener('DOMContentLoaded', function() {
     bindTabs();
     bindActions();
+    initResidentApplicationStatFilters();
     loadApplications();
 });
 
@@ -77,6 +78,30 @@ function resetApplications() {
     if (to) to.value = '';
     currentPage = 1;
     loadApplications();
+}
+
+function initResidentApplicationStatFilters() {
+    const container = document.querySelector('.module-stats[data-module="resident_applications"]');
+    if (!container) return;
+    container.querySelectorAll('[data-status]').forEach(card => {
+        const handleClick = () => {
+            const status = card.getAttribute('data-status') || 'pending';
+            currentStatus = status;
+            currentPage = 1;
+            document.querySelectorAll('#statusTabs .nav-link').forEach(t => t.classList.remove('active'));
+            const tab = Array.from(document.querySelectorAll('#statusTabs .nav-link'))
+                .find(t => (t.getAttribute('data-status') || '') === status);
+            if (tab) tab.classList.add('active');
+            loadApplications();
+        };
+        card.addEventListener('click', handleClick);
+        card.addEventListener('keypress', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick();
+            }
+        });
+    });
 }
 
 function loadApplications() {
