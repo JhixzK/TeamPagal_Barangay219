@@ -17,6 +17,30 @@ include __DIR__ . '/../includes/sidebar.php';
             <h2><i class="bi bi-person-lines-fill"></i> Resident Applications</h2>
         </div>
 
+        <div class="row g-3 mb-4 module-stats" data-module="resident_applications">
+            <div class="col-sm-6 col-lg-4">
+                <div class="stat-card bg-warning text-dark" data-status="pending" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+                    <div class="stat-value" data-stat="pending">-</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <div class="stat-card bg-success text-white" data-status="approved" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
+                    <div class="stat-value" data-stat="approved">-</div>
+                    <div class="stat-label">Approved</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <div class="stat-card bg-danger text-white" data-status="rejected" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-x-circle"></i></div>
+                    <div class="stat-value" data-stat="rejected">-</div>
+                    <div class="stat-label">Rejected</div>
+                </div>
+            </div>
+        </div>
+
         <div class="search-bar mb-3">
             <div class="row">
                 <div class="col-md-6">
@@ -164,4 +188,5 @@ include __DIR__ . '/../includes/sidebar.php';
 <script>
     window.RESIDENT_APPLICATIONS_BASE_URL = '<?php echo BASE_URL; ?>';
 </script>
+<script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/resident-applications.js?v=<?php echo time(); ?>"></script>
