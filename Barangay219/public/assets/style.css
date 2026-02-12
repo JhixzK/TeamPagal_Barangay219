@@ -50,34 +50,83 @@ body {
 
 /* Dashboard Cards */
 .stat-card {
+    position: relative;
     border-radius: 10px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s, box-shadow 0.3s;
+    padding: 1rem 1.1rem 1.1rem;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: none;
+    min-height: 92px;
+    color: #fff;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(16, 24, 40, 0.08);
+}
+
+.stat-card[role="button"] {
+    cursor: pointer;
+}
+
+.stat-card[role="button"]:focus-visible {
+    outline: 3px solid rgba(13, 110, 253, 0.35);
+    outline-offset: 3px;
 }
 
 .stat-card .stat-icon {
-    font-size: 2.5rem;
-    opacity: 0.8;
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-size: 1.1rem;
+    opacity: 0.7;
 }
 
 .stat-card .stat-value {
     font-size: 2rem;
     font-weight: 700;
-    margin: 0.5rem 0;
+    margin: 0.25rem 0 0.05rem;
+    font-variant-numeric: tabular-nums;
 }
 
 .stat-card .stat-label {
-    color: #6c757d;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-size: 0.95rem;
+    letter-spacing: 0.3px;
+    text-transform: none;
+    opacity: 0.85;
+}
+
+.stat-card.text-dark {
+    color: #fff;
+}
+
+.stat-card.text-dark .stat-label,
+.stat-card.text-dark .stat-icon {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* Gradient tile themes */
+.stat-card.bg-primary {
+    background: linear-gradient(135deg, #1e88e5 0%, #0d47a1 100%);
+}
+.stat-card.bg-success {
+    background: linear-gradient(135deg, #26a69a 0%, #1b5e20 100%);
+}
+.stat-card.bg-info {
+    background: linear-gradient(135deg, #00bcd4 0%, #006064 100%);
+}
+.stat-card.bg-warning {
+    background: linear-gradient(135deg, #f6c343 0%, #e67e22 100%);
+}
+.stat-card.bg-danger {
+    background: linear-gradient(135deg, #ef5350 0%, #b71c1c 100%);
+}
+.stat-card.bg-secondary {
+    background: linear-gradient(135deg, #607d8b 0%, #37474f 100%);
+}
+.stat-card.bg-dark {
+    background: linear-gradient(135deg, #455a64 0%, #263238 100%);
 }
 
 /* Table Styles */
