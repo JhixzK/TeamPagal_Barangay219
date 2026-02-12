@@ -10,7 +10,7 @@ require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireAdmin();
+requireModuleAccess('users');
 
 include __DIR__ . '/../includes/sidebar.php';
 ?>
