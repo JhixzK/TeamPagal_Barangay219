@@ -19,6 +19,37 @@ include __DIR__ . '/../includes/sidebar.php';
             </button>
         </div>
 
+        <div class="row g-3 mb-4 module-stats" data-module="households">
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-primary text-white" data-range="all" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-house"></i></div>
+                    <div class="stat-value" data-stat="total_households">-</div>
+                    <div class="stat-label">Total Households</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-success text-white" data-range="all" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-people"></i></div>
+                    <div class="stat-value" data-stat="total_members">-</div>
+                    <div class="stat-label">Total Members</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-info text-white" data-range="month" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-calendar-plus"></i></div>
+                    <div class="stat-value" data-stat="new_this_month">-</div>
+                    <div class="stat-label">New This Month</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-secondary text-white" data-range="year" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-calendar"></i></div>
+                    <div class="stat-value" data-stat="new_this_year">-</div>
+                    <div class="stat-label">New This Year</div>
+                </div>
+            </div>
+        </div>
+
         <div class="search-bar mb-3">
             <div class="row">
                 <div class="col-md-6">
@@ -155,4 +186,5 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
 <script>if (typeof window.API_URL === 'undefined') window.API_URL = '<?php echo addslashes(API_URL); ?>';</script>
+<script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/households.js?v=<?php echo time(); ?>"></script>
