@@ -72,6 +72,26 @@ function formatReportData(type, data) {
         }
         return html;
     }
+    if (type === 'activity_logs') {
+        if (!Array.isArray(data) || data.length === 0) {
+            return '<p class="text-muted">No data found for the selected filters.</p>';
+        }
+        let html = '<table class="table table-sm table-striped report-table"><thead><tr>';
+        html += '<th>Date</th><th>User</th><th>Action</th><th>Module</th><th>IP</th>';
+        html += '</tr></thead><tbody>';
+        data.forEach(row => {
+            const date = row.created_at ? new Date(row.created_at).toLocaleString() : '-';
+            html += '<tr>';
+            html += '<td>' + date + '</td>';
+            html += '<td>' + (row.username || '-') + '</td>';
+            html += '<td>' + (row.action || '-') + '</td>';
+            html += '<td>' + (row.module || '-') + '</td>';
+            html += '<td>' + (row.ip_address || '-') + '</td>';
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        return html;
+    }
     if (Array.isArray(data) && data.length > 0) {
         const keys = Object.keys(data[0]);
         let html = '<table class="table table-sm table-striped report-table"><thead><tr>';
