@@ -38,6 +38,14 @@ function validateNameInput(input) {
     });
 }
 
+// Number-only validation (allow digits only)
+function validateNumberInput(input) {
+    input.addEventListener('input', function() {
+        let value = this.value.replace(/\D/g, '');
+        this.value = value;
+    });
+}
+
 const BLOTTER_PERMS = {
     canCreate: window.canModulePermission ? window.canModulePermission('blotters', 'can_create') : true,
     canEdit: window.canModulePermission ? window.canModulePermission('blotters', 'can_edit') : true,
@@ -199,6 +207,32 @@ function viewBlotter(id) {
                 // Populate Case Status
                 document.getElementById('viewStatus').textContent = info.status || '-';
                 document.getElementById('viewSettlementDate').textContent = formatDate(info.settlement_date) || '-';
+
+                // Populate Hearings
+                let hearingsHTML = '';
+                if (Array.isArray(info.hearings) && info.hearings.length > 0) {
+                    hearingsHTML = info.hearings.map((h, idx) => {
+                        const hearingDate = formatDate(h.hearing_date);
+                        const nextHearingDate = formatDate(h.next_hearing_date);
+                        const status = h.status ? escapeHtml(h.status) : '-';
+                        const outcome = h.outcome ? escapeHtml(h.outcome) : '-';
+                        const notes = h.notes ? escapeHtml(h.notes) : '-';
+                        return `
+                            <div class="card mb-2">
+                                <div class="card-body py-2">
+                                    <p class="mb-1"><strong>Hearing ${idx + 1} Date:</strong> ${hearingDate}</p>
+                                    <p class="mb-1"><strong>Status:</strong> ${status}</p>
+                                    <p class="mb-1"><strong>Outcome:</strong> ${outcome}</p>
+                                    <p class="mb-1"><strong>Notes:</strong> ${notes}</p>
+                                    <p class="mb-0"><strong>Next Hearing:</strong> ${nextHearingDate}</p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    hearingsHTML = '<p>-</p>';
+                }
+                document.getElementById('viewHearingsInfo').innerHTML = hearingsHTML;
                 
                 // Show modal
                 const modal = new bootstrap.Modal(document.getElementById('viewBlotterModal'));
@@ -229,6 +263,7 @@ function editBlotter(id) {
             // populate complainants/respondents
             document.getElementById('complainantsContainer').innerHTML = '';
             document.getElementById('respondentsContainer').innerHTML = '';
+            document.getElementById('hearingsContainer').innerHTML = '';
 
             try {
                 const comps = JSON.parse(info.complainant_name);
@@ -251,6 +286,18 @@ function editBlotter(id) {
                 if (info.respondent_name) addRespondentRow({ name: info.respondent_name });
             }
 
+            if (Array.isArray(info.hearings) && info.hearings.length > 0) {
+                info.hearings.forEach(h => addHearingRow({
+                    hearing_date: h.hearing_date || '',
+                    status: h.status || 'scheduled',
+                    outcome: h.outcome || '',
+                    notes: h.notes || '',
+                    next_hearing_date: h.next_hearing_date || ''
+                }));
+            } else {
+                addHearingRow();
+            }
+
             // show modal
             const modalEl = document.getElementById('blotterModal');
             const modal = new bootstrap.Modal(modalEl);
@@ -271,6 +318,7 @@ function initBlotterModal() {
     // initial one row each
     addComplainantRow();
     addRespondentRow();
+    addHearingRow();
 
     // Add name validation to case title
     const caseTitleInput = document.getElementById('case_title');
@@ -278,6 +326,7 @@ function initBlotterModal() {
 
     document.getElementById('addComplainantBtn').addEventListener('click', addComplainantRow);
     document.getElementById('addRespondentBtn').addEventListener('click', addRespondentRow);
+    document.getElementById('addHearingBtn').addEventListener('click', addHearingRow);
     document.getElementById('blotterForm').addEventListener('submit', submitBlotterForm);
 }
 
@@ -286,8 +335,10 @@ function resetBlotterForm() {
     document.getElementById('blotterId').value = '';
     document.getElementById('complainantsContainer').innerHTML = '';
     document.getElementById('respondentsContainer').innerHTML = '';
+    document.getElementById('hearingsContainer').innerHTML = '';
     addComplainantRow();
     addRespondentRow();
+    addHearingRow();
     // reset modal title and button text
     const titleEl = document.getElementById('blotterModalTitle');
     if (titleEl) titleEl.textContent = 'Add New Blotter Case';
@@ -354,7 +405,7 @@ function addComplainantRow(data = {}) {
     validateNameInput(nameInput);
     
     const barangayInput = div.querySelector('[data-barangay]');
-    validateNameInput(barangayInput);
+    validateNumberInput(barangayInput);
 
     // Add phone input validation
     const contactInput = div.querySelector('[data-contact]');
@@ -399,13 +450,58 @@ function addRespondentRow(data = {}) {
     validateNameInput(nameInput);
     
     const barangayInput = div.querySelector('[data-barangay]');
-    validateNameInput(barangayInput);
+    validateNumberInput(barangayInput);
 
     // Add phone input validation
     const contactInput = div.querySelector('[data-contact]');
     validatePhoneInput(contactInput);
 
     div.querySelector('.remove-party').addEventListener('click', () => div.remove());
+    container.appendChild(div);
+}
+
+function addHearingRow(data = {}) {
+    const container = document.getElementById('hearingsContainer');
+    const div = document.createElement('div');
+    div.className = 'row mb-3 g-2 hearing-row';
+    div.innerHTML = `
+        <div class="col-12 col-md-3">
+            <label class="form-label">Hearing Date</label>
+            <input type="date" class="form-control" data-hearing-date>
+        </div>
+        <div class="col-12 col-md-2">
+            <label class="form-label">Status</label>
+            <select class="form-select" data-hearing-status>
+                <option value="scheduled">Scheduled</option>
+                <option value="completed">Completed</option>
+                <option value="postponed">Postponed</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-3">
+            <label class="form-label">Outcome</label>
+            <input type="text" class="form-control" placeholder="Outcome" data-hearing-outcome>
+        </div>
+        <div class="col-12 col-md-3">
+            <label class="form-label">Next Hearing Date</label>
+            <input type="date" class="form-control" data-next-hearing-date>
+        </div>
+        <div class="col-12 col-md-1 d-flex align-items-end">
+            <button type="button" class="btn btn-danger btn-sm remove-hearing" style="width:100%;">&times;</button>
+        </div>
+        <div class="col-12">
+            <label class="form-label">Notes</label>
+            <textarea class="form-control" rows="2" placeholder="Notes" data-hearing-notes></textarea>
+        </div>
+    `;
+
+    if (data.hearing_date) div.querySelector('[data-hearing-date]').value = data.hearing_date;
+    if (data.status) div.querySelector('[data-hearing-status]').value = data.status;
+    if (data.outcome) div.querySelector('[data-hearing-outcome]').value = data.outcome;
+    if (data.notes) div.querySelector('[data-hearing-notes]').value = data.notes;
+    if (data.next_hearing_date) div.querySelector('[data-next-hearing-date]').value = data.next_hearing_date;
+
+    div.querySelector('.remove-hearing').addEventListener('click', () => div.remove());
     container.appendChild(div);
 }
 
@@ -440,6 +536,19 @@ function submitBlotterForm(e) {
 
     payload.append('complainants', JSON.stringify(comps));
     payload.append('respondents', JSON.stringify(resps));
+
+    const hearings = [];
+    document.querySelectorAll('#hearingsContainer .hearing-row').forEach(row => {
+        const hearing_date = row.querySelector('[data-hearing-date]').value.trim();
+        const status = row.querySelector('[data-hearing-status]').value;
+        const outcome = row.querySelector('[data-hearing-outcome]').value.trim();
+        const notes = row.querySelector('[data-hearing-notes]').value.trim();
+        const next_hearing_date = row.querySelector('[data-next-hearing-date]').value.trim();
+        if (hearing_date || outcome || notes || next_hearing_date) {
+            hearings.push({ hearing_date, status, outcome, notes, next_hearing_date });
+        }
+    });
+    payload.append('hearings', JSON.stringify(hearings));
 
     // Determine if this is create or update
     const id = document.getElementById('blotterId').value;
