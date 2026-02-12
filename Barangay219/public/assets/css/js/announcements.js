@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btnCreate').addEventListener('click', createAnnouncement);
     document.getElementById('btnSave').addEventListener('click', saveAnnouncement);
     applyAnnouncementPermissions();
+    initAnnouncementStatFilters();
 });
 
 let announcementFilters = { q: '', status: '', from: '', to: '' };
@@ -92,6 +93,27 @@ function resetAnnouncements() {
     if (fromInput) fromInput.value = '';
     if (toInput) toInput.value = '';
     loadAnnouncements();
+}
+
+function initAnnouncementStatFilters() {
+    const container = document.querySelector('.module-stats[data-module="announcements"]');
+    if (!container) return;
+    container.querySelectorAll('[data-status]').forEach(card => {
+        const handleClick = () => {
+            const status = card.getAttribute('data-status') || '';
+            announcementFilters.status = status;
+            const statusSel = document.getElementById('filterStatus');
+            if (statusSel) statusSel.value = status;
+            loadAnnouncements();
+        };
+        card.addEventListener('click', handleClick);
+        card.addEventListener('keypress', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick();
+            }
+        });
+    });
 }
 
 function getStatusColor(s) {
