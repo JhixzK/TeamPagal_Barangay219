@@ -129,7 +129,7 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <!-- Role Permissions Panel -->
-        <div class="card mt-4" id="rolePermissionsPanel">
+        <div class="card mt-4 role-permissions-card" id="rolePermissionsPanel">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Role Permissions</h5>
                 <button class="btn btn-sm btn-primary" id="savePermissionsBtn" onclick="saveRolePermissions()">
@@ -142,12 +142,10 @@ include __DIR__ . '/../includes/sidebar.php';
                         <label class="form-label" for="permissionsRole">Role</label>
                         <select class="form-select" id="permissionsRole"></select>
                     </div>
-                    <div class="col-md-8">
-                        <div class="text-muted small">Barangay Captain always has full access.</div>
-                    </div>
+                    <div class="col-md-8"></div>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-bordered table-sm align-middle">
+                    <table class="table table-bordered table-sm align-middle permissions-table">
                         <thead>
                             <tr>
                                 <th>Module</th>
