@@ -23,6 +23,7 @@ switch ($action) {
     case 'complaints':
     case 'announcements':
     case 'applications':
+    case 'activity_logs':
         requireModuleAccess('reports');
         if ($action === 'population') getPopulationReport();
         elseif ($action === 'certificates') getCertificatesReport();
@@ -30,6 +31,7 @@ switch ($action) {
         elseif ($action === 'complaints') getComplaintsReport();
         elseif ($action === 'announcements') getAnnouncementsReport();
         elseif ($action === 'applications') getApplicationsReport();
+        elseif ($action === 'activity_logs') getActivityLogsReport();
         break;
     default: 
         sendResponse(false, 'Invalid action', null, 400);
@@ -181,6 +183,31 @@ function getApplicationsReport() {
         if ($to) { $where .= " AND DATE(created_at) <= ?"; $params[] = $to; }
         $data = $db->fetchAll("SELECT status, certificate_type, COUNT(*) as count FROM certificate_requests WHERE $where GROUP BY status, certificate_type", $params);
         sendResponse(true, 'Applications report', $data);
+    } catch (Exception $e) {
+        sendResponse(false, 'Error', null, 500);
+    }
+}
+
+function getActivityLogsReport() {
+    try {
+        $db = Database::getInstance();
+        if (!activityLogsTableExists($db)) {
+            sendResponse(true, 'Activity logs report', []);
+        }
+
+        list($from, $to) = getDateFilter();
+        $where = "1=1";
+        $params = [];
+        if ($from) { $where .= " AND DATE(al.created_at) >= ?"; $params[] = $from; }
+        if ($to) { $where .= " AND DATE(al.created_at) <= ?"; $params[] = $to; }
+
+        $sql = "SELECT al.created_at, u.username, al.action, al.module, al.ip_address
+                FROM activity_logs al
+                LEFT JOIN users u ON al.user_id = u.id
+                WHERE $where
+                ORDER BY al.created_at DESC";
+        $data = $db->fetchAll($sql, $params);
+        sendResponse(true, 'Activity logs report', $data);
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
     }
