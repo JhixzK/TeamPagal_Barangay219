@@ -20,6 +20,44 @@ include __DIR__ . '/../includes/sidebar.php';
             </button>
         </div>
 
+        <div class="row g-3 mb-4 module-stats" data-module="announcements">
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-primary text-white" data-status="" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-megaphone"></i></div>
+                    <div class="stat-value" data-stat="total">-</div>
+                    <div class="stat-label">Total Announcements</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="stat-card bg-success text-white" data-status="active" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-broadcast"></i></div>
+                    <div class="stat-value" data-stat="active">-</div>
+                    <div class="stat-label">Active</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="stat-card bg-secondary text-white" data-status="inactive" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-pause-circle"></i></div>
+                    <div class="stat-value" data-stat="inactive">-</div>
+                    <div class="stat-label">Inactive</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="stat-card bg-warning text-dark" data-status="expired" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-hourglass"></i></div>
+                    <div class="stat-value" data-stat="expired">-</div>
+                    <div class="stat-label">Expired</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-dark text-white" data-status="archived" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-archive"></i></div>
+                    <div class="stat-value" data-stat="archived">-</div>
+                    <div class="stat-label">Archived</div>
+                </div>
+            </div>
+        </div>
+
         <div class="search-bar mb-3">
             <div class="row">
                 <div class="col-md-6">
@@ -190,4 +228,5 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
+<script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/announcements.js?v=<?php echo time(); ?>"></script>
