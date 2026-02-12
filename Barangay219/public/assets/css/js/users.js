@@ -460,16 +460,16 @@ function renderPermissionsTable() {
         <tr>
             <td>${module.label}</td>
             <td class="text-center">
-                <input type="checkbox" class="form-check-input perm-checkbox" data-module="${module.key}" data-perm="can_access">
+                <input type="checkbox" class="form-check-input perm-checkbox perm-toggle" data-module="${module.key}" data-perm="can_access">
             </td>
             <td class="text-center">
-                <input type="checkbox" class="form-check-input perm-checkbox" data-module="${module.key}" data-perm="can_create">
+                <input type="checkbox" class="form-check-input perm-checkbox perm-toggle" data-module="${module.key}" data-perm="can_create">
             </td>
             <td class="text-center">
-                <input type="checkbox" class="form-check-input perm-checkbox" data-module="${module.key}" data-perm="can_edit">
+                <input type="checkbox" class="form-check-input perm-checkbox perm-toggle" data-module="${module.key}" data-perm="can_edit">
             </td>
             <td class="text-center">
-                <input type="checkbox" class="form-check-input perm-checkbox" data-module="${module.key}" data-perm="can_delete">
+                <input type="checkbox" class="form-check-input perm-checkbox perm-toggle" data-module="${module.key}" data-perm="can_delete">
             </td>
         </tr>
     `).join('');
