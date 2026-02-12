@@ -86,6 +86,10 @@ include __DIR__ . '/../includes/sidebar.php';
                             <p id="viewSettlementDate"></p>
                         </div>
                     </div>
+
+                    <hr>
+                    <h6>Hearings</h6>
+                    <div id="viewHearingsInfo"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -161,6 +165,13 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <label class="form-label">Settlement Date <span class="text-danger">*</span></label>
                                 <input type="date" class="form-control" id="settlement_date" name="settlement_date" required>
                             </div>
+                        </div>
+
+                        <hr>
+                        <h6>Hearings</h6>
+                        <div id="hearingsContainer" class="mb-2"></div>
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-sm btn-secondary" id="addHearingBtn">+ Add Hearing</button>
                         </div>
                     </div>
                     <div class="modal-footer">
