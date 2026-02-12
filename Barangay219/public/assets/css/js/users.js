@@ -145,6 +145,7 @@ function editUser(id) {
         .then(data => {
             if (data.success) {
                 const user = data.data;
+                const currentRole = String(user.role || '').trim().toLowerCase();
                 document.getElementById('userId').value = user.id;
                 document.getElementById('username').value = user.username;
                 document.getElementById('email').value = user.email || '';
@@ -153,6 +154,16 @@ function editUser(id) {
                 document.getElementById('status').value = user.status;
                 document.getElementById('password').required = false;
                 document.getElementById('userModalTitle').textContent = 'Edit User';
+
+                const roleSelect = document.getElementById('role');
+                if (roleSelect) {
+                    roleSelect.disabled = currentRole === 'barangay_captain';
+                }
+
+                const form = document.getElementById('userForm');
+                if (form) {
+                    form.dataset.currentRole = currentRole;
+                }
                 
                 const modal = new bootstrap.Modal(document.getElementById('userModal'));
                 modal.show();
@@ -182,6 +193,10 @@ function saveUser() {
     // Remove password if empty during update
     if (userId && !formData.get('password')) {
         formData.delete('password');
+    }
+
+    if (userId && form && form.dataset.currentRole === 'barangay_captain') {
+        formData.delete('role');
     }
     
     fetch(window.API_URL + 'users.php', {
@@ -298,6 +313,16 @@ function resetForm() {
     document.getElementById('userId').value = '';
     document.getElementById('password').required = true;
     document.getElementById('userModalTitle').textContent = 'Add New User';
+
+    const roleSelect = document.getElementById('role');
+    if (roleSelect) {
+        roleSelect.disabled = false;
+    }
+
+    const form = document.getElementById('userForm');
+    if (form && form.dataset) {
+        delete form.dataset.currentRole;
+    }
 }
 
 /**
@@ -440,6 +465,7 @@ function loadRolePermissions() {
         .then(data => {
             if (data.success) {
                 applyPermissionsToTable(data.data.permissions || {});
+                applyPermissionsLock(role);
             } else {
                 showAlert('error', data.message || 'Failed to load permissions');
             }
@@ -468,6 +494,10 @@ function saveRolePermissions() {
     }
 
     const role = roleSelect.value;
+    if (String(role || '').trim().toLowerCase() === 'barangay_captain') {
+        showAlert('error', 'Barangay Captain permissions are fixed and cannot be edited');
+        return;
+    }
     const permissions = {};
 
     MODULES.forEach(module => {
@@ -502,6 +532,23 @@ function saveRolePermissions() {
     .catch(() => {
         showAlert('error', 'Error saving permissions');
     });
+}
+
+function applyPermissionsLock(role) {
+    const normalizedRole = String(role || '').trim().toLowerCase();
+    const isCaptain = normalizedRole === 'barangay_captain';
+    const boxes = document.querySelectorAll('#permissionsTableBody .perm-checkbox');
+    boxes.forEach(box => {
+        box.disabled = isCaptain;
+        if (isCaptain) {
+            box.checked = true;
+        }
+    });
+
+    const saveBtn = document.getElementById('savePermissionsBtn');
+    if (saveBtn) {
+        saveBtn.disabled = isCaptain;
+    }
 }
 
 function showAlert(type, message) {
