@@ -25,6 +25,37 @@ include __DIR__ . '/../includes/sidebar.php';
             </button>
         </div>
 
+        <div class="row g-3 mb-4 module-stats" data-module="blotters">
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-primary text-white" data-status="" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-files"></i></div>
+                    <div class="stat-value" data-stat="total">-</div>
+                    <div class="stat-label">Total Cases</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-warning text-dark" data-status="pending" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+                    <div class="stat-value" data-stat="pending">-</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-success text-white" data-status="resolved" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
+                    <div class="stat-value" data-stat="resolved">-</div>
+                    <div class="stat-label">Resolved</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card bg-info text-white" data-status="settled" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-handshake"></i></div>
+                    <div class="stat-value" data-stat="settled">-</div>
+                    <div class="stat-label">Settled</div>
+                </div>
+            </div>
+        </div>
+
         <div class="data-table mt-2">
             <div class="table-responsive">
             <table class="table">
@@ -295,4 +326,5 @@ include __DIR__ . '/../includes/sidebar.php';
 </style>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
+<script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/blotter.js?v=<?php echo time(); ?>"></script>
