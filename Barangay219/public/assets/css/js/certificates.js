@@ -13,6 +13,7 @@ let certificateFilters = { q: '', status: '', type: '', from: '', to: '' };
 document.addEventListener('DOMContentLoaded', function() {
     loadCertificates();
     applyCertificatePermissions();
+    initCertificateStatFilters();
 });
 
 function applyCertificatePermissions() {
@@ -107,6 +108,27 @@ function resetCertificates() {
     if (fromInput) fromInput.value = '';
     if (toInput) toInput.value = '';
     loadCertificates();
+}
+
+function initCertificateStatFilters() {
+    const container = document.querySelector('.module-stats[data-module="certificates"]');
+    if (!container) return;
+    container.querySelectorAll('[data-status]').forEach(card => {
+        const handleClick = () => {
+            const status = card.getAttribute('data-status') || '';
+            certificateFilters.status = status;
+            const statusSelect = document.getElementById('filterStatus');
+            if (statusSelect) statusSelect.value = status;
+            loadCertificates();
+        };
+        card.addEventListener('click', handleClick);
+        card.addEventListener('keypress', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick();
+            }
+        });
+    });
 }
 
 function updateStatus(id, status) {
