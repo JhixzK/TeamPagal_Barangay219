@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadBlotters();
     initBlotterModal();
     applyBlotterPermissions();
+    initBlotterStatFilters();
     
     // Add search functionality
     const searchInput = document.getElementById('searchInput');
@@ -71,6 +72,27 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+function initBlotterStatFilters() {
+    const container = document.querySelector('.module-stats[data-module="blotters"]');
+    if (!container) return;
+    container.querySelectorAll('[data-status]').forEach(card => {
+        const handleClick = () => {
+            const status = card.getAttribute('data-status') || '';
+            blotterFilters.status = status;
+            const statusSel = document.getElementById('filterStatus');
+            if (statusSel) statusSel.value = status;
+            loadBlotters();
+        };
+        card.addEventListener('click', handleClick);
+        card.addEventListener('keypress', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick();
+            }
+        });
+    });
+}
 
 function applyBlotterPermissions() {
     if (!BLOTTER_PERMS.canCreate) {
