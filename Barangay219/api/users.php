@@ -261,9 +261,16 @@ function updateUser() {
         $db = Database::getInstance();
         
         // Check if user exists
-        $existing = $db->fetchOne("SELECT id FROM users WHERE id = ?", [$id]);
+        $existing = $db->fetchOne("SELECT id, role FROM users WHERE id = ?", [$id]);
         if (!$existing) {
             sendResponse(false, 'User not found', null, 404);
+            return;
+        }
+
+        $existing_role = strtolower(trim((string)($existing['role'] ?? '')));
+        $requested_role = strtolower(trim((string)$role));
+        if ($existing_role === ROLE_BARANGAY_CAPTAIN && $role !== '' && $requested_role !== ROLE_BARANGAY_CAPTAIN) {
+            sendResponse(false, 'Barangay Captain role cannot be changed', null, 403);
             return;
         }
         
@@ -469,9 +476,26 @@ function getRolePermissionsApi() {
         return;
     }
 
+    $role_normalized = strtolower(trim($role));
+
     $allowed_roles = [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN, ROLE_RESIDENT];
     if (!in_array($role, $allowed_roles)) {
         sendResponse(false, 'Invalid role', null, 400);
+        return;
+    }
+
+    if ($role_normalized === ROLE_BARANGAY_CAPTAIN) {
+        $modules = ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'users', 'profile'];
+        $permissions = [];
+        foreach ($modules as $module) {
+            $permissions[$module] = [
+                'can_access' => true,
+                'can_create' => true,
+                'can_edit' => true,
+                'can_delete' => true
+            ];
+        }
+        sendResponse(true, 'Role permissions loaded', ['role' => $role, 'permissions' => $permissions]);
         return;
     }
 
@@ -496,6 +520,11 @@ function saveRolePermissionsApi() {
     $allowed_roles = [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN, ROLE_RESIDENT];
     if (!in_array($role, $allowed_roles)) {
         sendResponse(false, 'Invalid role', null, 400);
+        return;
+    }
+
+    if (strtolower(trim($role)) === ROLE_BARANGAY_CAPTAIN) {
+        sendResponse(false, 'Barangay Captain permissions are fixed and cannot be edited', null, 403);
         return;
     }
 
