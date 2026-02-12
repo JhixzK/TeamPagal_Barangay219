@@ -101,7 +101,7 @@ include __DIR__ . '/../includes/sidebar.php';
         <div class="card mt-4" id="rolePermissionsPanel">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Role Permissions</h5>
-                <button class="btn btn-sm btn-primary" onclick="saveRolePermissions()">
+                <button class="btn btn-sm btn-primary" id="savePermissionsBtn" onclick="saveRolePermissions()">
                     <i class="bi bi-save"></i> Save Permissions
                 </button>
             </div>
