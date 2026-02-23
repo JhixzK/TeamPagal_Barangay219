@@ -41,9 +41,12 @@ if (isLoggedIn()) {
                     <label for="username" class="form-label">Resident ID / Username</label>
                     <input type="text" class="form-control" id="username" name="username" required autofocus placeholder="BR219-YYYY-NNNNN or username">
                 </div>
-                <div class="mb-3">
+                <div class="mb-2">
                     <label for="password" class="form-label">Password</label>
                     <input type="password" class="form-control" id="password" name="password" required>
+                </div>
+                <div class="text-end mb-3">
+                    <a href="forgot-password.php" class="btn btn-link btn-sm p-0">Forgot Password?</a>
                 </div>
                 <button type="submit" class="btn btn-primary w-100">
                     <i class="bi bi-box-arrow-in-right"></i> Login
