@@ -287,6 +287,8 @@ if (isLoggedIn()) {
                     name="email" 
                     placeholder="Enter your registered email address" 
                     autocomplete="off"
+                    maxlength="255"
+                    required
                 >
                 <small class="text-muted d-block mt-2">We'll send a password reset link to this email</small>
             </div>
@@ -300,8 +302,7 @@ if (isLoggedIn()) {
                     name="mobile" 
                     placeholder="Enter your mobile number" 
                     autocomplete="off"
-                    required
-                    maxlength="13"
+                    maxlength="11"
                     inputmode="numeric"
                 >
                 <small class="text-muted d-block mt-2">
@@ -326,6 +327,23 @@ if (isLoggedIn()) {
     </div>
 
     <script>
+        function updateIdentifierInputs(method) {
+            const emailInput = document.getElementById('userEmail');
+            const mobileInput = document.getElementById('userMobile');
+
+            if (method === 'sms') {
+                emailInput.required = false;
+                emailInput.disabled = true;
+                mobileInput.required = true;
+                mobileInput.disabled = false;
+            } else {
+                emailInput.required = true;
+                emailInput.disabled = false;
+                mobileInput.required = false;
+                mobileInput.disabled = true;
+            }
+        }
+
         // Simple method selection
         function selectMethod(method) {
             const emailBtn = document.getElementById('emailMethodBtn');
@@ -339,6 +357,7 @@ if (isLoggedIn()) {
                 emailSec.style.display = 'none';
                 mobileSec.style.display = 'block';
                 document.getElementById('selectedMethod').value = 'sms';
+                updateIdentifierInputs('sms');
                 setTimeout(() => document.getElementById('userMobile').focus(), 50);
             } else {
                 emailBtn.classList.add('active');
@@ -346,9 +365,12 @@ if (isLoggedIn()) {
                 emailSec.style.display = 'block';
                 mobileSec.style.display = 'none';
                 document.getElementById('selectedMethod').value = 'email';
+                updateIdentifierInputs('email');
                 setTimeout(() => document.getElementById('userEmail').focus(), 50);
             }
         }
+
+        updateIdentifierInputs('email');
 
         // Mobile input - digits only, must start with 09
         document.getElementById('userMobile').addEventListener('input', function(e) {
@@ -431,6 +453,25 @@ if (isLoggedIn()) {
             document.getElementById('loadingSpinner').style.display = 'block';
 
             try {
+                const verifyResponse = await fetch('<?php echo API_URL; ?>password-reset.php?action=validate-identifier', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        identifier: identifier
+                    })
+                });
+
+                const verifyResult = await verifyResponse.json();
+
+                if (!verifyResult.success) {
+                    alert('Error: ' + (verifyResult.message || 'Failed to verify identifier'));
+                    submitBtn.disabled = false;
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                    return;
+                }
+
                 const response = await fetch('<?php echo API_URL; ?>password-reset.php?action=initiate', {
                     method: 'POST',
                     headers: {
