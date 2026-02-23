@@ -39,7 +39,8 @@ $valid_id_types = [
         .step-indicator {
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
+            gap: 0.5rem;
             margin-bottom: 2rem;
         }
         .step {
@@ -48,6 +49,7 @@ $valid_id_types = [
             align-items: center;
             flex: 1;
             position: relative;
+            min-width: 0;
         }
         .step:not(:last-child)::after {
             content: '';
@@ -55,15 +57,9 @@ $valid_id_types = [
             top: 20px;
             left: 50%;
             width: 100%;
-            height: 4px;
+            height: 2px;
             background: #e9ecef;
             z-index: 1;
-        }
-        .step.active:not(:last-child)::after {
-            background: #0d6efd;
-        }
-        .step.completed:not(:last-child)::after {
-            background: #198754;
         }
         .step-circle {
             width: 40px;
@@ -92,6 +88,8 @@ $valid_id_types = [
             margin-top: 0.5rem;
             text-align: center;
             color: #6c757d;
+            line-height: 1.25;
+            max-width: 180px;
         }
         .step.active .step-label {
             color: #0d6efd;
@@ -139,6 +137,35 @@ $valid_id_types = [
             justify-content: space-between;
             align-items: center;
             margin-top: 2rem;
+        }
+        .back-to-login {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+        }
+        @media (max-width: 991.98px) {
+            .step-indicator {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .step {
+                flex-direction: row;
+                align-items: flex-start;
+                width: 100%;
+            }
+            .step:not(:last-child)::after {
+                top: 40px;
+                left: 20px;
+                width: 2px;
+                height: calc(100% + 0.75rem);
+            }
+            .step-label {
+                margin-top: 0.2rem;
+                margin-left: 0.75rem;
+                text-align: left;
+                max-width: none;
+            }
         }
     </style>
 </head>
@@ -527,7 +554,7 @@ let currentStep = 1;
 const totalSteps = 4;
 
 // Professional name field validation - Letters, spaces, hyphens, apostrophes, periods only
-const nameFields = ['first_name', 'middle_name', 'last_name', 'place_of_birth', 'citizenship', 'emergency_contact_name', 'emergency_contact_relationship', 'occupation', 'ip_group', 'street', 'father_name', 'mother_name'];
+const nameFields = ['first_name', 'middle_name', 'last_name', 'place_of_birth', 'citizenship', 'emergency_contact_name', 'emergency_contact_relationship', 'occupation', 'ip_group', 'street', 'purok_sitio', 'father_name', 'mother_name'];
 nameFields.forEach(fieldName => {
     const field = document.querySelector(`input[name="${fieldName}"]`);
     if (field) {
@@ -734,7 +761,7 @@ function populateReview() {
     const reviewSections = [
         { title: 'Personal Information', fields: ['first_name', 'middle_name', 'last_name', 'suffix', 'sex', 'birth_date', 'age', 'place_of_birth', 'civil_status', 'citizenship'] },
         { title: 'Family Background', fields: ['household_role', 'father_name', 'mother_name', 'household_members', 'family_code', 'relationship_to_head'] },
-        { title: 'Contact & Residency', fields: ['mobile_number', 'email', 'house_number', 'street', 'barangay', 'city', 'province', 'length_of_residency_years', 'emergency_contact_name', 'emergency_contact_number', 'emergency_contact_relationship'] }
+        { title: 'Contact & Residency', fields: ['mobile_number', 'email', 'house_number', 'street', 'purok_sitio', 'barangay', 'city', 'province', 'length_of_residency_years', 'emergency_contact_name', 'emergency_contact_number', 'emergency_contact_relationship'] }
     ];
 
     reviewSections.forEach(section => {
