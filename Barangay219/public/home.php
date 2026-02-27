@@ -61,6 +61,7 @@ $province = 'Metro Manila';
             height: 40px;
             width: 40px;
             border-radius: 50%;
+            object-fit: cover;
         }
 
         .navbar-gov .navbar-brand span {
@@ -177,9 +178,9 @@ $province = 'Metro Manila';
             width: 350px;
             border-radius: 50%;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-            object-fit: contain;
+            object-fit: cover;
             background: white;
-            padding: 15px;
+            padding: 0;
         }
 
         @keyframes fadeInLeft {
@@ -335,7 +336,7 @@ $province = 'Metro Manila';
         <div class="container-lg">
             <!-- Brand / Logo -->
             <a class="navbar-brand" href="<?php echo BASE_URL; ?>home.php">
-                <img src="<?php echo ASSETS_URL; ?>img/barangaylogo.png" alt="Barangay Logo">
+                <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo">
                 <span><?php echo htmlspecialchars($barangayName); ?></span>
             </a>
 
@@ -389,7 +390,7 @@ $province = 'Metro Manila';
                     <a href="#about" class="btn-about">About Us</a>
                 </div>
                 <div class="hero-seal">
-                    <img src="<?php echo ASSETS_URL; ?>img/barangaylogo.png" alt="Barangay Logo">
+                    <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo">
                 </div>
             </div>
         </div>
