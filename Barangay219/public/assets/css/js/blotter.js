@@ -181,8 +181,19 @@ function viewBlotter(id) {
                 // Populate Case Information
                 document.getElementById('viewCaseTitle').textContent = info.case_title || '-';
                 document.getElementById('viewIncidentDate').textContent = formatDate(info.incident_date) || '-';
+                document.getElementById('viewIncidentType').textContent = info.incident_type ? formatIncidentType(info.incident_type) : 'Not specified';
                 document.getElementById('viewIncidentLocation').textContent = info.incident_location || '-';
                 document.getElementById('viewDescription').textContent = info.description || '-';
+                const proofPath = info.proof_of_incident_path || '';
+                const proofEl = document.getElementById('viewIncidentProof');
+                if (proofEl) {
+                    if (proofPath) {
+                        const href = proofPath.startsWith('http') ? proofPath : (window.location.origin + '/TeamPagal_Barangay219/Barangay219/public/' + String(proofPath).replace(/^\/+/, ''));
+                        proofEl.innerHTML = `<a href="${href}" target="_blank" rel="noopener">View Proof</a>`;
+                    } else {
+                        proofEl.textContent = 'No proof uploaded';
+                    }
+                }
                 
                 // Populate Complainants
                 let complainantsHTML = '';
@@ -279,6 +290,23 @@ function editBlotter(id) {
             document.getElementById('incident_date').value = info.incident_date || '';
             document.getElementById('incident_location').value = info.incident_location || '';
             document.getElementById('description').value = info.description || '';
+            const incidentTypeEl = document.getElementById('incident_type');
+            if (incidentTypeEl) {
+                const normalized = String(info.incident_type || '').trim().toLowerCase();
+                const known = ['physical_assault','verbal_threat','theft','property_damage','public_disturbance','domestic_dispute','harassment','other'];
+                if (known.includes(normalized) && normalized !== '') {
+                    incidentTypeEl.value = normalized;
+                    const customInput = document.getElementById('incident_type_custom');
+                    if (customInput) customInput.value = '';
+                } else if (info.incident_type) {
+                    incidentTypeEl.value = 'other';
+                    const customInput = document.getElementById('incident_type_custom');
+                    if (customInput) customInput.value = info.incident_type;
+                } else {
+                    incidentTypeEl.value = '';
+                }
+                toggleIncidentTypeCustom();
+            }
             document.getElementById('status').value = info.status || 'pending';
             document.getElementById('settlement_date').value = info.settlement_date || '';
 
@@ -341,15 +369,22 @@ function initBlotterModal() {
     addComplainantRow();
     addRespondentRow();
     addHearingRow();
+    updatePrimaryComplainantInfo();
 
     // Add name validation to case title
     const caseTitleInput = document.getElementById('case_title');
     validateNameInput(caseTitleInput);
 
+    const incidentTypeEl = document.getElementById('incident_type');
+    if (incidentTypeEl) {
+        incidentTypeEl.addEventListener('change', toggleIncidentTypeCustom);
+    }
+
     document.getElementById('addComplainantBtn').addEventListener('click', addComplainantRow);
     document.getElementById('addRespondentBtn').addEventListener('click', addRespondentRow);
     document.getElementById('addHearingBtn').addEventListener('click', addHearingRow);
     document.getElementById('blotterForm').addEventListener('submit', submitBlotterForm);
+    toggleIncidentTypeCustom();
 }
 
 function resetBlotterForm() {
@@ -361,6 +396,7 @@ function resetBlotterForm() {
     addComplainantRow();
     addRespondentRow();
     addHearingRow();
+    updatePrimaryComplainantInfo();
     // reset modal title and button text
     const titleEl = document.getElementById('blotterModalTitle');
     if (titleEl) titleEl.textContent = 'Add New Blotter Case';
@@ -370,6 +406,11 @@ function resetBlotterForm() {
     // Reapply name validation to case title
     const caseTitleInput = document.getElementById('case_title');
     validateNameInput(caseTitleInput);
+    const customInput = document.getElementById('incident_type_custom');
+    if (customInput) customInput.value = '';
+    const incidentType = document.getElementById('incident_type');
+    if (incidentType) incidentType.value = '';
+    toggleIncidentTypeCustom();
 }
 
 function deleteBlotter(id) {
@@ -433,8 +474,13 @@ function addComplainantRow(data = {}) {
     const contactInput = div.querySelector('[data-contact]');
     validatePhoneInput(contactInput);
 
-    div.querySelector('.remove-party').addEventListener('click', () => div.remove());
+    const refresh = () => updatePrimaryComplainantInfo();
+    nameInput.addEventListener('input', refresh);
+    contactInput.addEventListener('input', refresh);
+
+    div.querySelector('.remove-party').addEventListener('click', () => { div.remove(); updatePrimaryComplainantInfo(); });
     container.appendChild(div);
+    updatePrimaryComplainantInfo();
 }
 
 function addRespondentRow(data = {}) {
@@ -533,6 +579,14 @@ function submitBlotterForm(e) {
     const payload = new FormData();
     payload.append('case_title', document.getElementById('case_title').value || '');
     payload.append('incident_date', document.getElementById('incident_date').value || '');
+    const incidentType = document.getElementById('incident_type')?.value || '';
+    const incidentTypeCustom = document.getElementById('incident_type_custom')?.value?.trim() || '';
+    if (incidentType === 'other' && !incidentTypeCustom) {
+        alert('Please specify custom incident type');
+        return;
+    }
+    payload.append('incident_type', incidentType);
+    payload.append('incident_type_custom', incidentTypeCustom);
     payload.append('incident_location', document.getElementById('incident_location').value || '');
     payload.append('description', document.getElementById('description').value || '');
     payload.append('status', document.getElementById('status').value || 'pending');
@@ -572,6 +626,11 @@ function submitBlotterForm(e) {
     });
     payload.append('hearings', JSON.stringify(hearings));
 
+    const proofInput = document.getElementById('proof_of_incident');
+    if (proofInput && proofInput.files && proofInput.files[0]) {
+        payload.append('proof_of_incident', proofInput.files[0]);
+    }
+
     // Determine if this is create or update
     const id = document.getElementById('blotterId').value;
     let action = 'create';
@@ -610,4 +669,44 @@ function escapeHtml(unsafe) {
          .replace(/>/g, "&gt;")
          .replace(/\"/g, "&quot;")
          .replace(/'/g, "&#039;");
+}
+
+function updatePrimaryComplainantInfo() {
+    const infoEl = document.getElementById('primaryComplainantInfo');
+    if (!infoEl) return;
+    const firstRow = document.querySelector('#complainantsContainer .party-row');
+    if (!firstRow) {
+        infoEl.textContent = 'Complainant Name & Contact: -';
+        return;
+    }
+    const name = firstRow.querySelector('[data-name]')?.value?.trim() || '-';
+    const contact = firstRow.querySelector('[data-contact]')?.value?.trim() || '-';
+    infoEl.textContent = `Complainant Name & Contact: ${name} (${contact})`;
+}
+
+function formatIncidentType(type) {
+    const key = String(type || '').trim().toLowerCase();
+    const labels = {
+        physical_assault: 'Physical Assault',
+        verbal_threat: 'Verbal Threat',
+        theft: 'Theft',
+        property_damage: 'Property Damage',
+        public_disturbance: 'Public Disturbance',
+        domestic_dispute: 'Domestic Dispute',
+        harassment: 'Harassment',
+        other: 'Other'
+    };
+    return labels[key] || (type ? String(type).replace(/_/g, ' ') : '-');
+}
+
+function toggleIncidentTypeCustom() {
+    const incidentType = document.getElementById('incident_type');
+    const wrap = document.getElementById('incidentTypeCustomWrap');
+    const customInput = document.getElementById('incident_type_custom');
+    if (!incidentType || !wrap || !customInput) return;
+
+    const show = incidentType.value === 'other';
+    wrap.style.display = show ? '' : 'none';
+    customInput.required = show;
+    if (!show) customInput.value = '';
 }
