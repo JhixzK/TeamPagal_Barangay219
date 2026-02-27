@@ -129,8 +129,12 @@ function canAccessModule($module) {
         return !empty($permissions[$module]['can_access']);
     }
 
-    $defaults = getDefaultRolePermissions();
-    return !empty($defaults[$role][$module]['can_access']);
+    if (!rolePermissionsTableExists()) {
+        $defaults = getDefaultRolePermissions();
+        return !empty($defaults[$role][$module]['can_access']);
+    }
+
+    return false;
 }
 
 /**
@@ -218,14 +222,12 @@ function getRolePermissions($role) {
             );
         }
     } catch (Exception $e) {
-        $defaults = getDefaultRolePermissions();
-        $cache[$role] = $defaults[$role] ?? [];
+        $cache[$role] = [];
         return $cache[$role];
     }
 
     if (empty($rows)) {
-        $defaults = getDefaultRolePermissions();
-        $cache[$role] = $defaults[$role] ?? [];
+        $cache[$role] = [];
         return $cache[$role];
     }
 
