@@ -274,6 +274,9 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
 
-<script>window.CURRENT_USER_ID = <?php echo (int)getCurrentUserId(); ?>;</script>
+<script>
+window.CURRENT_USER_ID = <?php echo (int)getCurrentUserId(); ?>;
+window.IS_ADMIN = <?php echo isAdmin() ? 'true' : 'false'; ?>;
+</script>
 <script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/users.js?v=<?php echo time(); ?>"></script>
