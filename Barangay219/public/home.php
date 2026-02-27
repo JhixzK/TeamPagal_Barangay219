@@ -335,7 +335,7 @@ $province = 'Metro Manila';
         <div class="container-lg">
             <!-- Brand / Logo -->
             <a class="navbar-brand" href="<?php echo BASE_URL; ?>home.php">
-                <i class="bi bi-seal"></i>
+                <img src="<?php echo ASSETS_URL; ?>img/barangaylogo.png" alt="Barangay Logo">
                 <span><?php echo htmlspecialchars($barangayName); ?></span>
             </a>
 
@@ -389,7 +389,7 @@ $province = 'Metro Manila';
                     <a href="#about" class="btn-about">About Us</a>
                 </div>
                 <div class="hero-seal">
-                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='95' fill='white' stroke='%232563eb' stroke-width='3'/%3E%3Ctext x='50%' y='50%' text-anchor='middle' dy='.3em' font-size='12' fill='%232563eb' font-weight='bold' font-family='Arial'%3EBarangay Seal%3C/text%3E%3Ccircle cx='100' cy='100' r='80' fill='none' stroke='%23dbeafe' stroke-width='1' stroke-dasharray='5,5'/%3E%3C/svg%3E" alt="Barangay Seal">
+                    <img src="<?php echo ASSETS_URL; ?>img/barangaylogo.png" alt="Barangay Logo">
                 </div>
             </div>
         </div>
