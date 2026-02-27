@@ -24,12 +24,15 @@ switch ($action) {
         break;
 
     case 'get_permissions':
+        if (!isAdmin()) {
+            sendResponse(false, 'Only Barangay Captain can view role permissions', null, 403);
+        }
         getRolePermissionsApi();
         break;
 
     case 'save_permissions':
-        if (!canPerformModulePermission('users', 'can_edit')) {
-            sendResponse(false, 'Access denied', null, 403);
+        if (!isAdmin()) {
+            sendResponse(false, 'Only Barangay Captain can update role permissions', null, 403);
         }
         saveRolePermissionsApi();
         break;
