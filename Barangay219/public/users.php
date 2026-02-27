@@ -128,6 +128,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
+        <?php if (isAdmin()): ?>
         <!-- Role Permissions Panel -->
         <div class="card mt-4 role-permissions-card" id="rolePermissionsPanel">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -160,6 +161,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
         </div>
+        <?php endif; ?>
     </div>
 </div>
 
