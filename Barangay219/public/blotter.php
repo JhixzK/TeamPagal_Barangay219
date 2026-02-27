@@ -88,12 +88,22 @@ include __DIR__ . '/../includes/sidebar.php';
                             <p id="viewIncidentDate"></p>
                         </div>
                     </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Incident Type:</label>
+                            <p id="viewIncidentType"></p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Proof of Incident:</label>
+                            <p id="viewIncidentProof"></p>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Incident Location:</label>
                         <p id="viewIncidentLocation"></p>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Description:</label>
+                        <label class="form-label fw-bold">Incident Detail:</label>
                         <p id="viewDescription"></p>
                     </div>
                     
@@ -131,7 +141,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
     <!-- Blotter Modal -->
     <div class="modal fade blotterModal" id="blotterModal" tabindex="-1">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="blotterModalTitle">Add New Blotter Case</h5>
@@ -153,18 +163,46 @@ include __DIR__ . '/../includes/sidebar.php';
                             </div>
                         </div>
                         <div class="row g-2">
+                            <div class="col-12 col-lg-6 mb-3">
+                                <label class="form-label">Incident Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="incident_type" name="incident_type" required>
+                                    <option value="">Select Incident Type</option>
+                                    <option value="physical_assault">Physical Assault</option>
+                                    <option value="verbal_threat">Verbal Threat</option>
+                                    <option value="theft">Theft</option>
+                                    <option value="property_damage">Property Damage</option>
+                                    <option value="public_disturbance">Public Disturbance</option>
+                                    <option value="domestic_dispute">Domestic Dispute</option>
+                                    <option value="harassment">Harassment</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-lg-6 mb-3" id="incidentTypeCustomWrap" style="display:none;">
+                                <label class="form-label">Custom Incident Type <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="incident_type_custom" name="incident_type_custom" placeholder="Specify incident type">
+                            </div>
+                            <div class="col-12 col-lg-6 mb-3">
+                                <label class="form-label">Proof of Incident</label>
+                                <input type="file" class="form-control" id="proof_of_incident" name="proof_of_incident" accept=".jpg,.jpeg,.png,.pdf">
+                                <small class="text-muted">Accepted: JPG, PNG, PDF (max 5MB)</small>
+                            </div>
+                        </div>
+                        <div class="row g-2">
                             <div class="col-12 mb-3">
                                 <label class="form-label">Incident Location <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="incident_location" name="incident_location" required>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Description <span class="text-danger">*</span></label>
+                            <label class="form-label">Incident Detail <span class="text-danger">*</span></label>
                             <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
                         </div>
 
                         <hr>
                         <h6>Complainants</h6>
+                        <div class="alert alert-info py-2 px-3 mb-3" id="primaryComplainantInfo">
+                            Complainant Name & Contact: -
+                        </div>
                         <div id="complainantsContainer" class="mb-2">
                             <!-- template row inserted by JS -->
                         </div>
