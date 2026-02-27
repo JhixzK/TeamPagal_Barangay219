@@ -87,6 +87,11 @@ function createBlotter() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') { sendResponse(false, 'POST required', null, 405); return; }
     $case_title = sanitizeInput($_POST['case_title'] ?? '');
     $incident_date = $_POST['incident_date'] ?? date('Y-m-d');
+    $incident_type = sanitizeInput($_POST['incident_type'] ?? '');
+    $incident_type_custom = sanitizeInput($_POST['incident_type_custom'] ?? '');
+    if ($incident_type === 'other' && $incident_type_custom !== '') {
+        $incident_type = $incident_type_custom;
+    }
     $incident_location = sanitizeInput($_POST['incident_location'] ?? '');
     $description = sanitizeInput($_POST['description'] ?? '');
 
@@ -124,8 +129,27 @@ function createBlotter() {
     if (!$case_title || !$complainant_name || !$description) { sendResponse(false, 'Required fields missing', null, 400); return; }
     try {
         $db = Database::getInstance();
-        $db->query("INSERT INTO blotters (case_title, complainant_name, respondent_name, incident_date, incident_location, description, status, settlement_date, handled_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-                   [$case_title, $complainant_name, $respondent_name, $incident_date, $incident_location, $description, $status, $settlement_date, getCurrentUserId()]);
+        ensureEnhancedBlotterColumns($db);
+        $proofPath = handleProofUpload($_FILES['proof_of_incident'] ?? null);
+        if ($proofPath === '__UPLOAD_ERROR__') {
+            sendResponse(false, 'Proof upload failed. Check file type/size and try again.', null, 400);
+            return;
+        }
+
+        $cols = ['case_title', 'complainant_name', 'respondent_name', 'incident_date', 'incident_location', 'description', 'status', 'settlement_date', 'handled_by'];
+        $vals = [$case_title, $complainant_name, $respondent_name, $incident_date, $incident_location, $description, $status, $settlement_date, getCurrentUserId()];
+
+        if (blotterTableHasColumn($db, 'incident_type')) {
+            $cols[] = 'incident_type';
+            $vals[] = $incident_type;
+        }
+        if (blotterTableHasColumn($db, 'proof_of_incident_path')) {
+            $cols[] = 'proof_of_incident_path';
+            $vals[] = $proofPath;
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($cols), '?'));
+        $db->query("INSERT INTO blotters (" . implode(', ', $cols) . ") VALUES ($placeholders)", $vals);
         $blotter_id = $db->lastInsertId();
         if ($hearings_raw !== null) {
             $hearings = parseHearingsPayload($hearings_raw);
@@ -146,18 +170,41 @@ function updateBlotter() {
     $id = intval($_POST['id'] ?? 0);
     if (!$id) { sendResponse(false, 'ID required', null, 400); return; }
     $hearings_raw = $_POST['hearings'] ?? null;
-    $updates = [];
-    $params = [];
-    foreach (['case_title', 'complainant_name', 'respondent_name', 'incident_date', 'incident_location', 'description', 'status', 'settlement_date'] as $field) {
-        if (isset($_POST[$field])) {
-            $updates[] = "$field = ?";
-            $params[] = $field === 'incident_date' || $field === 'settlement_date' ? $_POST[$field] : sanitizeInput($_POST[$field]);
-        }
-    }
-    if (empty($updates)) { sendResponse(false, 'Nothing to update', null, 400); return; }
-    $params[] = $id;
     try {
         $db = Database::getInstance();
+        ensureEnhancedBlotterColumns($db);
+
+        $updates = [];
+        $params = [];
+        foreach (['case_title', 'complainant_name', 'respondent_name', 'incident_date', 'incident_location', 'description', 'status', 'settlement_date'] as $field) {
+            if (isset($_POST[$field])) {
+                $updates[] = "$field = ?";
+                $params[] = $field === 'incident_date' || $field === 'settlement_date' ? $_POST[$field] : sanitizeInput($_POST[$field]);
+            }
+        }
+        if (isset($_POST['incident_type']) && blotterTableHasColumn($db, 'incident_type')) {
+            $incident_type = sanitizeInput($_POST['incident_type']);
+            $incident_type_custom = sanitizeInput($_POST['incident_type_custom'] ?? '');
+            if ($incident_type === 'other' && $incident_type_custom !== '') {
+                $incident_type = $incident_type_custom;
+            }
+            $updates[] = "incident_type = ?";
+            $params[] = $incident_type;
+        }
+
+        $proofPath = handleProofUpload($_FILES['proof_of_incident'] ?? null);
+        if ($proofPath === '__UPLOAD_ERROR__') {
+            sendResponse(false, 'Proof upload failed. Check file type/size and try again.', null, 400);
+            return;
+        }
+        if ($proofPath && blotterTableHasColumn($db, 'proof_of_incident_path')) {
+            $updates[] = "proof_of_incident_path = ?";
+            $params[] = $proofPath;
+        }
+
+        if (empty($updates)) { sendResponse(false, 'Nothing to update', null, 400); return; }
+        $params[] = $id;
+
         $db->query("UPDATE blotters SET " . implode(', ', $updates) . " WHERE id = ?", $params);
         if ($hearings_raw !== null) {
             $hearings = parseHearingsPayload($hearings_raw);
@@ -235,5 +282,77 @@ function insertHearings($db, $blotter_id, $hearings) {
             "INSERT INTO blotter_hearings (blotter_id, hearing_date, status, outcome, notes, next_hearing_date) VALUES (?, ?, ?, ?, ?, ?)",
             [$blotter_id, $hearing_date, $status, $outcome, $notes, $next_hearing_date]
         );
+    }
+}
+
+function blotterTableHasColumn($db, $column) {
+    static $cache = [];
+    if (array_key_exists($column, $cache)) {
+        return $cache[$column];
+    }
+    try {
+        $result = $db->fetchOne(
+            "SELECT COUNT(*) AS cnt
+             FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'blotters'
+               AND COLUMN_NAME = ?",
+            [$column]
+        );
+        $cache[$column] = !empty($result) && (int)($result['cnt'] ?? 0) > 0;
+    } catch (Exception $e) {
+        $cache[$column] = false;
+    }
+    return $cache[$column];
+}
+
+function handleProofUpload($file) {
+    if (!$file || !isset($file['error']) || $file['error'] === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        return '__UPLOAD_ERROR__';
+    }
+
+    $maxSize = 5 * 1024 * 1024;
+    if (($file['size'] ?? 0) > $maxSize) {
+        return '__UPLOAD_ERROR__';
+    }
+
+    $ext = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
+    $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
+    if (!in_array($ext, $allowed, true)) {
+        return '__UPLOAD_ERROR__';
+    }
+
+    $uploadDir = PUBLIC_PATH . '/uploads/blotter_proofs';
+    if (!is_dir($uploadDir)) {
+        @mkdir($uploadDir, 0755, true);
+    }
+
+    $filename = 'proof_' . time() . '_' . mt_rand(1000, 9999) . '.' . $ext;
+    $destination = $uploadDir . '/' . $filename;
+    if (!@move_uploaded_file($file['tmp_name'], $destination)) {
+        return '__UPLOAD_ERROR__';
+    }
+
+    return 'uploads/blotter_proofs/' . $filename;
+}
+
+function ensureEnhancedBlotterColumns($db) {
+    try {
+        $hasIncidentType = !empty($db->fetchOne("SHOW COLUMNS FROM blotters LIKE 'incident_type'"));
+        if (!$hasIncidentType) {
+            $db->query("ALTER TABLE blotters ADD COLUMN incident_type VARCHAR(100) NULL AFTER incident_location");
+        }
+    } catch (Exception $e) {
+    }
+
+    try {
+        $hasProofPath = !empty($db->fetchOne("SHOW COLUMNS FROM blotters LIKE 'proof_of_incident_path'"));
+        if (!$hasProofPath) {
+            $db->query("ALTER TABLE blotters ADD COLUMN proof_of_incident_path VARCHAR(255) NULL AFTER description");
+        }
+    } catch (Exception $e) {
     }
 }
