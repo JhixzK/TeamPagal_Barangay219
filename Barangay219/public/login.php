@@ -28,7 +28,7 @@ if (isLoggedIn()) {
         .login-container {
             background-image:
                 linear-gradient(rgba(15, 23, 42, 0.35), rgba(15, 23, 42, 0.35)),
-                url('<?php echo ASSETS_URL; ?>img/barangaylogo.png') !important;
+                url('<?php echo ASSETS_URL; ?>img/barangay_logo2.png') !important;
             background-repeat: no-repeat !important;
             background-position: center center !important;
             background-size: cover, 42% auto !important;
@@ -37,10 +37,10 @@ if (isLoggedIn()) {
         .login-brand-logo {
             width: 72px;
             height: 72px;
-            object-fit: contain;
+            object-fit: cover;
             border-radius: 50%;
             background: #ffffff;
-            padding: 4px;
+            padding: 0;
             box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
         }
     </style>
@@ -49,7 +49,7 @@ if (isLoggedIn()) {
     <div class="login-container">
         <div class="login-card">
             <div class="text-center mb-4">
-                <img src="<?php echo ASSETS_URL; ?>img/barangaylogo.png" alt="Barangay Logo" class="login-brand-logo">
+                <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo" class="login-brand-logo">
                 <h3 class="card-title mt-3"><?php echo APP_NAME; ?></h3>
                 <p class="text-muted"><?php echo BARANGAY_NAME; ?></p>
             </div>
