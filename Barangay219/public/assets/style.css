@@ -67,7 +67,12 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-image:
+        linear-gradient(rgba(15, 23, 42, 0.35), rgba(15, 23, 42, 0.35)),
+        url('img/barangaylogo.png');
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
 }
 
 .login-card {
