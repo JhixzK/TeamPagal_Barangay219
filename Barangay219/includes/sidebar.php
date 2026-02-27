@@ -309,6 +309,12 @@ if (empty($avatar_path)) {
     padding: 2rem;
     min-height: calc(100vh - 56px);
     overflow-x: auto;
+    transition: margin-left 0.25s ease;
+}
+
+.sidebar:hover + .main-content,
+body.sidebar-expanded .main-content {
+    margin-left: 250px;
 }
 
 @media (max-width: 768px) {
@@ -343,6 +349,40 @@ if (empty($avatar_path)) {
     .main-content {
         margin-left: 0;
         padding: 1rem;
+        transition: none;
+    }
+
+    .sidebar:hover + .main-content {
+        margin-left: 0;
+    }
+
+    body.sidebar-expanded .main-content {
+        margin-left: 0;
     }
 }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+
+    const mobile = () => window.matchMedia('(max-width: 768px)').matches;
+
+    sidebar.addEventListener('mouseenter', function() {
+        if (!mobile()) {
+            document.body.classList.add('sidebar-expanded');
+        }
+    });
+
+    sidebar.addEventListener('mouseleave', function() {
+        document.body.classList.remove('sidebar-expanded');
+    });
+
+    window.addEventListener('resize', function() {
+        if (mobile()) {
+            document.body.classList.remove('sidebar-expanded');
+        }
+    });
+});
+</script>
