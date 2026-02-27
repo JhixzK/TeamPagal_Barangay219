@@ -23,13 +23,33 @@ if (isLoggedIn()) {
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <!-- Custom CSS -->
-    <link href="<?php echo ASSETS_URL; ?>style.css" rel="stylesheet">
+    <link href="<?php echo ASSETS_URL; ?>style.css?v=<?php echo time(); ?>" rel="stylesheet">
+    <style>
+        .login-container {
+            background-image:
+                linear-gradient(rgba(15, 23, 42, 0.35), rgba(15, 23, 42, 0.35)),
+                url('<?php echo ASSETS_URL; ?>img/barangaylogo.png') !important;
+            background-repeat: no-repeat !important;
+            background-position: center center !important;
+            background-size: cover, 42% auto !important;
+        }
+
+        .login-brand-logo {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            border-radius: 50%;
+            background: #ffffff;
+            padding: 4px;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+        }
+    </style>
 </head>
 <body>
     <div class="login-container">
         <div class="login-card">
             <div class="text-center mb-4">
-                <i class="bi bi-building" style="font-size: 3rem; color: #0d6efd;"></i>
+                <img src="<?php echo ASSETS_URL; ?>img/barangaylogo.png" alt="Barangay Logo" class="login-brand-logo">
                 <h3 class="card-title mt-3"><?php echo APP_NAME; ?></h3>
                 <p class="text-muted"><?php echo BARANGAY_NAME; ?></p>
             </div>
