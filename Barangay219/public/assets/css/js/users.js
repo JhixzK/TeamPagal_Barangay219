@@ -32,11 +32,17 @@ const MODULES = [
 ];
 
 let userFilters = { q: '', role: '', status: '' };
+const USER_MANAGEMENT_PERMS = {
+    canCreate: window.canModulePermission ? window.canModulePermission('users', 'can_create') : true,
+    canEdit: window.canModulePermission ? window.canModulePermission('users', 'can_edit') : true,
+    canDelete: window.canModulePermission ? window.canModulePermission('users', 'can_delete') : true
+};
 
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
     initPermissionsUI();
     initUserStatFilters();
+    applyUsersPagePermissions();
     
     // Form submission
     document.getElementById('userForm').addEventListener('submit', function(e) {
@@ -136,32 +142,46 @@ function displayUsers(users) {
             <td><span class="badge ${getStatusClass(user.status)}">${formatStatus(user.status)}</span></td>
             <td>${formatDate(user.created_at)}</td>
             <td>
-                <button class="btn btn-sm btn-primary" onclick="editUser(${user.id})" title="Edit">
-                    <i class="bi bi-pencil"></i>
-                </button>
-                ${user.status === 'active' 
-                    ? `<button class="btn btn-sm btn-warning" onclick="suspendUser(${user.id})" title="Suspend">
-                        <i class="bi bi-pause-circle"></i>
-                       </button>`
-                    : `<button class="btn btn-sm btn-success" onclick="activateUser(${user.id})" title="Activate">
-                        <i class="bi bi-play-circle"></i>
-                       </button>`
-                }
-                ${user.id !== (window.CURRENT_USER_ID || 0) 
+                ${USER_MANAGEMENT_PERMS.canEdit ? `
+                    <button class="btn btn-sm btn-primary" onclick="editUser(${user.id})" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    ${user.status === 'active' 
+                        ? `<button class="btn btn-sm btn-warning" onclick="suspendUser(${user.id})" title="Suspend">
+                            <i class="bi bi-pause-circle"></i>
+                           </button>`
+                        : `<button class="btn btn-sm btn-success" onclick="activateUser(${user.id})" title="Activate">
+                            <i class="bi bi-play-circle"></i>
+                           </button>`
+                    }
+                ` : ''}
+                ${USER_MANAGEMENT_PERMS.canDelete && user.id !== (window.CURRENT_USER_ID || 0)
                     ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})" title="Delete">
                         <i class="bi bi-trash"></i>
                        </button>`
-                    : ''
-                }
+                    : ''}
+                ${!USER_MANAGEMENT_PERMS.canEdit && !USER_MANAGEMENT_PERMS.canDelete ? '<span class="text-muted">View only</span>' : ''}
             </td>
         </tr>
     `).join('');
+}
+
+function applyUsersPagePermissions() {
+    const addBtn = document.querySelector('[data-bs-target="#userModal"]');
+    if (addBtn && !USER_MANAGEMENT_PERMS.canCreate) {
+        addBtn.style.display = 'none';
+    }
 }
 
 /**
  * Edit user
  */
 function editUser(id) {
+    if (!USER_MANAGEMENT_PERMS.canEdit) {
+        showAlert('error', 'Access denied');
+        return;
+    }
+
     fetch(`${window.API_URL}users.php?action=get&id=${id}`)
         .then(response => response.json())
         .then(data => {
@@ -206,6 +226,12 @@ function saveUser() {
     const form = document.getElementById('userForm');
     const formData = new FormData(form);
     const userId = document.getElementById('userId').value;
+    const isUpdate = !!userId;
+
+    if ((!isUpdate && !USER_MANAGEMENT_PERMS.canCreate) || (isUpdate && !USER_MANAGEMENT_PERMS.canEdit)) {
+        showAlert('error', 'Access denied');
+        return;
+    }
     
     formData.append('action', userId ? 'update' : 'create');
     if (userId) {
@@ -246,6 +272,11 @@ function saveUser() {
  * Suspend user
  */
 function suspendUser(id) {
+    if (!USER_MANAGEMENT_PERMS.canEdit) {
+        showAlert('error', 'Access denied');
+        return;
+    }
+
     if (confirm('Are you sure you want to suspend this user?')) {
         const formData = new FormData();
         formData.append('action', 'suspend');
@@ -275,6 +306,11 @@ function suspendUser(id) {
  * Activate user
  */
 function activateUser(id) {
+    if (!USER_MANAGEMENT_PERMS.canEdit) {
+        showAlert('error', 'Access denied');
+        return;
+    }
+
     const formData = new FormData();
     formData.append('action', 'activate');
     formData.append('id', id);
@@ -302,6 +338,11 @@ function activateUser(id) {
  * Delete user
  */
 function deleteUser(id) {
+    if (!USER_MANAGEMENT_PERMS.canDelete) {
+        showAlert('error', 'Access denied');
+        return;
+    }
+
     if (confirm('Are you sure you want to suspend this user? This action cannot be undone.')) {
         const formData = new FormData();
         formData.append('action', 'delete');
