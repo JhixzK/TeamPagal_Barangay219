@@ -34,13 +34,85 @@ $valid_id_types = [
     <title>Resident Registration - <?php echo APP_NAME; ?></title>
     <link href="<?php echo ASSETS_URL; ?>css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="<?php echo ASSETS_URL; ?>style.css" rel="stylesheet">
     <style>
+        :root {
+            --gov-blue: #1d4ed8;
+            --gov-blue-dark: #1e40af;
+            --gov-white: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --border-soft: #dbe5f1;
+            --surface-soft: #f8fbff;
+            --shadow-soft: 0 14px 34px rgba(15, 23, 42, 0.08);
+        }
+
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .register-page {
+            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .register-page::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: url('<?php echo ASSETS_URL; ?>img/barangay_logo2.png') no-repeat center 55%;
+            background-size: min(500px, 74vw);
+            opacity: 0.045;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .register-shell {
+            border: 1px solid var(--border-soft);
+            border-radius: 16px;
+            box-shadow: var(--shadow-soft);
+            overflow: hidden;
+            background: #ffffff;
+            position: relative;
+            z-index: 1;
+        }
+
+        .register-header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border-soft);
+            padding-top: 1.05rem !important;
+            padding-bottom: 1.05rem !important;
+        }
+
+        .register-header h4 {
+            color: var(--text-primary);
+            font-weight: 800;
+            margin-bottom: 0.15rem;
+        }
+
+        .register-header p {
+            color: var(--text-secondary);
+        }
+
+        .register-header .brand-logo {
+            width: 54px;
+            height: 54px;
+            object-fit: contain;
+            margin-bottom: 0.45rem;
+        }
+
+        .register-form-body {
+            background: #ffffff;
+        }
+
         .step-indicator {
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            gap: 0.5rem;
+            gap: 0.6rem;
             margin-bottom: 2rem;
         }
         .step {
@@ -58,29 +130,32 @@ $valid_id_types = [
             left: 50%;
             width: 100%;
             height: 2px;
-            background: #e9ecef;
+            background: #dbe5f1;
             z-index: 1;
         }
         .step-circle {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: #e9ecef;
-            color: #6c757d;
+            background: #eef4ff;
+            color: #475569;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
             position: relative;
             z-index: 2;
+            border: 1px solid #dbe5f1;
             transition: all 0.3s ease;
         }
         .step.active .step-circle {
-            background: #0d6efd;
+            background: var(--gov-blue);
+            border-color: var(--gov-blue);
             color: white;
         }
         .step.completed .step-circle {
-            background: #198754;
+            background: #0ea5a0;
+            border-color: #0ea5a0;
             color: white;
         }
         .step-label {
@@ -92,11 +167,11 @@ $valid_id_types = [
             max-width: 180px;
         }
         .step.active .step-label {
-            color: #0d6efd;
+            color: var(--gov-blue);
             font-weight: 500;
         }
         .step.completed .step-label {
-            color: #198754;
+            color: #0f766e;
         }
         .step-content {
             display: none;
@@ -104,9 +179,21 @@ $valid_id_types = [
         .step-content.active {
             display: block;
         }
-        .section-card { border-left: 4px solid #0d6efd; }
-        .section-title { color: #0d6efd; font-weight: 600; }
-        .note-box { background: #f8f9fa; padding: 0.75rem 1rem; border-radius: 0.375rem; font-size: 0.9rem; }
+        .section-card {
+            border: 1px solid var(--border-soft);
+            border-left: 4px solid var(--gov-blue);
+            border-radius: 12px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+        }
+        .section-title { color: var(--gov-blue); font-weight: 600; }
+        .note-box {
+            background: var(--surface-soft);
+            border: 1px solid var(--border-soft);
+            padding: 0.75rem 1rem;
+            border-radius: 0.6rem;
+            font-size: 0.9rem;
+            color: #334155;
+        }
         .step-header {
             display: flex;
             justify-content: space-between;
@@ -116,7 +203,7 @@ $valid_id_types = [
         .step-title {
             font-size: 1.25rem;
             font-weight: 600;
-            color: #0d6efd;
+            color: var(--gov-blue);
         }
         .step-counter {
             font-size: 0.875rem;
@@ -137,7 +224,47 @@ $valid_id_types = [
             justify-content: space-between;
             align-items: center;
             margin-top: 2rem;
+            gap: 0.75rem;
         }
+
+        .btn {
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background-color: var(--gov-blue);
+            border-color: var(--gov-blue);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--gov-blue-dark);
+            border-color: var(--gov-blue-dark);
+        }
+
+        .btn-outline-secondary {
+            border-color: #cbd5e1;
+            color: #334155;
+        }
+
+        .btn-outline-secondary:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #1e3a8a;
+        }
+
+        .form-control,
+        .form-select {
+            border-radius: 10px;
+            border-color: #cfd8e3;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 0.18rem rgba(29, 78, 216, 0.18);
+        }
+
         .back-to-login {
             position: absolute;
             top: 1rem;
@@ -145,40 +272,81 @@ $valid_id_types = [
         }
         @media (max-width: 991.98px) {
             .step-indicator {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 0.75rem;
-            }
-            .step {
                 flex-direction: row;
+                flex-wrap: nowrap;
+                justify-content: flex-start;
                 align-items: flex-start;
-                width: 100%;
+                gap: 0.5rem;
+                overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 0.35rem;
             }
+
+            .step-indicator::-webkit-scrollbar {
+                height: 6px;
+            }
+
+            .step-indicator::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 999px;
+            }
+
+            .step {
+                flex: 0 0 145px;
+                min-width: 145px;
+                max-width: 145px;
+                flex-direction: column;
+                align-items: center;
+            }
+
             .step:not(:last-child)::after {
-                top: 40px;
-                left: 20px;
-                width: 2px;
-                height: calc(100% + 0.75rem);
+                top: 20px;
+                left: 50%;
+                width: 100%;
+                height: 2px;
             }
+
             .step-label {
-                margin-top: 0.2rem;
-                margin-left: 0.75rem;
-                text-align: left;
-                max-width: none;
+                margin-top: 0.45rem;
+                margin-left: 0;
+                text-align: center;
+                max-width: 140px;
+                font-size: 0.76rem;
+                line-height: 1.2;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .step {
+                flex-basis: 130px;
+                min-width: 130px;
+                max-width: 130px;
+            }
+
+            .step-circle {
+                width: 36px;
+                height: 36px;
+                font-size: 0.9rem;
+            }
+
+            .step:not(:last-child)::after {
+                top: 18px;
             }
         }
     </style>
 </head>
-<body class="bg-light">
+<body class="register-page">
 <div class="container py-4">
     <div class="row justify-content-center">
         <div class="col-lg-10">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white text-center py-3">
+            <div class="card register-shell">
+                <div class="card-header register-header text-center py-3">
+                    <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo" class="brand-logo">
                     <h4 class="mb-0">Barangay 219 – Official E-Services Portal</h4>
                     <p class="mb-0 small mt-1">Resident Registration</p>
                 </div>
-                <div class="card-body p-4">
+                <div class="card-body p-4 register-form-body">
                     <!-- Step Indicator -->
                     <div class="step-indicator">
                         <div class="step active" data-step="1">
@@ -533,7 +701,7 @@ $valid_id_types = [
 
                         <!-- Navigation Buttons -->
                         <div class="btn-navigation">
-                            <a href="<?php echo BASE_URL; ?>login.php" class="btn btn-outline-secondary">Back to Login</a>
+                            <a href="<?php echo BASE_URL; ?>home.php" class="btn btn-outline-secondary">Back to Home</a>
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-outline-secondary" id="prevBtn" style="display: none;">Back</button>
                                 <button type="button" class="btn btn-primary" id="nextBtn">Next</button>
