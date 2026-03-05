@@ -53,18 +53,18 @@ function loadCertificates() {
                         <td>${c.control_number ? escapeHtml(c.control_number) : '-'}</td>
                         <td>
                             ${c.status === 'issued' ? `
-                                <a href="${BASE_URL}certificate-print.php?id=${c.id}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-printer"></i> Print/PDF
+                                <a href="${BASE_URL}certificate-print.php?id=${c.id}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print / PDF" aria-label="Print / PDF">
+                                    <i class="bi bi-printer"></i>
                                 </a>
                             ` : ''}
                             ${CERT_PERMS.canEdit && c.status === 'pending' ? `
-                                <button class="btn btn-sm btn-success" onclick="updateStatus(${c.id}, 'approved')">Approve</button>
-                                <button class="btn btn-sm btn-danger" onclick="rejectCert(${c.id})">Reject</button>
+                                <button class="btn btn-sm btn-success" title="Approve" aria-label="Approve" onclick="updateStatus(${c.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="rejectCert(${c.id})"><i class="bi bi-x-lg"></i></button>
                             ` : ''}
                             ${CERT_PERMS.canEdit && c.status === 'approved' ? `
-                                <button class="btn btn-sm btn-info" onclick="releaseCert(${c.id})">Release</button>
+                                <button class="btn btn-sm btn-info" title="Release" aria-label="Release" onclick="releaseCert(${c.id})"><i class="bi bi-box-arrow-up-right"></i></button>
                             ` : ''}
-                            <button class="btn btn-sm btn-outline-secondary" onclick="viewCert(${c.id})">View</button>
+                            <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewCert(${c.id})"><i class="bi bi-eye"></i></button>
                         </td>
                     </tr>
                 `).join('');
