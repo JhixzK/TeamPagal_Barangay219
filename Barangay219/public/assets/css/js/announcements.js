@@ -52,9 +52,9 @@ function loadAnnouncements() {
                         <td>${a.expiration_date ? formatDate(a.expiration_date) : '-'}</td>
                         <td><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td>
                         <td>
-                            <button class="btn btn-sm btn-primary" onclick="viewAnnouncement(${a.id})">View</button>
-                            ${ANNOUNCEMENT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" onclick="editAnnouncement(${a.id})">Edit</button>` : ''}
-                            ${ANNOUNCEMENT_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-warning" onclick="archiveAnnouncement(${a.id})">Archive</button>` : ''}
+                            <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewAnnouncement(${a.id})"><i class="bi bi-eye"></i></button>
+                            ${ANNOUNCEMENT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editAnnouncement(${a.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
+                            ${ANNOUNCEMENT_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-warning" title="Archive" aria-label="Archive" onclick="archiveAnnouncement(${a.id})"><i class="bi bi-archive"></i></button>` : ''}
                         </td>
                     </tr>
                 `).join('');
