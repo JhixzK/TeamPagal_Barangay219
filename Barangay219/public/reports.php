@@ -70,9 +70,15 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 </style>
 
-<div class="main-content reports-page">
+<div class="main-content module-page reports-page">
     <div class="container-fluid">
-        <h2 class="mb-4 page-title"><i class="bi bi-graph-up"></i> Reports</h2>
+        <div class="module-hero card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <p class="module-kicker text-uppercase small mb-1">Communication Module</p>
+                <h2 class="mb-1 page-title"><i class="bi bi-graph-up me-2"></i>Reports</h2>
+                <p class="module-subtitle mb-0">Generate operational insights across residents, services, cases, and activity logs.</p>
+            </div>
+        </div>
 
         <div class="card mb-4 report-card">
             <div class="card-body">
