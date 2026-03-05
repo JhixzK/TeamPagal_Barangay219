@@ -10,13 +10,19 @@ requireModuleAccess('households');
 include __DIR__ . '/../includes/sidebar.php';
 ?> 
 
-<div class="main-content">
+<div class="main-content module-page households-page">
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="bi bi-house-door"></i> Households Management</h2>
-            <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#householdModal" onclick="resetForm(); loadResidentsForDropdown();">
-                <i class="bi bi-plus-circle"></i> Add New Household
-            </button>
+        <div class="module-hero card border-0 shadow-sm mb-4">
+            <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                    <p class="module-kicker text-uppercase small mb-1">Records Module</p>
+                    <h2 class="mb-1"><i class="bi bi-house-door me-2"></i>Households Management</h2>
+                    <p class="module-subtitle mb-0">Track household records, family heads, and member composition.</p>
+                </div>
+                <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#householdModal" onclick="resetForm(); loadResidentsForDropdown();">
+                    <i class="bi bi-plus-circle"></i> Add New Household
+                </button>
+            </div>
         </div>
 
         <div class="row g-3 mb-4 module-stats" data-module="households">
