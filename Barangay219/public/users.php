@@ -15,17 +15,23 @@ requireModuleAccess('users');
 include __DIR__ . '/../includes/sidebar.php';
 ?>
 
-<div class="main-content">
+<div class="main-content module-page users-page">
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="bi bi-person-gear"></i> User Management</h2>
-            <div>
-                <button class="btn btn-outline-secondary me-2" onclick="showActivityLogs()">
-                    <i class="bi bi-clock-history"></i> Activity Logs
-                </button>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" onclick="resetForm()">
-                    <i class="bi bi-plus-circle"></i> Add New User
-                </button>
+        <div class="module-hero card border-0 shadow-sm mb-4">
+            <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                    <p class="module-kicker text-uppercase small mb-1">Administration Module</p>
+                    <h2 class="mb-1"><i class="bi bi-person-gear me-2"></i>User Management</h2>
+                    <p class="module-subtitle mb-0">Manage user accounts, access roles, status, and permission controls.</p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-secondary me-2" onclick="showActivityLogs()">
+                        <i class="bi bi-clock-history"></i> Activity Logs
+                    </button>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" onclick="resetForm()">
+                        <i class="bi bi-plus-circle"></i> Add New User
+                    </button>
+                </div>
             </div>
         </div>
 
