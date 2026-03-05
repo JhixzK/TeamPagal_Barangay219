@@ -11,10 +11,16 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
 
-<div class="main-content">
+<div class="main-content module-page resident-apps-page">
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="bi bi-person-lines-fill"></i> Resident Applications</h2>
+        <div class="module-hero card border-0 shadow-sm mb-4">
+            <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div>
+                    <p class="module-kicker text-uppercase small mb-1">Services Module</p>
+                    <h2 class="mb-1"><i class="bi bi-person-lines-fill me-2"></i>Resident Applications</h2>
+                    <p class="module-subtitle mb-0">Review resident registration requests and process approvals with traceability.</p>
+                </div>
+            </div>
         </div>
 
         <div class="row g-3 mb-4 module-stats" data-module="resident_applications">
@@ -64,13 +70,13 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <ul class="nav nav-tabs mb-3" id="statusTabs">
+        <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
             <li class="nav-item"><a class="nav-link active" href="#" data-status="pending">Pending</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="approved">Approved</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
         </ul>
 
-        <div class="table-responsive">
+        <div class="table-responsive data-table">
             <table class="table table-hover">
                 <thead>
                     <tr>
@@ -91,6 +97,55 @@ include __DIR__ . '/../includes/sidebar.php';
         <nav class="mt-3"><ul class="pagination justify-content-center" id="pagination"></ul></nav>
     </div>
 </div>
+
+<style>
+.resident-apps-page .module-hero {
+    border-radius: 16px;
+    background: linear-gradient(135deg, #f8fbff 0%, #eff6ff 100%);
+    border: 1px solid rgba(37, 99, 235, 0.18) !important;
+}
+
+.resident-apps-page .module-kicker {
+    letter-spacing: 0.08em;
+    color: #475569;
+    font-weight: 700;
+}
+
+.resident-apps-page .module-subtitle {
+    color: #64748b;
+}
+
+.resident-apps-page .search-bar {
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.35);
+}
+
+.resident-apps-page .app-tabs {
+    border-bottom: 0;
+    gap: 0.35rem;
+}
+
+.resident-apps-page .app-tabs .nav-link {
+    border: 1px solid #dbe3ee;
+    border-radius: 999px;
+    color: #475569;
+    font-weight: 600;
+    padding: 0.4rem 0.85rem;
+    background: #ffffff;
+}
+
+.resident-apps-page .app-tabs .nav-link.active {
+    color: #1d4ed8;
+    background: #e8f0ff;
+    border-color: #bfdbfe;
+}
+
+.resident-apps-page .data-table .table th,
+.resident-apps-page .data-table .table td {
+    vertical-align: middle;
+}
+</style>
 
 <!-- View Modal -->
 <div class="modal fade" id="viewModal" tabindex="-1">
