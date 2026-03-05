@@ -23,8 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendJson(false, 'Method not allowed', null, 405);
 }
 
-// Upload directory (outside web root preferred; adjust as needed)
-$UPLOAD_DIR = dirname(__DIR__) . '/uploads/applications/';
+// Upload directory (public so files are browser-accessible in resident-applications view)
+$UPLOAD_DIR = PUBLIC_PATH . '/uploads/applications/';
 if (!is_dir($UPLOAD_DIR)) {
     mkdir($UPLOAD_DIR, 0755, true);
 }
@@ -42,6 +42,26 @@ function sendJson($success, $message, $data = null, $code = 200) {
 
 function sanitize($s) {
     return htmlspecialchars(strip_tags(trim($s ?? '')), ENT_QUOTES, 'UTF-8');
+}
+
+function tableExists($db, $table) {
+    $row = $db->fetchOne(
+        "SELECT COUNT(*) AS cnt
+         FROM information_schema.tables
+         WHERE table_schema = DATABASE() AND table_name = ?",
+        [$table]
+    );
+    return !empty($row) && (int)$row['cnt'] > 0;
+}
+
+function getTableColumns($db, $table) {
+    $rows = $db->fetchAll(
+        "SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE() AND table_name = ?",
+        [$table]
+    );
+    return array_map(static function($r) { return $r['column_name']; }, $rows);
 }
 
 // Validate required fields
@@ -88,8 +108,9 @@ if (isset($_FILES['id_document']) && $_FILES['id_document']['error'] === UPLOAD_
     if (!in_array($ext, $allowed_ext) || $_FILES['id_document']['size'] > $max_file_size) {
         $errors[] = 'Valid ID document: PDF, JPG, PNG, max 5MB.';
     } else {
-        $id_document_path = 'applications/' . date('Ymd') . '_' . uniqid() . '_id.' . $ext;
-        $dest = dirname(__DIR__) . '/uploads/' . $id_document_path;
+        $filename = date('Ymd') . '_' . uniqid() . '_id.' . $ext;
+        $id_document_path = 'uploads/applications/' . $filename;
+        $dest = $UPLOAD_DIR . $filename;
         if (!move_uploaded_file($_FILES['id_document']['tmp_name'], $dest)) {
             $errors[] = 'Failed to save ID document.';
             $id_document_path = null;
@@ -104,8 +125,9 @@ if (isset($_FILES['proof_of_residency']) && $_FILES['proof_of_residency']['error
     if (!in_array($ext, $allowed_ext) || $_FILES['proof_of_residency']['size'] > $max_file_size) {
         $errors[] = 'Proof of residency: PDF, JPG, PNG, max 5MB.';
     } else {
-        $proof_of_residency_path = 'applications/' . date('Ymd') . '_' . uniqid() . '_res.' . $ext;
-        $dest = dirname(__DIR__) . '/uploads/' . $proof_of_residency_path;
+        $filename = date('Ymd') . '_' . uniqid() . '_res.' . $ext;
+        $proof_of_residency_path = 'uploads/applications/' . $filename;
+        $dest = $UPLOAD_DIR . $filename;
         if (!move_uploaded_file($_FILES['proof_of_residency']['tmp_name'], $dest)) {
             $errors[] = 'Failed to save proof of residency.';
             $proof_of_residency_path = null;
@@ -124,7 +146,7 @@ $middle_name = sanitize($_POST['middle_name'] ?? '');
 $suffix = sanitize($_POST['suffix'] ?? '');
 $place_of_birth = sanitize($_POST['place_of_birth'] ?? '');
 $family_code = sanitize($_POST['family_code'] ?? '');
-$relationship_to_head = sanitize($_POST['relationship_to_head'] ?? '');
+$relationship_to_head = sanitize($_POST['relationship_to_head'] ?? ($_POST['household_role'] ?? ''));
 $house_number = sanitize($_POST['house_number'] ?? '');
 $street = sanitize($_POST['street'] ?? '');
 $purok_sitio = sanitize($_POST['purok_sitio'] ?? '');
@@ -158,39 +180,89 @@ if ($last) {
 $application_ref = $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
 
 try {
-    $sql = "INSERT INTO resident_applications (
-        application_ref, first_name, middle_name, last_name, suffix, sex, birth_date, place_of_birth,
-        civil_status, citizenship, family_code, relationship_to_head,
-        house_number, street, purok_sitio, barangay, city, province, length_of_residency_years,
-        mobile_number, email, emergency_contact_name, emergency_contact_number, emergency_contact_relationship,
-        educational_attainment, employment_status, occupation,
-        is_senior_citizen, is_pwd, pwd_id_number, is_solo_parent, solo_parent_id_number,
-        is_ip_member, ip_group, is_4ps_beneficiary,
-        valid_id_type, valid_id_number, id_document_path, proof_of_residency_path, data_privacy_consent,
-        record_status
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,'pending')";
+    if (!tableExists($db, 'resident_applications')) {
+        sendJson(false, 'Registration module is not ready. Please run database/migrations/001_resident_registration_workflow.sql', null, 500);
+    }
 
-    $params = [
-        $application_ref, $first_name, $middle_name ?: null, $last_name, $suffix ?: null,
-        $sex, $birth_date, $place_of_birth ?: null, $civil_status ?: null, $citizenship,
-        $family_code ?: null, $relationship_to_head ?: null,
-        $house_number ?: null, $street ?: null, $purok_sitio ?: null, $barangay, $city, $province,
-        $length_of_residency_years ?: null,
-        $mobile_number, $email ?: null, $emergency_contact_name, $emergency_contact_number, $emergency_contact_relationship,
-        $educational_attainment ?: null, $employment_status ?: null, $occupation ?: null,
-        $is_senior ? 1 : 0, $is_pwd ? 1 : 0, $pwd_id_number ?: null, $is_solo_parent ? 1 : 0, $solo_parent_id_number ?: null,
-        $is_ip ? 1 : 0, $ip_group ?: null, $is_4ps ? 1 : 0,
-        $valid_id_type, $valid_id_number, $id_document_path, $proof_of_residency_path
+    $db->beginTransaction();
+
+    $existingCols = array_flip(getTableColumns($db, 'resident_applications'));
+
+    $insertData = [
+        'application_ref' => $application_ref,
+        'first_name' => $first_name,
+        'middle_name' => $middle_name ?: null,
+        'last_name' => $last_name,
+        'suffix' => $suffix ?: null,
+        'sex' => $sex,
+        'birth_date' => $birth_date,
+        'place_of_birth' => $place_of_birth ?: null,
+        'civil_status' => $civil_status ?: null,
+        'citizenship' => $citizenship,
+        'family_code' => $family_code ?: null,
+        'relationship_to_head' => $relationship_to_head ?: null,
+        'house_number' => $house_number ?: null,
+        'street' => $street ?: null,
+        'purok_sitio' => $purok_sitio ?: null,
+        'barangay' => $barangay,
+        'city' => $city,
+        'province' => $province,
+        'length_of_residency_years' => $length_of_residency_years ?: null,
+        'mobile_number' => $mobile_number,
+        'email' => $email ?: null,
+        'emergency_contact_name' => $emergency_contact_name,
+        'emergency_contact_number' => $emergency_contact_number,
+        'emergency_contact_relationship' => $emergency_contact_relationship,
+        'educational_attainment' => $educational_attainment ?: null,
+        'employment_status' => $employment_status ?: null,
+        'occupation' => $occupation ?: null,
+        'is_senior_citizen' => $is_senior ? 1 : 0,
+        'is_pwd' => $is_pwd ? 1 : 0,
+        'pwd_id_number' => $pwd_id_number ?: null,
+        'is_solo_parent' => $is_solo_parent ? 1 : 0,
+        'solo_parent_id_number' => $solo_parent_id_number ?: null,
+        'is_ip_member' => $is_ip ? 1 : 0,
+        'ip_group' => $ip_group ?: null,
+        'is_4ps_beneficiary' => $is_4ps ? 1 : 0,
+        'valid_id_type' => $valid_id_type,
+        'valid_id_number' => $valid_id_number,
+        'id_document_path' => $id_document_path,
+        'proof_of_residency_path' => $proof_of_residency_path,
+        'data_privacy_consent' => 1,
+        'record_status' => 'pending'
     ];
 
+    $requiredColumns = ['application_ref', 'first_name', 'last_name', 'sex', 'birth_date', 'mobile_number'];
+    foreach ($requiredColumns as $col) {
+        if (!isset($existingCols[$col])) {
+            throw new Exception("Missing required column in resident_applications: " . $col);
+        }
+    }
+
+    $cols = [];
+    $params = [];
+    foreach ($insertData as $col => $val) {
+        if (isset($existingCols[$col])) {
+            $cols[] = $col;
+            $params[] = $val;
+        }
+    }
+
+    $placeholders = implode(',', array_fill(0, count($cols), '?'));
+    $colSql = '`' . implode('`,`', $cols) . '`';
+    $sql = "INSERT INTO resident_applications ($colSql) VALUES ($placeholders)";
     $db->query($sql, $params);
     $appId = $db->lastInsertId();
 
-    // Audit log
-    $db->query(
-        "INSERT INTO application_audit_log (application_id, action, details) VALUES (?, 'submitted', ?)",
-        [$appId, json_encode(['application_ref' => $application_ref])]
-    );
+    // Audit log (optional, only if table exists)
+    if (tableExists($db, 'application_audit_log')) {
+        $db->query(
+            "INSERT INTO application_audit_log (application_id, action, details) VALUES (?, 'submitted', ?)",
+            [$appId, json_encode(['application_ref' => $application_ref])]
+        );
+    }
+
+    $db->commit();
 
     sendJson(true, 'Application submitted successfully. Your application will be reviewed by the barangay. You will be notified once approved.', [
         'application_ref' => $application_ref,
@@ -199,6 +271,13 @@ try {
     ], 201);
 
 } catch (Exception $e) {
+    if (isset($db) && method_exists($db, 'rollback')) {
+        try { $db->rollback(); } catch (Exception $ignored) {}
+    }
     error_log('Registration API error: ' . $e->getMessage());
-    sendJson(false, 'Registration failed. Please try again or contact the barangay office.', null, 500);
+    $message = 'Registration failed. Please try again or contact the barangay office.';
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+        $message .= ' [' . $e->getMessage() . ']';
+    }
+    sendJson(false, $message, null, 500);
 }
