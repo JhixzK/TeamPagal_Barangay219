@@ -96,9 +96,9 @@ function loadHouseholds() {
                         <td>${h.total_members}</td>
                         <td>${formatDate(h.registration_date)}</td>
                         <td>
-                            ${HOUSEHOLD_PERMS.canEdit ? `<button class="btn btn-sm btn-secondary me-1" onclick="editHousehold(${h.id})" title="Edit"><i class="bi bi-pencil"></i></button>` : ''}
-                            <button class="btn btn-sm btn-primary me-1" onclick="viewHousehold(${h.id})" title="View Members"><i class="bi bi-eye"></i></button>
-                            ${HOUSEHOLD_PERMS.canDelete ? `<button class="btn btn-sm btn-danger" onclick="deleteHousehold(${h.id})" title="Delete"><i class="bi bi-trash"></i></button>` : ''}
+                            ${HOUSEHOLD_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary me-1" title="Edit" aria-label="Edit" onclick="editHousehold(${h.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
+                            <button class="btn btn-sm btn-primary me-1" title="View" aria-label="View" onclick="viewHousehold(${h.id})"><i class="bi bi-eye"></i></button>
+                            ${HOUSEHOLD_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteHousehold(${h.id})"><i class="bi bi-trash"></i></button>` : ''}
                         </td>
                     </tr>
                 `).join('');
@@ -196,7 +196,7 @@ function viewHousehold(id) {
                 ? '<table class="table table-sm"><thead><tr><th>Name</th><th>Birth Date</th><th></th></tr></thead><tbody>' +
                   members.map(m => {
                       const name = `${m.first_name} ${m.middle_name || ''} ${m.last_name}`.trim();
-                                            const removeBtn = allowEditMembers && m.id !== h.family_head_id ? `<button class="btn btn-sm btn-outline-danger" onclick="removeMember(${m.id})">Remove</button>` : (m.id !== h.family_head_id ? '' : '<span class="badge bg-primary">Head</span>');
+                                            const removeBtn = allowEditMembers && m.id !== h.family_head_id ? `<button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : (m.id !== h.family_head_id ? '' : '<span class="badge bg-primary">Head</span>');
                                             return `<tr><td>${escapeHtml(name)}</td><td>${formatDate(m.birth_date)}</td><td>${removeBtn}</td></tr>`;
                   }).join('') + '</tbody></table>'
                 : '<p class="text-muted">No members yet.</p>';
