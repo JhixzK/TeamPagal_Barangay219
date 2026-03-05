@@ -56,11 +56,14 @@ $userInfo = getUserInfo();
 <body>
     <?php if (isLoggedIn()): ?>
     <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg navbar-dark app-topbar">
         <div class="container-fluid">
             <a class="navbar-brand" href="<?php echo BASE_URL; ?>dashboard.php">
                 <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo" class="app-navbar-logo">
-                <?php echo APP_NAME; ?>
+                <span class="app-brand-text">
+                    <span class="app-brand-title"><?php echo APP_NAME; ?></span>
+                    <span class="app-brand-subtitle"><?php echo BARANGAY_NAME; ?></span>
+                </span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
