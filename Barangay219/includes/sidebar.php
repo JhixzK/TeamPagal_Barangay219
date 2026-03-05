@@ -19,10 +19,10 @@ $menu_items = [
         'section' => 'Main'
     ],
     [
-        'title' => 'Certificate Applications',
+        'title' => 'Certificates',
         'icon' => 'bi-file-earmark-person',
         'url' => 'applications.php',
-        'module' => 'applications',
+        'modules' => ['applications', 'certificates'],
         'section' => 'Services'
     ],
     [
@@ -44,13 +44,6 @@ $menu_items = [
         'icon' => 'bi-house-door',
         'url' => 'households.php',
         'module' => 'households',
-        'section' => 'Records'
-    ],
-    [
-        'title' => 'Certificates',
-        'icon' => 'bi-file-earmark-text',
-        'url' => 'certificates.php',
-        'module' => 'certificates',
         'section' => 'Records'
     ],
     [
@@ -92,6 +85,14 @@ $menu_items = [
 
 // Filter menu items based on permissions
 $filtered_menu = array_filter($menu_items, function($item) {
+    if (isset($item['modules']) && is_array($item['modules'])) {
+        foreach ($item['modules'] as $mod) {
+            if (canAccessModule($mod)) {
+                return true;
+            }
+        }
+        return false;
+    }
     return canAccessModule($item['module']);
 });
 // Current user info and avatar
