@@ -143,20 +143,20 @@ function displayUsers(users) {
             <td>${formatDate(user.created_at)}</td>
             <td>
                 ${USER_MANAGEMENT_PERMS.canEdit ? `
-                    <button class="btn btn-sm btn-primary" onclick="editUser(${user.id})" title="Edit">
-                        <i class="bi bi-pencil"></i>
+                    <button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editUser(${user.id})">
+                        <i class="bi bi-pencil-square"></i>
                     </button>
                     ${user.status === 'active' 
-                        ? `<button class="btn btn-sm btn-warning" onclick="suspendUser(${user.id})" title="Suspend">
+                        ? `<button class="btn btn-sm btn-warning" title="Suspend" aria-label="Suspend" onclick="suspendUser(${user.id})">
                             <i class="bi bi-pause-circle"></i>
                            </button>`
-                        : `<button class="btn btn-sm btn-success" onclick="activateUser(${user.id})" title="Activate">
+                        : `<button class="btn btn-sm btn-success" title="Activate" aria-label="Activate" onclick="activateUser(${user.id})">
                             <i class="bi bi-play-circle"></i>
                            </button>`
                     }
                 ` : ''}
                 ${USER_MANAGEMENT_PERMS.canDelete && user.id !== (window.CURRENT_USER_ID || 0)
-                    ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})" title="Delete">
+                    ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteUser(${user.id})">
                         <i class="bi bi-trash"></i>
                        </button>`
                     : ''}
