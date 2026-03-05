@@ -120,7 +120,13 @@ function loadApplications() {
     if (appFilters.to) params.append('to', appFilters.to);
 
     fetch(window.API_URL + 'applications.php?' + params.toString())
-        .then(r => r.json())
+        .then(async r => {
+            const contentType = r.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                throw new Error('NON_JSON_RESPONSE');
+            }
+            return r.json();
+        })
         .then(data => {
             if (!data.success) {
                 tbody.innerHTML = '<tr><td colspan="7" class="text-danger">' + esc(data.message || 'Error') + '</td></tr>';
@@ -132,7 +138,10 @@ function loadApplications() {
         })
         .catch(err => {
             console.error(err);
-            tbody.innerHTML = '<tr><td colspan="7" class="text-danger">Failed to load applications</td></tr>';
+            const message = err && err.message === 'NON_JSON_RESPONSE'
+                ? 'Failed to load applications (session/API host mismatch).'
+                : 'Failed to load applications';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-danger">' + esc(message) + '</td></tr>';
         });
 }
 
@@ -318,7 +327,21 @@ function submitReject() {
 function buildFileLink(path, label) {
     if (!path) return '<span class="text-muted">None</span>';
     const trimmed = path.trim();
-    const url = trimmed.startsWith('http') ? trimmed : (window.RESIDENT_APPLICATIONS_BASE_URL || '') + trimmed.replace(/^\/+/, '');
+    const base = window.RESIDENT_APPLICATIONS_BASE_URL || '';
+    let resolvedPath = trimmed.replace(/^\/+/, '');
+
+    // Backward compatibility:
+    // old records stored as "applications/..." (outside public before fix)
+    // new records stored as "uploads/applications/..."
+    if (!resolvedPath.startsWith('uploads/')) {
+        if (resolvedPath.startsWith('applications/')) {
+            resolvedPath = 'uploads/' + resolvedPath;
+        } else {
+            resolvedPath = 'uploads/applications/' + resolvedPath;
+        }
+    }
+
+    const url = trimmed.startsWith('http') ? trimmed : (base + resolvedPath);
     return `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>`;
 }
 
@@ -347,4 +370,15 @@ function esc(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function showAlert(type, message) {
+    const container = document.querySelector('.main-content .container-fluid') || document.body;
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show`;
+    alert.innerHTML = `${esc(message)}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    container.insertBefore(alert, container.firstChild);
+    setTimeout(() => {
+        try { alert.remove(); } catch (e) {}
+    }, 5000);
 }
