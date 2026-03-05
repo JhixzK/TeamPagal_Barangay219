@@ -85,6 +85,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
     </div>
+</div>
 
     <!-- Blotter View Modal -->
     <div class="modal fade blotterModal" id="viewBlotterModal" tabindex="-1">
@@ -269,7 +270,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
     </div>
-</div>
 
 <!-- Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1">
