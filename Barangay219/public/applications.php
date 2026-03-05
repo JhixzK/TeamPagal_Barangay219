@@ -4,7 +4,10 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireModuleAccess('applications');
+if (!canAccessModule('applications') && !canAccessModule('certificates')) {
+    header('Location: ' . BASE_URL . 'dashboard.php?error=access_denied');
+    exit();
+}
 
 $page_title = 'Certificate Applications';
 include __DIR__ . '/../includes/header.php';
@@ -297,8 +300,12 @@ include __DIR__ . '/../includes/sidebar.php';
     let currentPage = 1;
     let applicationFilters = { q: '', type: '', from: '', to: '' };
     const APP_PERMS = {
-        canCreate: window.canModulePermission ? window.canModulePermission('applications', 'can_create') : true,
-        canEdit: window.canModulePermission ? window.canModulePermission('applications', 'can_edit') : true
+        canCreate: window.canModulePermission
+            ? (window.canModulePermission('applications', 'can_create') || window.canModulePermission('certificates', 'can_create'))
+            : true,
+        canEdit: window.canModulePermission
+            ? (window.canModulePermission('applications', 'can_edit') || window.canModulePermission('certificates', 'can_edit'))
+            : true
     };
 
     function applyApplicationPermissions() {
@@ -347,6 +354,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <td>${formatDate(a.created_at)}</td>
                             <td><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td>
                             <td>
+                                ${a.status === 'issued' ? `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print / PDF" aria-label="Print / PDF"><i class="bi bi-printer"></i></a>` : ''}
                                 <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewApp(${a.id})"><i class="bi bi-eye"></i></button>
                                 ${APP_PERMS.canEdit && a.status === 'pending' ? `
                                 <button class="btn btn-sm btn-success" title="Approve" aria-label="Approve" onclick="updateStatus(${a.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
@@ -471,7 +479,9 @@ include __DIR__ . '/../includes/sidebar.php';
                 } else if (APP_PERMS.canEdit && a.status === 'approved') {
                     footer = '<button class="btn btn-info" onclick="openRelease('+a.id+'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Release</button>';
                 }
-                footer += '<a href="<?php echo BASE_URL; ?>certificates.php?id='+a.id+'" class="btn btn-primary">View in Certificates</a>';
+                if (a.status === 'issued') {
+                    footer += ' <a href="<?php echo BASE_URL; ?>certificate-print.php?id='+a.id+'" target="_blank" class="btn btn-primary"><i class="bi bi-printer me-1"></i>Print / PDF</a>';
+                }
                 document.getElementById('viewModalFooter').innerHTML = footer;
                 new bootstrap.Modal(document.getElementById('viewModal')).show();
             });
