@@ -24,10 +24,13 @@ define('BARANGAY_NAME', 'Barangay 219, Tondo, Manila');
 // Base URLs
 // Auto-detect the correct path based on the current script location
 
-// Hardcoded base URLs for reliability
+// Base URLs derived from current host to keep sessions/cookies consistent
 if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/TeamPagal_Barangay219/Barangay219/public/');
-    define('API_URL', 'http://localhost/TeamPagal_Barangay219/Barangay219/api/');
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $appRoot = '/TeamPagal_Barangay219/Barangay219/';
+    define('BASE_URL', $scheme . '://' . $host . $appRoot . 'public/');
+    define('API_URL', $scheme . '://' . $host . $appRoot . 'api/');
 }
 
 define('ASSETS_URL', BASE_URL . 'assets/');
