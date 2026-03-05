@@ -5,7 +5,9 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
-requireModuleAccess('certificates');
+if (!canAccessModule('certificates') && !canAccessModule('applications')) {
+    sendResponse(false, 'Access denied', null, 403);
+}
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
