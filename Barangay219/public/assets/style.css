@@ -116,6 +116,61 @@ body {
     margin-bottom: 1.2rem !important;
 }
 
+.module-page .module-hero {
+    border-radius: 16px;
+    background: linear-gradient(135deg, #f8fbff 0%, #eff6ff 100%);
+    border: 1px solid rgba(37, 99, 235, 0.18) !important;
+    box-shadow: 0 14px 28px -24px rgba(15, 23, 42, 0.32);
+}
+
+.module-page .module-kicker {
+    letter-spacing: 0.08em;
+    color: #475569;
+    font-weight: 700;
+}
+
+.module-page .module-subtitle {
+    color: #64748b;
+}
+
+.module-page .search-bar {
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.35);
+}
+
+.module-page .app-tabs {
+    border-bottom: 0;
+    gap: 0.35rem;
+}
+
+.module-page .app-tabs .nav-link {
+    border: 1px solid #dbe3ee;
+    border-radius: 999px;
+    color: #475569;
+    font-weight: 600;
+    padding: 0.4rem 0.85rem;
+    background: #ffffff;
+}
+
+.module-page .app-tabs .nav-link.active {
+    color: #1d4ed8;
+    background: #e8f0ff;
+    border-color: #bfdbfe;
+}
+
+.module-page .data-table .table th,
+.module-page .data-table .table td {
+    vertical-align: middle;
+}
+
+.module-page .data-table code {
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 0.1rem 0.35rem;
+    border-radius: 6px;
+}
+
 .card {
     border-radius: 12px;
     border: 1px solid #e2e8f0;
@@ -163,19 +218,28 @@ body {
 /* Dashboard Cards */
 .stat-card {
     position: relative;
-    border-radius: 10px;
-    padding: 1rem 1.1rem 1.1rem;
+    border-radius: 15px;
+    padding: 1rem 1rem 0.8rem;
     margin-bottom: 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: none;
-    min-height: 92px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    min-height: 128px;
     color: #fff;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 55%);
+    pointer-events: none;
 }
 
 .stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.14);
+    transform: translateY(-3px);
+    box-shadow: 0 14px 24px rgba(15, 23, 42, 0.2);
 }
 
 .stat-card[role="button"] {
@@ -189,16 +253,17 @@ body {
 
 .stat-card .stat-icon {
     position: absolute;
-    top: 10px;
-    right: 12px;
-    font-size: 1.1rem;
-    opacity: 0.7;
+    top: 11px;
+    right: 13px;
+    font-size: 1.22rem;
+    opacity: 0.95;
 }
 
 .stat-card .stat-value {
-    font-size: 2rem;
+    font-size: 2.05rem;
     font-weight: 700;
-    margin: 0.25rem 0 0.05rem;
+    line-height: 1.15;
+    margin-top: 0.35rem;
     font-variant-numeric: tabular-nums;
 }
 
@@ -206,7 +271,7 @@ body {
     font-size: 0.95rem;
     letter-spacing: 0.3px;
     text-transform: none;
-    opacity: 0.85;
+    opacity: 0.96;
 }
 
 .stat-card.text-dark {
