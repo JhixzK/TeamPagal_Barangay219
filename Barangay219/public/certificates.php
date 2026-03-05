@@ -10,11 +10,17 @@ requireModuleAccess('certificates');
 include __DIR__ . '/../includes/sidebar.php';
 ?>
 
-<div class="main-content">
+<div class="main-content module-page certificates-page">
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="mb-0"><i class="bi bi-file-earmark-text"></i> Certificate Management</h2>
-            <a href="<?php echo BASE_URL; ?>applications.php" class="btn btn-primary" id="btnOpenApplications"><i class="bi bi-plus-lg"></i> New Application</a>
+        <div class="module-hero card border-0 shadow-sm mb-4">
+            <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                    <p class="module-kicker text-uppercase small mb-1">Records Module</p>
+                    <h2 class="mb-1"><i class="bi bi-file-earmark-text me-2"></i>Certificate Management</h2>
+                    <p class="module-subtitle mb-0">Manage certificate requests, approval flow, and issuance records.</p>
+                </div>
+                <a href="<?php echo BASE_URL; ?>applications.php" class="btn btn-primary" id="btnOpenApplications"><i class="bi bi-plus-lg"></i> New Application</a>
+            </div>
         </div>
         <div class="row g-3 mb-4 module-stats" data-module="certificates">
             <div class="col-sm-6 col-lg-3">
