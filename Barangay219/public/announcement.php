@@ -11,13 +11,19 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
 
-<div class="main-content">
+<div class="main-content module-page announcements-page">
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="mb-0"><i class="bi bi-megaphone"></i> Announcements</h2>
-            <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#createModal">
-                <i class="bi bi-plus-lg"></i> New Announcement
-            </button>
+        <div class="module-hero card border-0 shadow-sm mb-4">
+            <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                    <p class="module-kicker text-uppercase small mb-1">Communication Module</p>
+                    <h2 class="mb-1"><i class="bi bi-megaphone me-2"></i>Announcements</h2>
+                    <p class="module-subtitle mb-0">Publish, schedule, and track barangay advisories and notices.</p>
+                </div>
+                <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#createModal">
+                    <i class="bi bi-plus-lg"></i> New Announcement
+                </button>
+            </div>
         </div>
 
         <div class="row g-3 mb-4 module-stats" data-module="announcements">
@@ -81,15 +87,17 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>ID</th><th>Title</th><th>Posted By</th><th>Date</th><th>Expires</th><th>Status</th><th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="announcementsTableBody"><tr><td colspan="7" class="text-center">Loading...</td></tr></tbody>
-            </table>
+        <div class="data-table">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th><th>Title</th><th>Posted By</th><th>Date</th><th>Expires</th><th>Status</th><th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="announcementsTableBody"><tr><td colspan="7" class="text-center">Loading...</td></tr></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
