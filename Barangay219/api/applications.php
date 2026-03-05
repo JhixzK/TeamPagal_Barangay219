@@ -48,8 +48,23 @@ function sendResponse($success, $message, $data = null, $code = 200) {
 }
 
 function tableExists($db, $table) {
-    $row = $db->fetchOne("SHOW TABLES LIKE ?", [$table]);
-    return !empty($row);
+    $row = $db->fetchOne(
+        "SELECT COUNT(*) AS cnt
+         FROM information_schema.tables
+         WHERE table_schema = DATABASE() AND table_name = ?",
+        [$table]
+    );
+    return !empty($row) && (int)$row['cnt'] > 0;
+}
+
+function getTableColumns($db, $table) {
+    $rows = $db->fetchAll(
+        "SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE() AND table_name = ?",
+        [$table]
+    );
+    return array_map(static function($r) { return $r['column_name']; }, $rows);
 }
 
 function listApplications() {
@@ -72,8 +87,23 @@ function listApplications() {
         if (!tableExists($db, 'resident_applications')) {
             sendResponse(false, 'Resident applications table is missing. Run database/migrations/001_resident_registration_workflow.sql', null, 500);
         }
-        $where = "record_status = ?";
-        $params = [$status];
+
+        $cols = array_flip(getTableColumns($db, 'resident_applications'));
+        $statusCol = isset($cols['record_status']) ? 'record_status' : (isset($cols['status']) ? 'status' : null);
+        $sexCol = isset($cols['sex']) ? 'sex' : (isset($cols['gender']) ? 'gender' : null);
+
+        if (!$statusCol) {
+            sendResponse(false, 'Missing status column in resident_applications (expected record_status or status)', null, 500);
+        }
+
+        if ($status === 'pending') {
+            // Support legacy pending-like values so newly submitted records still appear.
+            $where = "`$statusCol` IN ('pending','submitted','new')";
+            $params = [];
+        } else {
+            $where = "`$statusCol` = ?";
+            $params = [$status];
+        }
 
         if (!empty($q)) {
             $term = '%' . $q . '%';
@@ -81,8 +111,8 @@ function listApplications() {
             $params = array_merge($params, [$term, $term, $term, $term, $term, $term, $term]);
         }
 
-        if (!empty($sex)) {
-            $where .= " AND sex = ?";
+        if (!empty($sex) && $sexCol) {
+            $where .= " AND `$sexCol` = ?";
             $params[] = $sex;
         }
 
@@ -99,9 +129,13 @@ function listApplications() {
         $countSql = "SELECT COUNT(*) as total FROM resident_applications WHERE $where";
         $total = $db->fetchOne($countSql, $params)['total'];
 
-        $sql = "SELECT id, application_ref, first_name, middle_name, last_name, suffix, sex, birth_date,
-                       civil_status, mobile_number, email, barangay, city, record_status,
-                       created_at, reviewed_at
+        $selectSex = $sexCol ? "`$sexCol` AS sex" : "NULL AS sex";
+        $selectStatus = "`$statusCol` AS record_status";
+        $selectReviewedAt = isset($cols['reviewed_at']) ? "reviewed_at" : "NULL AS reviewed_at";
+
+        $sql = "SELECT id, application_ref, first_name, middle_name, last_name, suffix, $selectSex, birth_date,
+                       civil_status, mobile_number, email, barangay, city, $selectStatus,
+                       created_at, $selectReviewedAt
                 FROM resident_applications
                 WHERE $where
                 ORDER BY created_at DESC
@@ -175,9 +209,14 @@ function approveApplication() {
         if (!tableExists($db, 'resident_applications')) {
             sendResponse(false, 'Resident applications table is missing. Run database/migrations/001_resident_registration_workflow.sql', null, 500);
         }
+        $cols = array_flip(getTableColumns($db, 'resident_applications'));
+        $statusCol = isset($cols['record_status']) ? 'record_status' : (isset($cols['status']) ? 'status' : null);
+        if (!$statusCol) {
+            sendResponse(false, 'Missing status column in resident_applications', null, 500);
+        }
         $db->beginTransaction();
 
-        $app = $db->fetchOne("SELECT * FROM resident_applications WHERE id = ? AND record_status = 'pending'", [$id]);
+        $app = $db->fetchOne("SELECT * FROM resident_applications WHERE id = ? AND `$statusCol` = 'pending'", [$id]);
         if (!$app) {
             $db->rollback();
             sendResponse(false, 'Application not found or already processed', null, 404);
@@ -185,35 +224,71 @@ function approveApplication() {
 
         $residentCode = generateResidentCode();
         $userId = getCurrentUserId();
+        $resCols = array_flip(getTableColumns($db, 'residents'));
+        $userCols = array_flip(getTableColumns($db, 'users'));
 
         // Build full address
         $addrParts = array_filter([$app['house_number'], $app['street'], $app['purok_sitio'], $app['barangay'], $app['city'], $app['province']]);
         $address = implode(', ', $addrParts);
+        $appGender = $app['sex'] ?? ($app['gender'] ?? 'other');
 
-        // Insert resident
-        $insRes = "INSERT INTO residents (
-            resident_code, first_name, middle_name, last_name, suffix, birth_date, place_of_birth,
-            gender, civil_status, citizenship, occupation, address, house_number, street, purok_sitio,
-            contact_number, email, length_of_residency_years,
-            emergency_contact_name, emergency_contact_number, emergency_contact_relationship,
-            educational_attainment, employment_status,
-            is_senior_citizen, is_pwd, pwd_id_number, is_solo_parent, solo_parent_id_number, is_ip_member, ip_group, is_4ps_beneficiary,
-            record_status, remarks, last_updated_by, last_updated_at, status, household_id
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        // Insert resident (schema tolerant)
+        $residentData = [
+            'resident_code' => $residentCode,
+            'first_name' => $app['first_name'] ?? null,
+            'middle_name' => $app['middle_name'] ?? null,
+            'last_name' => $app['last_name'] ?? null,
+            'suffix' => $app['suffix'] ?? null,
+            'birth_date' => $app['birth_date'] ?? null,
+            'place_of_birth' => $app['place_of_birth'] ?? null,
+            'gender' => $appGender,
+            'civil_status' => $app['civil_status'] ?? null,
+            'citizenship' => $app['citizenship'] ?? 'Filipino',
+            'occupation' => $app['occupation'] ?? null,
+            'address' => $address ?: ($app['barangay'] ?? ''),
+            'house_number' => $app['house_number'] ?? null,
+            'street' => $app['street'] ?? null,
+            'purok_sitio' => $app['purok_sitio'] ?? null,
+            'contact_number' => $app['mobile_number'] ?? null,
+            'email' => $app['email'] ?? null,
+            'length_of_residency_years' => $app['length_of_residency_years'] ?? null,
+            'emergency_contact_name' => $app['emergency_contact_name'] ?? null,
+            'emergency_contact_number' => $app['emergency_contact_number'] ?? null,
+            'emergency_contact_relationship' => $app['emergency_contact_relationship'] ?? null,
+            'educational_attainment' => $app['educational_attainment'] ?? null,
+            'employment_status' => $app['employment_status'] ?? null,
+            'is_senior_citizen' => $app['is_senior_citizen'] ?? 0,
+            'is_pwd' => $app['is_pwd'] ?? 0,
+            'pwd_id_number' => $app['pwd_id_number'] ?? null,
+            'is_solo_parent' => $app['is_solo_parent'] ?? 0,
+            'solo_parent_id_number' => $app['solo_parent_id_number'] ?? null,
+            'is_ip_member' => $app['is_ip_member'] ?? 0,
+            'ip_group' => $app['ip_group'] ?? null,
+            'is_4ps_beneficiary' => $app['is_4ps_beneficiary'] ?? 0,
+            'record_status' => 'active',
+            'remarks' => $remarks ?: null,
+            'last_updated_by' => $userId,
+            'last_updated_at' => date('Y-m-d H:i:s'),
+            'status' => 'active',
+            'household_id' => null
+        ];
 
-        $db->query($insRes, [
-            $residentCode, $app['first_name'], $app['middle_name'] ?: null, $app['last_name'], $app['suffix'] ?: null,
-            $app['birth_date'], $app['place_of_birth'] ?: null, $app['sex'], $app['civil_status'] ?: null,
-            $app['citizenship'] ?: 'Filipino', $app['occupation'] ?: null, $address,
-            $app['house_number'] ?: null, $app['street'] ?: null, $app['purok_sitio'] ?: null,
-            $app['mobile_number'], $app['email'] ?: null, $app['length_of_residency_years'] ?: null,
-            $app['emergency_contact_name'], $app['emergency_contact_number'], $app['emergency_contact_relationship'],
-            $app['educational_attainment'] ?: null, $app['employment_status'] ?: null,
-            $app['is_senior_citizen'] ?? 0, $app['is_pwd'] ?? 0, $app['pwd_id_number'] ?: null,
-            $app['is_solo_parent'] ?? 0, $app['solo_parent_id_number'] ?: null,
-            $app['is_ip_member'] ?? 0, $app['ip_group'] ?: null, $app['is_4ps_beneficiary'] ?? 0,
-            'active', $remarks ?: null, $userId, date('Y-m-d H:i:s'), 'active', null
-        ]);
+        $resInsertCols = [];
+        $resInsertParams = [];
+        foreach ($residentData as $col => $val) {
+            if (isset($resCols[$col])) {
+                $resInsertCols[] = $col;
+                $resInsertParams[] = $val;
+            }
+        }
+
+        if (!isset($resCols['first_name']) || !isset($resCols['last_name']) || !isset($resCols['birth_date'])) {
+            throw new Exception('Residents table is missing required columns.');
+        }
+
+        $resColSql = '`' . implode('`,`', $resInsertCols) . '`';
+        $resPlaceholders = implode(',', array_fill(0, count($resInsertCols), '?'));
+        $db->query("INSERT INTO residents ($resColSql) VALUES ($resPlaceholders)", $resInsertParams);
 
         $residentId = $db->lastInsertId();
 
@@ -222,30 +297,55 @@ function approveApplication() {
         $activationExpires = date('Y-m-d H:i:s', strtotime('+7 days'));
         $placeholderHash = password_hash('PENDING_' . $activationToken, PASSWORD_DEFAULT);
 
-        $insUser = "INSERT INTO users (username, password, email, role, resident_id, status, activation_token, activation_expires)
-                    VALUES (?,?,?,?,?,?,?,?)";
-        $db->query($insUser, [
-            $residentCode,
-            $placeholderHash,
-            $app['email'] ?: null,
-            ROLE_RESIDENT,
-            $residentId,
-            'active',
-            $activationToken,
-            $activationExpires
-        ]);
+        $userData = [
+            'username' => $residentCode,
+            'password' => $placeholderHash,
+            'email' => $app['email'] ?? null,
+            'role' => ROLE_RESIDENT,
+            'resident_id' => $residentId,
+            'status' => 'active',
+            'activation_token' => $activationToken,
+            'activation_expires' => $activationExpires
+        ];
+        $userInsertCols = [];
+        $userInsertParams = [];
+        foreach ($userData as $col => $val) {
+            if (isset($userCols[$col])) {
+                $userInsertCols[] = $col;
+                $userInsertParams[] = $val;
+            }
+        }
+        if (!isset($userCols['username']) || !isset($userCols['password']) || !isset($userCols['role'])) {
+            throw new Exception('Users table is missing required columns.');
+        }
+        $userColSql = '`' . implode('`,`', $userInsertCols) . '`';
+        $userPlaceholders = implode(',', array_fill(0, count($userInsertCols), '?'));
+        $db->query("INSERT INTO users ($userColSql) VALUES ($userPlaceholders)", $userInsertParams);
 
         // Update application
-        $db->query(
-            "UPDATE resident_applications SET record_status='approved', reviewed_by=?, reviewed_at=NOW(), remarks=? WHERE id=?",
-            [$userId, $remarks ?: null, $id]
-        );
+        $updates = ["`$statusCol`='approved'"];
+        $updateParams = [];
+        if (isset($cols['reviewed_by'])) {
+            $updates[] = "reviewed_by=?";
+            $updateParams[] = $userId;
+        }
+        if (isset($cols['reviewed_at'])) {
+            $updates[] = "reviewed_at=NOW()";
+        }
+        if (isset($cols['remarks'])) {
+            $updates[] = "remarks=?";
+            $updateParams[] = $remarks ?: null;
+        }
+        $updateParams[] = $id;
+        $db->query("UPDATE resident_applications SET " . implode(', ', $updates) . " WHERE id=?", $updateParams);
 
-        // Audit
-        $db->query(
-            "INSERT INTO application_audit_log (application_id, action, performed_by, details) VALUES (?, 'approved', ?, ?)",
-            [$id, $userId, json_encode(['resident_id' => $residentId, 'resident_code' => $residentCode])]
-        );
+        // Audit (optional)
+        if (tableExists($db, 'application_audit_log')) {
+            $db->query(
+                "INSERT INTO application_audit_log (application_id, action, performed_by, details) VALUES (?, 'approved', ?, ?)",
+                [$id, $userId, json_encode(['resident_id' => $residentId, 'resident_code' => $residentCode])]
+            );
+        }
 
         $db->commit();
 
@@ -279,20 +379,39 @@ function rejectApplication() {
         if (!tableExists($db, 'resident_applications')) {
             sendResponse(false, 'Resident applications table is missing. Run database/migrations/001_resident_registration_workflow.sql', null, 500);
         }
-        $app = $db->fetchOne("SELECT id FROM resident_applications WHERE id = ? AND record_status = 'pending'", [$id]);
+        $cols = array_flip(getTableColumns($db, 'resident_applications'));
+        $statusCol = isset($cols['record_status']) ? 'record_status' : (isset($cols['status']) ? 'status' : null);
+        if (!$statusCol) {
+            sendResponse(false, 'Missing status column in resident_applications', null, 500);
+        }
+
+        $app = $db->fetchOne("SELECT id FROM resident_applications WHERE id = ? AND `$statusCol` = 'pending'", [$id]);
         if (!$app) {
             sendResponse(false, 'Application not found or already processed', null, 404);
         }
 
         $userId = getCurrentUserId();
-        $db->query(
-            "UPDATE resident_applications SET record_status='rejected', reviewed_by=?, reviewed_at=NOW(), rejection_reason=? WHERE id=?",
-            [$userId, $reason ?: null, $id]
-        );
-        $db->query(
-            "INSERT INTO application_audit_log (application_id, action, performed_by, details) VALUES (?, 'rejected', ?, ?)",
-            [$id, $userId, json_encode(['rejection_reason' => $reason])]
-        );
+        $updates = ["`$statusCol`='rejected'"];
+        $updateParams = [];
+        if (isset($cols['reviewed_by'])) {
+            $updates[] = "reviewed_by=?";
+            $updateParams[] = $userId;
+        }
+        if (isset($cols['reviewed_at'])) {
+            $updates[] = "reviewed_at=NOW()";
+        }
+        if (isset($cols['rejection_reason'])) {
+            $updates[] = "rejection_reason=?";
+            $updateParams[] = $reason ?: null;
+        }
+        $updateParams[] = $id;
+        $db->query("UPDATE resident_applications SET " . implode(', ', $updates) . " WHERE id=?", $updateParams);
+        if (tableExists($db, 'application_audit_log')) {
+            $db->query(
+                "INSERT INTO application_audit_log (application_id, action, performed_by, details) VALUES (?, 'rejected', ?, ?)",
+                [$id, $userId, json_encode(['rejection_reason' => $reason])]
+            );
+        }
 
         sendResponse(true, 'Application rejected.');
     } catch (Exception $e) {
