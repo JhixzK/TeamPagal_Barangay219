@@ -51,9 +51,9 @@ function loadComplaints() {
                         <td>${formatDate(c.filing_date)}</td>
                         <td><span class="badge bg-${getStatusColor(c.status)}">${c.status}</span></td>
                         <td>
-                            <button class="btn btn-sm btn-primary" onclick="viewComplaint(${c.id})">View</button>
-                            ${COMPLAINT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" onclick="editComplaint(${c.id})">Edit</button>` : ''}
-                            ${COMPLAINT_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteComplaint(${c.id})">Delete</button>` : ''}
+                            <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewComplaint(${c.id})"><i class="bi bi-eye"></i></button>
+                            ${COMPLAINT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editComplaint(${c.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
+                            ${COMPLAINT_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteComplaint(${c.id})"><i class="bi bi-trash"></i></button>` : ''}
                         </td>
                     </tr>
                 `).join('');
