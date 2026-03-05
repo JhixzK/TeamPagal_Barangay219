@@ -196,9 +196,9 @@ function displayResidents(residents) {
                 <td>${escapeHtml(resident.contact_number || '-')}</td>
                 <td><span class="badge ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
                 <td>
-                    ${RESIDENT_PERMS.canEdit ? `<button class="btn btn-sm btn-primary" onclick="editResident(${resident.id})" title="Edit"><i class="bi bi-pencil"></i></button>` : ''}
-                    <button class="btn btn-sm btn-info" onclick="viewResident(${resident.id})" title="View"><i class="bi bi-eye"></i></button>
-                    ${RESIDENT_PERMS.canDelete ? `<button class="btn btn-sm btn-danger" onclick="deleteResident(${resident.id})" title="Delete"><i class="bi bi-trash"></i></button>` : ''}
+                    ${RESIDENT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editResident(${resident.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
+                    <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewResident(${resident.id})"><i class="bi bi-eye"></i></button>
+                    ${RESIDENT_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteResident(${resident.id})"><i class="bi bi-trash"></i></button>` : ''}
                 </td>
             </tr>
         `;
