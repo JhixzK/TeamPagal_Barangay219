@@ -10,19 +10,37 @@ requireModuleAccess('blotters');
 include __DIR__ . '/../includes/sidebar.php';
 ?>
 
-<div class="main-content">
+<div class="main-content module-page blotter-page">
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-3 gap-3 flex-wrap">
-            <h2><i class="bi bi-journal-text"></i> Blotter Management</h2>
-            <div class="flex-grow-1 min-width-search">
-                <input type="text" class="form-control" id="searchInput" placeholder="Search by case title, complainant, or status...">
+        <div class="module-hero card border-0 shadow-sm mb-4">
+            <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                    <p class="module-kicker text-uppercase small mb-1">Cases Module</p>
+                    <h2 class="mb-1"><i class="bi bi-journal-text me-2"></i>Blotter Management</h2>
+                    <p class="module-subtitle mb-0">Record incidents, monitor hearing schedules, and update case resolution status.</p>
+                </div>
+                <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#blotterModal" onclick="resetBlotterForm()">
+                    <i class="bi bi-plus-circle"></i> Add New Blotter
+                </button>
             </div>
-            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
-                <i class="bi bi-funnel"></i> Filter
-            </button>
-            <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#blotterModal" onclick="resetBlotterForm()">
-                <i class="bi bi-plus-circle"></i> Add New Blotter
-            </button>
+        </div>
+
+        <div class="search-bar mb-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-8">
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search by case title, complainant, or status...">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-secondary w-100" onclick="window.location.reload()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div class="row g-3 mb-4 module-stats" data-module="blotters">
