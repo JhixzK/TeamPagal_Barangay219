@@ -162,14 +162,14 @@ function renderApplications(apps) {
 }
 
 function renderActions(app) {
-    const viewBtn = `<button class="btn btn-sm btn-outline-primary" onclick="viewApplication(${app.id})"><i class="bi bi-eye"></i></button>`;
+    const viewBtn = `<button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewApplication(${app.id})"><i class="bi bi-eye"></i></button>`;
     if (!RES_APP_PERMS.canEdit) {
         return viewBtn;
     }
     if (app.record_status === 'pending') {
         return `${viewBtn}
-            <button class="btn btn-sm btn-success" onclick="openApprove(${app.id})">Approve</button>
-            <button class="btn btn-sm btn-danger" onclick="openReject(${app.id})">Reject</button>`;
+            <button class="btn btn-sm btn-success" title="Approve" aria-label="Approve" onclick="openApprove(${app.id})"><i class="bi bi-check-lg"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="openReject(${app.id})"><i class="bi bi-x-lg"></i></button>`;
     }
     return viewBtn;
 }
