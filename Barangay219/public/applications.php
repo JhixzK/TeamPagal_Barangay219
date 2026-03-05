@@ -11,13 +11,19 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
 
-<div class="main-content">
+<div class="main-content module-page apps-page">
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="bi bi-file-earmark-person"></i> Certificate Applications</h2>
-            <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#createModal">
-                <i class="bi bi-plus-lg"></i> New Application
-            </button>
+        <div class="module-hero card border-0 shadow-sm mb-4">
+            <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div>
+                    <p class="module-kicker text-uppercase small mb-1">Services Module</p>
+                    <h2 class="mb-1"><i class="bi bi-file-earmark-person me-2"></i>Certificate Applications</h2>
+                    <p class="module-subtitle mb-0">Manage requests, approvals, releases, and certificate records.</p>
+                </div>
+                <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#createModal">
+                    <i class="bi bi-plus-lg"></i> New Application
+                </button>
+            </div>
         </div>
 
         <div class="row g-3 mb-4 module-stats" data-module="applications">
@@ -81,7 +87,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <ul class="nav nav-tabs mb-3" id="statusTabs">
+        <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
             <li class="nav-item"><a class="nav-link active" href="#" data-status="">All</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="pending">Pending</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="approved">Approved</a></li>
@@ -89,7 +95,7 @@ include __DIR__ . '/../includes/sidebar.php';
             <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
         </ul>
 
-        <div class="table-responsive">
+        <div class="table-responsive data-table">
             <table class="table table-hover">
                 <thead>
                     <tr>
@@ -110,6 +116,62 @@ include __DIR__ . '/../includes/sidebar.php';
         <nav class="mt-3"><ul class="pagination justify-content-center" id="pagination"></ul></nav>
     </div>
 </div>
+
+<style>
+.apps-page .module-hero {
+    border-radius: 16px;
+    background: linear-gradient(135deg, #f8fbff 0%, #eff6ff 100%);
+    border: 1px solid rgba(37, 99, 235, 0.18) !important;
+}
+
+.apps-page .module-kicker {
+    letter-spacing: 0.08em;
+    color: #475569;
+    font-weight: 700;
+}
+
+.apps-page .module-subtitle {
+    color: #64748b;
+}
+
+.apps-page .search-bar {
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.35);
+}
+
+.apps-page .app-tabs {
+    border-bottom: 0;
+    gap: 0.35rem;
+}
+
+.apps-page .app-tabs .nav-link {
+    border: 1px solid #dbe3ee;
+    border-radius: 999px;
+    color: #475569;
+    font-weight: 600;
+    padding: 0.4rem 0.85rem;
+    background: #ffffff;
+}
+
+.apps-page .app-tabs .nav-link.active {
+    color: #1d4ed8;
+    background: #e8f0ff;
+    border-color: #bfdbfe;
+}
+
+.apps-page .data-table .table th,
+.apps-page .data-table .table td {
+    vertical-align: middle;
+}
+
+.apps-page .data-table code {
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 0.1rem 0.35rem;
+    border-radius: 6px;
+}
+</style>
 
 <!-- Create Application Modal -->
 <div class="modal fade" id="createModal" tabindex="-1">
@@ -285,12 +347,12 @@ include __DIR__ . '/../includes/sidebar.php';
                             <td>${formatDate(a.created_at)}</td>
                             <td><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td>
                             <td>
-                                <button class="btn btn-sm btn-outline-primary" onclick="viewApp(${a.id})"><i class="bi bi-eye"></i></button>
+                                <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewApp(${a.id})"><i class="bi bi-eye"></i></button>
                                 ${APP_PERMS.canEdit && a.status === 'pending' ? `
-                                <button class="btn btn-sm btn-success" onclick="updateStatus(${a.id}, 'approved')">Approve</button>
-                                <button class="btn btn-sm btn-danger" onclick="rejectApp(${a.id})">Reject</button>
+                                <button class="btn btn-sm btn-success" title="Approve" aria-label="Approve" onclick="updateStatus(${a.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="rejectApp(${a.id})"><i class="bi bi-x-lg"></i></button>
                                 ` : ''}
-                                ${APP_PERMS.canEdit && a.status === 'approved' ? `<button class="btn btn-sm btn-info" onclick="openRelease(${a.id})">Release</button>` : ''}
+                                ${APP_PERMS.canEdit && a.status === 'approved' ? `<button class="btn btn-sm btn-info" title="Release" aria-label="Release" onclick="openRelease(${a.id})"><i class="bi bi-box-arrow-up-right"></i></button>` : ''}
                                 ${a.status === 'issued' ? (a.control_number ? `<small>${esc(a.control_number)}</small>` : '') : ''}
                             </td>
                         </tr>
