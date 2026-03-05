@@ -15,13 +15,19 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
 
-<div class="main-content">
+<div class="main-content module-page residents-page">
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="bi bi-people"></i> Residents Management</h2>
-            <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#residentModal" onclick="resetForm()">
-                <i class="bi bi-plus-circle"></i> Add New Resident
-            </button>
+        <div class="module-hero card border-0 shadow-sm mb-4">
+            <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                    <p class="module-kicker text-uppercase small mb-1">Records Module</p>
+                    <h2 class="mb-1"><i class="bi bi-people me-2"></i>Residents Management</h2>
+                    <p class="module-subtitle mb-0">Maintain resident profiles, status records, and household-linked information.</p>
+                </div>
+                <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#residentModal" onclick="resetForm()">
+                    <i class="bi bi-plus-circle"></i> Add New Resident
+                </button>
+            </div>
         </div>
 
         <div class="row g-3 mb-4 module-stats" data-module="residents">
