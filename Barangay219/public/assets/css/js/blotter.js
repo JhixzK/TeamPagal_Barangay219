@@ -142,10 +142,10 @@ function loadBlotters() {
                             <td>${formatDate(b.incident_date)}</td>
                             <td><span class="badge bg-${getStatusColor(b.status)}">${b.status}</span></td>
                             <td>
-                                <div class="btn-group" role="group">
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="viewBlotter(${b.id})">View</button>
-                                    ${BLOTTER_PERMS.canEdit ? `<button class="btn btn-sm btn-primary" onclick="editBlotter(${b.id})">Edit</button>` : ''}
-                                    ${BLOTTER_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteBlotter(${b.id})">Delete</button>` : ''}
+                                <div class="d-flex flex-wrap gap-1" role="group">
+                                    <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewBlotter(${b.id})"><i class="bi bi-eye"></i></button>
+                                    ${BLOTTER_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editBlotter(${b.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
+                                    ${BLOTTER_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteBlotter(${b.id})"><i class="bi bi-trash"></i></button>` : ''}
                                 </div>
                             </td>
                         </tr>`;
