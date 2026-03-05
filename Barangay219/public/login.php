@@ -26,12 +26,30 @@ if (isLoggedIn()) {
     <link href="<?php echo ASSETS_URL; ?>style.css?v=<?php echo time(); ?>" rel="stylesheet">
     <style>
         .login-container {
+            position: relative;
+            isolation: isolate;
             background-image:
                 linear-gradient(rgba(15, 23, 42, 0.35), rgba(15, 23, 42, 0.35)),
                 url('<?php echo ASSETS_URL; ?>img/barangay_logo2.png') !important;
             background-repeat: no-repeat !important;
             background-position: center center !important;
             background-size: cover, 42% auto !important;
+        }
+
+        .login-container::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            backdrop-filter: blur(7px);
+            -webkit-backdrop-filter: blur(7px);
+            background: rgba(15, 23, 42, 0.12);
+            pointer-events: none;
+        }
+
+        .login-card {
+            position: relative;
+            z-index: 1;
         }
 
         .login-brand-logo {
