@@ -28,79 +28,231 @@ $certTypeLabels = [
 ];
 $certLabel = $certTypeLabels[$cert['certificate_type']] ?? ucfirst(str_replace('_', ' ', $cert['certificate_type']));
 $controlNum = $cert['control_number'] ?? 'CTRL-' . $id . '-' . date('Y');
-$issuedDate = $cert['issued_date'] ? date('F d, Y', strtotime($cert['issued_date'])) : date('F d, Y');
+$issuedTs = $cert['issued_date'] ? strtotime((string)$cert['issued_date']) : time();
+$issuedDate = date('F d, Y', $issuedTs);
+$issuedDay = (int)date('j', $issuedTs);
+$issuedMonthYear = date('F Y', $issuedTs);
+
+// Template values (replace with actual officials when available in system settings)
+$captainName = 'HON. FERNANDO M. LEGASPI';
+$secretaryName = 'ADRIAN M. RINO';
+$treasurerName = 'KATRINA C. CHIDIAN';
+$skChairName = 'MICO E. SORIA';
+$sangguniangBarangay = [
+    'Fernando M. Legaspi',
+    'Punong Barangay'
+];
+$barangayKagawad = [
+    'Eduardo R. Grande',
+    'Ferdinand W. Mejos',
+    'Anita B. Carretero',
+    'Luzviminda L. Lagman',
+    'June F. Bonagua',
+    'Joel T. Olitres',
+    'Emma T. Borilla'
+];
+
+$subjectLine = strtoupper($certLabel);
+$purposeText = trim((string)($cert['purpose'] ?? ''));
+$residentAddress = trim((string)($cert['address'] ?? '')) ?: 'Barangay 219, Tondo, Manila';
+$civilStatus = $cert['civil_status'] ? ucfirst((string)$cert['civil_status']) : 'Single';
+$citizenship = $cert['citizenship'] ?: 'Filipino';
+
+switch ($cert['certificate_type']) {
+    case 'certificate_indigency':
+        $subjectLine = 'BARANGAY INDIGENCY';
+        $paragraphs = [
+            'TO WHOM IT MAY CONCERN:',
+            'This is to certify that <span class="uline strong">' . htmlspecialchars($fullName) . '</span>, of legal age, <span class="uline">' . htmlspecialchars($civilStatus) . '</span>, and a bona fide resident of <span class="uline">' . htmlspecialchars($residentAddress) . '</span>.',
+            'This is to further certify that the above-mentioned person belongs to an indigent family of this barangay' . ($purposeText !== '' ? ' and requested this for <span class="uline">' . htmlspecialchars($purposeText) . '</span>' : '') . '.',
+            'Issued this <span class="uline">' . $issuedDay . 'th</span> day of <span class="uline">' . htmlspecialchars($issuedMonthYear) . '</span> at Barangay 219 Zone 20 Manila.'
+        ];
+        break;
+    case 'certificate_residency':
+        $subjectLine = 'CERTIFICATE OF RESIDENCY';
+        $paragraphs = [
+            'TO WHOM IT MAY CONCERN:',
+            'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, of legal age, ' . htmlspecialchars($civilStatus) . ', ' . htmlspecialchars($citizenship) . ' citizen, is a bona fide resident of <strong>' . htmlspecialchars($residentAddress) . '</strong>, Barangay 219, Tondo, Manila.',
+            'This certification is issued upon the request of the above-named person ' . ($purposeText !== '' ? 'for <strong>' . htmlspecialchars($purposeText) . '</strong>' : 'for legal purpose') . '.',
+            'Issued this <strong>' . $issuedDay . '</strong> day of <strong>' . htmlspecialchars($issuedMonthYear) . '</strong> at Barangay 219, Tondo, Manila.'
+        ];
+        break;
+    case 'certificate_good_moral':
+        $subjectLine = 'CERTIFICATE OF GOOD MORAL CHARACTER';
+        $paragraphs = [
+            'TO WHOM IT MAY CONCERN:',
+            'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, of legal age, ' . htmlspecialchars($civilStatus) . ', ' . htmlspecialchars($citizenship) . ' citizen, and a resident of <strong>' . htmlspecialchars($residentAddress) . '</strong>, is known in this community to be a person of good moral character and has no derogatory record filed in this barangay as of this date.',
+            'This certification is issued upon request of the above-named person ' . ($purposeText !== '' ? 'for <strong>' . htmlspecialchars($purposeText) . '</strong>' : 'for legal purpose') . '.',
+            'Issued this <strong>' . $issuedDay . '</strong> day of <strong>' . htmlspecialchars($issuedMonthYear) . '</strong> at Barangay 219, Tondo, Manila.'
+        ];
+        break;
+    case 'barangay_clearance':
+        $subjectLine = 'BARANGAY CLEARANCE';
+        $paragraphs = [
+            'TO WHOM IT MAY CONCERN:',
+            'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, of legal age, ' . htmlspecialchars($civilStatus) . ', ' . htmlspecialchars($citizenship) . ' citizen, and a resident of <strong>' . htmlspecialchars($residentAddress) . '</strong>, is known to be of good standing in this barangay and has no pending complaint or derogatory record as of this date.',
+            'This clearance is issued upon request of the above-named person ' . ($purposeText !== '' ? 'for <strong>' . htmlspecialchars($purposeText) . '</strong>' : 'for legal purpose') . '.',
+            'Issued this <strong>' . $issuedDay . '</strong> day of <strong>' . htmlspecialchars($issuedMonthYear) . '</strong> at Barangay 219, Tondo, Manila.'
+        ];
+        break;
+    default:
+        $paragraphs = [
+            'TO WHOM IT MAY CONCERN:',
+            'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, of legal age, ' . htmlspecialchars($civilStatus) . ', ' . htmlspecialchars($citizenship) . ' citizen, and a resident of <strong>' . htmlspecialchars($residentAddress) . '</strong>, has requested this certification.',
+            'This certification is issued upon the request of the above-named person ' . ($purposeText !== '' ? 'for <strong>' . htmlspecialchars($purposeText) . '</strong>' : 'for legal purpose') . '.',
+            'Issued this <strong>' . $issuedDay . '</strong> day of <strong>' . htmlspecialchars($issuedMonthYear) . '</strong> at Barangay 219, Tondo, Manila.'
+        ];
+        break;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title><?php echo htmlspecialchars($certLabel); ?> - <?php echo htmlspecialchars($fullName); ?></title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @page { size: A4; margin: 18mm; }
-        body { font-family: 'Source Sans 3', sans-serif; color: #1d1f23; background: #fff; }
-        .page { max-width: 210mm; margin: 0 auto; padding: 10mm 8mm; }
+        @page { size: A4; margin: 8mm; }
+        body { font-family: "Times New Roman", serif; color: #111; background: #fff; }
+        .page { max-width: 210mm; margin: 0 auto; }
         .cert {
-            border: 1.5px solid #2d3548;
-            padding: 18mm 16mm;
-            min-height: 260mm;
+            border: 1px solid #8a8a8a;
+            min-height: 281mm;
             position: relative;
-            background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+            overflow: hidden;
+            background: #fff;
         }
-        .control {
+        .watermark {
             position: absolute;
-            top: 10mm;
-            right: 12mm;
-            font-size: 11px;
-            letter-spacing: 0.6px;
-        }
-        .seal {
-            position: absolute;
-            top: 14mm;
-            left: 12mm;
-            width: 56px;
-            height: 56px;
-            border: 2px solid #2d3548;
-            border-radius: 50%;
+            inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
+            pointer-events: none;
+            z-index: 0;
         }
-        .header { text-align: center; margin-bottom: 18mm; }
-        .header .republic { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
-        .header .barangay { font-size: 18px; font-weight: 600; margin-top: 4px; }
-        .header .office { font-family: 'Cormorant Garamond', serif; font-size: 26px; margin-top: 6px; letter-spacing: 1px; }
-        .header .divider {
-            width: 80%;
-            height: 1px;
-            background: #2d3548;
-            margin: 10px auto 0;
+        .watermark img {
+            width: 340px;
+            opacity: 0.09;
         }
-        .title {
+        .sheet {
+            position: absolute;
+            inset: 0;
+            padding: 8mm 8mm 8mm 8mm;
+            z-index: 1;
+        }
+        .control {
+            font-family: "Times New Roman", serif;
+            font-size: 12px;
+            text-align: right;
+            margin-bottom: 4px;
+        }
+        .header {
             text-align: center;
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 24px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin: 18mm 0 8mm;
+            margin-top: 1mm;
         }
-        .body { font-size: 14.5px; line-height: 1.85; text-align: justify; }
-        .body .name { font-weight: 600; text-decoration: underline; }
-        .body .purpose { font-style: italic; }
-        .footer { margin-top: 22mm; display: flex; justify-content: flex-end; }
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+        .header-row .logo {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+        }
+        .header-text {
+            flex: 1;
+            text-align: center;
+            line-height: 1.25;
+            padding: 0 8px;
+        }
+        .header-text .line1 { font-size: 16px; text-transform: uppercase; line-height: 1.15; }
+        .header-text .line2 { font-size: 15px; text-transform: uppercase; line-height: 1.15; }
+        .header-text .line3 { font-size: 17px; font-weight: 700; text-transform: uppercase; line-height: 1.2; }
+        .header-text .line4 { font-size: 16px; font-weight: 700; text-transform: uppercase; line-height: 1.2; }
+        .header-text .line5 { font-size: 15px; text-transform: uppercase; line-height: 1.2; }
+        .header-divider {
+            border-top: 1px solid #7d7d7d;
+            margin-top: 4px;
+        }
+        .content {
+            display: grid;
+            grid-template-columns: 122px 1fr;
+            gap: 14px;
+            margin-top: 10px;
+        }
+        .left-panel {
+            background: linear-gradient(180deg, #b6e5f0 0%, #b6e5f0 78%, #98d6e6 78%, #98d6e6 100%);
+            border-right: 1px solid #8fbac3;
+            padding: 10px 8px 10px 8px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            min-height: 208mm;
+        }
+        .left-title {
+            text-align: center;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            margin-bottom: 10px;
+        }
+        .left-divider { border-top: 1px solid #6e8a90; margin: 10px 10px; }
+        .left-name { text-align: center; font-weight: 700; margin-bottom: 4px; line-height: 1.25; }
+        .left-role { text-align: center; font-weight: 700; margin-bottom: 10px; line-height: 1.2; }
+        .left-list .left-name { font-weight: 700; font-size: 11.5px; }
+        .right-panel { padding-right: 6px; }
+        .subject {
+            text-align: center;
+            margin: 12px 0 16px;
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-decoration: underline;
+        }
+        .body {
+            font-size: 16.5px;
+            line-height: 1.62;
+            text-align: justify;
+            min-height: 122mm;
+        }
+        .body p { margin-bottom: 8px; text-indent: 34px; }
+        .body p:first-child { text-indent: 0; font-weight: 700; margin-bottom: 10px; }
+        .uline {
+            display: inline-block;
+            border-bottom: 1px solid #111;
+            padding: 0 4px 1px;
+            font-weight: 700;
+        }
+        .strong { text-transform: uppercase; }
+        .footer {
+            margin-top: 14mm;
+            display: flex;
+            justify-content: flex-end;
+            padding-right: 5mm;
+        }
         .signature {
             text-align: center;
-            width: 220px;
+            width: 265px;
+            font-family: "Times New Roman", serif;
         }
-        .signature .line { border-top: 1px solid #2d3548; margin-top: 36px; }
-        .signature .label { font-size: 12px; margin-top: 6px; text-transform: uppercase; letter-spacing: 1px; }
-        .signature .date { font-size: 11px; margin-top: 4px; color: #444; }
+        .signature .approved { margin-bottom: 16px; font-size: 16px; text-align: left; }
+        .signature .name {
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            text-decoration: underline;
+            margin-bottom: 2px;
+        }
+        .signature .label {
+            font-size: 16px;
+        }
+        .prepared {
+            margin-top: 22px;
+            font-size: 10px;
+            text-align: left;
+            color: #222;
+        }
         .no-print { margin-bottom: 16px; }
         .no-print button {
             padding: 8px 16px;
@@ -114,7 +266,7 @@ $issuedDate = $cert['issued_date'] ? date('F d, Y', strtotime($cert['issued_date
         @media print {
             .no-print { display: none !important; }
             body { background: #fff; }
-            .page { padding: 0; }
+            .page { padding: 0; margin: 0; max-width: none; }
         }
     </style>
 </head>
@@ -128,41 +280,64 @@ $issuedDate = $cert['issued_date'] ? date('F d, Y', strtotime($cert['issued_date
 
     <div class="page">
         <div class="cert">
-            <div class="control">Control No: <?php echo htmlspecialchars($controlNum); ?></div>
-            <div class="seal">Barangay 219</div>
-
-            <div class="header">
-                <div class="republic">Republic of the Philippines</div>
-                <div class="barangay"><?php echo htmlspecialchars(BARANGAY_NAME); ?></div>
-                <div class="office">Office of the Barangay Captain</div>
-                <div class="divider"></div>
+            <div class="watermark">
+                <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="">
             </div>
+            <div class="sheet">
+                <div class="control">
+                    Control No.: <?php echo htmlspecialchars($controlNum); ?>
+                </div>
+                <div class="header">
+                    <div class="header-row">
+                        <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" class="logo" alt="Barangay Logo">
+                        <div class="header-text">
+                            <div class="line1">Republic of the Philippines</div>
+                            <div class="line2">City of Manila</div>
+                            <div class="line3">Office of the Punong Barangay</div>
+                            <div class="line4">Barangay 219 Zone 20 District II Manila</div>
+                            <div class="line5">Tindalo cor. Cavite St, Tondo, Manila</div>
+                        </div>
+                        <img src="<?php echo ASSETS_URL; ?>img/barangaylogo.png" class="logo" alt="Seal">
+                    </div>
+                    <div class="header-divider"></div>
+                </div>
+                <div class="content">
+                    <div class="left-panel">
+                        <div class="left-title">SANGGUNIANG<br>BARANGAY</div>
+                        <div class="left-name"><?php echo htmlspecialchars($sangguniangBarangay[0]); ?></div>
+                        <div class="left-role"><?php echo htmlspecialchars($sangguniangBarangay[1]); ?></div>
+                        <div class="left-divider"></div>
+                        <div class="left-title">BARANGAY<br>KAGAWAD</div>
+                        <div class="left-list">
+                            <?php foreach ($barangayKagawad as $kagawad): ?>
+                            <div class="left-name"><?php echo htmlspecialchars($kagawad); ?></div>
+                            <?php endforeach; ?>
+                        </div>
+                        <div class="left-divider"></div>
+                        <div class="left-name"><?php echo htmlspecialchars($skChairName); ?></div>
+                        <div class="left-role">SK Chairman</div>
+                        <div class="left-name"><?php echo htmlspecialchars($secretaryName); ?></div>
+                        <div class="left-role">Barangay Secretary</div>
+                        <div class="left-name"><?php echo htmlspecialchars($treasurerName); ?></div>
+                        <div class="left-role">Barangay Treasurer</div>
+                    </div>
+                    <div class="right-panel">
+                        <div class="subject"><?php echo htmlspecialchars($subjectLine); ?></div>
 
-            <div class="title"><?php echo htmlspecialchars($certLabel); ?></div>
+                        <div class="body">
+                            <?php foreach ($paragraphs as $paragraph): ?>
+                            <p><?php echo $paragraph; ?></p>
+                            <?php endforeach; ?>
+                        </div>
 
-            <div class="body">
-                <p>To whom it may concern:</p>
-                <p style="margin-top: 14px;">
-                    This is to certify that <span class="name"><?php echo htmlspecialchars($fullName); ?></span>,
-                    of legal age, <?php echo $cert['civil_status'] ? htmlspecialchars($cert['civil_status']) : 'single'; ?>,
-                    <?php echo $cert['citizenship'] ? htmlspecialchars($cert['citizenship']) : 'Filipino'; ?> citizen,
-                    and a resident of <?php echo htmlspecialchars($cert['address'] ?? 'this barangay'); ?>,
-                    <?php if (!empty($cert['purpose'])): ?>
-                    has requested this certification <span class="purpose">for <?php echo htmlspecialchars($cert['purpose']); ?></span>.
-                    <?php else: ?>
-                    has requested this certification.
-                    <?php endif; ?>
-                </p>
-                <p style="margin-top: 14px;">
-                    This certification is issued upon the request of the above-named person for whatever legal purpose it may serve.
-                </p>
-            </div>
-
-            <div class="footer">
-                <div class="signature">
-                    <div class="line"></div>
-                    <div class="label">Barangay Captain</div>
-                    <div class="date">Issued on <?php echo $issuedDate; ?></div>
+                        <div class="footer">
+                            <div class="signature">
+                                <div class="approved">Approved by:</div>
+                                <div class="name"><?php echo htmlspecialchars($captainName); ?></div>
+                                <div class="label">Punong Barangay</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
