@@ -979,10 +979,14 @@ document.getElementById('registerForm').addEventListener('submit', async functio
         const r = await fetch(API_URL + 'register.php', { method: 'POST', body: fd });
         const data = await r.json();
         if (data.success) {
-            alc.innerHTML = '<div class="alert alert-success"> ' + data.message + '<br><strong>Reference:</strong> ' + (data.data?.application_ref || '') + '</div>';
-            this.reset();
-            document.getElementById('ageDisplay').value = '';
-            showStep(1);
+            alc.innerHTML = '<div class="alert alert-success">' + data.message + '<br><strong>Reference:</strong> ' + (data.data?.application_ref || '') + '<div class="mt-3"><a href="login.php" class="btn btn-primary">Go to Login</a></div></div>';
+            btn.style.display = 'none';
+            document.getElementById('nextBtn').style.display = 'none';
+            document.getElementById('prevBtn').style.display = 'none';
+            const phase4Content = document.querySelector('.step-content[data-step="4"]');
+            const phase4Indicator = document.querySelector('.step[data-step="4"]');
+            if (phase4Content) phase4Content.style.display = 'none';
+            if (phase4Indicator) phase4Indicator.style.display = 'none';
         } else {
             alc.innerHTML = '<div class="alert alert-danger"> ' + data.message + '</div>';
         }
