@@ -57,6 +57,22 @@ switch ($action) {
         removeHouseholdMember();
         break;
     
+    case 'get_member':
+        getHouseholdMemberDetails();
+        break;
+    
+    case 'update_member':
+        updateHouseholdMember();
+        break;
+    
+    case 'delete_member':
+        deleteHouseholdMember();
+        break;
+    
+    case 'update_household_details':
+        updateHouseholdDetails();
+        break;
+    
     default:
         sendResponse(false, 'Invalid action', null, 400);
         break;
@@ -297,6 +313,332 @@ function deleteHousehold() {
 }
 
 /**
+ * Add household member (new table structure)
+ */
+function addHouseholdMember() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'Invalid request method', null, 405);
+        return;
+    }
+    
+    // Sanitize and validate inputs
+    $household_id = intval($_POST['household_id'] ?? 0);
+    $first_name = sanitizeInput($_POST['first_name'] ?? '');
+    $middle_name = sanitizeInput($_POST['middle_name'] ?? '');
+    $last_name = sanitizeInput($_POST['last_name'] ?? '');
+    $suffix = sanitizeInput($_POST['suffix'] ?? '');
+    $relationship_to_head = sanitizeInput($_POST['relationship_to_head'] ?? '');
+    $date_of_birth = sanitizeInput($_POST['date_of_birth'] ?? '');
+    $gender = sanitizeInput($_POST['gender'] ?? '');
+    $civil_status = sanitizeInput($_POST['civil_status'] ?? '');
+    $occupation = sanitizeInput($_POST['occupation'] ?? '');
+    $government_id_type = sanitizeInput($_POST['government_id_type'] ?? '');
+    $government_id_number = sanitizeInput($_POST['government_id_number'] ?? '');
+    $voter_status = sanitizeInput($_POST['voter_status'] ?? 'Not Registered');
+    $voter_id_number = sanitizeInput($_POST['voter_id_number'] ?? '');
+    $contact_number = sanitizeInput($_POST['contact_number'] ?? '');
+    $email = sanitizeInput($_POST['email'] ?? '');
+    $is_head = intval($_POST['is_head'] ?? 0);
+    $is_senior_citizen = intval($_POST['is_senior_citizen'] ?? 0);
+    $is_pwd = intval($_POST['is_pwd'] ?? 0);
+    $is_4ps_beneficiary = intval($_POST['is_4ps_beneficiary'] ?? 0);
+    $remarks = sanitizeInput($_POST['remarks'] ?? '');
+    
+    // Validation
+    if (!$household_id || empty($first_name) || empty($last_name) || empty($relationship_to_head) || 
+        empty($date_of_birth) || empty($gender) || empty($civil_status)) {
+        sendResponse(false, 'Required fields are missing', null, 400);
+        return;
+    }
+    
+    try {
+        $db = Database::getInstance();
+        
+        // Check if household exists
+        $household = $db->fetchOne("SELECT id FROM households WHERE id = ?", [$household_id]);
+        if (!$household) {
+            sendResponse(false, 'Household not found', null, 404);
+            return;
+        }
+        
+        // Insert household member
+        $sql = "INSERT INTO household_members (
+                    household_id, first_name, middle_name, last_name, suffix, 
+                    relationship_to_head, date_of_birth, gender, civil_status, 
+                    occupation, government_id_type, government_id_number, 
+                    voter_status, voter_id_number, contact_number, email, 
+                    is_head, is_senior_citizen, is_pwd, is_4ps_beneficiary, remarks
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+        $db->query($sql, [
+            $household_id, $first_name, $middle_name, $last_name, $suffix,
+            $relationship_to_head, $date_of_birth, $gender, $civil_status,
+            $occupation, $government_id_type, $government_id_number,
+            $voter_status, $voter_id_number, $contact_number, $email,
+            $is_head, $is_senior_citizen, $is_pwd, $is_4ps_beneficiary, $remarks
+        ]);
+        
+        // Update household statistics
+        updateHouseholdStatistics($household_id);
+        
+        sendResponse(true, 'Household member added successfully');
+        
+    } catch (Exception $e) {
+        error_log("Add household member error: " . $e->getMessage());
+        sendResponse(false, 'Error adding household member: ' . $e->getMessage(), null, 500);
+    }
+}
+
+/**
+ * Get household member details
+ */
+function getHouseholdMemberDetails() {
+    $id = intval($_GET['id'] ?? 0);
+    
+    if (!$id) {
+        sendResponse(false, 'Member ID is required', null, 400);
+        return;
+    }
+    
+    try {
+        $db = Database::getInstance();
+        
+        $sql = "SELECT * FROM household_members WHERE id = ?";
+        $member = $db->fetchOne($sql, [$id]);
+        
+        if (!$member) {
+            sendResponse(false, 'Member not found', null, 404);
+            return;
+        }
+        
+        sendResponse(true, 'Member retrieved successfully', $member);
+        
+    } catch (Exception $e) {
+        error_log("Get household member error: " . $e->getMessage());
+        sendResponse(false, 'Error retrieving member', null, 500);
+    }
+}
+
+/**
+ * Update household member
+ */
+function updateHouseholdMember() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'Invalid request method', null, 405);
+        return;
+    }
+    
+    $id = intval($_POST['member_id'] ?? 0);
+    $household_id = intval($_POST['household_id'] ?? 0);
+    
+    if (!$id || !$household_id) {
+        sendResponse(false, 'Member ID and Household ID are required', null, 400);
+        return;
+    }
+    
+    try {
+        $db = Database::getInstance();
+        
+        // Check if member exists
+        $existing = $db->fetchOne("SELECT id, household_id FROM household_members WHERE id = ?", [$id]);
+        if (!$existing) {
+            sendResponse(false, 'Member not found', null, 404);
+            return;
+        }
+        
+        // Sanitize inputs
+        $first_name = sanitizeInput($_POST['first_name'] ?? '');
+        $middle_name = sanitizeInput($_POST['middle_name'] ?? '');
+        $last_name = sanitizeInput($_POST['last_name'] ?? '');
+        $suffix = sanitizeInput($_POST['suffix'] ?? '');
+        $relationship_to_head = sanitizeInput($_POST['relationship_to_head'] ?? '');
+        $date_of_birth = sanitizeInput($_POST['date_of_birth'] ?? '');
+        $gender = sanitizeInput($_POST['gender'] ?? '');
+        $civil_status = sanitizeInput($_POST['civil_status'] ?? '');
+        $occupation = sanitizeInput($_POST['occupation'] ?? '');
+        $government_id_type = sanitizeInput($_POST['government_id_type'] ?? '');
+        $government_id_number = sanitizeInput($_POST['government_id_number'] ?? '');
+        $voter_status = sanitizeInput($_POST['voter_status'] ?? 'Not Registered');
+        $voter_id_number = sanitizeInput($_POST['voter_id_number'] ?? '');
+        $contact_number = sanitizeInput($_POST['contact_number'] ?? '');
+        $email = sanitizeInput($_POST['email'] ?? '');
+        $is_head = intval($_POST['is_head'] ?? 0);
+        $is_senior_citizen = intval($_POST['is_senior_citizen'] ?? 0);
+        $is_pwd = intval($_POST['is_pwd'] ?? 0);
+        $is_4ps_beneficiary = intval($_POST['is_4ps_beneficiary'] ?? 0);
+        $remarks = sanitizeInput($_POST['remarks'] ?? '');
+        
+        // Update member
+        $sql = "UPDATE household_members SET 
+                first_name = ?, middle_name = ?, last_name = ?, suffix = ?,
+                relationship_to_head = ?, date_of_birth = ?, gender = ?, civil_status = ?,
+                occupation = ?, government_id_type = ?, government_id_number = ?,
+                voter_status = ?, voter_id_number = ?, contact_number = ?, email = ?,
+                is_head = ?, is_senior_citizen = ?, is_pwd = ?, is_4ps_beneficiary = ?,
+                remarks = ?
+                WHERE id = ?";
+        
+        $db->query($sql, [
+            $first_name, $middle_name, $last_name, $suffix,
+            $relationship_to_head, $date_of_birth, $gender, $civil_status,
+            $occupation, $government_id_type, $government_id_number,
+            $voter_status, $voter_id_number, $contact_number, $email,
+            $is_head, $is_senior_citizen, $is_pwd, $is_4ps_beneficiary,
+            $remarks, $id
+        ]);
+        
+        // Update household statistics
+        updateHouseholdStatistics($household_id);
+        
+        sendResponse(true, 'Member updated successfully');
+        
+    } catch (Exception $e) {
+        error_log("Update member error: " . $e->getMessage());
+        sendResponse(false, 'Error updating member: ' . $e->getMessage(), null, 500);
+    }
+}
+
+/**
+ * Delete household member
+ */
+function deleteHouseholdMember() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'Invalid request method', null, 405);
+        return;
+    }
+    
+    $id = intval($_POST['member_id'] ?? 0);
+    $household_id = intval($_POST['household_id'] ?? 0);
+    
+    if (!$id || !$household_id) {
+        sendResponse(false, 'Member ID and Household ID are required', null, 400);
+        return;
+    }
+    
+    try {
+        $db = Database::getInstance();
+        
+        // Check if member is household head
+        $member = $db->fetchOne("SELECT is_head FROM household_members WHERE id = ?", [$id]);
+        if ($member && $member['is_head'] == 1) {
+            sendResponse(false, 'Cannot delete household head', null, 400);
+            return;
+        }
+        
+        // Delete member
+        $db->query("DELETE FROM household_members WHERE id = ?", [$id]);
+        
+        // Update household statistics
+        updateHouseholdStatistics($household_id);
+        
+        sendResponse(true, 'Member deleted successfully');
+        
+    } catch (Exception $e) {
+        error_log("Delete member error: " . $e->getMessage());
+        sendResponse(false, 'Error deleting member: ' . $e->getMessage(), null, 500);
+    }
+}
+
+/**
+ * Update household details (address, emergency contact, notes)
+ */
+function updateHouseholdDetails() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'Invalid request method', null, 405);
+        return;
+    }
+    
+    $id = intval($_POST['household_id'] ?? 0);
+    
+    if (!$id) {
+        sendResponse(false, 'Household ID is required', null, 400);
+        return;
+    }
+    
+    try {
+        $db = Database::getInstance();
+        
+        // Check if household exists
+        $existing = $db->fetchOne("SELECT id FROM households WHERE id = ?", [$id]);
+        if (!$existing) {
+            sendResponse(false, 'Household not found', null, 404);
+            return;
+        }
+        
+        // Sanitize inputs
+        $house_number = sanitizeInput($_POST['house_number'] ?? '');
+        $street = sanitizeInput($_POST['street'] ?? '');
+        $purok_sitio = sanitizeInput($_POST['purok_sitio'] ?? '');
+        $postal_code = sanitizeInput($_POST['postal_code'] ?? '1013');
+        $emergency_contact_name = sanitizeInput($_POST['emergency_contact_name'] ?? '');
+        $emergency_contact_phone = sanitizeInput($_POST['emergency_contact_phone'] ?? '');
+        $special_notes = sanitizeInput($_POST['special_notes'] ?? '');
+        
+        // Update household
+        $sql = "UPDATE households SET 
+                house_number = ?, street = ?, purok_sitio = ?, postal_code = ?,
+                emergency_contact_name = ?, emergency_contact_phone = ?, special_notes = ?
+                WHERE id = ?";
+        
+        $db->query($sql, [
+            $house_number, $street, $purok_sitio, $postal_code,
+            $emergency_contact_name, $emergency_contact_phone, $special_notes, $id
+        ]);
+        
+        sendResponse(true, 'Household details updated successfully');
+        
+    } catch (Exception $e) {
+        error_log("Update household details error: " . $e->getMessage());
+        sendResponse(false, 'Error updating household details: ' . $e->getMessage(), null, 500);
+    }
+}
+
+/**
+ * Update household statistics (total members, adults, minors, seniors)
+ */
+function updateHouseholdStatistics($household_id) {
+    try {
+        $db = Database::getInstance();
+        
+        // Get all members with ages
+        $members = $db->fetchAll(
+            "SELECT age FROM household_members WHERE household_id = ?", 
+            [$household_id]
+        );
+        
+        $total = count($members);
+        $adults = 0;
+        $minors = 0;
+        $seniors = 0;
+        
+        foreach ($members as $member) {
+            $age = intval($member['age']);
+            
+            if ($age >= 60) {
+                $seniors++;
+                $adults++; // Seniors are also counted as adults
+            } elseif ($age >= 18) {
+                $adults++;
+            } else {
+                $minors++;
+            }
+        }
+        
+        // Update household
+        $sql = "UPDATE households SET 
+                total_members = ?, number_of_adults = ?, 
+                number_of_minors = ?, number_of_seniors = ?
+                WHERE id = ?";
+        
+        $db->query($sql, [$total, $adults, $minors, $seniors, $household_id]);
+        
+    } catch (Exception $e) {
+        error_log("Update household statistics error: " . $e->getMessage());
+        // Don't throw error, just log it
+    }
+}
+
+/**
  * Add resident to household
  */
 function addHouseholdMember() {
@@ -358,7 +700,7 @@ function removeHouseholdMember() {
 }
 
 /**
- * Get household members
+ * Get household members (from household_members table)
  */
 function getHouseholdMembers() {
     $id = intval($_GET['id'] ?? $_POST['id'] ?? 0);
@@ -371,7 +713,7 @@ function getHouseholdMembers() {
     try {
         $db = Database::getInstance();
         
-        $sql = "SELECT * FROM residents WHERE household_id = ? ORDER BY birth_date";
+        $sql = "SELECT * FROM household_members WHERE household_id = ? ORDER BY is_head DESC, date_of_birth ASC";
         $members = $db->fetchAll($sql, [$id]);
         
         sendResponse(true, 'Household members retrieved successfully', $members);
