@@ -141,6 +141,14 @@ function handleLogin() {
  */
 function handleLogout() {
     logout();
+    
+    // Direct browser navigation (GET) should redirect instead of showing JSON.
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        $redirect = BASE_URL . 'index.php';
+        header('Location: ' . $redirect);
+        exit();
+    }
+
     sendResponse(true, 'Logged out successfully', [
         'redirect' => BASE_URL . 'index.php'
     ]);
