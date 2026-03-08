@@ -27,13 +27,11 @@ $residentData = [
     'first_name' => '',
     'middle_name' => '',
     'last_name' => '',
-  'birth_date' => '',
+    'birth_date' => '',
     'gender' => '',
     'civil_status' => '',
-  'contact_number' => '',
-  'house_number' => '',
-  'street' => '',
-  'address' => ''
+    'contact_number' => '',
+    'address' => ''
 ];
 
 $residentName = $username;
@@ -46,13 +44,12 @@ $contactNumber = '';
 // Get resident details from database
 $db = Database::getInstance();
 if ($residentId) {
-  $sql = "SELECT first_name, middle_name, last_name, birth_date, gender, civil_status, contact_number, house_number, street, address FROM residents WHERE id = ?";
+  $sql = "SELECT first_name, middle_name, last_name, birth_date, gender, civil_status, contact_number, address FROM residents WHERE id = ?";
     $resident = $db->fetchOne($sql, [$residentId]);
     if ($resident) {
         $residentData = array_merge($residentData, $resident);
         $residentName = trim($resident['first_name'] . ' ' . ($resident['middle_name'] ? $resident['middle_name'] . ' ' : '') . $resident['last_name']);
-    $computedAddress = trim(($resident['house_number'] ?? '') . ' ' . ($resident['street'] ?? ''));
-    $residentFullAddress = $computedAddress !== '' ? $computedAddress . ', Barangay 219, Tondo, Manila' : ($resident['address'] ?? 'Barangay 219, Tondo, Manila');
+    $residentFullAddress = $resident['address'] ?? 'Barangay 219, Tondo, Manila';
     $dateOfBirth = $resident['birth_date'] ? date('F d, Y', strtotime($resident['birth_date'])) : '';
         $civilStatus = ucfirst(str_replace('_', ' ', $resident['civil_status'] ?? ''));
         $gender = ucfirst($resident['gender'] ?? '');
@@ -324,17 +321,6 @@ if ($residentId) {
         <small class="error" id="documentsError"></small>
       </section>
 
-      <section class="card form-card payment-section">
-        <div class="card-head">
-          <h3><i class="fa-solid fa-wallet"></i> Fee Information</h3>
-        </div>
-        <div class="payment-grid">
-          <div class="amount-row"><span>Certificate Fee</span><strong id="certificateFee">PHP 0.00</strong></div>
-          <div class="amount-row"><span>Processing Fee</span><strong id="processingFee">PHP 25.00</strong></div>
-          <div class="amount-row total"><span>Total Amount</span><strong id="totalFee">PHP 25.00</strong></div>
-        </div>
-      </section>
-
       <section class="card form-card">
         <div class="card-head">
           <h3><i class="fa-solid fa-list-check"></i> Request Summary</h3>
@@ -345,7 +331,6 @@ if ($residentId) {
           <div class="summary-item"><span>Resident Name</span><strong id="summaryName"><?php echo htmlspecialchars($residentName); ?></strong></div>
           <div class="summary-item"><span>Address</span><strong id="summaryAddress"><?php echo htmlspecialchars($residentFullAddress); ?></strong></div>
           <div class="summary-item"><span>Uploaded Documents</span><strong id="summaryDocuments">None</strong></div>
-          <div class="summary-item"><span>Total Fee</span><strong id="summaryTotal">PHP 25.00</strong></div>
         </div>
 
         <div class="actions">
