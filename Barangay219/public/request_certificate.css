@@ -478,36 +478,6 @@ body:has(.sidebar.expanded) .main-content {
   font-size: 13px;
 }
 
-.payment-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-.amount-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border: 1px solid #e0e8f4;
-  background: #f8fbff;
-  border-radius: 10px;
-  padding: 11px 12px;
-  font-size: 13px;
-}
-
-.amount-row span {
-  color: #63758e;
-}
-
-.amount-row strong {
-  color: #1e3354;
-}
-
-.amount-row.total {
-  background: #ebf2ff;
-  border-color: #cddcf5;
-}
-
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(250px, 1fr));
@@ -612,7 +582,6 @@ body:has(.sidebar.expanded) .main-content {
 
 @media (max-width: 1200px) {
   .summary-grid,
-  .payment-grid,
   .form-grid.two-col {
     grid-template-columns: 1fr;
   }
