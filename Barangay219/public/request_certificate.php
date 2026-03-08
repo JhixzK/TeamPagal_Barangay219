@@ -27,12 +27,13 @@ $residentData = [
     'first_name' => '',
     'middle_name' => '',
     'last_name' => '',
-    'date_of_birth' => '',
+  'birth_date' => '',
     'gender' => '',
     'civil_status' => '',
-    'mobile_number' => '',
-    'house_no' => '',
-    'street' => ''
+  'contact_number' => '',
+  'house_number' => '',
+  'street' => '',
+  'address' => ''
 ];
 
 $residentName = $username;
@@ -45,16 +46,17 @@ $contactNumber = '';
 // Get resident details from database
 $db = Database::getInstance();
 if ($residentId) {
-    $sql = "SELECT first_name, middle_name, last_name, date_of_birth, gender, civil_status, mobile_number, house_no, street FROM residents WHERE id = ?";
+  $sql = "SELECT first_name, middle_name, last_name, birth_date, gender, civil_status, contact_number, house_number, street, address FROM residents WHERE id = ?";
     $resident = $db->fetchOne($sql, [$residentId]);
     if ($resident) {
         $residentData = array_merge($residentData, $resident);
         $residentName = trim($resident['first_name'] . ' ' . ($resident['middle_name'] ? $resident['middle_name'] . ' ' : '') . $resident['last_name']);
-        $residentFullAddress = trim(($resident['house_no'] ?? '') . ' ' . ($resident['street'] ?? '')) . ', Barangay 219, Tondo, Manila';
-        $dateOfBirth = $resident['date_of_birth'] ? date('F d, Y', strtotime($resident['date_of_birth'])) : '';
+    $computedAddress = trim(($resident['house_number'] ?? '') . ' ' . ($resident['street'] ?? ''));
+    $residentFullAddress = $computedAddress !== '' ? $computedAddress . ', Barangay 219, Tondo, Manila' : ($resident['address'] ?? 'Barangay 219, Tondo, Manila');
+    $dateOfBirth = $resident['birth_date'] ? date('F d, Y', strtotime($resident['birth_date'])) : '';
         $civilStatus = ucfirst(str_replace('_', ' ', $resident['civil_status'] ?? ''));
         $gender = ucfirst($resident['gender'] ?? '');
-        $contactNumber = $resident['mobile_number'] ?? '';
+    $contactNumber = $resident['contact_number'] ?? '';
     }
 }
 ?>
