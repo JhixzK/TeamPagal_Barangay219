@@ -69,9 +69,10 @@ function handleLogin() {
         
         // Verify password
         if (!password_verify($password, $user['password'])) {
-            // Fallback/migration: if admin uses the default password and stored hash
+            // Fallback/migration: if admin or resident uses the default password and stored hash
             // is not a valid bcrypt for some reason, allow login and migrate hash.
-            if ($username === 'admin' && $password === 'admin123') {
+            if (($username === 'admin' && $password === 'admin123') || 
+                ($username === 'resident' && $password === 'resident123')) {
                 try {
                     $newHash = password_hash($password, PASSWORD_DEFAULT);
                     // Update password in DB to the new bcrypt hash
@@ -80,7 +81,7 @@ function handleLogin() {
                     // replace the password in the $user array so later code proceeds
                     $user['password'] = $newHash;
                 } catch (Exception $e) {
-                    error_log("Password migration error for admin: " . $e->getMessage());
+                    error_log("Password migration error for {$username}: " . $e->getMessage());
                     sendResponse(false, 'An error occurred during login. Please try again.', null, 500);
                     return;
                 }
@@ -118,9 +119,15 @@ function handleLogin() {
         // Remove password from response
         unset($userInfo['password']);
         
+        // Determine redirect based on role
+        $redirectUrl = BASE_URL . 'dashboard.php'; // Default for admin roles
+        if ($user['role'] === 'resident') {
+            $redirectUrl = BASE_URL . 'resident_dashboard.php';
+        }
+        
         sendResponse(true, 'Login successful', [
             'user' => $userInfo,
-            'redirect' => BASE_URL . 'dashboard.php'
+            'redirect' => $redirectUrl
         ]);
         
     } catch (Exception $e) {
