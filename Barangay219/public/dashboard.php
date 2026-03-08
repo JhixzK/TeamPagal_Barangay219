@@ -3,6 +3,14 @@ define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
+
+// Redirect residents to their dashboard
+$currentRole = getCurrentUserRole();
+if (normalizeRole($currentRole) === normalizeRole(ROLE_RESIDENT)) {
+    header('Location: ' . BASE_URL . 'resident_dashboard.php');
+    exit();
+}
+
 requireModuleAccess('dashboard');
 
 $page_title = 'Dashboard';
