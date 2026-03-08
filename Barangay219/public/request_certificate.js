@@ -19,14 +19,9 @@ const documentsInput = document.getElementById("documents");
 const browseBtn = document.getElementById("browseBtn");
 const fileList = document.getElementById("fileList");
 
-const certificateFeeEl = document.getElementById("certificateFee");
-const processingFeeEl = document.getElementById("processingFee");
-const totalFeeEl = document.getElementById("totalFee");
-
 const summaryCertificate = document.getElementById("summaryCertificate");
 const summaryPurpose = document.getElementById("summaryPurpose");
 const summaryDocuments = document.getElementById("summaryDocuments");
-const summaryTotal = document.getElementById("summaryTotal");
 
 const additionalFieldEls = [...document.querySelectorAll(".additional-field")];
 const allAdditionalInputs = {
@@ -46,16 +41,6 @@ const requiredByCertificate = {
   "Barangay ID Request": []
 };
 
-const certificateFees = {
-  "Barangay Clearance": 80,
-  "Certificate of Residency": 60,
-  "Certificate of Indigency": 40,
-  "Certificate of Good Moral Character": 70,
-  "Business Clearance": 150,
-  "Barangay ID Request": 120
-};
-
-const PROCESSING_FEE = 25;
 let selectedFiles = [];
 
 function formatToday() {
@@ -71,10 +56,6 @@ function setDateBadges() {
   const today = formatToday();
   topDateBadge.textContent = today;
   mainDateBadge.textContent = today;
-}
-
-function formatMoney(value) {
-  return "PHP " + value.toFixed(2);
 }
 
 function setError(id, message) {
@@ -113,19 +94,11 @@ function showRelevantAdditionalFields() {
   });
 }
 
-function updateFeesAndSummary() {
+function updateSummary() {
   const certType = certificateType.value;
-  const certFee = certificateFees[certType] || 0;
-  const total = certFee + PROCESSING_FEE;
-
-  certificateFeeEl.textContent = formatMoney(certFee);
-  processingFeeEl.textContent = formatMoney(PROCESSING_FEE);
-  totalFeeEl.textContent = formatMoney(total);
-
   summaryCertificate.textContent = certType || "-";
   summaryPurpose.textContent = purpose.value === "Others" ? (purposeOther.value || "Others") : (purpose.value || "-");
   summaryDocuments.textContent = selectedFiles.length ? selectedFiles.map((file) => file.name).join(", ") : "None";
-  summaryTotal.textContent = formatMoney(total);
 }
 
 function togglePurposeOther() {
@@ -135,7 +108,7 @@ function togglePurposeOther() {
     purposeOther.value = "";
     setError("purposeOtherError", "");
   }
-  updateFeesAndSummary();
+  updateSummary();
 }
 
 function isValidFile(file) {
@@ -162,7 +135,7 @@ function renderFiles() {
     removeBtn.addEventListener("click", () => {
       selectedFiles.splice(index, 1);
       renderFiles();
-      updateFeesAndSummary();
+      updateSummary();
     });
 
     item.appendChild(fileText);
@@ -191,7 +164,7 @@ function appendSelectedFiles(fileCollection) {
     });
 
   renderFiles();
-  updateFeesAndSummary();
+  updateSummary();
 }
 
 function validateAdditionalFields() {
@@ -270,7 +243,7 @@ function handleCancel() {
   submissionResult.classList.add("hidden");
   purposeOtherWrap.classList.add("hidden");
   additionalFieldEls.forEach((fieldEl) => fieldEl.classList.add("hidden"));
-  updateFeesAndSummary();
+  updateSummary();
 }
 
 function toggleDropdown() {
@@ -310,12 +283,11 @@ uploadBox.addEventListener("drop", (event) => {
 
 certificateType.addEventListener("change", () => {
   showRelevantAdditionalFields();
-  updateFeesAndSummary();
+  updateSummary();
 });
 
 purpose.addEventListener("change", togglePurposeOther);
-purposeOther.addEventListener("input", updateFeesAndSummary);
-paymentMethod.addEventListener("change", updateFeesAndSummary);
+purposeOther.addEventListener("input", updateSummary);
 requestForm.addEventListener("submit", handleSubmit);
 cancelBtn.addEventListener("click", handleCancel);
 profileTrigger.addEventListener("click", toggleDropdown);
@@ -329,4 +301,4 @@ window.addEventListener("resize", () => {
 
 setDateBadges();
 showRelevantAdditionalFields();
-updateFeesAndSummary();
+updateSummary();
