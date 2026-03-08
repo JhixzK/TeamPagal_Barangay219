@@ -119,7 +119,7 @@ if ($residentId) {
 
       <div class="nav-group">
         <p class="group-title label">HOUSEHOLD</p>
-        <a class="nav-item" href="#">
+        <a class="nav-item" href="resident_household.php">
           <i class="fa-solid fa-house-user"></i>
           <span class="label">Household Information</span>
         </a>
