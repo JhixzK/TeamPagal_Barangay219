@@ -143,7 +143,13 @@ function canAccessModule($module) {
 function requireModuleAccess($module) {
     requireLogin();
     if (!canAccessModule($module)) {
-        header('Location: ' . BASE_URL . 'dashboard.php?error=access_denied');
+        // Avoid self-redirect loops on pages that already live at dashboard.php.
+        $role = normalizeRole(getCurrentUserRole());
+        if ($role === normalizeRole(ROLE_RESIDENT)) {
+            header('Location: ' . BASE_URL . 'resident_dashboard.php?error=access_denied');
+        } else {
+            header('Location: ' . BASE_URL . 'home.php?error=access_denied');
+        }
         exit();
     }
 }
