@@ -9,7 +9,12 @@ require_once __DIR__ . '/../includes/auth-check.php';
 
 // Redirect if already logged in
 if (isLoggedIn()) {
-    header('Location: ' . BASE_URL . 'dashboard.php');
+    $role = getCurrentUserRole();
+    if ($role === 'resident') {
+        header('Location: ' . BASE_URL . 'resident_dashboard.php');
+    } else {
+        header('Location: ' . BASE_URL . 'dashboard.php');
+    }
     exit();
 }
 ?><!DOCTYPE html>
