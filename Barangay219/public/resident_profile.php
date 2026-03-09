@@ -269,7 +269,7 @@ $verificationBadge = match($displayData['verification_status']) {
 
       <div class="nav-group">
         <p class="group-title label">COMMUNITY</p>
-        <a class="nav-item" href="#">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>resident_announcements.php">
           <i class="fa-regular fa-newspaper"></i>
           <span class="label">Announcements</span>
         </a>
