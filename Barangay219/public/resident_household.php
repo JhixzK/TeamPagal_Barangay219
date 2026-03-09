@@ -22,39 +22,21 @@ $username = $_SESSION['username'] ?? 'Resident';
 $email = $_SESSION['email'] ?? '';
 $residentId = $_SESSION['resident_id'] ?? null;
 
-// Get resident details from database
+// Get resident name from database
 $db = Database::getInstance();
 $residentName = $username;
-$householdId = null;
-$householdData = null;
-$householdMembers = [];
 
 if ($residentId) {
-    // Get resident details
-    $sql = "SELECT first_name, middle_name, last_name, household_id FROM residents WHERE id = ?";
+    $sql = "SELECT first_name, middle_name, last_name FROM residents WHERE id = ?";
     $resident = $db->fetchOne($sql, [$residentId]);
     if ($resident) {
         $residentName = trim($resident['first_name'] . ' ' . ($resident['middle_name'] ? $resident['middle_name'] . ' ' : '') . $resident['last_name']);
-        $householdId = $resident['household_id'];
-    }
-    
-    // Get household details if household exists
-    if ($householdId) {
-        $sql = "SELECT h.*, 
-                       CONCAT(r.first_name, ' ', COALESCE(r.middle_name, ''), ' ', r.last_name) as head_name,
-                       r.date_of_birth as head_dob,
-                       r.gender as head_gender,
-                       r.contact_number as head_contact
-                FROM households h
-                LEFT JOIN residents r ON h.family_head_id = r.id
-                WHERE h.id = ?";
-        $householdData = $db->fetchOne($sql, [$householdId]);
-        
-        // Get household members
-        $sql = "SELECT * FROM household_members WHERE household_id = ? ORDER BY is_head DESC, date_of_birth ASC";
-        $householdMembers = $db->fetchAll($sql, [$householdId]);
     }
 }
+
+// Cache-busting for JS and CSS
+$jsVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.js'));
+$cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -67,7 +49,7 @@ if ($residentId) {
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
   <link rel="stylesheet" href="resident_dashboard.css">
-  <link rel="stylesheet" href="resident_household.css">
+  <link rel="stylesheet" href="resident_household.css?v=<?php echo $cssVersion; ?>">
 </head>
 <body>
   <header class="top-header">
@@ -115,7 +97,7 @@ if ($residentId) {
     <nav class="sidebar-nav">
       <div class="nav-group">
         <p class="group-title label">ACCOUNT</p>
-        <a class="nav-item" href="resident_profile.php">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>resident_profile.php">
           <i class="fa-regular fa-user"></i>
           <span class="label">My Profile</span>
         </a>
@@ -123,7 +105,7 @@ if ($residentId) {
 
       <div class="nav-group">
         <p class="group-title label">MAIN</p>
-        <a class="nav-item" href="resident_dashboard.php">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>resident_dashboard.php">
           <i class="fa-solid fa-gauge-high"></i>
           <span class="label">Dashboard</span>
         </a>
@@ -131,11 +113,11 @@ if ($residentId) {
 
       <div class="nav-group">
         <p class="group-title label">SERVICES</p>
-        <a class="nav-item" href="request_certificate.php">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>request_certificate.php">
           <i class="fa-regular fa-file-lines"></i>
           <span class="label">Request Certificate</span>
         </a>
-        <a class="nav-item" href="my_requests.php">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>my_requests.php">
           <i class="fa-solid fa-list-check"></i>
           <span class="label">My Requests</span>
         </a>
@@ -143,7 +125,7 @@ if ($residentId) {
 
       <div class="nav-group">
         <p class="group-title label">HOUSEHOLD</p>
-        <a class="nav-item active" href="resident_household.php">
+        <a class="nav-item active" href="<?php echo BASE_URL; ?>resident_household.php">
           <i class="fa-solid fa-house-user"></i>
           <span class="label">Household Information</span>
         </a>
@@ -173,528 +155,369 @@ if ($residentId) {
         </a>
       </div>
     </nav>
-
-    <div class="sidebar-bottom">
-      <a class="nav-item logout" href="../api/auth.php?action=logout">
-        <i class="fa-solid fa-arrow-right-from-bracket"></i>
-        <span class="label">Logout</span>
-      </a>
-    </div>
   </aside>
 
-  <main class="main-content" id="mainContent">
-    <section class="dashboard-head">
-      <div>
-        <p class="portal-tag">HOUSEHOLD PORTAL</p>
-        <h2>Household Information</h2>
-        <p class="dashboard-subtitle">Manage your household details and family members information.</p>
-      </div>
-      <div class="head-meta">
-        <span class="view-badge">Resident View</span>
-        <span class="date-badge" id="mainDateBadge"><?php echo date('F d, Y'); ?></span>
-      </div>
-    </section>
-
-    <?php if (!$householdId): ?>
-    <!-- No Household Message -->
-    <section class="no-household-panel">
-      <div class="empty-illustration">
-        <i class="fa-solid fa-house-circle-xmark"></i>
-      </div>
-      <h3>No Household Record Found</h3>
-      <p>You are not currently associated with any household. Please contact the Barangay office to create or link your household record.</p>
-      <a href="resident_dashboard.php" class="btn-primary">
-        <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
-      </a>
-    </section>
-    <?php else: ?>
-
-    <!-- Household Stats -->
-    <section class="stats-grid" aria-label="Household statistics">
-      <article class="stat-card card-1">
-        <i class="fa-solid fa-users stat-icon"></i>
-        <h3>Total Members</h3>
-        <p class="stat-value" id="totalMembers"><?php echo $householdData['total_members'] ?? 0; ?></p>
-        <p class="stat-note">Living in this household</p>
-      </article>
-
-      <article class="stat-card card-2">
-        <i class="fa-solid fa-user-tie stat-icon"></i>
-        <h3>Adults</h3>
-        <p class="stat-value" id="totalAdults"><?php echo $householdData['number_of_adults'] ?? 0; ?></p>
-        <p class="stat-note">18 years and above</p>
-      </article>
-
-      <article class="stat-card card-3">
-        <i class="fa-solid fa-child stat-icon"></i>
-        <h3>Minors</h3>
-        <p class="stat-value" id="totalMinors"><?php echo $householdData['number_of_minors'] ?? 0; ?></p>
-        <p class="stat-note">Below 18 years old</p>
-      </article>
-
-      <article class="stat-card card-4">
-        <i class="fa-solid fa-person-cane stat-icon"></i>
-        <h3>Senior Citizens</h3>
-        <p class="stat-value" id="totalSeniors"><?php echo $householdData['number_of_seniors'] ?? 0; ?></p>
-        <p class="stat-note">60 years and above</p>
-      </article>
-    </section>
-
-    <!-- Household Details Panel -->
-    <section class="panel household-details-panel">
-      <div class="panel-header">
-        <h3><i class="fa-solid fa-house"></i> Household Details</h3>
-        <button class="btn-secondary btn-sm" id="editHouseholdBtn">
-          <i class="fa-solid fa-pen"></i> Edit Details
-        </button>
-      </div>
-      <div class="detail-grid">
-        <div class="detail-group">
-          <h4>Household Information</h4>
-          <div class="detail-row">
-            <span class="detail-label">Household ID:</span>
-            <span class="detail-value"><?php echo 'HH-219-' . str_pad($householdId, 5, '0', STR_PAD_LEFT); ?></span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Registration Date:</span>
-            <span class="detail-value"><?php echo $householdData['registration_date'] ? date('F d, Y', strtotime($householdData['registration_date'])) : 'N/A'; ?></span>
-          </div>
-        </div>
-
-        <div class="detail-group">
-          <h4>Head of Household</h4>
-          <div class="detail-row">
-            <span class="detail-label">Name:</span>
-            <span class="detail-value"><?php echo htmlspecialchars($householdData['head_name'] ?? 'N/A'); ?></span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Age:</span>
-            <span class="detail-value">
-              <?php 
-              if ($householdData['head_dob']) {
-                  $age = date_diff(date_create($householdData['head_dob']), date_create('today'))->y;
-                  echo $age . ' years old';
-              } else {
-                  echo 'N/A';
-              }
-              ?>
-            </span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Gender:</span>
-            <span class="detail-value"><?php echo ucfirst($householdData['head_gender'] ?? 'N/A'); ?></span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Contact:</span>
-            <span class="detail-value"><?php echo htmlspecialchars($householdData['head_contact'] ?? 'N/A'); ?></span>
-          </div>
-        </div>
-
-        <div class="detail-group full-width">
-          <h4>Address</h4>
-          <div class="detail-row">
-            <span class="detail-label">House/Street:</span>
-            <span class="detail-value">
-              <?php 
-              $houseStreet = trim(($householdData['house_number'] ?? '') . ' ' . ($householdData['street'] ?? ''));
-              echo htmlspecialchars($houseStreet ?: ($householdData['address'] ?? 'N/A')); 
-              ?>
-            </span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Purok/Sitio:</span>
-            <span class="detail-value"><?php echo htmlspecialchars($householdData['purok_sitio'] ?? 'N/A'); ?></span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Barangay:</span>
-            <span class="detail-value"><?php echo htmlspecialchars($householdData['barangay'] ?? 'Barangay 219'); ?></span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">City:</span>
-            <span class="detail-value"><?php echo htmlspecialchars($householdData['city'] ?? 'Manila'); ?></span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Province:</span>
-            <span class="detail-value"><?php echo htmlspecialchars($householdData['province'] ?? 'Metro Manila'); ?></span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Postal Code:</span>
-            <span class="detail-value"><?php echo htmlspecialchars($householdData['postal_code'] ?? '1013'); ?></span>
-          </div>
-        </div>
-
-        <div class="detail-group">
-          <h4>Emergency Contact</h4>
-          <div class="detail-row">
-            <span class="detail-label">Name:</span>
-            <span class="detail-value"><?php echo htmlspecialchars($householdData['emergency_contact_name'] ?? 'N/A'); ?></span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Phone:</span>
-            <span class="detail-value"><?php echo htmlspecialchars($householdData['emergency_contact_phone'] ?? 'N/A'); ?></span>
-          </div>
-        </div>
-
-        <?php if (!empty($householdData['special_notes'])): ?>
-        <div class="detail-group full-width">
-          <h4>Special Notes</h4>
-          <p class="notes-text"><?php echo nl2br(htmlspecialchars($householdData['special_notes'])); ?></p>
-        </div>
-        <?php endif; ?>
-      </div>
-    </section>
-
-    <!-- Household Members Panel -->
-    <section class="panel household-members-panel">
-      <div class="panel-header">
-        <h3><i class="fa-solid fa-users"></i> Household Members</h3>
-        <button class="btn-primary btn-sm" id="addMemberBtn">
-          <i class="fa-solid fa-user-plus"></i> Add Member
-        </button>
+  <div class="main-container">
+    <main class="main-content">
+      <div class="page-header">
+        <h1><i class="fa-solid fa-house"></i> My Household</h1>
+        <p>Manage your household information and members</p>
       </div>
 
-      <div class="table-wrap">
-        <?php if (count($householdMembers) > 0): ?>
-        <table class="members-table" id="membersTable">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Relationship</th>
-              <th>DOB / Age</th>
-              <th>Gender</th>
-              <th>Civil Status</th>
-              <th>Occupation</th>
-              <th>Government ID</th>
-              <th>Voter Status</th>
-              <th>Contact</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php foreach ($householdMembers as $member): ?>
-            <tr data-member-id="<?php echo $member['id']; ?>">
-              <td>
-                <?php 
-                $fullName = trim($member['first_name'] . ' ' . 
-                               ($member['middle_name'] ? substr($member['middle_name'], 0, 1) . '. ' : '') . 
-                               $member['last_name'] . 
-                               ($member['suffix'] ? ' ' . $member['suffix'] : ''));
-                echo htmlspecialchars($fullName);
-                if ($member['is_head']) echo ' <span class="badge-head">HEAD</span>';
-                ?>
-              </td>
-              <td><?php echo htmlspecialchars($member['relationship_to_head']); ?></td>
-              <td>
-                <?php 
-                echo date('M d, Y', strtotime($member['date_of_birth']));
-                echo '<br><small class="age-text">' . $member['age'] . ' years old</small>';
-                ?>
-              </td>
-              <td><?php echo htmlspecialchars($member['gender']); ?></td>
-              <td><?php echo htmlspecialchars($member['civil_status']); ?></td>
-              <td><?php echo htmlspecialchars($member['occupation'] ?: 'N/A'); ?></td>
-              <td>
-                <?php 
-                if ($member['government_id_type']) {
-                    echo htmlspecialchars($member['government_id_type']);
-                    if ($member['government_id_number']) {
-                        echo '<br><small>' . htmlspecialchars($member['government_id_number']) . '</small>';
-                    }
-                } else {
-                    echo 'N/A';
-                }
-                ?>
-              </td>
-              <td>
-                <?php 
-                $voterClass = $member['voter_status'] === 'Registered' ? 'status-registered' : 'status-not-registered';
-                echo '<span class="' . $voterClass . '">' . htmlspecialchars($member['voter_status']) . '</span>';
-                ?>
-              </td>
-              <td><?php echo htmlspecialchars($member['contact_number'] ?: 'N/A'); ?></td>
-              <td>
-                <div class="action-btns">
-                  <button class="btn-icon btn-edit" onclick="editMember(<?php echo $member['id']; ?>)" title="Edit">
-                    <i class="fa-solid fa-pen"></i>
-                  </button>
-                  <button class="btn-icon btn-delete" onclick="deleteMember(<?php echo $member['id']; ?>)" title="Delete">
-                    <i class="fa-solid fa-trash"></i>
-                  </button>
-                </div>
-              </td>
-            </tr>
-            <?php endforeach; ?>
-          </tbody>
-        </table>
-        <?php else: ?>
-        <p class="empty-state">
-          <i class="fa-regular fa-user-circle"></i><br>
-          No household members recorded yet. Click "Add Member" to start building your household profile.
-        </p>
-        <?php endif; ?>
+      <!-- Loading Container -->
+      <div id="loadingContainer" class="loading-container">
+        <div class="spinner"></div>
+        <p>Loading household information...</p>
       </div>
-    </section>
 
-    <?php endif; ?>
-  </main>
+      <!-- Main Content Container -->
+      <div id="contentContainer" style="display: none;">
+        
+        <!-- Household Stats Section -->
+        <section class="stats-grid" aria-label="Household statistics">
+          <article class="stat-card card-1">
+            <i class="fa-solid fa-users stat-icon"></i>
+            <h3>Total Members</h3>
+            <p class="stat-value" id="totalMembers">0</p>
+            <p class="stat-note">Living in this household</p>
+          </article>
+          <article class="stat-card card-2">
+            <i class="fa-solid fa-map-marker-alt stat-icon"></i>
+            <h3>Address</h3>
+            <p class="stat-value" id="householdAddress">--</p>
+            <p class="stat-note">Current household address</p>
+          </article>
+          <article class="stat-card card-3">
+            <i class="fa-solid fa-user stat-icon"></i>
+            <h3>Head</h3>
+            <p class="stat-value" id="headName">--</p>
+            <p class="stat-note">Household head</p>
+          </article>
+        </section>
 
-  <!-- Add/Edit Member Modal -->
-  <div class="modal" id="memberModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="modalTitle">Add Household Member</h3>
-        <button class="modal-close" id="closeMemberModal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="memberForm">
-          <input type="hidden" id="memberId" name="member_id">
-          <input type="hidden" name="household_id" value="<?php echo $householdId; ?>">
-          
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="firstName">First Name <span class="required">*</span></label>
-              <input type="text" id="firstName" name="first_name" required>
-            </div>
-
-            <div class="form-group">
-              <label for="middleName">Middle Name</label>
-              <input type="text" id="middleName" name="middle_name">
-            </div>
-
-            <div class="form-group">
-              <label for="lastName">Last Name <span class="required">*</span></label>
-              <input type="text" id="lastName" name="last_name" required>
-            </div>
-
-            <div class="form-group">
-              <label for="suffix">Suffix</label>
-              <select id="suffix" name="suffix">
-                <option value="">None</option>
-                <option value="Jr.">Jr.</option>
-                <option value="Sr.">Sr.</option>
-                <option value="II">II</option>
-                <option value="III">III</option>
-                <option value="IV">IV</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="relationship">Relationship to Head <span class="required">*</span></label>
-              <select id="relationship" name="relationship_to_head" required>
-                <option value="">Select Relationship</option>
-                <option value="Head">Head</option>
-                <option value="Spouse">Spouse</option>
-                <option value="Son">Son</option>
-                <option value="Daughter">Daughter</option>
-                <option value="Father">Father</option>
-                <option value="Mother">Mother</option>
-                <option value="Brother">Brother</option>
-                <option value="Sister">Sister</option>
-                <option value="Grandfather">Grandfather</option>
-                <option value="Grandmother">Grandmother</option>
-                <option value="Grandson">Grandson</option>
-                <option value="Granddaughter">Granddaughter</option>
-                <option value="Uncle">Uncle</option>
-                <option value="Aunt">Aunt</option>
-                <option value="Nephew">Nephew</option>
-                <option value="Niece">Niece</option>
-                <option value="Cousin">Cousin</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="dateOfBirth">Date of Birth <span class="required">*</span></label>
-              <input type="date" id="dateOfBirth" name="date_of_birth" required>
-            </div>
-
-            <div class="form-group">
-              <label for="gender">Gender <span class="required">*</span></label>
-              <select id="gender" name="gender" required>
-                <option value="">Select Gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="civilStatus">Civil Status <span class="required">*</span></label>
-              <select id="civilStatus" name="civil_status" required>
-                <option value="">Select Status</option>
-                <option value="Single">Single</option>
-                <option value="Married">Married</option>
-                <option value="Widowed">Widowed</option>
-                <option value="Divorced">Divorced</option>
-                <option value="Separated">Separated</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="occupation">Occupation</label>
-              <input type="text" id="occupation" name="occupation" placeholder="e.g., Teacher, Driver, Student">
-            </div>
-
-            <div class="form-group">
-              <label for="govIdType">Government ID Type</label>
-              <select id="govIdType" name="government_id_type">
-                <option value="">Select ID Type</option>
-                <option value="National ID">National ID (PhilSys)</option>
-                <option value="PhilHealth">PhilHealth ID</option>
-                <option value="SSS">SSS ID</option>
-                <option value="GSIS">GSIS ID</option>
-                <option value="TIN">TIN ID</option>
-                <option value="Postal ID">Postal ID</option>
-                <option value="Voter's ID">Voter's ID</option>
-                <option value="Driver's License">Driver's License</option>
-                <option value="Passport">Passport</option>
-                <option value="PRC ID">PRC ID</option>
-                <option value="Senior Citizen ID">Senior Citizen ID</option>
-                <option value="PWD ID">PWD ID</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="govIdNumber">Government ID Number</label>
-              <input type="text" id="govIdNumber" name="government_id_number" placeholder="e.g., 1234-5678-9012">
-            </div>
-
-            <div class="form-group">
-              <label for="voterStatus">Voter Status <span class="required">*</span></label>
-              <select id="voterStatus" name="voter_status" required>
-                <option value="Not Registered">Not Registered</option>
-                <option value="Registered">Registered</option>
-                <option value="N/A">N/A (Below 18)</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="voterIdNumber">Voter ID Number</label>
-              <input type="text" id="voterIdNumber" name="voter_id_number" placeholder="e.g., 01234567890123456789">
-            </div>
-
-            <div class="form-group">
-              <label for="contactNumber">Contact Number</label>
-              <input type="tel" id="contactNumber" name="contact_number" placeholder="09XX-XXX-XXXX" pattern="[0-9+\-() ]*">
-            </div>
-
-            <div class="form-group">
-              <label for="email">Email</label>
-              <input type="email" id="email" name="email" placeholder="member@example.com">
-            </div>
-
-            <div class="form-group full-width">
-              <label class="checkbox-label">
-                <input type="checkbox" id="isHead" name="is_head" value="1">
-                <span>This member is the household head</span>
-              </label>
-            </div>
-
-            <div class="form-group full-width">
-              <div class="checkbox-group">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="isSenior" name="is_senior_citizen" value="1">
-                  <span>Senior Citizen (60+)</span>
-                </label>
-                <label class="checkbox-label">
-                  <input type="checkbox" id="isPwd" name="is_pwd" value="1">
-                  <span>Person with Disability (PWD)</span>
-                </label>
-                <label class="checkbox-label">
-                  <input type="checkbox" id="is4ps" name="is_4ps_beneficiary" value="1">
-                  <span>4Ps Beneficiary</span>
-                </label>
+        <!-- Household Details Panel -->
+        <section class="panel panel-primary" id="householdDetailsPanel" style="display: none;">
+          <div class="panel-header">
+            <h2>Household Information</h2>
+            <button class="btn-primary btn-small" id="editHouseholdBtn" data-action="editHousehold">
+              <i class="fa-solid fa-edit"></i> Edit
+            </button>
+          </div>
+          <div class="panel-body">
+            <div class="details-grid">
+              <div class="detail-item">
+                <span class="detail-label">Address:</span>
+                <span class="detail-value" id="displayAddress">--</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Head of Household:</span>
+                <span class="detail-value" id="displayHead">--</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Total Members:</span>
+                <span class="detail-value" id="displayMembers">0</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Created:</span>
+                <span class="detail-value" id="displayCreated">--</span>
               </div>
             </div>
-
-            <div class="form-group full-width">
-              <label for="remarks">Remarks</label>
-              <textarea id="remarks" name="remarks" rows="3" placeholder="Additional notes or information"></textarea>
-            </div>
           </div>
+        </section>
 
-          <div class="form-actions">
-            <button type="button" class="btn-secondary" id="cancelMemberBtn">Cancel</button>
-            <button type="submit" class="btn-primary" id="saveMemberBtn">
-              <i class="fa-solid fa-save"></i> Save Member
+        <!-- Members Section -->
+        <section class="panel panel-primary" id="membersPanel" style="display: none;">
+          <div class="panel-header">
+            <h2>Household Members</h2>
+            <button class="btn-primary btn-small" id="addMemberBtn" data-action="addMember">
+              <i class="fa-solid fa-plus"></i> Add Member
             </button>
           </div>
-        </form>
-      </div>
-    </div>
-  </div>
+          <div class="panel-body">
+            <table class="members-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Relationship</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="membersTableBody">
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-  <!-- Edit Household Modal -->
-  <div class="modal" id="householdModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Edit Household Details</h3>
-        <button class="modal-close" id="closeHouseholdModal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="householdForm">
-          <input type="hidden" name="household_id" value="<?php echo $householdId; ?>">
-          
-          <div class="form-grid">
-            <div class="form-group full-width">
-              <h4 class="form-section-title">Address Information</h4>
-            </div>
+      </div><!-- End contentContainer -->
 
-            <div class="form-group">
-              <label for="houseNumber">House Number</label>
-              <input type="text" id="houseNumber" name="house_number" value="<?php echo htmlspecialchars($householdData['house_number'] ?? ''); ?>">
-            </div>
+      <!-- MODALS (OUTSIDE contentContainer) -->
 
-            <div class="form-group">
-              <label for="street">Street</label>
-              <input type="text" id="street" name="street" value="<?php echo htmlspecialchars($householdData['street'] ?? ''); ?>">
-            </div>
-
-            <div class="form-group">
-              <label for="purokSitio">Purok/Sitio</label>
-              <input type="text" id="purokSitio" name="purok_sitio" value="<?php echo htmlspecialchars($householdData['purok_sitio'] ?? ''); ?>">
-            </div>
-
-            <div class="form-group">
-              <label for="postalCode">Postal Code</label>
-              <input type="text" id="postalCode" name="postal_code" value="<?php echo htmlspecialchars($householdData['postal_code'] ?? '1013'); ?>">
-            </div>
-
-            <div class="form-group full-width">
-              <h4 class="form-section-title">Emergency Contact</h4>
-            </div>
-
-            <div class="form-group">
-              <label for="emergencyName">Emergency Contact Name</label>
-              <input type="text" id="emergencyName" name="emergency_contact_name" value="<?php echo htmlspecialchars($householdData['emergency_contact_name'] ?? ''); ?>">
-            </div>
-
-            <div class="form-group">
-              <label for="emergencyPhone">Emergency Contact Phone</label>
-              <input type="tel" id="emergencyPhone" name="emergency_contact_phone" value="<?php echo htmlspecialchars($householdData['emergency_contact_phone'] ?? ''); ?>" pattern="[0-9+\-() ]*">
-            </div>
-
-            <div class="form-group full-width">
-              <label for="specialNotes">Special Notes</label>
-              <textarea id="specialNotes" name="special_notes" rows="4" placeholder="Any special notes about the household"><?php echo htmlspecialchars($householdData['special_notes'] ?? ''); ?></textarea>
+      <!-- Role Selection Modal -->
+      <div id="roleSelectionModal" class="modal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content modal-lg">
+          <div class="modal-header">
+            <h3>Select Your Role</h3>
+            <button class="modal-close" data-action="closeRoleModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p>You don't have a household yet. Choose your role to get started:</p>
+            <div class="role-selection-grid">
+              <div class="role-card" data-role="head">
+                <i class="fa-solid fa-crown"></i>
+                <h4>Head of Household</h4>
+                <p>I am the head of this household</p>
+                <p class="role-desc">You can manage household address and add/remove members</p>
+              </div>
+              <div class="role-card" data-role="member">
+                <i class="fa-solid fa-users"></i>
+                <h4>Household Member</h4>
+                <p>I am a member of an existing household</p>
+                <p class="role-desc">You can view household info and request to join</p>
+              </div>
             </div>
           </div>
-
-          <div class="form-actions">
-            <button type="button" class="btn-secondary" id="cancelHouseholdBtn">Cancel</button>
-            <button type="submit" class="btn-primary">
-              <i class="fa-solid fa-save"></i> Save Changes
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
-    </div>
+
+      <!-- Head of Household Form Modal -->
+      <div id="headFormModal" class="modal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Create Household</h3>
+            <button class="modal-close" data-action="closeHeadModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="headFormContainer">
+              <div class="form-group">
+                <label for="householdAddress">Household Address *</label>
+                <textarea id="householdAddress" placeholder="Enter complete household address" required></textarea>
+              </div>
+              <div class="form-group">
+                <label for="householdStreet">Street / Block *</label>
+                <input type="text" id="householdStreet" placeholder="e.g., Espada Street, Block 23" required>
+              </div>
+              <div class="form-group">
+                <label for="householdCity">City / Municipality *</label>
+                <input type="text" id="householdCity" placeholder="e.g., Manila" value="Manila" required>
+              </div>
+              <div class="form-group">
+                <label for="householdProvince">Province *</label>
+                <input type="text" id="householdProvince" placeholder="e.g., Metro Manila" value="Metro Manila" required>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" data-action="closeHeadModal">Cancel</button>
+            <button class="btn-primary" id="submitHeadBtn" data-action="submitHeadForm">Create Household</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Member Join Modal -->
+      <div id="memberJoinModal" class="modal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Join Household</h3>
+            <button class="modal-close" data-action="closeMemberModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="memberFormContainer">
+              <div class="form-group">
+                <label for="householdSelect">Select Household *</label>
+                <select id="householdSelect" required>
+                  <option value="">-- Select a household --</option>
+                </select>
+                <p class="form-hint" id="selectedHeadName"></p>
+              </div>
+              <div class="form-group">
+                <label for="relationshipToHead">Relationship to Head *</label>
+                <select id="relationshipToHead" required>
+                  <option value="">-- Select relationship --</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Son">Son</option>
+                  <option value="Daughter">Daughter</option>
+                  <option value="Father">Father</option>
+                  <option value="Mother">Mother</option>
+                  <option value="Brother">Brother</option>
+                  <option value="Sister">Sister</option>
+                  <option value="Grandson">Grandson</option>
+                  <option value="Granddaughter">Granddaughter</option>
+                  <option value="Nephew">Nephew</option>
+                  <option value="Niece">Niece</option>
+                  <option value="Uncle">Uncle</option>
+                  <option value="Aunt">Aunt</option>
+                  <option value="Cousin">Cousin</option>
+                  <option value="In-law">In-law</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" data-action="closeMemberModal">Cancel</button>
+            <button class="btn-primary" id="submitMemberBtn" data-action="submitMemberJoin">Join Household</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Member Modal (Head Only) -->
+      <div id="addMemberModal" class="modal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Add Family Member</h3>
+            <button class="modal-close" data-action="closeAddMemberModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="addMemberForm">
+              <div class="form-group">
+                <label for="newMemberName">Member Name *</label>
+                <input type="text" id="newMemberName" placeholder="Full name" required>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="newMemberDOB">Date of Birth *</label>
+                  <input type="date" id="newMemberDOB" required>
+                </div>
+                <div class="form-group">
+                  <label for="newMemberGender">Gender *</label>
+                  <select id="newMemberGender" required>
+                    <option value="">-- Select --</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="newMemberRelationship">Relationship *</label>
+                <select id="newMemberRelationship" required>
+                  <option value="">-- Select relationship --</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Son">Son</option>
+                  <option value="Daughter">Daughter</option>
+                  <option value="Father">Father</option>
+                  <option value="Mother">Mother</option>
+                  <option value="Brother">Brother</option>
+                  <option value="Sister">Sister</option>
+                  <option value="Grandson">Grandson</option>
+                  <option value="Granddaughter">Granddaughter</option>
+                  <option value="Nephew">Nephew</option>
+                  <option value="Niece">Niece</option>
+                  <option value="Uncle">Uncle</option>
+                  <option value="Aunt">Aunt</option>
+                  <option value="Cousin">Cousin</option>
+                  <option value="In-law">In-law</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" data-action="closeAddMemberModal">Cancel</button>
+            <button class="btn-primary" id="submitAddMemberBtn" data-action="submitAddMember">Add Member</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit Member Modal -->
+      <div id="editMemberModal" class="modal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Edit Member Information</h3>
+            <button class="modal-close" data-action="closeEditMemberModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="editMemberForm">
+              <input type="hidden" id="editMemberId">
+              <div class="form-group">
+                <label for="editMemberName">Member Name</label>
+                <input type="text" id="editMemberName" placeholder="Full name" disabled>
+                <p class="form-hint">Name cannot be changed. Contact barangay office if needed.</p>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="editMemberDOB">Date of Birth *</label>
+                  <input type="date" id="editMemberDOB" required>
+                </div>
+                <div class="form-group">
+                  <label for="editMemberGender">Gender *</label>
+                  <select id="editMemberGender" required>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="editMemberRelationship">Relationship <span id="relationshipLabel">(Locked for members)</span> *</label>
+                <select id="editMemberRelationship" required>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Son">Son</option>
+                  <option value="Daughter">Daughter</option>
+                  <option value="Father">Father</option>
+                  <option value="Mother">Mother</option>
+                  <option value="Brother">Brother</option>
+                  <option value="Sister">Sister</option>
+                  <option value="Grandson">Grandson</option>
+                  <option value="Granddaughter">Granddaughter</option>
+                  <option value="Nephew">Nephew</option>
+                  <option value="Niece">Niece</option>
+                  <option value="Uncle">Uncle</option>
+                  <option value="Aunt">Aunt</option>
+                  <option value="Cousin">Cousin</option>
+                  <option value="In-law">In-law</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" data-action="closeEditMemberModal">Cancel</button>
+            <button class="btn-primary" id="submitEditMemberBtn" data-action="submitEditMember">Save Changes</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error/Success Message Container -->
+      <div id="messageContainer"></div>
+
+    </main>
   </div>
 
   <script>
-    const householdId = <?php echo json_encode($householdId); ?>;
+    // API base URL
+    const HOUSEHOLD_API = 'http://<?php echo $_SERVER['HTTP_HOST']; ?>/TeamPagal_Barangay219/Barangay219/api/households';
   </script>
-  <script src="resident_dashboard.js"></script>
-  <script src="resident_household.js"></script>
+  <script src="resident_household.js?v=<?php echo $jsVersion; ?>"></script>
+
+  <style>
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 500px;
+      text-align: center;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
 </body>
 </html>
