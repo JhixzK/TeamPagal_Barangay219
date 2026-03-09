@@ -1,581 +1,660 @@
 /**
- * Resident Household Information JavaScript
- * Handles CRUD operations, form validation, and UI interactions
+ * Resident Household Management
+ * Handles household information, role selection, and member management
  */
 
-// Global variables
-let currentMemberId = null;
-let isEditMode = false;
+let currentHouseholdContext = null;
+let currentHouseholdData = null;
+let currentMembers = [];
+let availableHouseholds = [];
 
-// DOM Elements
-const memberModal = document.getElementById('memberModal');
-const householdModal = document.getElementById('householdModal');
-const memberForm = document.getElementById('memberForm');
-const householdForm = document.getElementById('householdForm');
-const addMemberBtn = document.getElementById('addMemberBtn');
-const editHouseholdBtn = document.getElementById('editHouseholdBtn');
-const closeMemberModal = document.getElementById('closeMemberModal');
-const closeHouseholdModal = document.getElementById('closeHouseholdModal');
-const cancelMemberBtn = document.getElementById('cancelMemberBtn');
-const cancelHouseholdBtn = document.getElementById('cancelHouseholdBtn');
-const modalTitle = document.getElementById('modalTitle');
+// ============================================================================
+// PAGE LIFECYCLE
+// ============================================================================
 
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-  initializeEventListeners();
-  validateDateOfBirth();
-  updateMemberStatistics();
+document.addEventListener('DOMContentLoaded', () => {
+  setupEventListeners();
+  loadHouseholdInfo();
 });
 
-/**
- * Initialize event listeners
- */
-function initializeEventListeners() {
-  // Add Member Button
-  if (addMemberBtn) {
-    addMemberBtn.addEventListener('click', () => openMemberModal());
-  }
-
-  // Edit Household Button
-  if (editHouseholdBtn) {
-    editHouseholdBtn.addEventListener('click', () => openHouseholdModal());
-  }
-
-  // Close Modal Buttons
-  if (closeMemberModal) {
-    closeMemberModal.addEventListener('click', () => closeMemberModalFunc());
-  }
-
-  if (closeHouseholdModal) {
-    closeHouseholdModal.addEventListener('click', () => closeHouseholdModalFunc());
-  }
-
-  if (cancelMemberBtn) {
-    cancelMemberBtn.addEventListener('click', () => closeMemberModalFunc());
-  }
-
-  if (cancelHouseholdBtn) {
-    cancelHouseholdBtn.addEventListener('click', () => closeHouseholdModalFunc());
-  }
-
-  // Close modal when clicking outside
-  window.addEventListener('click', (e) => {
-    if (e.target === memberModal) {
-      closeMemberModalFunc();
-    }
-    if (e.target === householdModal) {
-      closeHouseholdModalFunc();
-    }
+function setupEventListeners() {
+  // Role selection cards
+  document.querySelectorAll('.role-card').forEach(card => {
+    card.addEventListener('click', () => selectRole(card.dataset.role));
   });
 
-  // Form Submit Events
-  if (memberForm) {
-    memberForm.addEventListener('submit', handleMemberSubmit);
-  }
+  // Close buttons with data-action
+  document.querySelectorAll('[data-action="closeRoleModal"]').forEach(btn => {
+    btn.addEventListener('click', closeRoleSelectionModal);
+  });
 
-  if (householdForm) {
-    householdForm.addEventListener('submit', handleHouseholdSubmit);
-  }
+  document.querySelectorAll('[data-action="closeHeadModal"]').forEach(btn => {
+    btn.addEventListener('click', closeHeadFormModal);
+  });
 
-  // Date of Birth Change - Auto-set voter status for minors
-  const dobInput = document.getElementById('dateOfBirth');
-  if (dobInput) {
-    dobInput.addEventListener('change', function() {
-      const age = calculateAge(this.value);
-      const voterStatusSelect = document.getElementById('voterStatus');
-      
-      if (age < 18 && voterStatusSelect) {
-        voterStatusSelect.value = 'N/A';
-      } else if (age >= 18 && voterStatusSelect && voterStatusSelect.value === 'N/A') {
-        voterStatusSelect.value = 'Not Registered';
+  document.querySelectorAll('[data-action="submitHeadForm"]').forEach(btn => {
+    btn.addEventListener('click', submitHeadForm);
+  });
+
+  document.querySelectorAll('[data-action="closeMemberModal"]').forEach(btn => {
+    btn.addEventListener('click', closeMemberJoinModal);
+  });
+
+  document.querySelectorAll('[data-action="submitMemberJoin"]').forEach(btn => {
+    btn.addEventListener('click', submitMemberJoin);
+  });
+
+  document.querySelectorAll('[data-action="closeAddMemberModal"]').forEach(btn => {
+    btn.addEventListener('click', closeAddMemberModal);
+  });
+
+  document.querySelectorAll('[data-action="submitAddMember"]').forEach(btn => {
+    btn.addEventListener('click', submitAddMember);
+  });
+
+  document.querySelectorAll('[data-action="closeEditMemberModal"]').forEach(btn => {
+    btn.addEventListener('click', closeEditMemberModal);
+  });
+
+  document.querySelectorAll('[data-action="submitEditMember"]').forEach(btn => {
+    btn.addEventListener('click', submitEditMember);
+  });
+
+  document.querySelectorAll('[data-action="editHousehold"]').forEach(btn => {
+    btn.addEventListener('click', editHousehold);
+  });
+
+  document.querySelectorAll('[data-action="addMember"]').forEach(btn => {
+    btn.addEventListener('click', openAddMemberModal);
+  });
+
+  // Modal backdrops
+  document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+    backdrop.addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-backdrop')) {
+        closeAllModals();
+      }
+    });
+  });
+
+  // Household select change event
+  const householdSelect = document.getElementById('householdSelect');
+  if (householdSelect) {
+    householdSelect.addEventListener('change', (e) => {
+      const selectedId = e.target.value;
+      const household = availableHouseholds.find(h => h.id === parseInt(selectedId));
+      const hint = document.getElementById('selectedHeadName');
+      if (household) {
+        hint.textContent = 'Head: ' + household.head_name + ' | Address: ' + household.address;
+      } else {
+        hint.textContent = '';
       }
     });
   }
+}
 
-  // Phone number formatting
-  const phoneInputs = document.querySelectorAll('input[type="tel"]');
-  phoneInputs.forEach(input => {
-    input.addEventListener('input', formatPhoneNumber);
+// ============================================================================
+// LOAD HOUSEHOLD INFO
+// ============================================================================
+
+async function loadHouseholdInfo() {
+  try {
+    const response = await fetch(`${HOUSEHOLD_API}/info.php`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include'
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        window.location.href = 'login.php';
+        return;
+      }
+      throw new Error(result.message || 'Failed to load household info');
+    }
+
+    if (result.success && result.data) {
+      currentHouseholdContext = result.data.context;
+      currentHouseholdData = result.data.household;
+      currentMembers = result.data.members || [];
+      availableHouseholds = result.data.available_households || [];
+
+      // Show content
+      const contentContainer = document.getElementById('contentContainer');
+      const loadingContainer = document.getElementById('loadingContainer');
+      if (contentContainer) contentContainer.style.display = 'block';
+      if (loadingContainer) loadingContainer.style.display = 'none';
+
+      if (currentHouseholdContext) {
+        // User has a household - display info
+        displayHouseholdPanel();
+        const detailsPanel = document.getElementById('householdDetailsPanel');
+        const membersPanel = document.getElementById('membersPanel');
+        if (detailsPanel) detailsPanel.style.display = 'block';
+        if (membersPanel) membersPanel.style.display = 'block';
+      } else {
+        // User has no household - show role selection
+        openRoleSelectionModal();
+        const detailsPanel = document.getElementById('householdDetailsPanel');
+        const membersPanel = document.getElementById('membersPanel');
+        if (detailsPanel) detailsPanel.style.display = 'none';
+        if (membersPanel) membersPanel.style.display = 'none';
+      }
+    } else {
+      throw new Error(result.message || 'Invalid response');
+    }
+  } catch (error) {
+    console.error('Error loading household info:', error);
+    const loadingContainer = document.getElementById('loadingContainer');
+    const contentContainer = document.getElementById('contentContainer');
+    if (loadingContainer) loadingContainer.style.display = 'none';
+    if (contentContainer) contentContainer.style.display = 'block';
+    showErrorMessage('Failed to load household information: ' + error.message);
+  }
+}
+
+// ============================================================================
+// DISPLAY FUNCTIONS
+// ============================================================================
+
+function displayHouseholdPanel() {
+  const isHead = currentHouseholdContext?.is_head || false;
+  const household = currentHouseholdData;
+  const members = currentMembers;
+
+  // Update stats
+  const totalMembers = document.getElementById('totalMembers');
+  if (totalMembers) totalMembers.textContent = members.length;
+  
+  const householdAddress = document.getElementById('householdAddress');
+  if (householdAddress) householdAddress.textContent = household?.address || household?.street || '--';
+  
+  const headName = document.getElementById('headName');
+  if (headName) headName.textContent = household?.head_name || '--';
+
+  // Update details panel
+  const displayAddress = document.getElementById('displayAddress');
+  if (displayAddress) displayAddress.textContent = household?.address || household?.street || '--';
+  
+  const displayHead = document.getElementById('displayHead');
+  if (displayHead) displayHead.textContent = household?.head_name || '--';
+  
+  const displayMembers = document.getElementById('displayMembers');
+  if (displayMembers) displayMembers.textContent = members.length;
+  
+  const displayCreated = document.getElementById('displayCreated');
+  if (displayCreated) {
+    displayCreated.textContent = household?.created_at ? 
+      new Date(household.created_at).toLocaleDateString() : '--';
+  }
+
+  // Show/hide edit button for head
+  const editBtn = document.getElementById('editHouseholdBtn');
+  const addMemberBtn = document.getElementById('addMemberBtn');
+  if (editBtn) editBtn.style.display = isHead ? 'inline-block' : 'none';
+  if (addMemberBtn) addMemberBtn.style.display = isHead ? 'inline-block' : 'none';
+
+  // Render members table
+  renderMembersTable(members, isHead);
+}
+
+function renderMembersTable(members, isHead) {
+  const tbody = document.getElementById('membersTableBody');
+  if (!tbody) return;
+  
+  tbody.innerHTML = '';
+
+  if (members.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">No members found</td></tr>';
+    return;
+  }
+
+  members.forEach(member => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${member.resident_name || 'Unknown'}</td>
+      <td>${member.relationship_to_head || '-'}</td>
+      <td><span class="status-badge">${member.status || 'Active'}</span></td>
+      <td>
+        <button class="btn-action btn-sm" onclick="editMember(${member.id})" title="Edit">
+          <i class="fa-solid fa-edit"></i>
+        </button>
+        ${isHead && member.id !== currentHouseholdContext.member_row_id ? `
+        <button class="btn-action btn-sm btn-danger" onclick="removeMember(${member.id})" title="Remove">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+        ` : ''}
+      </td>
+    `;
+    tbody.appendChild(row);
   });
 }
 
-/**
- * Open Member Modal (Add or Edit)
- */
-function openMemberModal(memberId = null) {
-  isEditMode = !!memberId;
-  currentMemberId = memberId;
+// ============================================================================
+// ROLE SELECTION & HOUSEHOLD CREATION
+// ============================================================================
 
-  if (isEditMode) {
-    modalTitle.textContent = 'Edit Household Member';
-    loadMemberData(memberId);
-  } else {
-    modalTitle.textContent = 'Add Household Member';
-    memberForm.reset();
-    document.getElementById('memberId').value = '';
-  }
-
-  memberModal.classList.add('active');
-  document.body.style.overflow = 'hidden';
-}
-
-/**
- * Close Member Modal
- */
-function closeMemberModalFunc() {
-  memberModal.classList.remove('active');
-  document.body.style.overflow = 'auto';
-  memberForm.reset();
-  currentMemberId = null;
-  isEditMode = false;
-}
-
-/**
- * Open Household Modal
- */
-function openHouseholdModal() {
-  householdModal.classList.add('active');
-  document.body.style.overflow = 'hidden';
-}
-
-/**
- * Close Household Modal
- */
-function closeHouseholdModalFunc() {
-  householdModal.classList.remove('active');
-  document.body.style.overflow = 'auto';
-}
-
-/**
- * Load Member Data for Editing
- */
-async function loadMemberData(memberId) {
-  try {
-    showLoading('Loading member data...');
-    
-    const response = await fetch(`../api/households.php?action=get_member&id=${memberId}`);
-    const result = await response.json();
-
-    if (result.success && result.data) {
-      const member = result.data;
-      
-      // Populate form fields
-      document.getElementById('memberId').value = member.id;
-      document.getElementById('firstName').value = member.first_name || '';
-      document.getElementById('middleName').value = member.middle_name || '';
-      document.getElementById('lastName').value = member.last_name || '';
-      document.getElementById('suffix').value = member.suffix || '';
-      document.getElementById('relationship').value = member.relationship_to_head || '';
-      document.getElementById('dateOfBirth').value = member.date_of_birth || '';
-      document.getElementById('gender').value = member.gender || '';
-      document.getElementById('civilStatus').value = member.civil_status || '';
-      document.getElementById('occupation').value = member.occupation || '';
-      document.getElementById('govIdType').value = member.government_id_type || '';
-      document.getElementById('govIdNumber').value = member.government_id_number || '';
-      document.getElementById('voterStatus').value = member.voter_status || 'Not Registered';
-      document.getElementById('voterIdNumber').value = member.voter_id_number || '';
-      document.getElementById('contactNumber').value = member.contact_number || '';
-      document.getElementById('email').value = member.email || '';
-      document.getElementById('isHead').checked = member.is_head == 1;
-      document.getElementById('isSenior').checked = member.is_senior_citizen == 1;
-      document.getElementById('isPwd').checked = member.is_pwd == 1;
-      document.getElementById('is4ps').checked = member.is_4ps_beneficiary == 1;
-      document.getElementById('remarks').value = member.remarks || '';
-    } else {
-      showAlert('error', result.message || 'Failed to load member data');
-    }
-  } catch (error) {
-    console.error('Load member error:', error);
-    showAlert('error', 'An error occurred while loading member data');
-  } finally {
-    hideLoading();
+function selectRole(role) {
+  closeRoleSelectionModal();
+  
+  if (role === 'head') {
+    openHeadFormModal();
+  } else if (role === 'member') {
+    openMemberJoinModal();
   }
 }
 
-/**
- * Handle Member Form Submit
- */
-async function handleMemberSubmit(e) {
-  e.preventDefault();
+function openRoleSelectionModal() {
+  const modal = document.getElementById('roleSelectionModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+}
 
-  // Validate form
-  if (!validateMemberForm()) {
+function closeRoleSelectionModal() {
+  const modal = document.getElementById('roleSelectionModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+}
+
+async function submitHeadForm(e) {
+  e?.preventDefault();
+  
+  const address = document.getElementById('householdAddress')?.value || '';
+  const street = document.getElementById('householdStreet')?.value || '';
+  const city = document.getElementById('householdCity')?.value || '';
+  const province = document.getElementById('householdProvince')?.value || '';
+
+  if (!address || !street || !city || !province) {
+    showErrorMessage('Please fill in all address fields');
     return;
   }
 
-  const formData = new FormData(memberForm);
-  formData.append('action', isEditMode ? 'update_member' : 'add_member');
-
-  // Convert checkboxes to proper values
-  formData.set('is_head', document.getElementById('isHead').checked ? '1' : '0');
-  formData.set('is_senior_citizen', document.getElementById('isSenior').checked ? '1' : '0');
-  formData.set('is_pwd', document.getElementById('isPwd').checked ? '1' : '0');
-  formData.set('is_4ps_beneficiary', document.getElementById('is4ps').checked ? '1' : '0');
-
   try {
-    showLoading(isEditMode ? 'Updating member...' : 'Adding member...');
-
-    const response = await fetch('../api/households.php', {
+    const response = await fetch(`${HOUSEHOLD_API}/info.php`, {
       method: 'POST',
-      body: formData
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        action: 'create_household',
+        address: address,
+        street: street,
+        city: city,
+        province: province
+      })
     });
 
     const result = await response.json();
 
     if (result.success) {
-      showAlert('success', result.message || 'Member saved successfully');
-      closeMemberModalFunc();
-      
-      // Reload page to show updated data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      showSuccessMessage('Household created successfully!');
+      closeHeadFormModal();
+      // Reload household info
+      await new Promise(r => setTimeout(r, 500));
+      loadHouseholdInfo();
     } else {
-      showAlert('error', result.message || 'Failed to save member');
+      showErrorMessage(result.message || 'Failed to create household');
     }
   } catch (error) {
-    console.error('Submit member error:', error);
-    showAlert('error', 'An error occurred while saving member');
-  } finally {
-    hideLoading();
+    showErrorMessage('Error: ' + error.message);
   }
 }
 
-/**
- * Handle Household Form Submit
- */
-async function handleHouseholdSubmit(e) {
-  e.preventDefault();
+function openHeadFormModal() {
+  const modal = document.getElementById('headFormModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+}
 
-  const formData = new FormData(householdForm);
-  formData.append('action', 'update_household_details');
+function closeHeadFormModal() {
+  const modal = document.getElementById('headFormModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+  // Clear form
+  const form = document.getElementById('headFormContainer');
+  if (form) form.reset();
+}
+
+// ============================================================================
+// MEMBER JOIN
+// ============================================================================
+
+async function submitMemberJoin(e) {
+  e?.preventDefault();
+
+  const householdId = document.getElementById('householdSelect')?.value;
+  const relationship = document.getElementById('relationshipToHead')?.value;
+
+  if (!householdId || !relationship) {
+    showErrorMessage('Please select a household and relationship');
+    return;
+  }
 
   try {
-    showLoading('Updating household details...');
-
-    const response = await fetch('../api/households.php', {
+    const response = await fetch(`${HOUSEHOLD_API}/info.php`, {
       method: 'POST',
-      body: formData
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        action: 'join_household',
+        household_id: parseInt(householdId),
+        relationship_to_head: relationship
+      })
     });
 
     const result = await response.json();
 
     if (result.success) {
-      showAlert('success', result.message || 'Household details updated successfully');
-      closeHouseholdModalFunc();
-      
-      // Reload page to show updated data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      showSuccessMessage('Successfully joined household! Waiting for approval...');
+      closeMemberJoinModal();
+      // Reload household info
+      await new Promise(r => setTimeout(r, 500));
+      loadHouseholdInfo();
     } else {
-      showAlert('error', result.message || 'Failed to update household details');
+      showErrorMessage(result.message || 'Failed to join household');
     }
   } catch (error) {
-    console.error('Submit household error:', error);
-    showAlert('error', 'An error occurred while updating household details');
-  } finally {
-    hideLoading();
+    showErrorMessage('Error: ' + error.message);
   }
 }
 
-/**
- * Edit Member Function (called from PHP)
- */
+function openMemberJoinModal() {
+  // Populate household select
+  const householdSelect = document.getElementById('householdSelect');
+  if (householdSelect && availableHouseholds.length > 0) {
+    householdSelect.innerHTML = '<option value="">-- Select a household --</option>';
+    availableHouseholds.forEach(h => {
+      const option = document.createElement('option');
+      option.value = h.id;
+      option.textContent = `${h.street}, ${h.city} (Head: ${h.head_name})`;
+      householdSelect.appendChild(option);
+    });
+  }
+  
+  const modal = document.getElementById('memberJoinModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeMemberJoinModal() {
+  const modal = document.getElementById('memberJoinModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+  // Clear form
+  const form = document.getElementById('memberFormContainer');
+  if (form) form.reset();
+}
+
+// ============================================================================
+// MEMBER MANAGEMENT (HEAD ONLY)
+// ============================================================================
+
+function openAddMemberModal() {
+  if (!currentHouseholdContext?.is_head) {
+    showErrorMessage('Only household head can add members');
+    return;
+  }
+  
+  const modal = document.getElementById('addMemberModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+  const form = document.getElementById('addMemberForm');
+  if (form) form.reset();
+}
+
+function closeAddMemberModal() {
+  const modal = document.getElementById('addMemberModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+}
+
+async function submitAddMember(e) {
+  e?.preventDefault();
+
+  if (!currentHouseholdContext?.is_head) {
+    showErrorMessage('Only household head can add members');
+    return;
+  }
+
+  const name = document.getElementById('newMemberName')?.value;
+  const dob = document.getElementById('newMemberDOB')?.value;
+  const gender = document.getElementById('newMemberGender')?.value;
+  const relationship = document.getElementById('newMemberRelationship')?.value;
+
+  if (!name || !dob || !gender || !relationship) {
+    showErrorMessage('Please fill in all member details');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${HOUSEHOLD_API}/member.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        household_id: currentHouseholdData?.id,
+        resident_name: name,
+        dob: dob,
+        gender: gender,
+        relationship_to_head: relationship
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      showSuccessMessage('Member added successfully!');
+      closeAddMemberModal();
+      // Reload household info
+      await new Promise(r => setTimeout(r, 500));
+      loadHouseholdInfo();
+    } else {
+      showErrorMessage(result.message || 'Failed to add member');
+    }
+  } catch (error) {
+    showErrorMessage('Error: ' + error.message);
+  }
+}
+
 function editMember(memberId) {
-  openMemberModal(memberId);
+  const member = currentMembers.find(m => m.id === memberId);
+  if (!member) {
+    showErrorMessage('Member not found');
+    return;
+  }
+
+  // Populate edit form
+  const editMemberId = document.getElementById('editMemberId');
+  if (editMemberId) editMemberId.value = memberId;
+  
+  const editMemberName = document.getElementById('editMemberName');
+  if (editMemberName) editMemberName.value = member.resident_name || '';
+  
+  const editMemberDOB = document.getElementById('editMemberDOB');
+  if (editMemberDOB) editMemberDOB.value = member.dob || '';
+  
+  const editMemberGender = document.getElementById('editMemberGender');
+  if (editMemberGender) editMemberGender.value = member.gender || '';
+  
+  const editMemberRelationship = document.getElementById('editMemberRelationship');
+  if (editMemberRelationship) editMemberRelationship.value = member.relationship_to_head || '';
+
+  // Lock relationship for non-head users
+  const isHead = currentHouseholdContext?.is_head;
+  if (editMemberRelationship) {
+    editMemberRelationship.disabled = !isHead;
+  }
+
+  const modal = document.getElementById('editMemberModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
 }
 
-/**
- * Delete Member Function (called from PHP)
- */
-async function deleteMember(memberId) {
-  if (!confirm('Are you sure you want to delete this household member? This action cannot be undone.')) {
+function closeEditMemberModal() {
+  const modal = document.getElementById('editMemberModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+}
+
+async function submitEditMember(e) {
+  e?.preventDefault();
+
+  const memberId = document.getElementById('editMemberId')?.value;
+  const dob = document.getElementById('editMemberDOB')?.value;
+  const gender = document.getElementById('editMemberGender')?.value;
+  const relationship = document.getElementById('editMemberRelationship')?.value;
+
+  if (!memberId || !dob || !gender) {
+    showErrorMessage('Please fill in all required fields');
     return;
   }
 
   try {
-    showLoading('Deleting member...');
-
-    const formData = new FormData();
-    formData.append('action', 'delete_member');
-    formData.append('member_id', memberId);
-    formData.append('household_id', householdId);
-
-    const response = await fetch('../api/households.php', {
-      method: 'POST',
-      body: formData
+    const response = await fetch(`${HOUSEHOLD_API}/member.php`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        id: parseInt(memberId),
+        dob: dob,
+        gender: gender,
+        relationship_to_head: relationship
+      })
     });
 
     const result = await response.json();
 
     if (result.success) {
-      showAlert('success', result.message || 'Member deleted successfully');
-      
-      // Reload page to show updated data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      showSuccessMessage('Member updated successfully!');
+      closeEditMemberModal();
+      // Reload household info
+      await new Promise(r => setTimeout(r, 500));
+      loadHouseholdInfo();
     } else {
-      showAlert('error', result.message || 'Failed to delete member');
+      showErrorMessage(result.message || 'Failed to update member');
     }
   } catch (error) {
-    console.error('Delete member error:', error);
-    showAlert('error', 'An error occurred while deleting member');
-  } finally {
-    hideLoading();
+    showErrorMessage('Error: ' + error.message);
   }
 }
 
-/**
- * Validate Member Form
- */
-function validateMemberForm() {
-  const firstName = document.getElementById('firstName').value.trim();
-  const lastName = document.getElementById('lastName').value.trim();
-  const relationship = document.getElementById('relationship').value;
-  const dateOfBirth = document.getElementById('dateOfBirth').value;
-  const gender = document.getElementById('gender').value;
-  const civilStatus = document.getElementById('civilStatus').value;
-  const voterStatus = document.getElementById('voterStatus').value;
-
-  // Required fields
-  if (!firstName || !lastName) {
-    showAlert('error', 'First name and last name are required');
-    return false;
+async function removeMember(memberId) {
+  if (!confirm('Are you sure you want to remove this member?')) {
+    return;
   }
 
-  if (!relationship) {
-    showAlert('error', 'Relationship to head is required');
-    return false;
-  }
+  try {
+    const response = await fetch(`${HOUSEHOLD_API}/member.php`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        id: parseInt(memberId)
+      })
+    });
 
-  if (!dateOfBirth) {
-    showAlert('error', 'Date of birth is required');
-    return false;
-  }
+    const result = await response.json();
 
-  if (!gender) {
-    showAlert('error', 'Gender is required');
-    return false;
-  }
-
-  if (!civilStatus) {
-    showAlert('error', 'Civil status is required');
-    return false;
-  }
-
-  if (!voterStatus) {
-    showAlert('error', 'Voter status is required');
-    return false;
-  }
-
-  // Validate date of birth
-  const age = calculateAge(dateOfBirth);
-  if (age < 0 || age > 150) {
-    showAlert('error', 'Invalid date of birth');
-    return false;
-  }
-
-  // Validate future date
-  if (new Date(dateOfBirth) > new Date()) {
-    showAlert('error', 'Date of birth cannot be in the future');
-    return false;
-  }
-
-  // Validate phone number format (Philippine format)
-  const contactNumber = document.getElementById('contactNumber').value.trim();
-  if (contactNumber && !validatePhoneNumber(contactNumber)) {
-    showAlert('error', 'Invalid phone number format. Use format: 09XX-XXX-XXXX or +639XXXXXXXXX');
-    return false;
-  }
-
-  // Validate email format
-  const email = document.getElementById('email').value.trim();
-  if (email && !validateEmail(email)) {
-    showAlert('error', 'Invalid email address format');
-    return false;
-  }
-
-  // Validate voter ID if registered
-  const voterIdNumber = document.getElementById('voterIdNumber').value.trim();
-  if (voterStatus === 'Registered' && !voterIdNumber) {
-    showAlert('error', 'Voter ID number is required for registered voters');
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Validate date of birth field
- */
-function validateDateOfBirth() {
-  const dobInput = document.getElementById('dateOfBirth');
-  if (dobInput) {
-    // Set max date to today
-    const today = new Date().toISOString().split('T')[0];
-    dobInput.setAttribute('max', today);
-    
-    // Set min date to 150 years ago
-    const minDate = new Date();
-    minDate.setFullYear(minDate.getFullYear() - 150);
-    dobInput.setAttribute('min', minDate.toISOString().split('T')[0]);
+    if (result.success) {
+      showSuccessMessage('Member removed successfully!');
+      // Reload household info
+      await new Promise(r => setTimeout(r, 500));
+      loadHouseholdInfo();
+    } else {
+      showErrorMessage(result.message || 'Failed to remove member');
+    }
+  } catch (error) {
+    showErrorMessage('Error: ' + error.message);
   }
 }
 
-/**
- * Calculate age from date of birth
- */
-function calculateAge(dateOfBirth) {
+function editHousehold() {
+  showErrorMessage('Edit household feature coming soon');
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+function closeAllModals() {
+  document.querySelectorAll('.modal').forEach(modal => {
+    modal.style.display = 'none';
+  });
+  document.body.style.overflow = 'auto';
+}
+
+function showErrorMessage(message) {
+  const container = document.getElementById('messageContainer');
+  if (!container) return;
+  
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'alert alert-danger';
+  msgDiv.innerHTML = `
+    <i class="fa-solid fa-exclamation-circle"></i>
+    <div>
+      <strong>Error</strong>
+      <p>${message}</p>
+    </div>
+    <button class="close-alert" onclick="this.parentElement.style.display='none';">&times;</button>
+  `;
+  container.appendChild(msgDiv);
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    if (msgDiv.parentElement) msgDiv.remove();
+  }, 5000);
+}
+
+function showSuccessMessage(message) {
+  const container = document.getElementById('messageContainer');
+  if (!container) return;
+  
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'alert alert-success';
+  msgDiv.innerHTML = `
+    <i class="fa-solid fa-check-circle"></i>
+    <div>
+      <strong>Success</strong>
+      <p>${message}</p>
+    </div>
+    <button class="close-alert" onclick="this.parentElement.style.display='none';">&times;</button>
+  `;
+  container.appendChild(msgDiv);
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    if (msgDiv.parentElement) msgDiv.remove();
+  }, 5000);
+}
+
+function calculateAge(dob) {
   const today = new Date();
-  const birthDate = new Date(dateOfBirth);
+  const birthDate = new Date(dob);
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
-  
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
     age--;
   }
-  
   return age;
 }
-
-/**
- * Validate phone number (Philippine format)
- */
-function validatePhoneNumber(phone) {
-  // Remove spaces and dashes
-  const cleanPhone = phone.replace(/[\s\-()]/g, '');
-  
-  // Philippine mobile: 09XXXXXXXXX or +639XXXXXXXXX
-  const mobilePattern = /^(09\d{9}|(\+?639)\d{9})$/;
-  
-  // Landline: (02)XXXXXXX or 02XXXXXXX
-  const landlinePattern = /^((\(0?2\))|0?2)?\d{7,8}$/;
-  
-  return mobilePattern.test(cleanPhone) || landlinePattern.test(cleanPhone);
-}
-
-/**
- * Format phone number input
- */
-function formatPhoneNumber(e) {
-  let value = e.target.value.replace(/\D/g, '');
-  
-  // Format as 09XX-XXX-XXXX
-  if (value.startsWith('09') && value.length >= 4) {
-    if (value.length <= 4) {
-      value = value;
-    } else if (value.length <= 7) {
-      value = value.slice(0, 4) + '-' + value.slice(4);
-    } else {
-      value = value.slice(0, 4) + '-' + value.slice(4, 7) + '-' + value.slice(7, 11);
-    }
-  }
-  
-  e.target.value = value;
-}
-
-/**
- * Validate email address
- */
-function validateEmail(email) {
-  const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return emailPattern.test(email);
-}
-
-/**
- * Update member statistics
- */
-function updateMemberStatistics() {
-  // This is called after page load and data is already calculated by PHP
-  // Can be extended to calculate client-side if needed
-}
-
-/**
- * Show alert message
- */
-function showAlert(type, message) {
-  // Remove existing alerts
-  const existingAlerts = document.querySelectorAll('.alert');
-  existingAlerts.forEach(alert => alert.remove());
-
-  // Create alert element
-  const alert = document.createElement('div');
-  alert.className = `alert alert-${type}`;
-  
-  const icon = type === 'success' ? 'fa-check-circle' : 
-               type === 'error' ? 'fa-exclamation-circle' : 
-               'fa-info-circle';
-  
-  alert.innerHTML = `
-    <i class="fa-solid ${icon}"></i>
-    <span>${message}</span>
-  `;
-
-  // Insert at the beginning of main content
-  const mainContent = document.getElementById('mainContent');
-  if (mainContent) {
-    mainContent.insertBefore(alert, mainContent.firstChild);
-    
-    // Scroll to alert
-    alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-      alert.style.opacity = '0';
-      setTimeout(() => alert.remove(), 300);
-    }, 5000);
-  }
-}
-
-/**
- * Show loading overlay
- */
-function showLoading(message = 'Loading...') {
-  let loadingOverlay = document.getElementById('loadingOverlay');
-  
-  if (!loadingOverlay) {
-    loadingOverlay = document.createElement('div');
-    loadingOverlay.id = 'loadingOverlay';
-    loadingOverlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(4px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10001;
-    `;
-    
-    loadingOverlay.innerHTML = `
-      <div style="background: white; padding: 30px 40px; border-radius: 12px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-        <div class="loading-spinner" style="width: 40px; height: 40px; margin: 0 auto 15px; border-width: 4px;"></div>
-        <p style="margin: 0; font-size: 16px; font-weight: 500; color: #1f2a3d;">${message}</p>
-      </div>
-    `;
-    
-    document.body.appendChild(loadingOverlay);
-  }
-  
-  document.body.style.overflow = 'hidden';
-}
-
-/**
- * Hide loading overlay
- */
-function hideLoading() {
-  const loadingOverlay = document.getElementById('loadingOverlay');
-  if (loadingOverlay) {
-    loadingOverlay.remove();
-  }
-  document.body.style.overflow = 'auto';
-}
-
-// Export functions for use in inline event handlers
-window.editMember = editMember;
-window.deleteMember = deleteMember;
