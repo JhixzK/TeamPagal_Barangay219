@@ -28,27 +28,49 @@ $residentData = [
     'middle_name' => '',
     'last_name' => '',
     'suffix' => '',
+  'birth_date' => '',
     'date_of_birth' => '',
     'place_of_birth' => '',
+  'sex' => '',
     'gender' => '',
     'civil_status' => '',
+  'citizenship' => 'Filipino',
     'national_id' => '',
+  'valid_id_type' => '',
+  'valid_id_number' => '',
+  'contact_number' => '',
     'mobile_number' => '',
+  'email' => '',
     'emergency_contact_name' => '',
     'emergency_contact_number' => '',
+  'emergency_contact_relationship' => '',
+  'house_number' => '',
     'house_no' => '',
     'street' => '',
+  'purok_sitio' => '',
     'barangay' => 'Barangay 219',
     'city' => 'Manila',
     'province' => 'Metro Manila',
+  'length_of_residency_years' => '',
     'years_of_residency' => '',
+  'educational_attainment' => '',
     'occupation' => '',
     'employment_status' => '',
+  'is_senior_citizen' => 0,
+  'is_pwd' => 0,
+  'pwd_id_number' => '',
+  'is_solo_parent' => 0,
+  'solo_parent_id_number' => '',
+  'is_ip_member' => 0,
+  'ip_group' => '',
+  'is_4ps_beneficiary' => 0,
     'employer_name' => '',
     'household_head_name' => '',
     'relationship_to_head' => '',
     'household_members_count' => '',
     'created_at' => '',
+  'record_status' => 'pending',
+  'status' => 'pending',
     'verification_status' => 'pending',
     'id_document_path' => ''
 ];
@@ -68,6 +90,36 @@ if ($residentId) {
     }
 }
 
+  // Helper to safely resolve equivalent column names across schema versions.
+  $pickValue = static function (array $data, array $keys, $default = '') {
+    foreach ($keys as $key) {
+      if (array_key_exists($key, $data) && $data[$key] !== null && $data[$key] !== '') {
+        return $data[$key];
+      }
+    }
+    return $default;
+  };
+
+  $fullAddressParts = array_filter([
+    $pickValue($residentData, ['house_number', 'house_no']),
+    $pickValue($residentData, ['street']),
+    $pickValue($residentData, ['purok_sitio']),
+    $pickValue($residentData, ['barangay']),
+    $pickValue($residentData, ['city']),
+    $pickValue($residentData, ['province'])
+  ]);
+  $residentFullAddress = !empty($fullAddressParts) ? implode(', ', $fullAddressParts) : $residentFullAddress;
+
+  $dobRaw = $pickValue($residentData, ['birth_date', 'date_of_birth']);
+  $yearsResidency = $pickValue($residentData, ['length_of_residency_years', 'years_of_residency']);
+  $verificationStatus = strtolower((string)$pickValue($residentData, ['verification_status', 'record_status', 'status'], 'pending'));
+  $idNumber = $pickValue($residentData, ['national_id', 'valid_id_number']);
+  $idTypeRaw = $pickValue($residentData, ['valid_id_type']);
+  $idType = $idTypeRaw ? ucwords(str_replace('_', ' ', $idTypeRaw)) : 'N/A';
+  $mobileNumber = $pickValue($residentData, ['mobile_number', 'contact_number']);
+  $genderValue = $pickValue($residentData, ['gender', 'sex']);
+  $houseStreet = trim($pickValue($residentData, ['house_number', 'house_no']) . ' ' . $pickValue($residentData, ['street']));
+
 // Format data for display
 $displayData = [
     'full_name' => $residentName,
@@ -77,30 +129,43 @@ $displayData = [
     'middle_name' => $residentData['middle_name'] ?: 'N/A',
     'last_name' => $residentData['last_name'] ?: 'N/A',
     'suffix' => $residentData['suffix'] ?: 'N/A',
-    'date_of_birth' => $residentData['date_of_birth'] ? date('F d, Y', strtotime($residentData['date_of_birth'])) : 'N/A',
+    'date_of_birth' => $dobRaw ? date('F d, Y', strtotime($dobRaw)) : 'N/A',
     'place_of_birth' => $residentData['place_of_birth'] ?: 'N/A',
-    'gender' => ucfirst($residentData['gender']) ?: 'N/A',
+    'gender' => $genderValue ? ucfirst($genderValue) : 'N/A',
     'civil_status' => ucfirst(str_replace('_', ' ', $residentData['civil_status'])) ?: 'N/A',
-    'national_id' => $residentData['national_id'] ?: 'N/A',
-    'mobile_number' => $residentData['mobile_number'] ?: 'N/A',
-    'email' => $email ?: 'N/A',
+    'citizenship' => $residentData['citizenship'] ?: 'N/A',
+    'national_id' => $idNumber ?: 'N/A',
+    'valid_id_type' => $idType,
+    'mobile_number' => $mobileNumber ?: 'N/A',
+    'email' => ($residentData['email'] ?: $email) ?: 'N/A',
     'emergency_contact_name' => $residentData['emergency_contact_name'] ?: 'N/A',
     'emergency_contact_number' => $residentData['emergency_contact_number'] ?: 'N/A',
-    'house_street' => trim(($residentData['house_no'] ?? '') . ' ' . ($residentData['street'] ?? '')) ?: 'N/A',
+    'emergency_contact_relationship' => $residentData['emergency_contact_relationship'] ?: 'N/A',
+    'house_street' => $houseStreet ?: 'N/A',
+    'purok_sitio' => $residentData['purok_sitio'] ?: 'N/A',
     'barangay' => $residentData['barangay'] ?: 'Barangay 219',
     'city' => $residentData['city'] ?: 'Manila',
     'province' => $residentData['province'] ?: 'Metro Manila',
-    'years_of_residency' => $residentData['years_of_residency'] ? $residentData['years_of_residency'] . ' years' : 'N/A',
+    'years_of_residency' => $yearsResidency !== '' ? $yearsResidency . ' years' : 'N/A',
     'household_head_name' => $residentData['household_head_name'] ?: 'N/A',
     'relationship_to_head' => ucfirst($residentData['relationship_to_head']) ?: 'N/A',
     'household_members_count' => $residentData['household_members_count'] ?: 'N/A',
+    'educational_attainment' => $residentData['educational_attainment'] ?: 'N/A',
     'occupation' => $residentData['occupation'] ?: 'N/A',
     'employment_status' => ucfirst(str_replace('_', ' ', $residentData['employment_status'])) ?: 'N/A',
+    'is_senior_citizen' => (int)$residentData['is_senior_citizen'] === 1 ? 'Yes' : 'No',
+    'is_pwd' => (int)$residentData['is_pwd'] === 1 ? 'Yes' : 'No',
+    'pwd_id_number' => $residentData['pwd_id_number'] ?: 'N/A',
+    'is_solo_parent' => (int)$residentData['is_solo_parent'] === 1 ? 'Yes' : 'No',
+    'solo_parent_id_number' => $residentData['solo_parent_id_number'] ?: 'N/A',
+    'is_ip_member' => (int)$residentData['is_ip_member'] === 1 ? 'Yes' : 'No',
+    'ip_group' => $residentData['ip_group'] ?: 'N/A',
+    'is_4ps_beneficiary' => (int)$residentData['is_4ps_beneficiary'] === 1 ? 'Yes' : 'No',
     'employer_name' => $residentData['employer_name'] ?: 'N/A',
     'username' => $username,
     'account_created' => $residentData['created_at'] ? date('F d, Y', strtotime($residentData['created_at'])) : 'N/A',
     'id_document' => $residentData['id_document_path'] ? basename($residentData['id_document_path']) : 'No ID uploaded',
-    'verification_status' => $residentData['verification_status'] ?: 'pending'
+    'verification_status' => $verificationStatus
 ];
 
 $verificationBadge = match($displayData['verification_status']) {
@@ -196,7 +261,7 @@ $verificationBadge = match($displayData['verification_status']) {
 
       <div class="nav-group">
         <p class="group-title label">HOUSEHOLD</p>
-        <a class="nav-item" href="#">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>resident_household.php">
           <i class="fa-solid fa-house-user"></i>
           <span class="label">Household Information</span>
         </a>
@@ -279,6 +344,8 @@ $verificationBadge = match($displayData['verification_status']) {
           <div class="info-row"><span>Place of Birth</span><strong><?php echo htmlspecialchars($displayData['place_of_birth']); ?></strong></div>
           <div class="info-row"><span>Gender</span><strong><?php echo htmlspecialchars($displayData['gender']); ?></strong></div>
           <div class="info-row"><span>Civil Status</span><strong><?php echo htmlspecialchars($displayData['civil_status']); ?></strong></div>
+          <div class="info-row"><span>Citizenship</span><strong><?php echo htmlspecialchars($displayData['citizenship']); ?></strong></div>
+          <div class="info-row"><span>Government ID Type</span><strong><?php echo htmlspecialchars($displayData['valid_id_type']); ?></strong></div>
           <div class="info-row"><span>National ID / Government ID Number</span><strong><?php echo htmlspecialchars($displayData['national_id']); ?></strong></div>
         </div>
       </article>
@@ -293,6 +360,7 @@ $verificationBadge = match($displayData['verification_status']) {
           <div class="info-row"><span>Email Address</span><strong><?php echo htmlspecialchars($displayData['email']); ?></strong></div>
           <div class="info-row"><span>Emergency Contact Person</span><strong><?php echo htmlspecialchars($displayData['emergency_contact_name']); ?></strong></div>
           <div class="info-row"><span>Emergency Contact Number</span><strong><?php echo htmlspecialchars($displayData['emergency_contact_number']); ?></strong></div>
+          <div class="info-row"><span>Emergency Contact Relationship</span><strong><?php echo htmlspecialchars($displayData['emergency_contact_relationship']); ?></strong></div>
         </div>
       </article>
 
@@ -303,6 +371,7 @@ $verificationBadge = match($displayData['verification_status']) {
         </div>
         <div class="info-list">
           <div class="info-row"><span>House Number / Street</span><strong><?php echo htmlspecialchars($displayData['house_street']); ?></strong></div>
+          <div class="info-row"><span>Purok / Sitio</span><strong><?php echo htmlspecialchars($displayData['purok_sitio']); ?></strong></div>
           <div class="info-row"><span>Barangay</span><strong><?php echo htmlspecialchars($displayData['barangay']); ?></strong></div>
           <div class="info-row"><span>City / Municipality</span><strong><?php echo htmlspecialchars($displayData['city']); ?></strong></div>
           <div class="info-row"><span>Province</span><strong><?php echo htmlspecialchars($displayData['province']); ?></strong></div>
@@ -328,9 +397,18 @@ $verificationBadge = match($displayData['verification_status']) {
           <button class="btn-link" data-action="edit-employment"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
         </div>
         <div class="info-list">
+          <div class="info-row"><span>Educational Attainment</span><strong><?php echo htmlspecialchars($displayData['educational_attainment']); ?></strong></div>
           <div class="info-row"><span>Occupation</span><strong><?php echo htmlspecialchars($displayData['occupation']); ?></strong></div>
           <div class="info-row"><span>Employment Status</span><strong><?php echo htmlspecialchars($displayData['employment_status']); ?></strong></div>
           <div class="info-row"><span>Employer Name</span><strong><?php echo htmlspecialchars($displayData['employer_name']); ?></strong></div>
+          <div class="info-row"><span>Senior Citizen</span><strong><?php echo htmlspecialchars($displayData['is_senior_citizen']); ?></strong></div>
+          <div class="info-row"><span>PWD</span><strong><?php echo htmlspecialchars($displayData['is_pwd']); ?></strong></div>
+          <div class="info-row"><span>PWD ID Number</span><strong><?php echo htmlspecialchars($displayData['pwd_id_number']); ?></strong></div>
+          <div class="info-row"><span>Solo Parent</span><strong><?php echo htmlspecialchars($displayData['is_solo_parent']); ?></strong></div>
+          <div class="info-row"><span>Solo Parent ID Number</span><strong><?php echo htmlspecialchars($displayData['solo_parent_id_number']); ?></strong></div>
+          <div class="info-row"><span>IP Member</span><strong><?php echo htmlspecialchars($displayData['is_ip_member']); ?></strong></div>
+          <div class="info-row"><span>IP Group</span><strong><?php echo htmlspecialchars($displayData['ip_group']); ?></strong></div>
+          <div class="info-row"><span>4Ps Beneficiary</span><strong><?php echo htmlspecialchars($displayData['is_4ps_beneficiary']); ?></strong></div>
         </div>
       </article>
 
