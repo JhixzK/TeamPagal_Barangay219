@@ -42,6 +42,7 @@ const requiredByCertificate = {
 };
 
 let selectedFiles = [];
+const CREATE_CERTIFICATE_API_URL = "../api/certificates/create.php";
 
 function formatToday() {
   const now = new Date();
@@ -216,23 +217,64 @@ function validateForm() {
   return valid;
 }
 
-function generateReferenceNumber() {
-  const year = new Date().getFullYear();
-  const serial = Math.floor(100000 + Math.random() * 900000);
-  return "BRGY-REQ-" + year + "-" + serial;
-}
-
-function handleSubmit(event) {
+async function handleSubmit(event) {
   event.preventDefault();
 
   if (!validateForm()) {
     return;
   }
 
-  const reference = generateReferenceNumber();
-  referenceNumber.textContent = reference;
-  submissionResult.classList.remove("hidden");
-  submissionResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  const submitButton = requestForm.querySelector("button[type='submit']");
+  if (submitButton) {
+    submitButton.disabled = true;
+  }
+
+  const selectedPurpose = purpose.value === "Others" ? purposeOther.value.trim() : purpose.value;
+  const formData = new FormData();
+  formData.append("certificate_type", certificateType.value);
+  formData.append("purpose", selectedPurpose);
+
+  Object.entries(allAdditionalInputs).forEach(([key, input]) => {
+    if (input && input.value.trim()) {
+      formData.append(key, input.value.trim());
+    }
+  });
+
+  selectedFiles.forEach((file, index) => {
+    if (index === 0) {
+      formData.append("documents", file);
+    }
+    formData.append("documents[]", file);
+  });
+
+  try {
+    const response = await fetch(CREATE_CERTIFICATE_API_URL, {
+      method: "POST",
+      body: formData,
+      credentials: "same-origin"
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Unable to submit certificate request.");
+    }
+
+    const reference = result.reference_number || (result.data && result.data.reference_number) || "-";
+    referenceNumber.textContent = reference;
+    submissionResult.classList.remove("hidden");
+    submissionResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    sessionStorage.setItem("latest_certificate_reference", reference);
+    setTimeout(() => {
+      window.location.href = "my_requests.php";
+    }, 900);
+  } catch (error) {
+    setError("documentsError", error.message || "Unable to submit certificate request.");
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+    }
+  }
 }
 
 function handleCancel() {
