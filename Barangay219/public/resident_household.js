@@ -3,6 +3,68 @@
  * Handles household information, role selection, and member management
  */
 
+// ============================================================================
+// NAVIGATION & UI
+// ============================================================================
+
+const profileTrigger = document.getElementById("profileTrigger");
+const dropdownMenu = document.getElementById("dropdownMenu");
+const sidebar = document.getElementById("sidebar");
+const menuToggle = document.getElementById("menuToggle");
+const topDateBadge = document.getElementById("topDateBadge");
+
+function formatToday() {
+  const now = new Date();
+  return now.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "2-digit"
+  });
+}
+
+function setDateBadges() {
+  const today = formatToday();
+  if (topDateBadge) {
+    topDateBadge.textContent = today;
+  }
+}
+
+function toggleDropdown() {
+  const expanded = profileTrigger.getAttribute("aria-expanded") === "true";
+  profileTrigger.setAttribute("aria-expanded", String(!expanded));
+  dropdownMenu.classList.toggle("open", !expanded);
+}
+
+function closeDropdownIfOutside(event) {
+  if (!event.target.closest("#profileDropdown")) {
+    profileTrigger.setAttribute("aria-expanded", "false");
+    dropdownMenu.classList.remove("open");
+  }
+}
+
+function toggleSidebarOnMobile() {
+  sidebar.classList.toggle("expanded");
+}
+
+if (profileTrigger) {
+  profileTrigger.addEventListener("click", toggleDropdown);
+}
+if (menuToggle) {
+  menuToggle.addEventListener("click", toggleSidebarOnMobile);
+}
+document.addEventListener("click", closeDropdownIfOutside);
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 991) {
+    sidebar.classList.remove("expanded");
+  }
+});
+
+setDateBadges();
+
+// ============================================================================
+// HOUSEHOLD MANAGEMENT
+// ============================================================================
+
 let currentHouseholdContext = null;
 let currentHouseholdData = null;
 let currentMembers = [];
