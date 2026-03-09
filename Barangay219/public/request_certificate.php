@@ -143,7 +143,7 @@ if ($residentId) {
 
       <div class="nav-group">
         <p class="group-title label">HOUSEHOLD</p>
-        <a class="nav-item" href="#">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>resident_household.php">
           <i class="fa-solid fa-house-user"></i>
           <span class="label">Household Information</span>
         </a>
@@ -347,6 +347,6 @@ if ($residentId) {
     </form>
   </main>
 
-  <script src="request_certificate.js"></script>
+  <script src="request_certificate.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/request_certificate.js')); ?>"></script>
 </body>
 </html>
