@@ -91,7 +91,7 @@ if ($residentId) {
     <nav class="sidebar-nav">
       <div class="nav-group">
         <p class="group-title label">ACCOUNT</p>
-        <a class="nav-item" href="resident_profile.php">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>resident_profile.php">
           <i class="fa-regular fa-user"></i>
           <span class="label">My Profile</span>
         </a>
@@ -99,7 +99,7 @@ if ($residentId) {
 
       <div class="nav-group">
         <p class="group-title label">MAIN</p>
-        <a class="nav-item active" href="resident_dashboard.php">
+        <a class="nav-item active" href="<?php echo BASE_URL; ?>resident_dashboard.php">
           <i class="fa-solid fa-gauge-high"></i>
           <span class="label">Dashboard</span>
         </a>
@@ -107,11 +107,11 @@ if ($residentId) {
 
       <div class="nav-group">
         <p class="group-title label">SERVICES</p>
-        <a class="nav-item" href="request_certificate.php">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>request_certificate.php">
           <i class="fa-regular fa-file-lines"></i>
           <span class="label">Request Certificate</span>
         </a>
-        <a class="nav-item" href="my_requests.php">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>my_requests.php">
           <i class="fa-solid fa-list-check"></i>
           <span class="label">My Requests</span>
         </a>
@@ -119,7 +119,7 @@ if ($residentId) {
 
       <div class="nav-group">
         <p class="group-title label">HOUSEHOLD</p>
-        <a class="nav-item" href="resident_household.php">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>resident_household.php">
           <i class="fa-solid fa-house-user"></i>
           <span class="label">Household Information</span>
         </a>
