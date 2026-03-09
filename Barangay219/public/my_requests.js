@@ -21,85 +21,12 @@ const detailsModal = document.getElementById("detailsModal");
 const modalContent = document.getElementById("modalContent");
 const modalActions = document.getElementById("modalActions");
 const closeModalBtn = document.getElementById("closeModalBtn");
-const closeModalFooterBtn = document.getElementById("closeModalFooterBtn");
 
 const PAGE_SIZE = 5;
+const LIST_API_URL = "../api/certificates/list.php";
+const CANCEL_API_URL = "../api/certificates/cancel.php";
 let currentPage = 1;
-
-const requests = [
-  {
-    id: "BRGY-REQ-2026-000123",
-    certificateType: "Barangay Clearance",
-    purpose: "Employment",
-    dateRequested: "March 01, 2026",
-    status: "Pending",
-    paymentStatus: "Unpaid",
-    residentName: "Juan Dela Cruz",
-    address: "Blk 12 Lot 8, Barangay 219, Tondo, Manila",
-    uploadedDocuments: ["Valid-ID.jpg", "Barangay-ID.pdf"],
-    rejectionReason: ""
-  },
-  {
-    id: "BRGY-REQ-2026-000124",
-    certificateType: "Certificate of Residency",
-    purpose: "School Requirement",
-    dateRequested: "March 02, 2026",
-    status: "Under Review",
-    paymentStatus: "Paid",
-    residentName: "Juan Dela Cruz",
-    address: "Blk 12 Lot 8, Barangay 219, Tondo, Manila",
-    uploadedDocuments: ["School-Form.pdf"],
-    rejectionReason: ""
-  },
-  {
-    id: "BRGY-REQ-2026-000125",
-    certificateType: "Certificate of Indigency",
-    purpose: "Scholarship",
-    dateRequested: "March 03, 2026",
-    status: "Approved",
-    paymentStatus: "Paid",
-    residentName: "Juan Dela Cruz",
-    address: "Blk 12 Lot 8, Barangay 219, Tondo, Manila",
-    uploadedDocuments: ["Income-Declaration.pdf", "Student-ID.jpg"],
-    rejectionReason: ""
-  },
-  {
-    id: "BRGY-REQ-2026-000126",
-    certificateType: "Business Clearance",
-    purpose: "Business Requirement",
-    dateRequested: "March 04, 2026",
-    status: "Rejected",
-    paymentStatus: "Unpaid",
-    residentName: "Juan Dela Cruz",
-    address: "Blk 12 Lot 8, Barangay 219, Tondo, Manila",
-    uploadedDocuments: ["Business-Permit-Application.pdf"],
-    rejectionReason: "Business address document is incomplete."
-  },
-  {
-    id: "BRGY-REQ-2026-000127",
-    certificateType: "Barangay ID Request",
-    purpose: "Government Requirement",
-    dateRequested: "March 05, 2026",
-    status: "Ready for Pickup",
-    paymentStatus: "Paid",
-    residentName: "Juan Dela Cruz",
-    address: "Blk 12 Lot 8, Barangay 219, Tondo, Manila",
-    uploadedDocuments: ["Birth-Certificate.pdf", "2x2-Photo.jpg"],
-    rejectionReason: ""
-  },
-  {
-    id: "BRGY-REQ-2026-000128",
-    certificateType: "Certificate of Good Moral Character",
-    purpose: "Employment",
-    dateRequested: "March 06, 2026",
-    status: "Completed",
-    paymentStatus: "Paid",
-    residentName: "Juan Dela Cruz",
-    address: "Blk 12 Lot 8, Barangay 219, Tondo, Manila",
-    uploadedDocuments: ["Character-Reference.pdf"],
-    rejectionReason: ""
-  }
-];
+let requests = [];
 
 function formatToday() {
   const now = new Date();
@@ -120,25 +47,64 @@ function slugStatus(status) {
   return status.toLowerCase().replace(/\s+/g, "-");
 }
 
+function displayStatus(status) {
+  const labelMap = {
+    pending: "Pending",
+    under_review: "Under Review",
+    approved: "Approved",
+    rejected: "Rejected",
+    issued: "Issued",
+    cancelled: "Cancelled"
+  };
+  return labelMap[status] || status;
+}
+
+function normalizeFilterStatus(label) {
+  const map = {
+    Pending: ["pending"],
+    "Under Review": ["under_review"],
+    Approved: ["approved"],
+    Rejected: ["rejected"],
+    "Ready for Pickup": ["issued"],
+    Completed: ["issued"],
+    Issued: ["issued"],
+    Cancelled: ["cancelled"]
+  };
+  return map[label] || [];
+}
+
+function formatDate(dateValue) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "2-digit"
+  });
+}
+
 function filteredRequests() {
   const searchValue = searchInput.value.trim().toLowerCase();
   const selectedStatus = statusFilter.value;
+  const allowedStatuses = normalizeFilterStatus(selectedStatus);
 
   return requests.filter((item) => {
     const matchesSearch =
-      item.id.toLowerCase().includes(searchValue) ||
+      item.reference_number.toLowerCase().includes(searchValue) ||
       item.certificateType.toLowerCase().includes(searchValue);
 
-    const matchesStatus = selectedStatus === "All" || item.status === selectedStatus;
+    const matchesStatus = selectedStatus === "All" || allowedStatuses.includes(item.rawStatus);
     return matchesSearch && matchesStatus;
   });
 }
 
 function renderSummaryCards() {
   totalRequestsEl.textContent = requests.length;
-  pendingRequestsEl.textContent = requests.filter((item) => item.status === "Pending").length;
-  approvedRequestsEl.textContent = requests.filter((item) => item.status === "Approved").length;
-  rejectedRequestsEl.textContent = requests.filter((item) => item.status === "Rejected").length;
+  pendingRequestsEl.textContent = requests.filter((item) => item.rawStatus === "pending").length;
+  approvedRequestsEl.textContent = requests.filter((item) => item.rawStatus === "approved").length;
+  rejectedRequestsEl.textContent = requests.filter((item) => item.rawStatus === "rejected").length;
 }
 
 function buildActionButtons(request) {
@@ -150,26 +116,16 @@ function buildActionButtons(request) {
   viewBtn.textContent = "View Details";
   viewBtn.type = "button";
   viewBtn.dataset.action = "view";
-  viewBtn.dataset.id = request.id;
+  viewBtn.dataset.id = String(request.numericId);
   container.appendChild(viewBtn);
 
-  if (request.status === "Approved") {
-    const downloadBtn = document.createElement("button");
-    downloadBtn.className = "btn-action download";
-    downloadBtn.textContent = "Download Certificate";
-    downloadBtn.type = "button";
-    downloadBtn.dataset.action = "download";
-    downloadBtn.dataset.id = request.id;
-    container.appendChild(downloadBtn);
-  }
-
-  if (request.status === "Pending") {
+  if (request.rawStatus === "pending") {
     const cancelBtn = document.createElement("button");
     cancelBtn.className = "btn-action cancel";
     cancelBtn.textContent = "Cancel Request";
     cancelBtn.type = "button";
     cancelBtn.dataset.action = "cancel";
-    cancelBtn.dataset.id = request.id;
+    cancelBtn.dataset.id = String(request.numericId);
     container.appendChild(cancelBtn);
   }
 
@@ -191,12 +147,12 @@ function renderTableRows() {
   rows.forEach((item) => {
     const row = document.createElement("tr");
     row.innerHTML =
-      "<td>" + item.id + "</td>" +
+      "<td>" + item.reference_number + "</td>" +
       "<td>" + item.certificateType + "</td>" +
       "<td>" + item.purpose + "</td>" +
       "<td>" + item.dateRequested + "</td>" +
       "<td><span class='badge " + slugStatus(item.status) + "'>" + item.status + "</span></td>" +
-      "<td><span class='badge " + item.paymentStatus.toLowerCase() + "'>" + item.paymentStatus + "</span></td>";
+      "<td><span class='badge unpaid'>Unpaid</span></td>";
 
     const actionsCell = document.createElement("td");
     actionsCell.appendChild(buildActionButtons(item));
@@ -257,37 +213,28 @@ function renderPagination(totalPages, showPagination) {
 }
 
 function openDetailsModal(request) {
-  const uploadedDocs = request.uploadedDocuments.length
-    ? request.uploadedDocuments.join(", ")
-    : "None";
+  const uploadedDocs = request.attachmentName || "None";
 
   let detailsHtml = "";
-  detailsHtml += "<div class='modal-row'><span>Request ID</span><strong>" + request.id + "</strong></div>";
+  detailsHtml += "<div class='modal-row'><span>Request ID</span><strong>" + request.reference_number + "</strong></div>";
   detailsHtml += "<div class='modal-row'><span>Certificate Type</span><strong>" + request.certificateType + "</strong></div>";
   detailsHtml += "<div class='modal-row'><span>Purpose</span><strong>" + request.purpose + "</strong></div>";
-  detailsHtml += "<div class='modal-row'><span>Resident Name</span><strong>" + request.residentName + "</strong></div>";
-  detailsHtml += "<div class='modal-row'><span>Address</span><strong>" + request.address + "</strong></div>";
   detailsHtml += "<div class='modal-row'><span>Date Requested</span><strong>" + request.dateRequested + "</strong></div>";
   detailsHtml += "<div class='modal-row'><span>Status</span><strong><span class='badge " + slugStatus(request.status) + "'>" + request.status + "</span></strong></div>";
-  detailsHtml += "<div class='modal-row'><span>Payment Status</span><strong><span class='badge " + request.paymentStatus.toLowerCase() + "'>" + request.paymentStatus + "</span></strong></div>";
+  detailsHtml += "<div class='modal-row'><span>Payment Status</span><strong><span class='badge unpaid'>Unpaid</span></strong></div>";
   detailsHtml += "<div class='modal-row'><span>Uploaded Documents</span><strong>" + uploadedDocs + "</strong></div>";
-
-  if (request.status === "Rejected") {
-    detailsHtml += "<div class='modal-row'><span>Rejection Reason</span><strong>" + (request.rejectionReason || "No reason provided.") + "</strong></div>";
-  }
 
   modalContent.innerHTML = detailsHtml;
   modalActions.innerHTML = "";
 
-  if (request.status === "Approved") {
-    const downloadBtn = document.createElement("button");
-    downloadBtn.type = "button";
-    downloadBtn.className = "btn-primary";
-    downloadBtn.textContent = "Download Certificate";
-    downloadBtn.addEventListener("click", () => {
-      window.alert("Downloading certificate for " + request.id);
-    });
-    modalActions.appendChild(downloadBtn);
+  if (request.rawStatus === "pending") {
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "btn-primary";
+    cancelBtn.textContent = "Cancel Request";
+    cancelBtn.dataset.action = "cancel";
+    cancelBtn.dataset.id = String(request.numericId);
+    modalActions.appendChild(cancelBtn);
   }
 
   const closeBtn = document.createElement("button");
@@ -304,15 +251,31 @@ function closeModal() {
   detailsModal.classList.add("hidden");
 }
 
-function handleTableAction(event) {
+async function cancelRequest(requestId) {
+  const body = new FormData();
+  body.append("id", String(requestId));
+
+  const response = await fetch(CANCEL_API_URL, {
+    method: "POST",
+    body,
+    credentials: "same-origin"
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Unable to cancel request.");
+  }
+}
+
+async function handleTableAction(event) {
   const button = event.target.closest("button[data-action]");
   if (!button) {
     return;
   }
 
   const action = button.dataset.action;
-  const requestId = button.dataset.id;
-  const request = requests.find((item) => item.id === requestId);
+  const requestId = Number(button.dataset.id || 0);
+  const request = requests.find((item) => item.numericId === requestId);
   if (!request) {
     return;
   }
@@ -322,23 +285,65 @@ function handleTableAction(event) {
     return;
   }
 
-  if (action === "download") {
-    window.alert("Downloading certificate for " + request.id);
-    return;
-  }
-
   if (action === "cancel") {
     const confirmCancel = window.confirm("Cancel this pending request?");
     if (!confirmCancel) {
       return;
     }
 
-    request.status = "Rejected";
-    request.rejectionReason = "Request cancelled by resident.";
-    request.paymentStatus = "Unpaid";
-    renderSummaryCards();
-    renderTableRows();
+    try {
+      await cancelRequest(request.numericId);
+      closeModal();
+      await loadRequests();
+    } catch (error) {
+      window.alert(error.message || "Unable to cancel request.");
+    }
   }
+}
+
+function mapApiRequest(row) {
+  const status = row.status || "pending";
+  const attachment = row.attachment || "";
+  const attachmentName = attachment ? attachment.split("/").pop() : "";
+
+  return {
+    numericId: Number(row.id),
+    reference_number: row.reference_number || "-",
+    certificateType: row.certificate_type || "-",
+    purpose: row.purpose || "-",
+    dateRequested: formatDate(row.created_at),
+    status: displayStatus(status),
+    rawStatus: status,
+    attachmentName
+  };
+}
+
+async function loadRequests() {
+  const response = await fetch(LIST_API_URL, {
+    method: "GET",
+    credentials: "same-origin"
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Unable to load requests.");
+  }
+
+  const rows = (result.data && Array.isArray(result.data.requests)) ? result.data.requests : [];
+  requests = rows.map(mapApiRequest);
+
+  renderSummaryCards();
+  renderTableRows();
+}
+
+function showLatestReferenceIfAny() {
+  const latestReference = sessionStorage.getItem("latest_certificate_reference");
+  if (!latestReference) {
+    return;
+  }
+
+  sessionStorage.removeItem("latest_certificate_reference");
+  window.alert("Request submitted. Reference Number: " + latestReference);
 }
 
 function handleFilterChange() {
@@ -367,7 +372,15 @@ searchInput.addEventListener("input", handleFilterChange);
 statusFilter.addEventListener("change", handleFilterChange);
 tableBody.addEventListener("click", handleTableAction);
 closeModalBtn.addEventListener("click", closeModal);
-closeModalFooterBtn.addEventListener("click", closeModal);
+modalActions.addEventListener("click", (event) => {
+  if (event.target.closest("#closeModalFooterBtn")) {
+    closeModal();
+    return;
+  }
+  if (event.target.closest("button[data-action]")) {
+    handleTableAction(event);
+  }
+});
 detailsModal.addEventListener("click", (event) => {
   if (event.target === detailsModal) {
     closeModal();
@@ -383,5 +396,10 @@ window.addEventListener("resize", () => {
 });
 
 setDateBadges();
-renderSummaryCards();
-renderTableRows();
+showLatestReferenceIfAny();
+loadRequests().catch((error) => {
+  requests = [];
+  renderSummaryCards();
+  renderTableRows();
+  window.alert(error.message || "Unable to load requests.");
+});
