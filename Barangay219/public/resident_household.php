@@ -155,10 +155,16 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
         </a>
       </div>
     </nav>
+
+    <div class="sidebar-bottom">
+      <a class="nav-item logout" href="../api/auth.php?action=logout">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        <span class="label">Logout</span>
+      </a>
+    </div>
   </aside>
 
-  <div class="main-container">
-    <main class="main-content">
+  <main class="main-content" id="mainContent">
       <div class="page-header">
         <h1><i class="fa-solid fa-house"></i> My Household</h1>
         <p>Manage your household information and members</p>
@@ -488,7 +494,6 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
       <div id="messageContainer"></div>
 
     </main>
-  </div>
 
   <script>
     // API base URL
