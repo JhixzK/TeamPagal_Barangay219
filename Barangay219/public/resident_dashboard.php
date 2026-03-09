@@ -127,7 +127,7 @@ if ($residentId) {
 
       <div class="nav-group">
         <p class="group-title label">COMMUNITY</p>
-        <a class="nav-item" href="#">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>resident_announcements.php">
           <i class="fa-regular fa-newspaper"></i>
           <span class="label">Announcements</span>
         </a>
@@ -262,6 +262,22 @@ if ($residentId) {
     </section>
   </main>
 
+  <!-- Announcement Modal -->
+  <div id="announcementModal" class="modal" style="display: none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h2 class="modal-title">Announcement</h2>
+        <button class="modal-close" aria-label="Close announcement">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-announcement-date"></p>
+        <div class="modal-announcement-content"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="resident_dashboard.js"></script>
+  <script src="announcement-manager.js"></script>
 </body>
 </html>
