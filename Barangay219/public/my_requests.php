@@ -131,7 +131,7 @@ if ($residentId) {
           <i class="fa-regular fa-newspaper"></i>
           <span class="label">Announcements</span>
         </a>
-        <a class="nav-item" href="#">
+        <a class="nav-item" href="<?php echo BASE_URL; ?>complaints/my_complaints.php">
           <i class="fa-regular fa-comment-dots"></i>
           <span class="label">Complaints / Reports</span>
         </a>
