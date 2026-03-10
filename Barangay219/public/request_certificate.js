@@ -10,9 +10,11 @@ const certificateType = document.getElementById("certificateType");
 const purpose = document.getElementById("purpose");
 const purposeOtherWrap = document.getElementById("purposeOtherWrap");
 const purposeOther = document.getElementById("purposeOther");
-const cancelBtn = document.getElementById("cancelBtn");
-const submissionResult = document.getElementById("submissionResult");
-const referenceNumber = document.getElementById("referenceNumber");
+const businessNameWrap = document.getElementById("businessNameWrap");
+const businessAddressWrap = document.getElementById("businessAddressWrap");
+const businessName = document.getElementById("businessName");
+const businessAddress = document.getElementById("businessAddress");
+const declaration = document.getElementById("declaration");
 
 const uploadBox = document.getElementById("uploadBox");
 const documentsInput = document.getElementById("documents");
@@ -22,27 +24,40 @@ const fileList = document.getElementById("fileList");
 const summaryCertificate = document.getElementById("summaryCertificate");
 const summaryPurpose = document.getElementById("summaryPurpose");
 const summaryDocuments = document.getElementById("summaryDocuments");
+const requirementsList = document.getElementById("requirementsList");
 
-const additionalFieldEls = [...document.querySelectorAll(".additional-field")];
-const allAdditionalInputs = {
-  yearsResidency: document.getElementById("yearsResidency"),
-  monthlyIncome: document.getElementById("monthlyIncome"),
-  businessName: document.getElementById("businessName"),
-  businessAddress: document.getElementById("businessAddress"),
-  dependents: document.getElementById("dependents")
+const requirementMap = {
+  "Barangay Clearance": ["Valid ID"],
+  "Certificate of Indigency": ["Valid ID", "Supporting proof (optional)"],
+  "Certificate of Residency": ["Valid ID"],
+  "Certificate of Good Moral Character": ["Valid ID", "Community endorsement (if requested)"],
+  "Certificate of Solo Parent": ["Valid ID", "Solo Parent ID or supporting proof"],
+  "Business Clearance": ["Business permit copy", "Valid ID"]
 };
 
-const requiredByCertificate = {
-  "Barangay Clearance": ["yearsResidency"],
-  "Certificate of Residency": ["yearsResidency"],
-  "Certificate of Indigency": ["monthlyIncome", "dependents"],
-  "Certificate of Good Moral Character": ["yearsResidency"],
-  "Business Clearance": ["businessName", "businessAddress"],
-  "Barangay ID Request": []
-};
-
+const allowedMimeTypes = ["image/jpeg", "image/png", "application/pdf"];
+const maxFileCount = 3;
+const maxFileSize = 5 * 1024 * 1024;
 let selectedFiles = [];
-const CREATE_CERTIFICATE_API_URL = "../api/certificates/create.php";
+
+function setError(id, message) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.textContent = message || "";
+  }
+}
+
+function clearErrors() {
+  [
+    "certificateTypeError",
+    "purposeError",
+    "purposeOtherError",
+    "businessNameError",
+    "businessAddressError",
+    "documentsError",
+    "declarationError"
+  ].forEach((id) => setError(id, ""));
+}
 
 function formatToday() {
   const now = new Date();
@@ -54,140 +69,151 @@ function formatToday() {
 }
 
 function setDateBadges() {
-  const today = formatToday();
-  topDateBadge.textContent = today;
-  mainDateBadge.textContent = today;
-}
-
-function setError(id, message) {
-  const target = document.getElementById(id);
-  if (target) {
-    target.textContent = message;
+  const text = formatToday();
+  if (topDateBadge) {
+    topDateBadge.textContent = text;
+  }
+  if (mainDateBadge) {
+    mainDateBadge.textContent = text;
   }
 }
 
-function clearAllErrors() {
-  [
-    "certificateTypeError",
-    "purposeError",
-    "purposeOtherError",
-    "documentsError",
-    "yearsResidencyError",
-    "monthlyIncomeError",
-    "businessNameError",
-    "businessAddressError",
-    "dependentsError"
-  ].forEach((errorId) => setError(errorId, ""));
+function toggleDropdown() {
+  if (!profileTrigger || !dropdownMenu) return;
+  const expanded = profileTrigger.getAttribute("aria-expanded") === "true";
+  profileTrigger.setAttribute("aria-expanded", String(!expanded));
+  dropdownMenu.classList.toggle("open", !expanded);
 }
 
-function showRelevantAdditionalFields() {
-  const selectedType = certificateType.value;
-  const requiredFields = requiredByCertificate[selectedType] || [];
-
-  additionalFieldEls.forEach((fieldEl) => {
-    const key = fieldEl.getAttribute("data-key");
-    const shouldShow = requiredFields.includes(key);
-    fieldEl.classList.toggle("hidden", !shouldShow);
-    if (!shouldShow && allAdditionalInputs[key]) {
-      allAdditionalInputs[key].value = "";
-      setError(key + "Error", "");
-    }
-  });
-}
-
-function updateSummary() {
-  const certType = certificateType.value;
-  summaryCertificate.textContent = certType || "-";
-  summaryPurpose.textContent = purpose.value === "Others" ? (purposeOther.value || "Others") : (purpose.value || "-");
-  summaryDocuments.textContent = selectedFiles.length ? selectedFiles.map((file) => file.name).join(", ") : "None";
-}
-
-function togglePurposeOther() {
-  const showOther = purpose.value === "Others";
-  purposeOtherWrap.classList.toggle("hidden", !showOther);
-  if (!showOther) {
-    purposeOther.value = "";
-    setError("purposeOtherError", "");
+function closeDropdownIfOutside(event) {
+  if (!profileTrigger || !dropdownMenu) return;
+  if (!event.target.closest("#profileDropdown")) {
+    profileTrigger.setAttribute("aria-expanded", "false");
+    dropdownMenu.classList.remove("open");
   }
-  updateSummary();
 }
 
-function isValidFile(file) {
-  const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
-  const maxSize = 5 * 1024 * 1024;
-  return allowedTypes.includes(file.type) && file.size <= maxSize;
+function toggleSidebarOnMobile() {
+  if (!sidebar) return;
+  sidebar.classList.toggle("expanded");
 }
 
-function renderFiles() {
+function syncInputFiles() {
+  if (!documentsInput) return;
+  const dataTransfer = new DataTransfer();
+  selectedFiles.forEach((file) => dataTransfer.items.add(file));
+  documentsInput.files = dataTransfer.files;
+}
+
+function renderFileList() {
+  if (!fileList) return;
   fileList.innerHTML = "";
+
   if (!selectedFiles.length) {
+    summaryDocuments.textContent = "None";
     return;
   }
 
   selectedFiles.forEach((file, index) => {
-    const item = document.createElement("li");
-    const fileText = document.createElement("span");
-    const removeBtn = document.createElement("button");
+    const li = document.createElement("li");
 
-    fileText.textContent = file.name + " (" + Math.ceil(file.size / 1024) + " KB)";
-    removeBtn.type = "button";
-    removeBtn.textContent = "Remove";
-    removeBtn.className = "btn-secondary";
-    removeBtn.addEventListener("click", () => {
+    const meta = document.createElement("span");
+    const sizeKb = Math.max(1, Math.round(file.size / 1024));
+    meta.textContent = `${file.name} (${sizeKb} KB)`;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-remove-file";
+    btn.textContent = "Remove";
+    btn.addEventListener("click", () => {
       selectedFiles.splice(index, 1);
-      renderFiles();
+      syncInputFiles();
+      renderFileList();
       updateSummary();
     });
 
-    item.appendChild(fileText);
-    item.appendChild(removeBtn);
-    fileList.appendChild(item);
+    li.appendChild(meta);
+    li.appendChild(btn);
+    fileList.appendChild(li);
+  });
+
+  summaryDocuments.textContent = selectedFiles.map((file) => file.name).join(", ");
+}
+
+function updateRequirements() {
+  if (!requirementsList) return;
+  const selectedType = certificateType.value;
+  const items = requirementMap[selectedType] || ["Select a certificate type to view document requirements."];
+
+  requirementsList.innerHTML = "";
+  items.forEach((item) => {
+    const li = document.createElement("li");
+    li.textContent = item;
+    requirementsList.appendChild(li);
   });
 }
 
-function appendSelectedFiles(fileCollection) {
-  const incomingFiles = Array.from(fileCollection);
-  const invalidFiles = incomingFiles.filter((file) => !isValidFile(file));
+function toggleConditionalFields() {
+  const isBusiness = certificateType.value === "Business Clearance";
+  businessNameWrap.classList.toggle("hidden", !isBusiness);
+  businessAddressWrap.classList.toggle("hidden", !isBusiness);
 
-  if (invalidFiles.length) {
-    setError("documentsError", "Only JPG, PNG, PDF up to 5MB are allowed.");
-  } else {
-    setError("documentsError", "");
+  if (!isBusiness) {
+    businessName.value = "";
+    businessAddress.value = "";
+    setError("businessNameError", "");
+    setError("businessAddressError", "");
   }
 
-  incomingFiles
-    .filter((file) => isValidFile(file))
-    .forEach((file) => {
-      const duplicate = selectedFiles.some((existing) => existing.name === file.name && existing.size === file.size);
-      if (!duplicate) {
-        selectedFiles.push(file);
-      }
-    });
+  const isOthers = purpose.value === "Others";
+  purposeOtherWrap.classList.toggle("hidden", !isOthers);
 
-  renderFiles();
+  if (!isOthers) {
+    purposeOther.value = "";
+    setError("purposeOtherError", "");
+  }
+}
+
+function updateSummary() {
+  const selectedPurpose = purpose.value === "Others" ? (purposeOther.value.trim() || "Others") : (purpose.value || "-");
+  summaryCertificate.textContent = certificateType.value || "-";
+  summaryPurpose.textContent = selectedPurpose;
+  summaryDocuments.textContent = selectedFiles.length ? selectedFiles.map((file) => file.name).join(", ") : "None";
+}
+
+function validatePickedFiles(files) {
+  const nextFiles = Array.from(files);
+
+  if (selectedFiles.length + nextFiles.length > maxFileCount) {
+    setError("documentsError", "Maximum of 3 files only.");
+    return;
+  }
+
+  for (const file of nextFiles) {
+    if (!allowedMimeTypes.includes(file.type)) {
+      setError("documentsError", "Only JPG, PNG, and PDF files are allowed.");
+      return;
+    }
+
+    if (file.size > maxFileSize) {
+      setError("documentsError", "Each file must be 5MB or below.");
+      return;
+    }
+
+    const alreadyPicked = selectedFiles.some((picked) => picked.name === file.name && picked.size === file.size);
+    if (!alreadyPicked) {
+      selectedFiles.push(file);
+    }
+  }
+
+  setError("documentsError", "");
+  syncInputFiles();
+  renderFileList();
   updateSummary();
 }
 
-function validateAdditionalFields() {
-  let isValid = true;
-  const selectedType = certificateType.value;
-  const requiredFields = requiredByCertificate[selectedType] || [];
-
-  requiredFields.forEach((key) => {
-    const input = allAdditionalInputs[key];
-    if (!input || !input.value.trim()) {
-      setError(key + "Error", "This field is required.");
-      isValid = false;
-    } else {
-      setError(key + "Error", "");
-    }
-  });
-
-  return isValid;
-}
-
-function validateForm() {
-  clearAllErrors();
+function validateFormClient() {
+  clearErrors();
   let valid = true;
 
   if (!certificateType.value) {
@@ -196,13 +222,24 @@ function validateForm() {
   }
 
   if (!purpose.value) {
-    setError("purposeError", "Please select a purpose.");
+    setError("purposeError", "Please select a purpose category.");
     valid = false;
   }
 
   if (purpose.value === "Others" && !purposeOther.value.trim()) {
-    setError("purposeOtherError", "Please specify your purpose.");
+    setError("purposeOtherError", "Please specify the purpose.");
     valid = false;
+  }
+
+  if (certificateType.value === "Business Clearance") {
+    if (!businessName.value.trim()) {
+      setError("businessNameError", "Business name is required.");
+      valid = false;
+    }
+    if (!businessAddress.value.trim()) {
+      setError("businessAddressError", "Business address is required.");
+      valid = false;
+    }
   }
 
   if (!selectedFiles.length) {
@@ -210,137 +247,99 @@ function validateForm() {
     valid = false;
   }
 
-  if (!validateAdditionalFields()) {
+  if (!declaration.checked) {
+    setError("declarationError", "You must agree to the declaration.");
     valid = false;
   }
 
   return valid;
 }
 
-async function handleSubmit(event) {
-  event.preventDefault();
+if (browseBtn && documentsInput) {
+  browseBtn.addEventListener("click", () => documentsInput.click());
+}
 
-  if (!validateForm()) {
-    return;
-  }
+if (documentsInput) {
+  documentsInput.addEventListener("change", (event) => {
+    validatePickedFiles(event.target.files);
+  });
+}
 
-  const submitButton = requestForm.querySelector("button[type='submit']");
-  if (submitButton) {
-    submitButton.disabled = true;
-  }
+if (uploadBox) {
+  uploadBox.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    uploadBox.classList.add("dragover");
+  });
 
-  const selectedPurpose = purpose.value === "Others" ? purposeOther.value.trim() : purpose.value;
-  const formData = new FormData();
-  formData.append("certificate_type", certificateType.value);
-  formData.append("purpose", selectedPurpose);
+  uploadBox.addEventListener("dragleave", () => {
+    uploadBox.classList.remove("dragover");
+  });
 
-  Object.entries(allAdditionalInputs).forEach(([key, input]) => {
-    if (input && input.value.trim()) {
-      formData.append(key, input.value.trim());
+  uploadBox.addEventListener("drop", (event) => {
+    event.preventDefault();
+    uploadBox.classList.remove("dragover");
+    validatePickedFiles(event.dataTransfer.files);
+  });
+}
+
+if (certificateType) {
+  certificateType.addEventListener("change", () => {
+    toggleConditionalFields();
+    updateRequirements();
+    updateSummary();
+  });
+}
+
+if (purpose) {
+  purpose.addEventListener("change", () => {
+    toggleConditionalFields();
+    updateSummary();
+  });
+}
+
+if (purposeOther) {
+  purposeOther.addEventListener("input", updateSummary);
+}
+
+if (requestForm) {
+  requestForm.addEventListener("submit", (event) => {
+    const valid = validateFormClient();
+    if (!valid) {
+      event.preventDefault();
     }
   });
 
-  selectedFiles.forEach((file, index) => {
-    if (index === 0) {
-      formData.append("documents", file);
-    }
-    formData.append("documents[]", file);
-  });
-
-  try {
-    const response = await fetch(CREATE_CERTIFICATE_API_URL, {
-      method: "POST",
-      body: formData,
-      credentials: "same-origin"
-    });
-
-    const result = await response.json();
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || "Unable to submit certificate request.");
-    }
-
-    const reference = result.reference_number || (result.data && result.data.reference_number) || "-";
-    referenceNumber.textContent = reference;
-    submissionResult.classList.remove("hidden");
-    submissionResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
-
-    sessionStorage.setItem("latest_certificate_reference", reference);
+  requestForm.addEventListener("reset", () => {
+    selectedFiles = [];
     setTimeout(() => {
-      window.location.href = "my_requests.php";
-    }, 900);
-  } catch (error) {
-    setError("documentsError", error.message || "Unable to submit certificate request.");
-  } finally {
-    if (submitButton) {
-      submitButton.disabled = false;
-    }
-  }
+      syncInputFiles();
+      renderFileList();
+      toggleConditionalFields();
+      updateRequirements();
+      updateSummary();
+      clearErrors();
+    }, 0);
+  });
 }
 
-function handleCancel() {
-  requestForm.reset();
-  selectedFiles = [];
-  renderFiles();
-  clearAllErrors();
-  submissionResult.classList.add("hidden");
-  purposeOtherWrap.classList.add("hidden");
-  additionalFieldEls.forEach((fieldEl) => fieldEl.classList.add("hidden"));
-  updateSummary();
+if (profileTrigger) {
+  profileTrigger.addEventListener("click", toggleDropdown);
 }
 
-function toggleDropdown() {
-  const expanded = profileTrigger.getAttribute("aria-expanded") === "true";
-  profileTrigger.setAttribute("aria-expanded", String(!expanded));
-  dropdownMenu.classList.toggle("open", !expanded);
-}
-
-function closeDropdownIfOutside(event) {
-  if (!event.target.closest("#profileDropdown")) {
-    profileTrigger.setAttribute("aria-expanded", "false");
-    dropdownMenu.classList.remove("open");
-  }
-}
-
-function toggleSidebarOnMobile() {
-  sidebar.classList.toggle("expanded");
-}
-
-browseBtn.addEventListener("click", () => documentsInput.click());
-documentsInput.addEventListener("change", (event) => appendSelectedFiles(event.target.files));
-
-uploadBox.addEventListener("dragover", (event) => {
-  event.preventDefault();
-  uploadBox.classList.add("dragover");
-});
-
-uploadBox.addEventListener("dragleave", () => {
-  uploadBox.classList.remove("dragover");
-});
-
-uploadBox.addEventListener("drop", (event) => {
-  event.preventDefault();
-  uploadBox.classList.remove("dragover");
-  appendSelectedFiles(event.dataTransfer.files);
-});
-
-certificateType.addEventListener("change", () => {
-  showRelevantAdditionalFields();
-  updateSummary();
-});
-
-purpose.addEventListener("change", togglePurposeOther);
-purposeOther.addEventListener("input", updateSummary);
-requestForm.addEventListener("submit", handleSubmit);
-cancelBtn.addEventListener("click", handleCancel);
-profileTrigger.addEventListener("click", toggleDropdown);
 document.addEventListener("click", closeDropdownIfOutside);
-menuToggle.addEventListener("click", toggleSidebarOnMobile);
+
+if (menuToggle) {
+  menuToggle.addEventListener("click", toggleSidebarOnMobile);
+}
+
 window.addEventListener("resize", () => {
-  if (window.innerWidth > 991) {
+  if (window.innerWidth > 991 && sidebar) {
     sidebar.classList.remove("expanded");
   }
 });
 
 setDateBadges();
-showRelevantAdditionalFields();
+toggleConditionalFields();
+updateRequirements();
 updateSummary();
+renderFileList();
