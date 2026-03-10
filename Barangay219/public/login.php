@@ -66,6 +66,10 @@ if (isLoggedIn()) {
             padding: 0;
             box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
         }
+
+        .password-toggle-btn {
+            border-left: 0;
+        }
     </style>
 </head>
 <body>
@@ -86,7 +90,12 @@ if (isLoggedIn()) {
                 </div>
                 <div class="mb-2">
                     <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="password" name="password" required>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="password" name="password" required>
+                        <button class="btn btn-outline-secondary password-toggle-btn" type="button" id="togglePassword" aria-label="Show password" aria-pressed="false">
+                            <i class="bi bi-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="text-end mb-3">
                     <a href="forgot-password.php" class="btn btn-link btn-sm p-0">Forgot Password?</a>
@@ -120,6 +129,29 @@ if (isLoggedIn()) {
             window.API_URL = '<?php echo addslashes(API_URL); ?>';
             console.warn('Using fallback API URL:', window.API_URL);
         }
+
+        (function () {
+            var passwordInput = document.getElementById('password');
+            var toggleButton = document.getElementById('togglePassword');
+
+            if (!passwordInput || !toggleButton) {
+                return;
+            }
+
+            toggleButton.addEventListener('click', function () {
+                var icon = toggleButton.querySelector('i');
+                var showing = passwordInput.type === 'text';
+
+                passwordInput.type = showing ? 'password' : 'text';
+                toggleButton.setAttribute('aria-pressed', String(!showing));
+                toggleButton.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+
+                if (icon) {
+                    icon.classList.toggle('bi-eye', showing);
+                    icon.classList.toggle('bi-eye-slash', !showing);
+                }
+            });
+        })();
     </script>
     <script src="<?php echo ASSETS_URL; ?>css/js/auth.js?v=<?php echo time(); ?>"></script>
 </body>
