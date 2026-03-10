@@ -47,12 +47,23 @@ function listComplaints() {
         $params = [];
         if (!empty($q)) {
             $term = '%' . $q . '%';
-            $where .= " AND (c.complaint_title LIKE ? OR c.complainant_name LIKE ? OR c.respondent_name LIKE ? OR c.narrative LIKE ?)";
-            $params = array_merge($params, [$term, $term, $term, $term]);
+            $where .= " AND (
+                c.complaint_title LIKE ? OR
+                c.title LIKE ? OR
+                c.complainant_name LIKE ? OR
+                c.respondent_name LIKE ? OR
+                c.complaint_type LIKE ? OR
+                c.category LIKE ? OR
+                c.narrative LIKE ? OR
+                c.description LIKE ? OR
+                c.reference_number LIKE ?
+            )";
+            $params = array_merge($params, [$term, $term, $term, $term, $term, $term, $term, $term, $term]);
         }
-        if (in_array($status, ['pending', 'under_review', 'resolved', 'dismissed'])) {
-            $where .= " AND c.status = ?";
-            $params[] = $status;
+        if ($status !== '') {
+            list($statusClause, $statusParams) = complaintStatusClause($status);
+            $where .= ' AND ' . $statusClause;
+            $params = array_merge($params, $statusParams);
         }
         if (!empty($from)) {
             $where .= " AND DATE(c.filing_date) >= ?";
@@ -67,7 +78,7 @@ function listComplaints() {
         $hasResident = !empty($db->getConnection()->query("SHOW COLUMNS FROM complaints LIKE 'resident_id'")->fetchAll());
         $join = $hasResident ? " LEFT JOIN residents r ON c.resident_id = r.id " : " ";
         $residentSelect = $hasResident ? ", CONCAT(r.first_name, ' ', r.last_name) as resident_name " : ", NULL as resident_name ";
-        $sql = "SELECT c.* $residentSelect FROM complaints c $join WHERE $where ORDER BY c.filing_date DESC LIMIT ? OFFSET ?";
+        $sql = "SELECT c.* $residentSelect FROM complaints c $join WHERE $where ORDER BY COALESCE(c.date_submitted, c.created_at, c.filing_date) DESC, c.id DESC LIMIT ? OFFSET ?";
         $params[] = $limit;
         $params[] = $offset;
         $list = $db->fetchAll($sql, $params);
@@ -177,4 +188,25 @@ function sendResponse($success, $message, $data = null, $httpCode = 200) {
     http_response_code($httpCode);
     echo json_encode(['success' => $success, 'message' => $message, 'data' => $data]);
     exit();
+}
+
+function complaintStatusClause($status) {
+    $normalized = strtolower(trim((string)$status));
+
+    $map = [
+        'pending' => ['pending', 'Pending Review'],
+        'pending review' => ['pending', 'Pending Review'],
+        'under_review' => ['under_review', 'Under Investigation', 'Scheduled for Mediation'],
+        'under investigation' => ['under_review', 'Under Investigation'],
+        'scheduled for mediation' => ['Scheduled for Mediation'],
+        'referred' => ['Referred to Other Barangay'],
+        'referred to other barangay' => ['Referred to Other Barangay'],
+        'resolved' => ['resolved', 'Resolved'],
+        'dismissed' => ['dismissed', 'Dismissed']
+    ];
+
+    $values = $map[$normalized] ?? [$status];
+    $placeholders = implode(', ', array_fill(0, count($values), '?'));
+
+    return ["c.status IN ($placeholders)", $values];
 }
