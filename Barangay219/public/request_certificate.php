@@ -1,13 +1,12 @@
 <?php
 /**
  * E-Barangay Information Management System
- * Request Certificate
+ * Request Certificate (Resident)
  */
 
 define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../includes/auth-check.php';
 
-// Require login and check if user is a resident
 requireLogin();
 
 $currentRole = getCurrentUserRole();
@@ -16,13 +15,87 @@ if (normalizeRole($currentRole) !== normalizeRole(ROLE_RESIDENT)) {
     exit();
 }
 
-// Get user information
-$userId = getCurrentUserId();
-$username = $_SESSION['username'] ?? '';
+$userId = (int)(getCurrentUserId() ?? 0);
+$username = $_SESSION['username'] ?? 'Resident';
 $email = $_SESSION['email'] ?? '';
-$residentId = $_SESSION['resident_id'] ?? null;
+$residentId = (int)($_SESSION['resident_id'] ?? 0);
 
-// Initialize default values
+function rcConnectMysqli() {
+    mysqli_report(MYSQLI_REPORT_OFF);
+    $conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+    if ($conn->connect_errno) {
+        return null;
+    }
+    $conn->set_charset(DB_CHARSET);
+    return $conn;
+}
+
+function rcFetchOne($conn, $sql, $types = '', $params = []) {
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return null;
+    }
+
+    if ($types !== '' && !empty($params)) {
+        $stmt->bind_param($types, ...$params);
+    }
+
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return null;
+    }
+
+    $result = $stmt->get_result();
+    $row = $result ? $result->fetch_assoc() : null;
+    $stmt->close();
+    return $row ?: null;
+}
+
+function rcTableExists($conn, $tableName) {
+  $sql = "SELECT COUNT(*) AS total
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE() AND table_name = ?";
+  $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param('s', $tableName);
+  if (!$stmt->execute()) {
+    $stmt->close();
+    return false;
+  }
+
+  $stmt->bind_result($total);
+  $stmt->fetch();
+  $exists = ((int)$total) > 0;
+    $stmt->close();
+    return $exists;
+}
+
+function rcPrettyLabel($value) {
+    $value = str_replace('_', ' ', (string)$value);
+    return ucwords(trim($value));
+}
+
+$certificateOptions = [
+    'Barangay Clearance',
+    'Certificate of Indigency',
+    'Certificate of Residency',
+    'Certificate of Good Moral Character',
+    'Certificate of Solo Parent',
+    'Business Clearance'
+];
+
+$purposeOptions = [
+    'Employment',
+    'Scholarship',
+    'Financial Assistance',
+    'School Requirement',
+    'Legal Requirement',
+    'Others'
+];
+
 $residentData = [
     'first_name' => '',
     'middle_name' => '',
@@ -31,30 +104,327 @@ $residentData = [
     'gender' => '',
     'civil_status' => '',
     'contact_number' => '',
-    'address' => ''
+    'address' => '',
+    'status' => '',
+    'record_status' => '',
+    'household_id' => null
 ];
 
+$formData = [
+    'certificate_type' => '',
+    'purpose' => '',
+    'purpose_other' => '',
+    'business_name' => '',
+    'business_address' => '',
+    'declaration' => ''
+];
+
+$errors = [];
+$warningMessage = '';
+
 $residentName = $username;
-$residentFullAddress = 'Barangay 219, Tondo, Manila';
 $dateOfBirth = '';
+$residentFullAddress = 'Barangay 219, Tondo, Manila';
 $civilStatus = '';
 $gender = '';
 $contactNumber = '';
 
-// Get resident details from database
-$db = Database::getInstance();
-if ($residentId) {
-  $sql = "SELECT first_name, middle_name, last_name, birth_date, gender, civil_status, contact_number, address FROM residents WHERE id = ?";
-    $resident = $db->fetchOne($sql, [$residentId]);
-    if ($resident) {
-        $residentData = array_merge($residentData, $resident);
-        $residentName = trim($resident['first_name'] . ' ' . ($resident['middle_name'] ? $resident['middle_name'] . ' ' : '') . $resident['last_name']);
-    $residentFullAddress = $resident['address'] ?? 'Barangay 219, Tondo, Manila';
-    $dateOfBirth = $resident['birth_date'] ? date('F d, Y', strtotime($resident['birth_date'])) : '';
-        $civilStatus = ucfirst(str_replace('_', ' ', $resident['civil_status'] ?? ''));
-        $gender = ucfirst($resident['gender'] ?? '');
-    $contactNumber = $resident['contact_number'] ?? '';
+$eligibility = [
+    'resident_verified' => false,
+    'profile_complete' => false,
+    'household_linked' => false,
+    'request_table_ready' => false
+];
+
+$mysqli = rcConnectMysqli();
+if (!$mysqli) {
+    $errors[] = 'Unable to connect to the database right now. Please try again later.';
+}
+
+if ($mysqli && $residentId > 0) {
+    $createTableSql = "CREATE TABLE IF NOT EXISTS document_requests (
+        request_id INT(11) NOT NULL AUTO_INCREMENT,
+        tracking_code VARCHAR(40) DEFAULT NULL,
+        resident_id INT(11) NOT NULL,
+        certificate_type VARCHAR(120) NOT NULL,
+        purpose VARCHAR(120) NOT NULL,
+        business_name VARCHAR(180) DEFAULT NULL,
+        business_address VARCHAR(255) DEFAULT NULL,
+        uploaded_files TEXT DEFAULT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'Submitted',
+        date_requested DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        admin_notes TEXT DEFAULT NULL,
+        created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (request_id),
+        UNIQUE KEY uniq_tracking_code (tracking_code),
+        KEY idx_resident_id (resident_id),
+        KEY idx_status (status),
+        KEY idx_certificate_type (certificate_type),
+        KEY idx_date_requested (date_requested)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+
+    $mysqli->query($createTableSql);
+
+    if (rcTableExists($mysqli, 'residents')) {
+        $residentQuery = "SELECT first_name, middle_name, last_name, birth_date, gender, civil_status, contact_number, address,
+                                 COALESCE(status, '') AS status,
+                                 COALESCE(record_status, '') AS record_status,
+                                 household_id
+                          FROM residents
+                          WHERE id = ?
+                          LIMIT 1";
+        $row = rcFetchOne($mysqli, $residentQuery, 'i', [$residentId]);
+
+        if ($row) {
+            $residentData = array_merge($residentData, $row);
+            $residentName = trim(($row['first_name'] ?? '') . ' ' . (($row['middle_name'] ?? '') ? $row['middle_name'] . ' ' : '') . ($row['last_name'] ?? ''));
+            if ($residentName === '') {
+                $residentName = $username;
+            }
+
+            $dateOfBirth = !empty($row['birth_date']) ? date('F d, Y', strtotime($row['birth_date'])) : '';
+            $residentFullAddress = (string)($row['address'] ?: 'Barangay 219, Tondo, Manila');
+            $civilStatus = rcPrettyLabel($row['civil_status'] ?? '');
+            $gender = rcPrettyLabel($row['gender'] ?? '');
+            $contactNumber = (string)($row['contact_number'] ?? '');
+
+            $statusRaw = strtolower(trim((string)($row['status'] ?: $row['record_status'])));
+            $eligibility['resident_verified'] = in_array($statusRaw, ['active', 'approved', 'verified'], true);
+            $eligibility['profile_complete'] = !empty($row['first_name'])
+                && !empty($row['last_name'])
+                && !empty($row['birth_date'])
+                && !empty($row['address'])
+                && !empty($row['civil_status'])
+                && !empty($row['gender'])
+                && !empty($row['contact_number']);
+            $eligibility['household_linked'] = !empty($row['household_id']);
+        } else {
+            $errors[] = 'Resident record was not found. Please contact the barangay office.';
+        }
+    } else {
+        $errors[] = 'Residents table is missing. Please run database setup.';
     }
+
+    $eligibility['request_table_ready'] = rcTableExists($mysqli, 'document_requests');
+}
+
+$canSubmit = $eligibility['resident_verified']
+    && $eligibility['profile_complete']
+    && $eligibility['household_linked']
+    && $eligibility['request_table_ready']
+    && empty($errors);
+
+if (!$canSubmit && empty($errors)) {
+    $warningMessage = 'Your profile is incomplete, not verified, or not linked to a household. Please update your profile before requesting certificates.';
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $formData['certificate_type'] = trim((string)($_POST['certificate_type'] ?? ''));
+    $formData['purpose'] = trim((string)($_POST['purpose'] ?? ''));
+    $formData['purpose_other'] = trim((string)($_POST['purpose_other'] ?? ''));
+    $formData['business_name'] = trim((string)($_POST['business_name'] ?? ''));
+    $formData['business_address'] = trim((string)($_POST['business_address'] ?? ''));
+    $formData['declaration'] = isset($_POST['declaration']) ? '1' : '';
+
+    if (!$canSubmit) {
+        $errors[] = 'You are currently not eligible to submit a certificate request.';
+    }
+
+    if (!in_array($formData['certificate_type'], $certificateOptions, true)) {
+        $errors[] = 'Please select a valid certificate type.';
+    }
+
+    if (!in_array($formData['purpose'], $purposeOptions, true)) {
+        $errors[] = 'Please select a valid purpose category.';
+    }
+
+    if ($formData['purpose'] === 'Others' && $formData['purpose_other'] === '') {
+        $errors[] = 'Please specify the purpose.';
+    }
+
+    if ($formData['certificate_type'] === 'Business Clearance') {
+        if ($formData['business_name'] === '') {
+            $errors[] = 'Business Name is required for Business Clearance.';
+        }
+        if ($formData['business_address'] === '') {
+            $errors[] = 'Business Address is required for Business Clearance.';
+        }
+    }
+
+    if ($formData['declaration'] !== '1') {
+        $errors[] = 'You must certify that the information is true and correct.';
+    }
+
+    $uploadedFiles = [];
+    $uploadedPaths = [];
+
+    if (!isset($_FILES['documents']) || !isset($_FILES['documents']['name']) || !is_array($_FILES['documents']['name'])) {
+        $errors[] = 'Please upload at least one supporting document.';
+    } else {
+        $names = $_FILES['documents']['name'];
+        $tmpNames = $_FILES['documents']['tmp_name'];
+        $sizes = $_FILES['documents']['size'];
+        $errorsUpload = $_FILES['documents']['error'];
+
+        for ($i = 0; $i < count($names); $i++) {
+            if (($errorsUpload[$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+
+            $uploadedFiles[] = [
+                'name' => (string)$names[$i],
+                'tmp_name' => (string)$tmpNames[$i],
+                'size' => (int)$sizes[$i],
+                'error' => (int)$errorsUpload[$i]
+            ];
+        }
+
+        if (count($uploadedFiles) === 0) {
+            $errors[] = 'Please upload at least one supporting document.';
+        }
+
+        if (count($uploadedFiles) > 3) {
+            $errors[] = 'Maximum of 3 files only.';
+        }
+
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
+        $allowedMime = ['image/jpeg', 'image/png', 'application/pdf'];
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+
+        foreach ($uploadedFiles as $file) {
+            if ($file['error'] !== UPLOAD_ERR_OK) {
+                $errors[] = 'One of the files failed to upload. Please try again.';
+                continue;
+            }
+
+            if ($file['size'] > (5 * 1024 * 1024)) {
+                $errors[] = 'Each file must be 5MB or below.';
+            }
+
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            if (!in_array($ext, $allowedExtensions, true)) {
+                $errors[] = 'Only JPG, PNG, and PDF files are allowed.';
+            }
+
+            $mime = $finfo ? finfo_file($finfo, $file['tmp_name']) : '';
+            if ($mime && !in_array($mime, $allowedMime, true)) {
+                $errors[] = 'Invalid file format detected.';
+            }
+        }
+
+        if ($finfo) {
+            finfo_close($finfo);
+        }
+    }
+
+    if (empty($errors) && $mysqli) {
+        $duplicateSql = "SELECT request_id
+                         FROM document_requests
+                         WHERE resident_id = ?
+                           AND certificate_type = ?
+                           AND LOWER(REPLACE(status, '_', ' ')) IN ('submitted', 'pending', 'under review')
+                         LIMIT 1";
+        $duplicateRow = rcFetchOne($mysqli, $duplicateSql, 'is', [$residentId, $formData['certificate_type']]);
+        if ($duplicateRow) {
+            $errors[] = 'You already have an active request for this certificate.';
+        }
+    }
+
+    if (empty($errors) && $mysqli) {
+        $uploadDir = __DIR__ . '/uploads/request_documents';
+        if (!is_dir($uploadDir)) {
+            @mkdir($uploadDir, 0775, true);
+        }
+
+        if (!is_dir($uploadDir)) {
+            $errors[] = 'Upload directory is not writable. Please contact support.';
+        } else {
+            foreach ($uploadedFiles as $file) {
+                $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                $safeName = 'req_' . $residentId . '_' . date('YmdHis') . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
+                $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $safeName;
+
+                if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+                    $errors[] = 'Unable to save uploaded files. Please try again.';
+                    break;
+                }
+
+                $uploadedPaths[] = 'uploads/request_documents/' . $safeName;
+            }
+        }
+    }
+
+    if (empty($errors) && $mysqli) {
+        $finalPurpose = $formData['purpose'] === 'Others' ? $formData['purpose_other'] : $formData['purpose'];
+        $uploadedFilesJson = json_encode($uploadedPaths);
+
+        $mysqli->begin_transaction();
+
+        try {
+            $insertSql = "INSERT INTO document_requests (
+                            resident_id,
+                            certificate_type,
+                            purpose,
+                            business_name,
+                            business_address,
+                            uploaded_files,
+                            status,
+                            date_requested,
+                            admin_notes
+                          ) VALUES (?, ?, ?, ?, ?, ?, 'Submitted', NOW(), NULL)";
+            $stmt = $mysqli->prepare($insertSql);
+            if (!$stmt) {
+                throw new Exception('Failed to prepare insert statement.');
+            }
+
+            $businessNameValue = $formData['certificate_type'] === 'Business Clearance' ? $formData['business_name'] : null;
+            $businessAddressValue = $formData['certificate_type'] === 'Business Clearance' ? $formData['business_address'] : null;
+            $stmt->bind_param(
+                'isssss',
+                $residentId,
+                $formData['certificate_type'],
+                $finalPurpose,
+                $businessNameValue,
+                $businessAddressValue,
+                $uploadedFilesJson
+            );
+
+            if (!$stmt->execute()) {
+                $stmt->close();
+                throw new Exception('Failed to save request.');
+            }
+
+            $newId = (int)$stmt->insert_id;
+            $stmt->close();
+
+            $trackingCode = sprintf('BRGY219-%s-%06d', date('Y'), $newId);
+
+            $updateSql = "UPDATE document_requests SET tracking_code = ? WHERE request_id = ?";
+            $updateStmt = $mysqli->prepare($updateSql);
+            if (!$updateStmt) {
+                throw new Exception('Failed to update tracking code.');
+            }
+            $updateStmt->bind_param('si', $trackingCode, $newId);
+            if (!$updateStmt->execute()) {
+                $updateStmt->close();
+                throw new Exception('Failed to save tracking code.');
+            }
+            $updateStmt->close();
+
+            $mysqli->commit();
+
+            header('Location: ' . BASE_URL . 'request_confirmation.php?tracking=' . urlencode($trackingCode));
+            exit();
+        } catch (Exception $ex) {
+            $mysqli->rollback();
+            $errors[] = $ex->getMessage();
+        }
+    }
+}
+
+if ($mysqli) {
+    $mysqli->close();
 }
 ?>
 <!DOCTYPE html>
@@ -67,7 +437,7 @@ if ($residentId) {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
-  <link rel="stylesheet" href="request_certificate.css">
+  <link rel="stylesheet" href="request_certificate.css?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/request_certificate.css')); ?>">
 </head>
 <body>
   <header class="top-header">
@@ -187,7 +557,7 @@ if ($residentId) {
       <div>
         <p class="portal-tag">RESIDENT PORTAL</p>
         <h2>Request Certificate</h2>
-        <p class="page-subtitle">Submit a request for official barangay documents.</p>
+        <p class="page-subtitle">Submit an official certificate request and receive a tracking code.</p>
       </div>
       <div class="head-meta">
         <span class="view-badge">Resident View</span>
@@ -195,45 +565,72 @@ if ($residentId) {
       </div>
     </section>
 
-    <form id="requestForm" novalidate>
+    <?php if (!empty($errors)): ?>
+      <section class="notice error-notice">
+        <h4>Unable to Submit Request</h4>
+        <ul>
+          <?php foreach ($errors as $error): ?>
+            <li><?php echo htmlspecialchars($error); ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </section>
+    <?php endif; ?>
+
+    <?php if ($warningMessage !== ''): ?>
+      <section class="notice warning-notice" id="eligibilityWarning">
+        <h4>Eligibility Check Required</h4>
+        <p><?php echo htmlspecialchars($warningMessage); ?></p>
+      </section>
+    <?php endif; ?>
+
+    <form id="requestForm" method="POST" enctype="multipart/form-data" novalidate>
       <section class="card form-card">
         <div class="card-head">
-          <h3><i class="fa-regular fa-file-lines"></i> Certificate Type</h3>
+          <h3><i class="fa-regular fa-file-lines"></i> Certificate Selection</h3>
         </div>
         <div class="form-grid two-col">
           <label class="field">
             <span>Certificate Type</span>
-            <select id="certificateType" required>
+            <select id="certificateType" name="certificate_type" required>
               <option value="">Select certificate type</option>
-              <option value="Barangay Clearance">Barangay Clearance</option>
-              <option value="Certificate of Residency">Certificate of Residency</option>
-              <option value="Certificate of Indigency">Certificate of Indigency</option>
-              <option value="Certificate of Good Moral Character">Certificate of Good Moral Character</option>
-              <option value="Business Clearance">Business Clearance</option>
-              <option value="Barangay ID Request">Barangay ID Request</option>
+              <?php foreach ($certificateOptions as $option): ?>
+                <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['certificate_type'] === $option ? 'selected' : ''; ?>>
+                  <?php echo htmlspecialchars($option); ?>
+                </option>
+              <?php endforeach; ?>
             </select>
             <small class="error" id="certificateTypeError"></small>
           </label>
 
           <label class="field">
-            <span>Purpose of Request</span>
-            <select id="purpose" required>
-              <option value="">Select purpose</option>
-              <option value="Employment">Employment</option>
-              <option value="Scholarship">Scholarship</option>
-              <option value="Business Requirement">Business Requirement</option>
-              <option value="School Requirement">School Requirement</option>
-              <option value="Government Requirement">Government Requirement</option>
-              <option value="Personal Use">Personal Use</option>
-              <option value="Others">Others</option>
+            <span>Purpose Category</span>
+            <select id="purpose" name="purpose" required>
+              <option value="">Select purpose category</option>
+              <?php foreach ($purposeOptions as $option): ?>
+                <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['purpose'] === $option ? 'selected' : ''; ?>>
+                  <?php echo htmlspecialchars($option); ?>
+                </option>
+              <?php endforeach; ?>
             </select>
             <small class="error" id="purposeError"></small>
           </label>
 
           <label class="field hidden" id="purposeOtherWrap">
-            <span>Please specify purpose</span>
-            <input type="text" id="purposeOther" placeholder="Type your purpose">
+            <span>Specify Purpose</span>
+            <input type="text" id="purposeOther" name="purpose_other" maxlength="120" value="<?php echo htmlspecialchars($formData['purpose_other']); ?>" placeholder="Type your specific purpose">
             <small class="error" id="purposeOtherError"></small>
+          </label>
+
+          <label class="field hidden" id="businessNameWrap">
+            <span>Business Name</span>
+            <input type="text" id="businessName" name="business_name" maxlength="180" value="<?php echo htmlspecialchars($formData['business_name']); ?>" placeholder="Enter business name">
+            <small class="error" id="businessNameError"></small>
+          </label>
+
+          <label class="field hidden" id="businessAddressWrap">
+            <span>Business Address</span>
+            <input type="text" id="businessAddress" name="business_address" maxlength="255" value="<?php echo htmlspecialchars($formData['business_address']); ?>" placeholder="Enter business address">
+            <small class="error" id="businessAddressError"></small>
           </label>
         </div>
       </section>
@@ -245,77 +642,55 @@ if ($residentId) {
         <div class="form-grid two-col">
           <label class="field">
             <span>Full Name</span>
-            <input type="text" id="residentName" value="<?php echo htmlspecialchars($residentName); ?>" readonly>
+            <input type="text" value="<?php echo htmlspecialchars($residentName); ?>" readonly>
           </label>
           <label class="field">
             <span>Date of Birth</span>
-            <input type="text" id="dob" value="<?php echo htmlspecialchars($dateOfBirth); ?>" readonly>
+            <input type="text" value="<?php echo htmlspecialchars($dateOfBirth); ?>" readonly>
           </label>
           <label class="field">
             <span>Address</span>
-            <input type="text" id="address" value="<?php echo htmlspecialchars($residentFullAddress); ?>" readonly>
+            <input type="text" value="<?php echo htmlspecialchars($residentFullAddress); ?>" readonly>
           </label>
           <label class="field">
             <span>Civil Status</span>
-            <input type="text" id="civilStatus" value="<?php echo htmlspecialchars($civilStatus); ?>" readonly>
+            <input type="text" value="<?php echo htmlspecialchars($civilStatus); ?>" readonly>
           </label>
           <label class="field">
             <span>Gender</span>
-            <input type="text" id="gender" value="<?php echo htmlspecialchars($gender); ?>" readonly>
+            <input type="text" value="<?php echo htmlspecialchars($gender); ?>" readonly>
           </label>
           <label class="field">
             <span>Contact Number</span>
-            <input type="text" id="contact" value="<?php echo htmlspecialchars($contactNumber); ?>" readonly>
+            <input type="text" value="<?php echo htmlspecialchars($contactNumber); ?>" readonly>
           </label>
+        </div>
+
+        <div class="eligibility-list">
+          <span class="eligibility-pill <?php echo $eligibility['resident_verified'] ? 'ok' : 'bad'; ?>">Resident Verified</span>
+          <span class="eligibility-pill <?php echo $eligibility['profile_complete'] ? 'ok' : 'bad'; ?>">Profile Complete</span>
+          <span class="eligibility-pill <?php echo $eligibility['household_linked'] ? 'ok' : 'bad'; ?>">Household Linked</span>
         </div>
       </section>
 
       <section class="card form-card">
         <div class="card-head">
-          <h3><i class="fa-solid fa-sliders"></i> Additional Information</h3>
+          <h3><i class="fa-solid fa-list-check"></i> Required Documents</h3>
         </div>
-        <div class="form-grid two-col" id="additionalFields">
-          <label class="field additional-field" data-key="yearsResidency">
-            <span>Years of Residency</span>
-            <input type="number" id="yearsResidency" min="0" placeholder="Enter years">
-            <small class="error" id="yearsResidencyError"></small>
-          </label>
-
-          <label class="field additional-field" data-key="monthlyIncome">
-            <span>Monthly Income</span>
-            <input type="number" id="monthlyIncome" min="0" placeholder="Enter amount">
-            <small class="error" id="monthlyIncomeError"></small>
-          </label>
-
-          <label class="field additional-field" data-key="businessName">
-            <span>Business Name</span>
-            <input type="text" id="businessName" placeholder="Enter business name">
-            <small class="error" id="businessNameError"></small>
-          </label>
-
-          <label class="field additional-field" data-key="businessAddress">
-            <span>Business Address</span>
-            <input type="text" id="businessAddress" placeholder="Enter business address">
-            <small class="error" id="businessAddressError"></small>
-          </label>
-
-          <label class="field additional-field" data-key="dependents">
-            <span>Number of Dependents</span>
-            <input type="number" id="dependents" min="0" placeholder="Enter number">
-            <small class="error" id="dependentsError"></small>
-          </label>
-        </div>
+        <ul class="requirements-list" id="requirementsList">
+          <li>Select a certificate type to view document requirements.</li>
+        </ul>
       </section>
 
       <section class="card form-card">
         <div class="card-head">
-          <h3><i class="fa-solid fa-cloud-arrow-up"></i> Upload Documents</h3>
+          <h3><i class="fa-solid fa-cloud-arrow-up"></i> File Uploads</h3>
         </div>
         <div class="upload-box" id="uploadBox">
-          <input type="file" id="documents" accept=".jpg,.jpeg,.png,.pdf" multiple hidden>
+          <input type="file" id="documents" name="documents[]" accept=".jpg,.jpeg,.png,.pdf" multiple hidden>
           <button type="button" class="btn-ghost" id="browseBtn"><i class="fa-regular fa-folder-open"></i> Choose Files</button>
-          <p>Drag files here or click "Choose Files"</p>
-          <small>Accepted: JPG, PNG, PDF | Max file size: 5MB each</small>
+          <p>Upload up to 3 files (JPG, PNG, PDF)</p>
+          <small>Max size: 5MB each</small>
         </div>
         <ul class="file-list" id="fileList"></ul>
         <small class="error" id="documentsError"></small>
@@ -323,7 +698,7 @@ if ($residentId) {
 
       <section class="card form-card">
         <div class="card-head">
-          <h3><i class="fa-solid fa-list-check"></i> Request Summary</h3>
+          <h3><i class="fa-solid fa-receipt"></i> Request Summary</h3>
         </div>
         <div class="summary-grid">
           <div class="summary-item"><span>Certificate Type</span><strong id="summaryCertificate">-</strong></div>
@@ -333,15 +708,31 @@ if ($residentId) {
           <div class="summary-item"><span>Uploaded Documents</span><strong id="summaryDocuments">None</strong></div>
         </div>
 
-        <div class="actions">
-          <button type="submit" class="btn-primary"><i class="fa-regular fa-paper-plane"></i> Submit Request</button>
-          <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
+        <div class="processing-notice">
+          <p><strong>Processing Time:</strong> 1-2 working days</p>
+          <p><strong>Claim Location:</strong> Barangay Hall Records Section</p>
+          <p><strong>Reminder:</strong> Residents must bring a valid ID when claiming the document.</p>
         </div>
 
-        <div class="submission-result hidden" id="submissionResult">
-          <h4>Request Submitted Successfully</h4>
-          <p>Reference Number: <strong id="referenceNumber">-</strong></p>
-          <p>Status: <strong class="status pending">Pending</strong></p>
+        <div class="status-legend">
+          <span class="state-badge submitted">Submitted</span>
+          <span class="state-badge under-review">Under Review</span>
+          <span class="state-badge approved">Approved</span>
+          <span class="state-badge ready">Ready for Pickup</span>
+          <span class="state-badge released">Released</span>
+          <span class="state-badge rejected">Rejected</span>
+          <span class="state-badge cancelled">Cancelled</span>
+        </div>
+
+        <label class="declaration">
+          <input type="checkbox" id="declaration" name="declaration" value="1" <?php echo $formData['declaration'] === '1' ? 'checked' : ''; ?>>
+          <span>I certify that the information provided is true and correct.</span>
+        </label>
+        <small class="error" id="declarationError"></small>
+
+        <div class="actions">
+          <button type="submit" class="btn-primary" id="submitBtn" <?php echo $canSubmit ? '' : 'disabled'; ?>><i class="fa-regular fa-paper-plane"></i> Submit Request</button>
+          <button type="reset" class="btn-secondary" id="resetBtn">Clear Form</button>
         </div>
       </section>
     </form>
