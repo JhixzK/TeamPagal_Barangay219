@@ -6,6 +6,7 @@ const requestTable = document.getElementById("requestTable");
 const emptyState = document.getElementById("emptyState");
 const topDateBadge = document.getElementById("topDateBadge");
 const mainDateBadge = document.getElementById("mainDateBadge");
+const statCards = document.querySelectorAll(".stat-card[data-href]");
 
 function formatToday() {
   const now = new Date();
@@ -46,9 +47,24 @@ function syncRecentRequestState() {
   emptyState.hidden = !isEmpty;
 }
 
+function navigateFromStatCard(card) {
+  const target = card.getAttribute("data-href");
+  if (!target) return;
+  window.location.href = target;
+}
+
 profileTrigger.addEventListener("click", toggleDropdown);
 document.addEventListener("click", closeDropdownIfOutside);
 menuToggle.addEventListener("click", toggleSidebarOnMobile);
+statCards.forEach((card) => {
+  card.addEventListener("click", () => navigateFromStatCard(card));
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      navigateFromStatCard(card);
+    }
+  });
+});
 window.addEventListener("resize", () => {
   if (window.innerWidth > 991) {
     sidebar.classList.remove("expanded");
