@@ -4,10 +4,10 @@ const sidebar = document.getElementById("sidebar");
 const menuToggle = document.getElementById("menuToggle");
 const topDateBadge = document.getElementById("topDateBadge");
 const mainDateBadge = document.getElementById("mainDateBadge");
-const idUploadInput = document.getElementById("idUploadInput");
-const uploadedIdValue = document.getElementById("uploadedIdValue");
-const profileApiUrl = "../api/profile.php";
-let isSavingProfile = false;
+
+const toggleButtons = document.querySelectorAll(".toggle-btn");
+const verificationIdInput = document.getElementById("verificationIdInput");
+const verificationPreview = document.getElementById("verificationPreview");
 
 function formatToday() {
   const now = new Date();
@@ -54,210 +54,74 @@ function toggleSidebarOnMobile() {
   sidebar.classList.toggle("expanded");
 }
 
-function getRowValue(labelText) {
-  const rows = document.querySelectorAll(".info-row");
-  for (const row of rows) {
-    const label = row.querySelector("span");
-    const value = row.querySelector("strong");
-    if (label && value && label.textContent.trim() === labelText) {
-      return value.textContent.trim();
+function closeOtherForms(exceptId) {
+  document.querySelectorAll(".edit-form").forEach((form) => {
+    if (form.id !== exceptId && !form.id.includes("verification")) {
+      form.classList.add("hidden");
+      form.classList.remove("visible");
     }
-  }
-  return "";
+  });
 }
 
-function ask(label, currentValue) {
-  const safeCurrent = currentValue === "N/A" ? "" : currentValue;
-  const result = window.prompt(label, safeCurrent);
-  if (result === null) {
-    return null;
-  }
-  return result.trim();
-}
-
-async function saveProfileUpdates(payload) {
-  if (isSavingProfile) {
-    return false;
+function handleToggleButton(event) {
+  const button = event.currentTarget;
+  const targetId = button.getAttribute("data-target");
+  if (!targetId) {
+    return;
   }
 
-  isSavingProfile = true;
-  try {
-    const formData = new FormData();
-    formData.append("action", "update");
+  const form = document.getElementById(targetId);
+  if (!form) {
+    return;
+  }
 
-    Object.entries(payload).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
+  const isHidden = form.classList.contains("hidden");
+  closeOtherForms(targetId);
 
-    const response = await fetch(profileApiUrl, {
-      method: "POST",
-      body: formData
-    });
-
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-      throw new Error(data.message || "Failed to update profile.");
+  if (isHidden) {
+    form.classList.remove("hidden");
+    form.classList.add("visible");
+    const firstInput = form.querySelector("input");
+    if (firstInput) {
+      firstInput.focus();
     }
-
-    window.alert("Profile updated successfully.");
-    window.location.reload();
-    return true;
-  } catch (error) {
-    window.alert(error.message || "Unable to save profile updates.");
-    return false;
-  } finally {
-    isSavingProfile = false;
+  } else {
+    form.classList.add("hidden");
+    form.classList.remove("visible");
   }
 }
 
-async function editPersonalInfo() {
-  const firstName = ask("First Name", getRowValue("First Name"));
-  if (firstName === null) return;
-  const middleName = ask("Middle Name", getRowValue("Middle Name"));
-  if (middleName === null) return;
-  const lastName = ask("Last Name", getRowValue("Last Name"));
-  if (lastName === null) return;
-  const suffix = ask("Suffix", getRowValue("Suffix"));
-  if (suffix === null) return;
-  const dateOfBirth = ask("Date of Birth (YYYY-MM-DD)", getRowValue("Date of Birth"));
-  if (dateOfBirth === null) return;
-  const placeOfBirth = ask("Place of Birth", getRowValue("Place of Birth"));
-  if (placeOfBirth === null) return;
-  const gender = ask("Gender (male/female/other)", getRowValue("Gender"));
-  if (gender === null) return;
-  const civilStatus = ask("Civil Status", getRowValue("Civil Status"));
-  if (civilStatus === null) return;
-
-  if (!firstName || !lastName) {
-    window.alert("First name and last name are required.");
-    return;
-  }
-
-  await saveProfileUpdates({
-    first_name: firstName,
-    middle_name: middleName,
-    last_name: lastName,
-    suffix: suffix,
-    birth_date: dateOfBirth,
-    place_of_birth: placeOfBirth,
-    gender: gender,
-    civil_status: civilStatus
-  });
+function bytesToReadable(size) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-async function editContactInfo() {
-  const mobileNumber = ask("Mobile Number", getRowValue("Mobile Number"));
-  if (mobileNumber === null) return;
-  const emailAddress = ask("Email Address", getRowValue("Email Address"));
-  if (emailAddress === null) return;
-  const emergencyName = ask("Emergency Contact Person", getRowValue("Emergency Contact Person"));
-  if (emergencyName === null) return;
-  const emergencyNumber = ask("Emergency Contact Number", getRowValue("Emergency Contact Number"));
-  if (emergencyNumber === null) return;
-
-  await saveProfileUpdates({
-    contact_number: mobileNumber,
-    email: emailAddress,
-    emergency_contact_name: emergencyName,
-    emergency_contact_number: emergencyNumber
-  });
-}
-
-async function editAddressInfo() {
-  const houseStreet = ask("House Number / Street", getRowValue("House Number / Street"));
-  if (houseStreet === null) return;
-  const yearsResidency = ask("Length of Residency (years)", getRowValue("Length of Residency").replace(/\D+/g, ""));
-  if (yearsResidency === null) return;
-
-  const parts = houseStreet.split(",");
-  const houseNumber = (parts[0] || "").trim();
-  const street = (parts.slice(1).join(",") || parts[0] || "").trim();
-
-  await saveProfileUpdates({
-    house_number: houseNumber,
-    street: street,
-    address: houseStreet,
-    length_of_residency_years: yearsResidency
-  });
-}
-
-async function editEmploymentInfo() {
-  const occupation = ask("Occupation", getRowValue("Occupation"));
-  if (occupation === null) return;
-  const employmentStatus = ask("Employment Status", getRowValue("Employment Status"));
-  if (employmentStatus === null) return;
-
-  await saveProfileUpdates({
-    occupation: occupation,
-    employment_status: employmentStatus
-  });
-}
-
-function handleActionClick(event) {
-  const button = event.target.closest("[data-action]");
-  if (!button) {
+function previewVerificationFile() {
+  if (!verificationIdInput || !verificationPreview) {
     return;
   }
 
-  event.preventDefault();
-
-  const action = button.getAttribute("data-action");
-
-  if (action === "upload-id") {
-    if (idUploadInput) {
-      idUploadInput.click();
-    }
+  const file = verificationIdInput.files && verificationIdInput.files[0];
+  if (!file) {
+    verificationPreview.textContent = "No file selected";
     return;
   }
 
-  if (action === "change-password") {
-    window.alert("Redirecting to Change Password page.");
+  const isImage = file.type.startsWith("image/");
+  const fileLabel = `${file.name} (${bytesToReadable(file.size)})`;
+
+  if (!isImage) {
+    verificationPreview.innerHTML = `<div><i class="fa-regular fa-file-pdf"></i><br>${fileLabel}</div>`;
     return;
   }
 
-  if (action === "edit-profile" || action === "edit-personal") {
-    editPersonalInfo();
-    return;
-  }
-
-  if (action === "edit-contact") {
-    editContactInfo();
-    return;
-  }
-
-  if (action === "edit-address") {
-    editAddressInfo();
-    return;
-  }
-
-  if (action === "edit-employment") {
-    editEmploymentInfo();
-    return;
-  }
-
-  if (action === "edit-household") {
-    window.alert("Household details are currently read-only in this page.");
-    return;
-  }
-
-  window.alert("This action is not yet available.");
-}
-
-function handleUploadChange() {
-  if (!idUploadInput) {
-    return;
-  }
-
-  if (!idUploadInput.files.length) {
-    return;
-  }
-
-  const uploadedFile = idUploadInput.files[0].name;
-  if (uploadedIdValue) {
-    uploadedIdValue.textContent = uploadedFile;
-  }
-
-  window.alert("ID selected: " + uploadedFile);
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const src = e.target && e.target.result ? e.target.result : "";
+    verificationPreview.innerHTML = `<div><img src="${src}" alt="ID preview"><div>${fileLabel}</div></div>`;
+  };
+  reader.readAsDataURL(file);
 }
 
 function initProfilePage() {
@@ -269,16 +133,15 @@ function initProfilePage() {
     menuToggle.addEventListener("click", toggleSidebarOnMobile);
   }
 
-  if (idUploadInput) {
-    idUploadInput.addEventListener("change", handleUploadChange);
-  }
-
   document.addEventListener("click", closeDropdownIfOutside);
 
-  // Bind directly to action buttons so edit clicks still work even if delegation is interrupted.
-  document.querySelectorAll("[data-action]").forEach((button) => {
-    button.addEventListener("click", handleActionClick);
+  toggleButtons.forEach((button) => {
+    button.addEventListener("click", handleToggleButton);
   });
+
+  if (verificationIdInput) {
+    verificationIdInput.addEventListener("change", previewVerificationFile);
+  }
 
   window.addEventListener("resize", () => {
     if (window.innerWidth > 991 && sidebar) {
