@@ -32,6 +32,75 @@ if ($residentId) {
         $residentName = trim($resident['first_name'] . ' ' . ($resident['middle_name'] ? $resident['middle_name'] . ' ' : '') . $resident['last_name']);
     }
 }
+
+    $stats = [
+      'total_requests' => 0,
+      'pending_requests' => 0,
+      'approved_documents' => 0,
+      'active_announcements' => 0
+    ];
+
+    $recentRequests = [];
+    $recentAnnouncements = [];
+
+    if ($residentId) {
+      try {
+        $statsRow = $db->fetchOne(
+          "SELECT
+            COUNT(*) AS total_requests,
+            COALESCE(SUM(status = 'pending'), 0) AS pending_requests,
+            COALESCE(SUM(status IN ('approved', 'issued')), 0) AS approved_documents
+           FROM certificate_requests
+           WHERE resident_id = ?",
+          [$residentId]
+        );
+
+        if ($statsRow) {
+          $stats['total_requests'] = (int)$statsRow['total_requests'];
+          $stats['pending_requests'] = (int)$statsRow['pending_requests'];
+          $stats['approved_documents'] = (int)$statsRow['approved_documents'];
+        }
+
+        $recentRequests = $db->fetchAll(
+          "SELECT certificate_type, created_at, status
+           FROM certificate_requests
+           WHERE resident_id = ?
+           ORDER BY created_at DESC
+           LIMIT 5",
+          [$residentId]
+        );
+      } catch (Exception $e) {
+        $recentRequests = [];
+      }
+    }
+
+    try {
+      $annRow = $db->fetchOne("SELECT COUNT(*) AS total FROM announcements WHERE status = 'active'");
+      $stats['active_announcements'] = (int)($annRow['total'] ?? 0);
+
+      $recentAnnouncements = $db->fetchAll(
+        "SELECT id, title, content, date_posted
+         FROM announcements
+         WHERE status = 'active'
+         ORDER BY date_posted DESC, created_at DESC
+         LIMIT 3"
+      );
+    } catch (Exception $e) {
+      $recentAnnouncements = [];
+    }
+
+    function residentDashboardPrettyLabel($value) {
+      $value = str_replace('_', ' ', (string)$value);
+      return ucwords(trim($value));
+    }
+
+    function residentDashboardStatusClass($status) {
+      $status = strtolower((string)$status);
+      if ($status === 'pending') return 'pending';
+      if (in_array($status, ['approved', 'issued'], true)) return 'approved';
+      if ($status === 'rejected') return 'rejected';
+      return 'pending';
+    }
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -172,31 +241,31 @@ if ($residentId) {
     </section>
 
     <section class="stats-grid" aria-label="Resident dashboard statistics">
-      <article class="stat-card card-1">
+      <article class="stat-card card-1" data-href="<?php echo BASE_URL; ?>my_requests.php" role="link" tabindex="0">
         <i class="fa-regular fa-folder-open stat-icon"></i>
         <h3>My Requests</h3>
-        <p class="stat-value">26</p>
+        <p class="stat-value"><?php echo (int)$stats['total_requests']; ?></p>
         <p class="stat-note">Total documents requested</p>
       </article>
 
-      <article class="stat-card card-2">
+      <article class="stat-card card-2" data-href="<?php echo BASE_URL; ?>my_requests.php?status=Pending" role="link" tabindex="0">
         <i class="fa-regular fa-clock stat-icon"></i>
         <h3>Pending Requests</h3>
-        <p class="stat-value">4</p>
+        <p class="stat-value"><?php echo (int)$stats['pending_requests']; ?></p>
         <p class="stat-note">Waiting for barangay review</p>
       </article>
 
-      <article class="stat-card card-3">
+      <article class="stat-card card-3" data-href="<?php echo BASE_URL; ?>my_requests.php?status=Approved" role="link" tabindex="0">
         <i class="fa-regular fa-circle-check stat-icon"></i>
         <h3>Approved Documents</h3>
-        <p class="stat-value">19</p>
+        <p class="stat-value"><?php echo (int)$stats['approved_documents']; ?></p>
         <p class="stat-note">Released and ready to claim</p>
       </article>
 
-      <article class="stat-card card-4">
+      <article class="stat-card card-4" data-href="<?php echo BASE_URL; ?>resident_announcements.php" role="link" tabindex="0">
         <i class="fa-regular fa-bullhorn stat-icon"></i>
         <h3>Barangay Announcements</h3>
-        <p class="stat-value">8</p>
+        <p class="stat-value"><?php echo (int)$stats['active_announcements']; ?></p>
         <p class="stat-note">Recent community updates</p>
       </article>
     </section>
@@ -207,21 +276,21 @@ if ($residentId) {
           <h3>Announcements</h3>
         </div>
         <div class="announcement-list">
-          <div class="announcement-item">
-            <h4>Community Clean-Up Drive</h4>
-            <p>Join us on Saturday at 7:00 AM for the monthly clean-up activity around Purok 3 and nearby streets.</p>
-            <span>Posted: March 05, 2026</span>
-          </div>
-          <div class="announcement-item">
-            <h4>Free Medical Check-Up</h4>
-            <p>Barangay health workers will conduct free blood pressure and consultation services at the covered court.</p>
-            <span>Posted: March 03, 2026</span>
-          </div>
-          <div class="announcement-item">
-            <h4>Scholarship Application Reminder</h4>
-            <p>Qualified students may submit scholarship requirements at the Barangay Hall until March 15, 2026.</p>
-            <span>Posted: March 01, 2026</span>
-          </div>
+          <?php if (!$recentAnnouncements): ?>
+            <div class="announcement-item">
+              <h4>No Announcements Yet</h4>
+              <p>There are currently no active community announcements.</p>
+              <span>Posted: -</span>
+            </div>
+          <?php else: ?>
+            <?php foreach ($recentAnnouncements as $announcement): ?>
+              <div class="announcement-item">
+                <h4><?php echo htmlspecialchars($announcement['title']); ?></h4>
+                <p><?php echo htmlspecialchars(mb_strimwidth(strip_tags((string)$announcement['content']), 0, 160, '...')); ?></p>
+                <span>Posted: <?php echo !empty($announcement['date_posted']) ? htmlspecialchars(date('F d, Y', strtotime($announcement['date_posted']))) : '-'; ?></span>
+              </div>
+            <?php endforeach; ?>
+          <?php endif; ?>
         </div>
       </article>
 
@@ -239,21 +308,14 @@ if ($residentId) {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>Barangay Clearance</td>
-                <td>March 06, 2026</td>
-                <td><span class="status pending">Pending</span></td>
-              </tr>
-              <tr>
-                <td>Certificate of Residency</td>
-                <td>March 02, 2026</td>
-                <td><span class="status approved">Approved</span></td>
-              </tr>
-              <tr>
-                <td>Business Permit Endorsement</td>
-                <td>February 27, 2026</td>
-                <td><span class="status rejected">Rejected</span></td>
-              </tr>
+              <?php foreach ($recentRequests as $request): ?>
+                <?php $statusClass = residentDashboardStatusClass($request['status'] ?? 'pending'); ?>
+                <tr>
+                  <td><?php echo htmlspecialchars(residentDashboardPrettyLabel($request['certificate_type'] ?? 'Document Request')); ?></td>
+                  <td><?php echo !empty($request['created_at']) ? htmlspecialchars(date('F d, Y', strtotime($request['created_at']))) : '-'; ?></td>
+                  <td><span class="status <?php echo $statusClass; ?>"><?php echo htmlspecialchars(residentDashboardPrettyLabel($request['status'] ?? 'pending')); ?></span></td>
+                </tr>
+              <?php endforeach; ?>
             </tbody>
           </table>
           <p class="empty-state" id="emptyState" hidden>No recent requests</p>
