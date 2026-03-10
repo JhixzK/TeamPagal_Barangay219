@@ -346,6 +346,38 @@ function showLatestReferenceIfAny() {
   window.alert("Request submitted. Reference Number: " + latestReference);
 }
 
+function applyInitialStatusFilterFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const raw = (params.get("status") || "").trim();
+  if (!raw || !statusFilter) {
+    return;
+  }
+
+  const normalized = raw.toLowerCase();
+  const map = {
+    all: "All",
+    pending: "Pending",
+    under_review: "Under Review",
+    "under review": "Under Review",
+    approved: "Approved",
+    rejected: "Rejected",
+    issued: "Ready for Pickup",
+    "ready for pickup": "Ready for Pickup",
+    completed: "Completed",
+    cancelled: "Cancelled"
+  };
+
+  const target = map[normalized];
+  if (!target) {
+    return;
+  }
+
+  const exists = Array.from(statusFilter.options).some((option) => option.value === target);
+  if (exists) {
+    statusFilter.value = target;
+  }
+}
+
 function handleFilterChange() {
   currentPage = 1;
   renderTableRows();
@@ -397,6 +429,7 @@ window.addEventListener("resize", () => {
 
 setDateBadges();
 showLatestReferenceIfAny();
+applyInitialStatusFilterFromUrl();
 loadRequests().catch((error) => {
   requests = [];
   renderSummaryCards();
