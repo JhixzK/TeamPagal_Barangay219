@@ -19,17 +19,23 @@ function formatToday() {
 
 function setDateBadges() {
   const today = formatToday();
-  topDateBadge.textContent = today;
-  mainDateBadge.textContent = today;
+  if (topDateBadge) {
+    topDateBadge.textContent = today;
+  }
+  if (mainDateBadge) {
+    mainDateBadge.textContent = today;
+  }
 }
 
 function toggleDropdown() {
+  if (!profileTrigger || !dropdownMenu) return;
   const expanded = profileTrigger.getAttribute("aria-expanded") === "true";
   profileTrigger.setAttribute("aria-expanded", String(!expanded));
   dropdownMenu.classList.toggle("open", !expanded);
 }
 
 function closeDropdownIfOutside(event) {
+  if (!profileTrigger || !dropdownMenu) return;
   if (!event.target.closest("#profileDropdown")) {
     profileTrigger.setAttribute("aria-expanded", "false");
     dropdownMenu.classList.remove("open");
@@ -37,10 +43,12 @@ function closeDropdownIfOutside(event) {
 }
 
 function toggleSidebarOnMobile() {
+  if (!sidebar) return;
   sidebar.classList.toggle("expanded");
 }
 
 function syncRecentRequestState() {
+  if (!requestTable || !emptyState) return;
   const rowCount = requestTable.querySelectorAll("tbody tr").length;
   const isEmpty = rowCount === 0;
   requestTable.hidden = isEmpty;
@@ -53,9 +61,13 @@ function navigateFromStatCard(card) {
   window.location.href = target;
 }
 
-profileTrigger.addEventListener("click", toggleDropdown);
+if (profileTrigger) {
+  profileTrigger.addEventListener("click", toggleDropdown);
+}
+if (menuToggle) {
+  menuToggle.addEventListener("click", toggleSidebarOnMobile);
+}
 document.addEventListener("click", closeDropdownIfOutside);
-menuToggle.addEventListener("click", toggleSidebarOnMobile);
 statCards.forEach((card) => {
   card.addEventListener("click", () => navigateFromStatCard(card));
   card.addEventListener("keydown", (event) => {
@@ -66,7 +78,7 @@ statCards.forEach((card) => {
   });
 });
 window.addEventListener("resize", () => {
-  if (window.innerWidth > 991) {
+  if (sidebar && window.innerWidth > 991) {
     sidebar.classList.remove("expanded");
   }
 });
