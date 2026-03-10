@@ -168,6 +168,7 @@ if ($mysqli && $residentId > 0) {
 
     if (rcTableExists($mysqli, 'residents')) {
         $residentQuery = "SELECT first_name, middle_name, last_name, birth_date, gender, civil_status, contact_number, address,
+                   COALESCE(verification_status, '') AS verification_status,
                                  COALESCE(status, '') AS status,
                                  COALESCE(record_status, '') AS record_status,
                                  household_id
@@ -189,7 +190,7 @@ if ($mysqli && $residentId > 0) {
             $gender = rcPrettyLabel($row['gender'] ?? '');
             $contactNumber = (string)($row['contact_number'] ?? '');
 
-            $statusRaw = strtolower(trim((string)($row['status'] ?: $row['record_status'])));
+            $statusRaw = strtolower(trim((string)($row['verification_status'] ?: $row['status'] ?: $row['record_status'])));
             $eligibility['resident_verified'] = in_array($statusRaw, ['active', 'approved', 'verified'], true);
             $eligibility['profile_complete'] = !empty($row['first_name'])
                 && !empty($row['last_name'])
