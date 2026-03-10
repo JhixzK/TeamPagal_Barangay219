@@ -4,6 +4,12 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
+
+if (normalizeRole(getCurrentUserRole()) === normalizeRole(ROLE_RESIDENT)) {
+    header('Location: ' . BASE_URL . 'complaints/my_complaints.php');
+    exit();
+}
+
 requireModuleAccess('complaints');
 
 $page_title = 'Complaints';
@@ -115,8 +121,10 @@ include __DIR__ . '/../includes/sidebar.php';
                     <label class="form-label">Status</label>
                     <select class="form-select" id="filterStatus">
                         <option value="">All</option>
-                        <option value="pending">Pending</option>
-                        <option value="under_review">Under Review</option>
+                        <option value="pending">Pending Review</option>
+                        <option value="under_review">Under Investigation</option>
+                        <option value="Scheduled for Mediation">Scheduled for Mediation</option>
+                        <option value="referred">Referred to Other Barangay</option>
                         <option value="resolved">Resolved</option>
                         <option value="dismissed">Dismissed</option>
                     </select>
@@ -186,6 +194,12 @@ include __DIR__ . '/../includes/sidebar.php';
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Status</label>
                         <select class="form-select" id="editStatus">
+                            <option value="Pending Review">Pending Review</option>
+                            <option value="Under Investigation">Under Investigation</option>
+                            <option value="Scheduled for Mediation">Scheduled for Mediation</option>
+                            <option value="Referred to Other Barangay">Referred to Other Barangay</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Dismissed">Dismissed</option>
                             <option value="pending">Pending</option>
                             <option value="under_review">Under Review</option>
                             <option value="resolved">Resolved</option>
