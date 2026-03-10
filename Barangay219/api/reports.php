@@ -50,10 +50,10 @@ function getStatistics() {
             'pending_certificates' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'pending'")['count'],
             'pending_applications' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'pending'")['count'],
             'pending_blotters' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM blotters WHERE status = 'pending'")['count'],
-            'pending_complaints' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM complaints WHERE status = 'pending'")['count'],
+            'pending_complaints' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM complaints WHERE status IN ('pending', 'Pending Review', 'Under Investigation', 'Scheduled for Mediation')")['count'],
             'issued_certificates' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'issued'")['count'],
             'resolved_blotters' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM blotters WHERE status IN ('resolved', 'settled')")['count'],
-            'resolved_complaints' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM complaints WHERE status = 'resolved'")['count'],
+            'resolved_complaints' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM complaints WHERE status IN ('resolved', 'Resolved')")['count'],
             'active_announcements' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM announcements WHERE status = 'active'")['count']
         ];
         sendResponse(true, 'Statistics retrieved', $stats);
@@ -152,10 +152,10 @@ function getModuleStats($module) {
             case 'complaints':
                 $row = $db->fetchOne(
                     "SELECT COUNT(*) AS total,\n" .
-                    "COALESCE(SUM(status = 'pending'), 0) AS pending,\n" .
-                    "COALESCE(SUM(status = 'under_review'), 0) AS under_review,\n" .
-                    "COALESCE(SUM(status = 'resolved'), 0) AS resolved,\n" .
-                    "COALESCE(SUM(status = 'dismissed'), 0) AS dismissed\n" .
+                    "COALESCE(SUM(status IN ('pending', 'Pending Review')), 0) AS pending,\n" .
+                    "COALESCE(SUM(status IN ('under_review', 'Under Investigation', 'Scheduled for Mediation')), 0) AS under_review,\n" .
+                    "COALESCE(SUM(status IN ('resolved', 'Resolved')), 0) AS resolved,\n" .
+                    "COALESCE(SUM(status IN ('dismissed', 'Dismissed')), 0) AS dismissed\n" .
                     "FROM complaints"
                 );
                 $stats = [
@@ -219,7 +219,7 @@ function getModuleStats($module) {
                     'total_households' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM households")['count'],
                     'issued_certificates' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'issued'")['count'],
                     'pending_applications' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'pending'")['count'],
-                    'pending_complaints' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM complaints WHERE status = 'pending'")['count'],
+                    'pending_complaints' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM complaints WHERE status IN ('pending', 'Pending Review', 'Under Investigation', 'Scheduled for Mediation')")['count'],
                     'active_announcements' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM announcements WHERE status = 'active'")['count']
                 ];
                 break;
@@ -263,7 +263,7 @@ function getModuleStats($module) {
                     $hasResidentCol = !empty($db->getConnection()->query("SHOW COLUMNS FROM complaints LIKE 'resident_id'")->fetchAll());
                     if ($hasResidentCol) {
                         $compRow = $db->fetchOne(
-                            "SELECT COUNT(*) AS total, COALESCE(SUM(status = 'pending'), 0) AS pending FROM complaints WHERE resident_id = ?",
+                            "SELECT COUNT(*) AS total, COALESCE(SUM(status IN ('pending', 'Pending Review', 'Under Investigation', 'Scheduled for Mediation')), 0) AS pending FROM complaints WHERE resident_id = ?",
                             [$residentId]
                         );
                         $complaintsTotal = (int)$compRow['total'];
@@ -366,7 +366,23 @@ function getComplaintsReport() {
         $params = [];
         if ($from) { $where .= " AND DATE(filing_date) >= ?"; $params[] = $from; }
         if ($to) { $where .= " AND DATE(filing_date) <= ?"; $params[] = $to; }
-        $data = $db->fetchAll("SELECT status, COUNT(*) as count FROM complaints WHERE $where GROUP BY status", $params);
+        $data = $db->fetchAll(
+            "SELECT
+                CASE
+                    WHEN status IN ('pending', 'Pending Review') THEN 'Pending Review'
+                    WHEN status IN ('under_review', 'Under Investigation') THEN 'Under Investigation'
+                    WHEN status = 'Scheduled for Mediation' THEN 'Scheduled for Mediation'
+                    WHEN status = 'Referred to Other Barangay' THEN 'Referred to Other Barangay'
+                    WHEN status IN ('resolved', 'Resolved') THEN 'Resolved'
+                    WHEN status IN ('dismissed', 'Dismissed') THEN 'Dismissed'
+                    ELSE status
+                END AS status,
+                COUNT(*) as count
+             FROM complaints
+             WHERE $where
+             GROUP BY status",
+            $params
+        );
         sendResponse(true, 'Complaints report', $data);
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
