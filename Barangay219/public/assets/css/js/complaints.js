@@ -45,11 +45,11 @@ function loadComplaints() {
                 tbody.innerHTML = list.map(c => `
                     <tr>
                         <td>${c.id}</td>
-                        <td>${escapeHtml(c.complaint_title)}</td>
+                        <td>${escapeHtml(c.title || c.complaint_title)}</td>
                         <td>${escapeHtml(c.complainant_name)}</td>
                         <td>${escapeHtml(c.resident_name || '-')}</td>
-                        <td>${formatDate(c.filing_date)}</td>
-                        <td><span class="badge bg-${getStatusColor(c.status)}">${c.status}</span></td>
+                        <td>${formatDate(c.date_submitted || c.filing_date)}</td>
+                        <td><span class="badge bg-${getStatusColor(c.status)}">${escapeHtml(formatComplaintStatus(c.status))}</span></td>
                         <td>
                             <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewComplaint(${c.id})"><i class="bi bi-eye"></i></button>
                             ${COMPLAINT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editComplaint(${c.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
@@ -122,13 +122,13 @@ function viewComplaint(id) {
             if (!d.success) return alert(d.message || 'Error');
             const c = d.data;
             const html = `
-                <strong>Title:</strong> ${escapeHtml(c.complaint_title)}<br>
+                <strong>Title:</strong> ${escapeHtml(c.title || c.complaint_title)}<br>
                 <strong>Complainant:</strong> ${escapeHtml(c.complainant_name)}<br>
                 <strong>Respondent:</strong> ${escapeHtml(c.respondent_name || '-')}<br>
-                <strong>Type:</strong> ${escapeHtml(c.complaint_type || '-')}<br>
-                <strong>Date:</strong> ${formatDate(c.filing_date)}<br>
-                <strong>Status:</strong> <span class="badge bg-${getStatusColor(c.status)}">${c.status}</span><br>
-                <strong>Narrative:</strong><br>${escapeHtml(c.narrative)}<br>
+                <strong>Type:</strong> ${escapeHtml(c.category || c.complaint_type || '-')}<br>
+                <strong>Date:</strong> ${formatDate(c.date_submitted || c.filing_date)}<br>
+                <strong>Status:</strong> <span class="badge bg-${getStatusColor(c.status)}">${escapeHtml(formatComplaintStatus(c.status))}</span><br>
+                <strong>Narrative:</strong><br>${escapeHtml(c.description || c.narrative)}<br>
                 ${c.remarks ? '<strong>Remarks:</strong><br>' + escapeHtml(c.remarks) : ''}
             `;
             const modal = new bootstrap.Modal(document.getElementById('viewModal'));
@@ -147,13 +147,13 @@ function editComplaint(id) {
             if (!d.success) return alert(d.message || 'Error');
             const c = d.data;
             document.getElementById('editId').value = c.id;
-            document.getElementById('editTitle').value = c.complaint_title;
+            document.getElementById('editTitle').value = c.title || c.complaint_title;
             document.getElementById('editComplainant').value = c.complainant_name;
             document.getElementById('editRespondent').value = c.respondent_name || '';
-            document.getElementById('editType').value = c.complaint_type || '';
-            document.getElementById('editNarrative').value = c.narrative;
-            document.getElementById('editFilingDate').value = c.filing_date || '';
-            document.getElementById('editStatus').value = c.status || 'pending';
+            document.getElementById('editType').value = c.category || c.complaint_type || '';
+            document.getElementById('editNarrative').value = c.description || c.narrative;
+            document.getElementById('editFilingDate').value = c.filing_date || c.incident_date || '';
+            document.getElementById('editStatus').value = c.status || 'Pending Review';
             document.getElementById('editRemarks').value = c.remarks || '';
             new bootstrap.Modal(document.getElementById('editModal')).show();
         });
@@ -194,8 +194,28 @@ function deleteComplaint(id) {
 }
 
 function getStatusColor(status) {
-    const c = { 'pending': 'warning', 'under_review': 'info', 'resolved': 'success', 'dismissed': 'danger' };
-    return c[status] || 'secondary';
+    const colors = {
+        'pending': 'warning',
+        'Pending Review': 'warning',
+        'under_review': 'info',
+        'Under Investigation': 'info',
+        'Scheduled for Mediation': 'primary',
+        'Referred to Other Barangay': 'secondary',
+        'resolved': 'success',
+        'Resolved': 'success',
+        'dismissed': 'danger',
+        'Dismissed': 'danger'
+    };
+    return colors[status] || 'secondary';
+}
+function formatComplaintStatus(status) {
+    const labels = {
+        pending: 'Pending Review',
+        under_review: 'Under Investigation',
+        resolved: 'Resolved',
+        dismissed: 'Dismissed'
+    };
+    return labels[status] || status || 'Pending Review';
 }
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, x => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[x]); }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
