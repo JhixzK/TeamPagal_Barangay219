@@ -22,85 +22,436 @@ $username = $_SESSION['username'] ?? 'Resident';
 $email = $_SESSION['email'] ?? '';
 $residentId = $_SESSION['resident_id'] ?? null;
 
-// Get resident details from database if available
-$db = Database::getInstance();
-$residentName = $username;
-if ($residentId) {
-    $sql = "SELECT first_name, middle_name, last_name FROM residents WHERE id = ?";
-    $resident = $db->fetchOne($sql, [$residentId]);
-    if ($resident) {
-        $residentName = trim($resident['first_name'] . ' ' . ($resident['middle_name'] ? $resident['middle_name'] . ' ' : '') . $resident['last_name']);
-    }
+function residentDashboardConnectMysqli() {
+  mysqli_report(MYSQLI_REPORT_OFF);
+  $conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+  if ($conn->connect_errno) {
+    return null;
+  }
+  $conn->set_charset(DB_CHARSET);
+  return $conn;
 }
 
-    $stats = [
-      'total_requests' => 0,
-      'pending_requests' => 0,
-      'approved_documents' => 0,
-      'active_announcements' => 0
-    ];
+function residentDashboardPrettyLabel($value) {
+  $value = str_replace('_', ' ', (string)$value);
+  return ucwords(trim($value));
+}
 
-    $recentRequests = [];
-    $recentAnnouncements = [];
+function residentDashboardTableExists($conn, $tableName) {
+  $sql = 'SHOW TABLES LIKE ?';
+  $stmt = $conn->prepare($sql);
+  if (!$stmt) {
+    return false;
+  }
+  $stmt->bind_param('s', $tableName);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $exists = $result && $result->num_rows > 0;
+  $stmt->close();
+  return $exists;
+}
 
-    if ($residentId) {
-      try {
-        $statsRow = $db->fetchOne(
-          "SELECT
-            COUNT(*) AS total_requests,
-            COALESCE(SUM(status = 'pending'), 0) AS pending_requests,
-            COALESCE(SUM(status IN ('approved', 'issued')), 0) AS approved_documents
-           FROM certificate_requests
-           WHERE resident_id = ?",
-          [$residentId]
-        );
+function residentDashboardTableColumns($conn, $tableName) {
+  $columns = [];
+  $sql = "SHOW COLUMNS FROM `" . $conn->real_escape_string($tableName) . "`";
+  $result = $conn->query($sql);
+  if (!$result) {
+    return $columns;
+  }
 
-        if ($statsRow) {
-          $stats['total_requests'] = (int)$statsRow['total_requests'];
-          $stats['pending_requests'] = (int)$statsRow['pending_requests'];
-          $stats['approved_documents'] = (int)$statsRow['approved_documents'];
-        }
+  while ($row = $result->fetch_assoc()) {
+    if (!empty($row['Field'])) {
+      $columns[] = $row['Field'];
+    }
+  }
 
-        $recentRequests = $db->fetchAll(
-          "SELECT certificate_type, created_at, status
-           FROM certificate_requests
-           WHERE resident_id = ?
-           ORDER BY created_at DESC
-           LIMIT 5",
-          [$residentId]
-        );
-      } catch (Exception $e) {
-        $recentRequests = [];
+  return $columns;
+}
+
+function residentDashboardFetchOne($conn, $sql, $types = '', $params = []) {
+  $stmt = $conn->prepare($sql);
+  if (!$stmt) {
+    return null;
+  }
+
+  if ($types !== '' && !empty($params)) {
+    $stmt->bind_param($types, ...$params);
+  }
+
+  if (!$stmt->execute()) {
+    $stmt->close();
+    return null;
+  }
+
+  $result = $stmt->get_result();
+  $row = $result ? $result->fetch_assoc() : null;
+  $stmt->close();
+  return $row ?: null;
+}
+
+function residentDashboardFetchAll($conn, $sql, $types = '', $params = []) {
+  $rows = [];
+  $stmt = $conn->prepare($sql);
+  if (!$stmt) {
+    return $rows;
+  }
+
+  if ($types !== '' && !empty($params)) {
+    $stmt->bind_param($types, ...$params);
+  }
+
+  if (!$stmt->execute()) {
+    $stmt->close();
+    return $rows;
+  }
+
+  $result = $stmt->get_result();
+  if ($result) {
+    while ($row = $result->fetch_assoc()) {
+      $rows[] = $row;
+    }
+  }
+
+  $stmt->close();
+  return $rows;
+}
+
+function residentDashboardStatusClass($status) {
+  $normalized = strtolower(trim(str_replace('_', ' ', (string)$status)));
+  if (in_array($normalized, ['pending', 'submitted', 'under review'], true)) {
+    return 'status-pending';
+  }
+  if (in_array($normalized, ['approved', 'ready for pickup', 'issued', 'released'], true)) {
+    return 'status-approved';
+  }
+  if ($normalized === 'rejected') {
+    return 'status-rejected';
+  }
+  if ($normalized === 'cancelled' || $normalized === 'canceled') {
+    return 'status-cancelled';
+  }
+  return 'status-pending';
+}
+
+function residentDashboardTrackerClass($status) {
+  $normalized = strtolower(trim(str_replace('_', ' ', (string)$status)));
+  if ($normalized === 'submitted') {
+    return 'tracker-submitted';
+  }
+  if ($normalized === 'under review' || $normalized === 'pending') {
+    return 'tracker-review';
+  }
+  if ($normalized === 'approved') {
+    return 'tracker-approved';
+  }
+  if ($normalized === 'ready for pickup' || $normalized === 'issued') {
+    return 'tracker-ready';
+  }
+  if ($normalized === 'released' || $normalized === 'completed') {
+    return 'tracker-released';
+  }
+  if ($normalized === 'cancelled' || $normalized === 'canceled' || $normalized === 'rejected') {
+    return 'tracker-cancelled';
+  }
+  return 'tracker-submitted';
+}
+
+$residentName = $username;
+$residentProfile = [
+  'avatar' => 'https://i.pravatar.cc/160?img=12',
+  'full_name' => $username,
+  'resident_status' => 'Pending Verification',
+  'household_status' => 'Not Linked'
+];
+
+$stats = [
+  'total_requests' => 0,
+  'pending_requests' => 0,
+  'approved_documents' => 0,
+  'active_announcements' => 0
+];
+
+$latestRequest = null;
+$recentRequests = [];
+$recentAnnouncements = [];
+$dashboardNotifications = [];
+
+$householdSnapshot = [
+  'linked' => false,
+  'household_id' => null,
+  'head_name' => '-',
+  'member_count' => 0,
+  'address' => '-'
+];
+
+$requestTable = null;
+$requestTypeColumn = null;
+$requestDateColumn = null;
+$requestIdColumn = 'id';
+
+$conn = residentDashboardConnectMysqli();
+if ($conn && $residentId) {
+  if (residentDashboardTableExists($conn, 'residents')) {
+    $residentCols = residentDashboardTableColumns($conn, 'residents');
+    $selectResidentParts = ['id', 'first_name', 'middle_name', 'last_name', 'address', 'contact_number'];
+
+    if (in_array('status', $residentCols, true)) {
+      $selectResidentParts[] = 'status';
+    }
+    if (in_array('record_status', $residentCols, true)) {
+      $selectResidentParts[] = 'record_status';
+    }
+    if (in_array('household_id', $residentCols, true)) {
+      $selectResidentParts[] = 'household_id';
+    }
+    if (in_array('profile_image', $residentCols, true)) {
+      $selectResidentParts[] = 'profile_image';
+    }
+
+    $residentSql = 'SELECT ' . implode(', ', $selectResidentParts) . ' FROM residents WHERE id = ? LIMIT 1';
+    $residentRow = residentDashboardFetchOne($conn, $residentSql, 'i', [(int)$residentId]);
+
+    if ($residentRow) {
+      $residentName = trim(($residentRow['first_name'] ?? '') . ' ' . (($residentRow['middle_name'] ?? '') ? $residentRow['middle_name'] . ' ' : '') . ($residentRow['last_name'] ?? ''));
+      if ($residentName === '') {
+        $residentName = $username;
+      }
+
+      $residentProfile['full_name'] = $residentName;
+
+      if (!empty($residentRow['profile_image'])) {
+        $residentProfile['avatar'] = htmlspecialchars((string)$residentRow['profile_image']);
+      }
+
+      $residentStatusRaw = strtolower((string)($residentRow['status'] ?? $residentRow['record_status'] ?? ''));
+      $isProfileIncomplete = empty($residentRow['first_name']) || empty($residentRow['last_name']) || empty($residentRow['address']) || empty($residentRow['contact_number']);
+      if ($isProfileIncomplete) {
+        $residentProfile['resident_status'] = 'Incomplete Profile';
+      } elseif (in_array($residentStatusRaw, ['active', 'approved', 'verified'], true)) {
+        $residentProfile['resident_status'] = 'Verified';
+      } else {
+        $residentProfile['resident_status'] = 'Pending Verification';
+      }
+
+      if (!empty($residentRow['household_id'])) {
+        $householdSnapshot['linked'] = true;
+        $householdSnapshot['household_id'] = (int)$residentRow['household_id'];
+        $residentProfile['household_status'] = 'Linked';
+      }
+    }
+  }
+
+  if (residentDashboardTableExists($conn, 'document_requests')) {
+    $requestTable = 'document_requests';
+  } elseif (residentDashboardTableExists($conn, 'certificate_requests')) {
+    $requestTable = 'certificate_requests';
+  }
+
+  if ($requestTable !== null) {
+    $requestColumns = residentDashboardTableColumns($conn, $requestTable);
+    $requestTypeColumn = in_array('document_type', $requestColumns, true) ? 'document_type' : (in_array('certificate_type', $requestColumns, true) ? 'certificate_type' : null);
+    $requestDateColumn = in_array('date_requested', $requestColumns, true) ? 'date_requested' : (in_array('created_at', $requestColumns, true) ? 'created_at' : null);
+    if (in_array('request_id', $requestColumns, true)) {
+      $requestIdColumn = 'request_id';
+    }
+
+    if ($requestTypeColumn && $requestDateColumn) {
+      $statsSql = "SELECT
+              COUNT(*) AS total_requests,
+              COALESCE(SUM(LOWER(REPLACE(status, '_', ' ')) IN ('pending', 'under review')), 0) AS pending_requests,
+              COALESCE(SUM(LOWER(REPLACE(status, '_', ' ')) IN ('approved', 'ready for pickup', 'issued')), 0) AS approved_documents
+             FROM {$requestTable}
+             WHERE resident_id = ?";
+      $statsRow = residentDashboardFetchOne($conn, $statsSql, 'i', [(int)$residentId]);
+      if ($statsRow) {
+        $stats['total_requests'] = (int)$statsRow['total_requests'];
+        $stats['pending_requests'] = (int)$statsRow['pending_requests'];
+        $stats['approved_documents'] = (int)$statsRow['approved_documents'];
+      }
+
+      $latestSql = "SELECT {$requestIdColumn} AS request_id, {$requestTypeColumn} AS request_type, {$requestDateColumn} AS requested_at, status
+              FROM {$requestTable}
+              WHERE resident_id = ?
+              ORDER BY {$requestDateColumn} DESC
+              LIMIT 1";
+      $latestRequest = residentDashboardFetchOne($conn, $latestSql, 'i', [(int)$residentId]);
+      if ($latestRequest && strtolower((string)$latestRequest['status']) === 'pending') {
+        $latestRequest['status'] = 'Submitted';
+      }
+
+      $recentSql = "SELECT {$requestIdColumn} AS request_id, {$requestTypeColumn} AS request_type, {$requestDateColumn} AS requested_at, status
+              FROM {$requestTable}
+              WHERE resident_id = ?
+              ORDER BY {$requestDateColumn} DESC
+              LIMIT 5";
+      $recentRequests = residentDashboardFetchAll($conn, $recentSql, 'i', [(int)$residentId]);
+    }
+  }
+
+  if (residentDashboardTableExists($conn, 'announcements')) {
+    $annCountRow = residentDashboardFetchOne($conn, "SELECT COUNT(*) AS total FROM announcements WHERE status = 'active'");
+    $stats['active_announcements'] = (int)($annCountRow['total'] ?? 0);
+
+    $recentAnnouncements = residentDashboardFetchAll(
+      $conn,
+      "SELECT id, title, content, date_posted
+       FROM announcements
+       WHERE status = 'active'
+       ORDER BY date_posted DESC, created_at DESC
+       LIMIT 3"
+    );
+  }
+
+  if ($householdSnapshot['linked'] && residentDashboardTableExists($conn, 'households')) {
+    $householdId = (int)$householdSnapshot['household_id'];
+    $householdColumns = residentDashboardTableColumns($conn, 'households');
+    $allowedHouseholdFields = ['id', 'family_head_id', 'total_members', 'address', 'house_number', 'street', 'purok_sitio', 'barangay', 'city', 'province'];
+    $availableHouseholdFields = [];
+    foreach ($allowedHouseholdFields as $field) {
+      if (in_array($field, $householdColumns, true)) {
+        $availableHouseholdFields[] = $field;
       }
     }
 
-    try {
-      $annRow = $db->fetchOne("SELECT COUNT(*) AS total FROM announcements WHERE status = 'active'");
-      $stats['active_announcements'] = (int)($annRow['total'] ?? 0);
-
-      $recentAnnouncements = $db->fetchAll(
-        "SELECT id, title, content, date_posted
-         FROM announcements
-         WHERE status = 'active'
-         ORDER BY date_posted DESC, created_at DESC
-         LIMIT 3"
-      );
-    } catch (Exception $e) {
-      $recentAnnouncements = [];
+    if (!in_array('id', $availableHouseholdFields, true)) {
+      $availableHouseholdFields[] = 'id';
     }
 
-    function residentDashboardPrettyLabel($value) {
-      $value = str_replace('_', ' ', (string)$value);
-      return ucwords(trim($value));
-    }
+    $householdSelect = implode(', ', $availableHouseholdFields);
+    $householdRow = residentDashboardFetchOne(
+      $conn,
+      "SELECT {$householdSelect}
+       FROM households
+       WHERE id = ?
+       LIMIT 1",
+      'i',
+      [$householdId]
+    );
 
-    function residentDashboardStatusClass($status) {
-      $status = strtolower((string)$status);
-      if ($status === 'pending') return 'pending';
-      if (in_array($status, ['approved', 'issued'], true)) return 'approved';
-      if ($status === 'rejected') return 'rejected';
-      return 'pending';
+    if ($householdRow) {
+      $householdSnapshot['household_id'] = (int)$householdRow['id'];
+      $householdSnapshot['member_count'] = (int)($householdRow['total_members'] ?? 0);
+
+      $addressParts = [];
+      foreach (['house_number', 'street', 'purok_sitio', 'barangay', 'city', 'province'] as $part) {
+        if (!empty($householdRow[$part])) {
+          $addressParts[] = trim((string)$householdRow[$part]);
+        }
+      }
+      $householdSnapshot['address'] = !empty($householdRow['address'])
+        ? (string)$householdRow['address']
+        : (!empty($addressParts) ? implode(', ', $addressParts) : '-');
+
+      if (residentDashboardTableExists($conn, 'household_members')) {
+        $memberRow = residentDashboardFetchOne(
+          $conn,
+          'SELECT COUNT(*) AS total FROM household_members WHERE household_id = ?',
+          'i',
+          [$householdId]
+        );
+        if ($memberRow) {
+          $householdSnapshot['member_count'] = max($householdSnapshot['member_count'], (int)$memberRow['total']);
+        }
+      }
+
+      if (!empty($householdRow['family_head_id'])) {
+        $headRow = residentDashboardFetchOne(
+          $conn,
+          'SELECT first_name, middle_name, last_name FROM residents WHERE id = ? LIMIT 1',
+          'i',
+          [(int)$householdRow['family_head_id']]
+        );
+        if ($headRow) {
+          $householdSnapshot['head_name'] = trim(($headRow['first_name'] ?? '') . ' ' . (($headRow['middle_name'] ?? '') ? $headRow['middle_name'] . ' ' : '') . ($headRow['last_name'] ?? ''));
+        }
+      }
+    } else {
+      $householdSnapshot['linked'] = false;
+      $residentProfile['household_status'] = 'Not Linked';
     }
+  }
+
+  if (residentDashboardTableExists($conn, 'notifications')) {
+    $notificationColumns = residentDashboardTableColumns($conn, 'notifications');
+    $messageColumn = in_array('message', $notificationColumns, true) ? 'message' : (in_array('content', $notificationColumns, true) ? 'content' : 'title');
+    $titleColumn = in_array('title', $notificationColumns, true) ? 'title' : null;
+    $dateColumn = in_array('created_at', $notificationColumns, true) ? 'created_at' : (in_array('date_created', $notificationColumns, true) ? 'date_created' : (in_array('date_posted', $notificationColumns, true) ? 'date_posted' : null));
+
+    if ($messageColumn && $dateColumn) {
+      $selectTitle = $titleColumn ? "{$titleColumn} AS title," : "'' AS title,";
+      $notificationSql = "SELECT id, {$selectTitle} {$messageColumn} AS message, {$dateColumn} AS created_at
+                FROM notifications";
+      $whereParts = [];
+      $bindTypes = '';
+      $bindValues = [];
+
+      if (in_array('resident_id', $notificationColumns, true)) {
+        $whereParts[] = 'resident_id = ?';
+        $bindTypes .= 'i';
+        $bindValues[] = (int)$residentId;
+      } elseif (in_array('user_id', $notificationColumns, true)) {
+        $whereParts[] = 'user_id = ?';
+        $bindTypes .= 'i';
+        $bindValues[] = (int)$userId;
+      }
+
+      if (in_array('is_read', $notificationColumns, true)) {
+        $whereParts[] = 'is_read = 0';
+      } elseif (in_array('status', $notificationColumns, true)) {
+        $whereParts[] = "LOWER(status) IN ('unread', 'new', 'pending')";
+      }
+
+      if (!empty($whereParts)) {
+        $notificationSql .= ' WHERE ' . implode(' AND ', $whereParts);
+      }
+
+      $notificationSql .= " ORDER BY {$dateColumn} DESC LIMIT 5";
+      $dashboardNotifications = residentDashboardFetchAll($conn, $notificationSql, $bindTypes, $bindValues);
+    }
+  }
+
+  $conn->close();
+}
+
+if ($latestRequest) {
+  $latestStatus = strtolower(trim(str_replace('_', ' ', (string)($latestRequest['status'] ?? ''))));
+  if (in_array($latestStatus, ['ready for pickup', 'issued'], true)) {
+    $dashboardNotifications[] = [
+      'title' => 'Document Ready for Pickup',
+      'message' => 'One of your document requests is ready for pickup at the barangay office.',
+      'created_at' => date('Y-m-d H:i:s')
+    ];
+  }
+}
+
+if ($residentProfile['resident_status'] === 'Incomplete Profile') {
+  $dashboardNotifications[] = [
+    'title' => 'Profile Incomplete',
+    'message' => 'Please update your resident profile details to unlock all services.',
+    'created_at' => date('Y-m-d H:i:s')
+  ];
+}
+
+if (!$householdSnapshot['linked']) {
+  $dashboardNotifications[] = [
+    'title' => 'Household Not Linked',
+    'message' => 'Your account is not yet associated with a household record.',
+    'created_at' => date('Y-m-d H:i:s')
+  ];
+}
+
+if (count($dashboardNotifications) > 5) {
+  $dashboardNotifications = array_slice($dashboardNotifications, 0, 5);
+}
+
+$residentStatusBadgeClass = 'badge-pending';
+if ($residentProfile['resident_status'] === 'Verified') {
+  $residentStatusBadgeClass = 'badge-verified';
+} elseif ($residentProfile['resident_status'] === 'Incomplete Profile') {
+  $residentStatusBadgeClass = 'badge-incomplete';
+}
+
+$householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ? 'badge-linked' : 'badge-not-linked';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -112,7 +463,7 @@ if ($residentId) {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
-  <link rel="stylesheet" href="resident_dashboard.css">
+  <link rel="stylesheet" href="resident_dashboard.css?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_dashboard.css')); ?>">
 </head>
 <body>
   <header class="top-header">
@@ -240,6 +591,40 @@ if ($residentId) {
       </div>
     </section>
 
+    <section class="profile-overview card-surface">
+      <div class="profile-identity">
+        <img src="<?php echo htmlspecialchars($residentProfile['avatar']); ?>" alt="Resident profile image">
+        <div>
+          <h3><?php echo htmlspecialchars($residentProfile['full_name']); ?></h3>
+          <p><?php echo htmlspecialchars($email ?: 'No email on file'); ?></p>
+        </div>
+      </div>
+      <div class="profile-status">
+        <span class="pill <?php echo $residentStatusBadgeClass; ?>">
+          <i class="fa-solid fa-id-card"></i>
+          Resident Status: <?php echo htmlspecialchars($residentProfile['resident_status']); ?>
+        </span>
+        <span class="pill <?php echo $householdStatusBadgeClass; ?>">
+          <i class="fa-solid fa-house-user"></i>
+          Household Status: <?php echo htmlspecialchars($residentProfile['household_status']); ?>
+        </span>
+      </div>
+    </section>
+
+    <section class="quick-actions card-surface" aria-label="Quick actions">
+      <div class="panel-header compact">
+        <h3>Quick Actions</h3>
+      </div>
+      <div class="quick-actions-grid">
+        <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=barangay_clearance"><i class="fa-regular fa-file-lines"></i><span>Request Barangay Clearance</span></a>
+        <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=certificate_indigency"><i class="fa-solid fa-hand-holding-heart"></i><span>Request Certificate of Indigency</span></a>
+        <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=certificate_residency"><i class="fa-solid fa-location-dot"></i><span>Request Residency Certificate</span></a>
+        <a class="quick-btn" href="<?php echo BASE_URL; ?>my_requests.php"><i class="fa-solid fa-list-check"></i><span>View My Requests</span></a>
+        <a class="quick-btn" href="<?php echo BASE_URL; ?>resident_profile.php"><i class="fa-regular fa-user"></i><span>Update Profile</span></a>
+        <a class="quick-btn" href="<?php echo BASE_URL; ?>resident_household.php"><i class="fa-solid fa-house"></i><span>Household Information</span></a>
+      </div>
+    </section>
+
     <section class="stats-grid" aria-label="Resident dashboard statistics">
       <article class="stat-card card-1" data-href="<?php echo BASE_URL; ?>my_requests.php" role="link" tabindex="0">
         <i class="fa-regular fa-folder-open stat-icon"></i>
@@ -252,14 +637,14 @@ if ($residentId) {
         <i class="fa-regular fa-clock stat-icon"></i>
         <h3>Pending Requests</h3>
         <p class="stat-value"><?php echo (int)$stats['pending_requests']; ?></p>
-        <p class="stat-note">Waiting for barangay review</p>
+        <p class="stat-note">Pending or under review</p>
       </article>
 
       <article class="stat-card card-3" data-href="<?php echo BASE_URL; ?>my_requests.php?status=Approved" role="link" tabindex="0">
         <i class="fa-regular fa-circle-check stat-icon"></i>
         <h3>Approved Documents</h3>
         <p class="stat-value"><?php echo (int)$stats['approved_documents']; ?></p>
-        <p class="stat-note">Released and ready to claim</p>
+        <p class="stat-note">Approved and ready for pickup</p>
       </article>
 
       <article class="stat-card card-4" data-href="<?php echo BASE_URL; ?>resident_announcements.php" role="link" tabindex="0">
@@ -270,76 +655,137 @@ if ($residentId) {
       </article>
     </section>
 
-    <section class="panels-grid">
+    <section class="dashboard-grid-two">
       <article class="panel">
         <div class="panel-header">
+          <h3>Request Progress Tracker</h3>
+        </div>
+        <?php if (!$latestRequest): ?>
+          <p class="info-empty">No recent requests found.</p>
+        <?php else: ?>
+          <div class="tracker-card">
+            <p><strong>Document Type:</strong> <?php echo htmlspecialchars(residentDashboardPrettyLabel($latestRequest['request_type'] ?? 'Document Request')); ?></p>
+            <p><strong>Date Requested:</strong> <?php echo !empty($latestRequest['requested_at']) ? htmlspecialchars(date('F d, Y', strtotime($latestRequest['requested_at']))) : '-'; ?></p>
+            <p><strong>Current Status:</strong> <span class="tracker-badge <?php echo residentDashboardTrackerClass($latestRequest['status'] ?? 'Submitted'); ?>"><?php echo htmlspecialchars(residentDashboardPrettyLabel($latestRequest['status'] ?? 'Submitted')); ?></span></p>
+          </div>
+        <?php endif; ?>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header">
+          <h3>Notifications</h3>
+        </div>
+        <?php if (!$dashboardNotifications): ?>
+          <p class="info-empty">No new notifications.</p>
+        <?php else: ?>
+          <ul class="notification-list">
+            <?php foreach ($dashboardNotifications as $notice): ?>
+              <li>
+                <h4><?php echo htmlspecialchars($notice['title'] ?? 'System Alert'); ?></h4>
+                <p><?php echo htmlspecialchars($notice['message'] ?? 'You have a new update.'); ?></p>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        <?php endif; ?>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header">
+          <h3>Household Snapshot</h3>
+        </div>
+        <?php if (!$householdSnapshot['linked']): ?>
+          <p class="info-empty">You are not currently associated with any household. Please contact the barangay office to link your household record.</p>
+        <?php else: ?>
+          <ul class="detail-list">
+            <li><strong>Household Head Name:</strong> <?php echo htmlspecialchars($householdSnapshot['head_name'] ?: '-'); ?></li>
+            <li><strong>Number of Household Members:</strong> <?php echo (int)$householdSnapshot['member_count']; ?></li>
+            <li><strong>Address:</strong> <?php echo htmlspecialchars($householdSnapshot['address'] ?: '-'); ?></li>
+            <li><strong>Household ID:</strong> <?php echo (int)$householdSnapshot['household_id']; ?></li>
+          </ul>
+        <?php endif; ?>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header with-action">
           <h3>Announcements</h3>
+          <a class="text-link" href="<?php echo BASE_URL; ?>resident_announcements.php">View All Announcements</a>
         </div>
         <div class="announcement-list">
           <?php if (!$recentAnnouncements): ?>
-            <div class="announcement-item">
-              <h4>No Announcements Yet</h4>
-              <p>There are currently no active community announcements.</p>
-              <span>Posted: -</span>
-            </div>
+            <p class="info-empty">No active announcements at this time.</p>
           <?php else: ?>
             <?php foreach ($recentAnnouncements as $announcement): ?>
               <div class="announcement-item">
                 <h4><?php echo htmlspecialchars($announcement['title']); ?></h4>
-                <p><?php echo htmlspecialchars(mb_strimwidth(strip_tags((string)$announcement['content']), 0, 160, '...')); ?></p>
+                <p><?php echo htmlspecialchars(mb_strimwidth(strip_tags((string)$announcement['content']), 0, 150, '...')); ?></p>
                 <span>Posted: <?php echo !empty($announcement['date_posted']) ? htmlspecialchars(date('F d, Y', strtotime($announcement['date_posted']))) : '-'; ?></span>
               </div>
             <?php endforeach; ?>
           <?php endif; ?>
         </div>
       </article>
+    </section>
 
-      <article class="panel">
-        <div class="panel-header">
-          <h3>My Recent Requests</h3>
-        </div>
-        <div class="table-wrap">
-          <table class="request-table" id="requestTable">
-            <thead>
+    <section class="panel">
+      <div class="panel-header">
+        <h3>Recent Requests</h3>
+      </div>
+      <div class="table-wrap">
+        <table class="request-table" id="requestTable">
+          <thead>
+            <tr>
+              <th>Document Type</th>
+              <th>Date Requested</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php if (!$recentRequests): ?>
               <tr>
-                <th>Document Type</th>
-                <th>Date Requested</th>
-                <th>Status</th>
+                <td colspan="4" class="table-empty">No recent requests found.</td>
               </tr>
-            </thead>
-            <tbody>
+            <?php else: ?>
               <?php foreach ($recentRequests as $request): ?>
                 <?php $statusClass = residentDashboardStatusClass($request['status'] ?? 'pending'); ?>
                 <tr>
-                  <td><?php echo htmlspecialchars(residentDashboardPrettyLabel($request['certificate_type'] ?? 'Document Request')); ?></td>
-                  <td><?php echo !empty($request['created_at']) ? htmlspecialchars(date('F d, Y', strtotime($request['created_at']))) : '-'; ?></td>
+                  <td><?php echo htmlspecialchars(residentDashboardPrettyLabel($request['request_type'] ?? 'Document Request')); ?></td>
+                  <td><?php echo !empty($request['requested_at']) ? htmlspecialchars(date('F d, Y', strtotime($request['requested_at']))) : '-'; ?></td>
                   <td><span class="status <?php echo $statusClass; ?>"><?php echo htmlspecialchars(residentDashboardPrettyLabel($request['status'] ?? 'pending')); ?></span></td>
+                  <td><a class="text-link" href="<?php echo BASE_URL; ?>my_requests.php">View Details</a></td>
                 </tr>
               <?php endforeach; ?>
-            </tbody>
-          </table>
-          <p class="empty-state" id="emptyState" hidden>No recent requests</p>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel emergency-panel">
+      <div class="panel-header">
+        <h3>Emergency Contacts</h3>
+      </div>
+      <div class="emergency-grid">
+        <div class="contact-item">
+          <h4>Barangay Office</h4>
+          <p>(02) 8242-2190</p>
         </div>
-      </article>
+        <div class="contact-item">
+          <h4>Police Station</h4>
+          <p>911 / (02) 8527-0000</p>
+        </div>
+        <div class="contact-item">
+          <h4>Fire Department</h4>
+          <p>911 / (02) 8426-0219</p>
+        </div>
+        <div class="contact-item">
+          <h4>Health Center</h4>
+          <p>(02) 8731-1122</p>
+        </div>
+      </div>
     </section>
   </main>
 
-  <!-- Announcement Modal -->
-  <div id="announcementModal" class="modal" style="display: none;">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content modal-lg">
-      <div class="modal-header">
-        <h2 class="modal-title">Announcement</h2>
-        <button class="modal-close" aria-label="Close announcement">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p class="modal-announcement-date"></p>
-        <div class="modal-announcement-content"></div>
-      </div>
-    </div>
-  </div>
-
-  <script src="resident_dashboard.js"></script>
-  <script src="announcement-manager.js"></script>
+  <script src="resident_dashboard.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_dashboard.js')); ?>"></script>
 </body>
 </html>
