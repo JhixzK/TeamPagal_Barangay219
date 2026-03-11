@@ -98,7 +98,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th>Resident ID</th>
                             <th>Full Name</th>
                             <th>Birth Date</th>
                             <th>Gender</th>
