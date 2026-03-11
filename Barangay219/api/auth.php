@@ -44,11 +44,11 @@ function handleLogin() {
         return;
     }
     
-    $username = sanitizeInput($_POST['username'] ?? '');
+    $loginIdentifier = sanitizeInput($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     
     // Validation
-    if (empty($username) || empty($password)) {
+    if (empty($loginIdentifier) || empty($password)) {
         sendResponse(false, 'Username and password are required', null, 400);
         return;
     }
@@ -56,11 +56,14 @@ function handleLogin() {
     try {
         $db = Database::getInstance();
         
-        // Get user from database
-        $sql = "SELECT id, username, password, email, role, status, resident_id 
-                FROM users 
-                WHERE username = ? AND status != 'suspended'";
-        $user = $db->fetchOne($sql, [$username]);
+        // Accept username, resident code, or email for a smoother resident login flow.
+        $sql = "SELECT u.id, u.username, u.password, u.email, u.role, u.status, u.resident_id
+            FROM users u
+            LEFT JOIN residents r ON u.resident_id = r.id
+            WHERE (u.username = ? OR u.email = ? OR r.resident_code = ?)
+              AND u.status != 'suspended'
+            LIMIT 1";
+        $user = $db->fetchOne($sql, [$loginIdentifier, $loginIdentifier, $loginIdentifier]);
         
         if (!$user) {
             sendResponse(false, 'Invalid username or password', null, 401);
@@ -71,8 +74,8 @@ function handleLogin() {
         if (!password_verify($password, $user['password'])) {
             // Fallback/migration: if admin or resident uses the default password and stored hash
             // is not a valid bcrypt for some reason, allow login and migrate hash.
-            if (($username === 'admin' && $password === 'admin123') || 
-                ($username === 'resident' && $password === 'resident123')) {
+            if (($loginIdentifier === 'admin' && $password === 'admin123') || 
+                ($loginIdentifier === 'resident' && $password === 'resident123')) {
                 try {
                     $newHash = password_hash($password, PASSWORD_DEFAULT);
                     // Update password in DB to the new bcrypt hash
@@ -81,7 +84,7 @@ function handleLogin() {
                     // replace the password in the $user array so later code proceeds
                     $user['password'] = $newHash;
                 } catch (Exception $e) {
-                    error_log("Password migration error for {$username}: " . $e->getMessage());
+                    error_log("Password migration error for {$loginIdentifier}: " . $e->getMessage());
                     sendResponse(false, 'An error occurred during login. Please try again.', null, 500);
                     return;
                 }
