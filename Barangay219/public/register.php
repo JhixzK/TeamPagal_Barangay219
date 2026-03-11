@@ -93,8 +93,36 @@ $valid_id_types = [
             margin-bottom: 0.15rem;
         }
 
+        .register-header .portal-title {
+            font-size: clamp(1.45rem, 2.8vw, 2rem);
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            line-height: 1.25;
+            margin-bottom: 0.2rem;
+            display: inline-block;
+            padding-bottom: 0.08em;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
         .register-header p {
             color: var(--text-secondary);
+        }
+
+        .register-header .portal-subtitle {
+            color: #475569;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            font-size: 0.98rem;
+        }
+
+        .register-header .portal-co-title {
+            color: #334155;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            font-size: 1.05rem;
         }
 
         .register-header .brand-logo {
@@ -270,6 +298,7 @@ $valid_id_types = [
             top: 1rem;
             right: 1rem;
         }
+
         @media (max-width: 991.98px) {
             .step-indicator {
                 flex-direction: row;
@@ -343,8 +372,9 @@ $valid_id_types = [
             <div class="card register-shell">
                 <div class="card-header register-header text-center py-3">
                     <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo" class="brand-logo">
-                    <h4 class="mb-0">Barangay 219 – Official E-Services Portal</h4>
-                    <p class="mb-0 small mt-1">Resident Registration</p>
+                    <h4 class="portal-title mb-0">Barangay 219 e-Portal</h4>
+                    <p class="portal-subtitle mb-0" style="margin-top: -15px;">Tondo, Manila</p>
+                    <p class="portal-co-title mb-0" style="margin-top: 15px;">Resident Registration</p>
                 </div>
                 <div class="card-body p-4 register-form-body">
                     <!-- Step Indicator -->
@@ -563,7 +593,7 @@ $valid_id_types = [
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label>Number <span class="text-danger">*</span></label>
-                                            <input type="tel" name="emergency_contact_number" class="form-control" maxlength="11" inputmode="numeric" required>
+                                            <input type="tel" name="emergency_contact_number" class="form-control" maxlength="11" inputmode="numeric" required placeholder="09xxxxxxxxx">
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label>Relationship <span class="text-danger">*</span></label>
@@ -721,14 +751,28 @@ window.API_URL = '<?php echo addslashes(API_URL); ?>';
 let currentStep = 1;
 const totalSteps = 4;
 
-// Professional name field validation - Letters, spaces, hyphens, apostrophes, periods only
-const nameFields = ['first_name', 'middle_name', 'last_name', 'place_of_birth', 'citizenship', 'emergency_contact_name', 'emergency_contact_relationship', 'occupation', 'ip_group', 'street', 'purok_sitio', 'father_name', 'mother_name'];
+// Phase 1 name validation - letters, hyphens, apostrophes, periods only (no spaces)
+const phase1NameFields = ['first_name', 'middle_name', 'last_name'];
+phase1NameFields.forEach(fieldName => {
+    const field = document.querySelector(`input[name="${fieldName}"]`);
+    if (field) {
+        field.addEventListener('input', function() {
+            this.value = this.value.replace(/[^a-zA-Z\-'.,]/g, '');
+        });
+        field.addEventListener('blur', function() {
+            this.value = this.value.trim();
+        });
+    }
+});
+
+// Other text name-like fields - letters, spaces, hyphens, apostrophes, periods only
+const nameFields = ['place_of_birth', 'citizenship', 'emergency_contact_name', 'emergency_contact_relationship', 'occupation', 'ip_group', 'street', 'purok_sitio', 'father_name', 'mother_name'];
 nameFields.forEach(fieldName => {
     const field = document.querySelector(`input[name="${fieldName}"]`);
     if (field) {
         field.addEventListener('input', function() {
             // Only allow letters, spaces, hyphens, apostrophes, periods
-            this.value = this.value.replace(/[^a-zA-Z\s\-'.,]/g, '').trim();
+            this.value = this.value.replace(/[^a-zA-Z\s\-'.,]/g, '');
             // Prevent multiple consecutive spaces
             this.value = this.value.replace(/\s+/g, ' ');
         });
@@ -910,6 +954,14 @@ function validateStep(step) {
             mobile.classList.add('is-invalid');
             isValid = false;
         }
+
+        // Validate emergency contact number format
+        const emergencyContact = document.querySelector('input[name="emergency_contact_number"]');
+        if (emergencyContact.value && !/^09\d{9}$/.test(emergencyContact.value)) {
+            emergencyContact.classList.add('is-invalid');
+            isValid = false;
+        }
+
         // Validate email if provided
         const email = document.querySelector('input[name="email"]');
         if (email.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
