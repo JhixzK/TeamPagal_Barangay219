@@ -36,6 +36,12 @@ switch ($action) {
         }
         rejectApplication();
         break;
+    case 'activation_link':
+        if (!canPerformModulePermission('resident_applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        getActivationLink();
+        break;
     default:
         sendResponse(false, 'Invalid action', null, 400);
         break;
@@ -417,5 +423,99 @@ function rejectApplication() {
     } catch (Exception $e) {
         error_log('Reject application: ' . $e->getMessage());
         sendResponse(false, 'Rejection failed', null, 500);
+    }
+}
+
+function getActivationLink() {
+    $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+    if (!$id) {
+        sendResponse(false, 'Application ID required', null, 400);
+    }
+
+    try {
+        $db = Database::getInstance();
+        if (!tableExists($db, 'resident_applications')) {
+            sendResponse(false, 'Resident applications table is missing. Run database/migrations/001_resident_registration_workflow.sql', null, 500);
+        }
+
+        $appCols = array_flip(getTableColumns($db, 'resident_applications'));
+        $statusCol = isset($appCols['record_status']) ? 'record_status' : (isset($appCols['status']) ? 'status' : null);
+        if (!$statusCol) {
+            sendResponse(false, 'Missing status column in resident_applications', null, 500);
+        }
+
+        $app = $db->fetchOne("SELECT * FROM resident_applications WHERE id = ?", [$id]);
+        if (!$app) {
+            sendResponse(false, 'Application not found', null, 404);
+        }
+        if (($app[$statusCol] ?? '') !== 'approved') {
+            sendResponse(false, 'Activation link is only available for approved applications.', null, 400);
+        }
+
+        $userCols = array_flip(getTableColumns($db, 'users'));
+        if (!isset($userCols['activation_token']) || !isset($userCols['activation_expires']) || !isset($userCols['resident_id'])) {
+            sendResponse(false, 'Users table is missing activation columns.', null, 500);
+        }
+
+        // Map approved application to resident user using strong identity fields.
+        $user = $db->fetchOne(
+            "SELECT u.id, u.username, u.activation_token, u.activation_expires
+             FROM users u
+             JOIN residents r ON r.id = u.resident_id
+             WHERE u.role = ?
+               AND r.first_name = ?
+               AND r.last_name = ?
+               AND r.birth_date = ?
+               AND (
+                    (? <> '' AND r.email = ?)
+                    OR
+                    (? <> '' AND r.contact_number = ?)
+               )
+             ORDER BY u.id DESC
+             LIMIT 1",
+            [
+                ROLE_RESIDENT,
+                $app['first_name'] ?? '',
+                $app['last_name'] ?? '',
+                $app['birth_date'] ?? null,
+                $app['email'] ?? '',
+                $app['email'] ?? '',
+                $app['mobile_number'] ?? '',
+                $app['mobile_number'] ?? ''
+            ]
+        );
+
+        if (!$user) {
+            sendResponse(false, 'Could not find resident user for this approved application.', null, 404);
+        }
+
+        $token = trim((string)($user['activation_token'] ?? ''));
+        if ($token === '') {
+            sendResponse(false, 'This resident account is already activated. Login should use Resident ID and password.', [
+                'resident_code' => $user['username']
+            ], 400);
+        }
+
+        $expires = $user['activation_expires'] ?? null;
+        $isExpired = !$expires || strtotime($expires) <= time();
+
+        if ($isExpired) {
+            $token = bin2hex(random_bytes(32));
+            $newExpiry = date('Y-m-d H:i:s', strtotime('+7 days'));
+            $db->query(
+                "UPDATE users SET activation_token = ?, activation_expires = ? WHERE id = ?",
+                [$token, $newExpiry, $user['id']]
+            );
+            $expires = $newExpiry;
+        }
+
+        sendResponse(true, 'Activation link retrieved.', [
+            'resident_code' => $user['username'],
+            'activation_link' => BASE_URL . 'activate-account.php?token=' . $token,
+            'activation_expires' => $expires
+        ]);
+    } catch (Exception $e) {
+        error_log('Get activation link: ' . $e->getMessage());
+        sendResponse(false, 'Failed to retrieve activation link', null, 500);
     }
 }
