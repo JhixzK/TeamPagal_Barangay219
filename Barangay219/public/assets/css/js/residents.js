@@ -184,11 +184,12 @@ function displayResidents(residents) {
     tbody.innerHTML = residents.map(resident => {
         const fullName = `${escapeHtml(resident.first_name)} ${escapeHtml(resident.middle_name || '')} ${escapeHtml(resident.last_name)} ${escapeHtml(resident.suffix || '')}`.trim();
         const age = calculateAge(resident.birth_date);
+        const residentCode = resident.resident_code ? escapeHtml(resident.resident_code) : '<span class="text-muted">N/A</span>';
         
         const householdInfo = resident.household_address ? `Household #${resident.household_id}` : '-';
         return `
             <tr>
-                <td>${resident.id}</td>
+                <td>${residentCode}</td>
                 <td>${fullName}</td>
                 <td>${formatDate(resident.birth_date)} (${age} yrs)</td>
                 <td>${formatGender(resident.gender)}</td>
@@ -342,8 +343,10 @@ function viewResident(id) {
             const r = data.data;
             const fullName = `${r.first_name} ${r.middle_name || ''} ${r.last_name} ${r.suffix || ''}`.trim();
             const age = calculateAge(r.birth_date);
+            const residentCode = r.resident_code ? escapeHtml(r.resident_code) : '-';
             document.getElementById('viewResidentBody').innerHTML = `
                 <table class="table table-sm">
+                    <tr><td><strong>Resident ID</strong></td><td>${residentCode}</td></tr>
                     <tr><td><strong>Full Name</strong></td><td>${escapeHtml(fullName)}</td></tr>
                     <tr><td><strong>Birth Date</strong></td><td>${formatDate(r.birth_date)} (${age} yrs)</td></tr>
                     <tr><td><strong>Gender</strong></td><td>${formatGender(r.gender)}</td></tr>
