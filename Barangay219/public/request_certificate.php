@@ -19,6 +19,8 @@ $userId = (int)(getCurrentUserId() ?? 0);
 $username = $_SESSION['username'] ?? 'Resident';
 $email = $_SESSION['email'] ?? '';
 $residentId = (int)($_SESSION['resident_id'] ?? 0);
+$debugEnabled = defined('DEBUG_MODE') && DEBUG_MODE && (($_GET['debug'] ?? '0') === '1');
+$debugData = [];
 
 function rcConnectMysqli() {
     mysqli_report(MYSQLI_REPORT_OFF);
@@ -72,6 +74,98 @@ function rcTableExists($conn, $tableName) {
     $stmt->close();
     return $exists;
 }
+
+function rcColumnExists($conn, $tableName, $columnName) {
+  $sql = "SELECT COUNT(*) AS total
+      FROM information_schema.columns
+      WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?";
+  $stmt = $conn->prepare($sql);
+  if (!$stmt) {
+    return false;
+  }
+  $stmt->bind_param('ss', $tableName, $columnName);
+  if (!$stmt->execute()) {
+    $stmt->close();
+    return false;
+  }
+  $stmt->bind_result($total);
+  $stmt->fetch();
+  $exists = ((int)$total) > 0;
+  $stmt->close();
+  return $exists;
+}
+
+function rcResolveResidentId($conn, $userId, $username, $sessionResidentId) {
+  $resolvedId = (int)$sessionResidentId;
+
+  if ($resolvedId <= 0 && $userId > 0 && rcTableExists($conn, 'users') && rcColumnExists($conn, 'users', 'resident_id')) {
+    $userRow = rcFetchOne($conn, "SELECT resident_id FROM users WHERE id = ? LIMIT 1", 'i', [(int)$userId]);
+    if (!empty($userRow['resident_id'])) {
+      $resolvedId = (int)$userRow['resident_id'];
+    }
+  }
+
+  if ($resolvedId <= 0 && $username !== '' && rcTableExists($conn, 'residents') && rcColumnExists($conn, 'residents', 'resident_code')) {
+    $residentRow = rcFetchOne($conn, "SELECT id FROM residents WHERE resident_code = ? LIMIT 1", 's', [(string)$username]);
+    if (!empty($residentRow['id'])) {
+      $resolvedId = (int)$residentRow['id'];
+      if ($userId > 0 && rcTableExists($conn, 'users') && rcColumnExists($conn, 'users', 'resident_id')) {
+        $conn->query("UPDATE users SET resident_id = " . $resolvedId . " WHERE id = " . (int)$userId . " AND (resident_id IS NULL OR resident_id = 0)");
+      }
+    }
+  }
+
+  return $resolvedId;
+}
+
+  function rcLog($message, $context = []) {
+    $suffix = '';
+    if (!empty($context)) {
+      $json = json_encode($context);
+      $suffix = $json !== false ? ' | ' . $json : '';
+    }
+    error_log('[request_certificate] ' . $message . $suffix);
+  }
+
+  function rcDebugAdd(&$debugData, $key, $value) {
+    $debugData[$key] = $value;
+  }
+
+  function rcBuildResidentSelectSql($conn) {
+    if (!rcTableExists($conn, 'residents')) {
+      return null;
+    }
+
+    $birthExpr = rcColumnExists($conn, 'residents', 'birth_date')
+      ? 'birth_date'
+      : (rcColumnExists($conn, 'residents', 'date_of_birth') ? 'date_of_birth' : 'NULL');
+    $contactExpr = rcColumnExists($conn, 'residents', 'contact_number')
+      ? 'contact_number'
+      : (rcColumnExists($conn, 'residents', 'mobile_number') ? 'mobile_number' : "''");
+    $residentCodeExpr = rcColumnExists($conn, 'residents', 'resident_code') ? 'resident_code' : "''";
+    $verificationExpr = rcColumnExists($conn, 'residents', 'verification_status') ? 'verification_status' : "''";
+    $statusExpr = rcColumnExists($conn, 'residents', 'status') ? 'status' : "''";
+    $recordStatusExpr = rcColumnExists($conn, 'residents', 'record_status') ? 'record_status' : "''";
+    $householdExpr = rcColumnExists($conn, 'residents', 'household_id') ? 'household_id' : 'NULL';
+
+    return "SELECT id,
+             {$residentCodeExpr} AS resident_code,
+             first_name,
+             middle_name,
+             last_name,
+             {$birthExpr} AS birth_date,
+             COALESCE(gender, '') AS gender,
+             COALESCE(civil_status, '') AS civil_status,
+             {$contactExpr} AS contact_number,
+             COALESCE(address, '') AS address,
+             COALESCE({$verificationExpr}, '') AS verification_status,
+             COALESCE({$statusExpr}, '') AS status,
+             COALESCE({$recordStatusExpr}, '') AS record_status,
+             {$householdExpr} AS household_id
+        FROM residents
+        WHERE %s
+        LIMIT 1";
+  }
 
 function rcPrettyLabel($value) {
     $value = str_replace('_', ' ', (string)$value);
@@ -141,6 +235,18 @@ if (!$mysqli) {
     $errors[] = 'Unable to connect to the database right now. Please try again later.';
 }
 
+if ($mysqli) {
+  $residentId = rcResolveResidentId($mysqli, $userId, (string)$username, (int)$residentId);
+  if ($residentId > 0) {
+    $_SESSION['resident_id'] = $residentId;
+  }
+  rcDebugAdd($debugData, 'session_user_id', $userId);
+  rcDebugAdd($debugData, 'session_username', $username);
+  rcDebugAdd($debugData, 'session_resident_id_initial', (int)($_SESSION['resident_id'] ?? 0));
+  rcDebugAdd($debugData, 'resident_id_resolved', $residentId);
+  rcLog('Resolved resident id', ['user_id' => $userId, 'username' => $username, 'resident_id' => $residentId]);
+}
+
 if ($mysqli && $residentId > 0) {
     $createTableSql = "CREATE TABLE IF NOT EXISTS document_requests (
         request_id INT(11) NOT NULL AUTO_INCREMENT,
@@ -167,15 +273,32 @@ if ($mysqli && $residentId > 0) {
     $mysqli->query($createTableSql);
 
     if (rcTableExists($mysqli, 'residents')) {
-        $residentQuery = "SELECT first_name, middle_name, last_name, birth_date, gender, civil_status, contact_number, address,
-                   COALESCE(verification_status, '') AS verification_status,
-                                 COALESCE(status, '') AS status,
-                                 COALESCE(record_status, '') AS record_status,
-                                 household_id
-                          FROM residents
-                          WHERE id = ?
-                          LIMIT 1";
-        $row = rcFetchOne($mysqli, $residentQuery, 'i', [$residentId]);
+      $residentSelect = rcBuildResidentSelectSql($mysqli);
+      $row = null;
+
+      if ($residentSelect !== null) {
+        $residentQueryById = sprintf($residentSelect, 'id = ?');
+        $row = rcFetchOne($mysqli, $residentQueryById, 'i', [$residentId]);
+        rcDebugAdd($debugData, 'query_by_id_found', (bool)$row);
+
+        if (!$row && $username !== '' && rcColumnExists($mysqli, 'residents', 'resident_code')) {
+          $residentQueryByCode = sprintf($residentSelect, 'resident_code = ?');
+          $row = rcFetchOne($mysqli, $residentQueryByCode, 's', [$username]);
+          rcDebugAdd($debugData, 'query_by_resident_code_found', (bool)$row);
+          if ($row && !empty($row['id'])) {
+            $residentId = (int)$row['id'];
+            $_SESSION['resident_id'] = $residentId;
+            if ($userId > 0 && rcTableExists($mysqli, 'users') && rcColumnExists($mysqli, 'users', 'resident_id')) {
+              $fixStmt = $mysqli->prepare('UPDATE users SET resident_id = ? WHERE id = ?');
+              if ($fixStmt) {
+                $fixStmt->bind_param('ii', $residentId, $userId);
+                $fixStmt->execute();
+                $fixStmt->close();
+              }
+            }
+          }
+        }
+      }
 
         if ($row) {
             $residentData = array_merge($residentData, $row);
@@ -200,14 +323,25 @@ if ($mysqli && $residentId > 0) {
                 && !empty($row['gender'])
                 && !empty($row['contact_number']);
             $eligibility['household_linked'] = !empty($row['household_id']);
+            rcDebugAdd($debugData, 'resident_name_loaded', $residentName);
+            rcDebugAdd($debugData, 'resident_code_loaded', (string)($row['resident_code'] ?? ''));
+            rcDebugAdd($debugData, 'resident_status_raw', $statusRaw);
+            rcDebugAdd($debugData, 'eligibility', $eligibility);
         } else {
             $errors[] = 'Resident record was not found. Please contact the barangay office.';
+            rcLog('Resident lookup failed', ['resident_id' => $residentId, 'username' => $username]);
         }
     } else {
         $errors[] = 'Residents table is missing. Please run database setup.';
+          rcLog('Residents table missing');
     }
 
     $eligibility['request_table_ready'] = rcTableExists($mysqli, 'document_requests');
+}
+
+if ($mysqli && $residentId <= 0) {
+  $errors[] = 'Resident session is not linked to a resident profile. Please logout/login and try again.';
+  rcLog('Resident session missing resident_id', ['user_id' => $userId, 'username' => $username]);
 }
 
 $canSubmit = $eligibility['resident_verified']
@@ -581,6 +715,13 @@ if ($mysqli) {
       <section class="notice warning-notice" id="eligibilityWarning">
         <h4>Eligibility Check Required</h4>
         <p><?php echo htmlspecialchars($warningMessage); ?></p>
+      </section>
+    <?php endif; ?>
+
+    <?php if ($debugEnabled): ?>
+      <section class="notice warning-notice">
+        <h4>Debug Output (Temporary)</h4>
+        <pre style="white-space:pre-wrap"><?php echo htmlspecialchars(json_encode($debugData, JSON_PRETTY_PRINT)); ?></pre>
       </section>
     <?php endif; ?>
 
