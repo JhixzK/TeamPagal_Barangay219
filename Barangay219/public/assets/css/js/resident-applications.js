@@ -13,6 +13,9 @@ const RES_APP_PERMS = {
     canEdit: window.canModulePermission ? window.canModulePermission('resident_applications', 'can_edit') : true
 };
 
+const ACTIVATION_LINK_STORAGE_KEY = 'resident_app_activation_links_v1';
+const ACTIVATION_LINK_STORAGE_LIMIT = 20;
+
 let currentStatus = 'pending';
 let currentPage = 1;
 let appFilters = { q: '', sex: '', from: '', to: '' };
@@ -21,6 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
     bindTabs();
     bindActions();
     initResidentApplicationStatFilters();
+    renderStoredActivationLinks();
     loadApplications();
 });
 
@@ -180,6 +184,10 @@ function renderActions(app) {
             <button class="btn btn-sm btn-success" title="Approve" aria-label="Approve" onclick="openApprove(${app.id})"><i class="bi bi-check-lg"></i></button>
             <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="openReject(${app.id})"><i class="bi bi-x-lg"></i></button>`;
     }
+    if (app.record_status === 'approved') {
+        return `${viewBtn}
+            <button class="btn btn-sm btn-outline-info" title="Get Activation Link" aria-label="Get Activation Link" onclick="fetchActivationLink(${app.id})"><i class="bi bi-link-45deg"></i></button>`;
+    }
     return viewBtn;
 }
 
@@ -281,8 +289,18 @@ function submitApprove() {
                 showAlert('error', data.message || 'Approval failed');
                 return;
             }
-            const link = data.data?.activation_link ? ` Activation link: ${data.data.activation_link}` : '';
-            showAlert('success', (data.message || 'Application approved') + link);
+            const activationLink = data.data?.activation_link || '';
+            if (activationLink) {
+                saveActivationLink({
+                    applicationId: Number(id),
+                    residentCode: data.data?.resident_code || '',
+                    activationLink,
+                    createdAt: new Date().toISOString()
+                });
+                renderStoredActivationLinks();
+            }
+
+            showAlert('success', data.message || 'Application approved');
             bootstrap.Modal.getInstance(document.getElementById('approveModal')).hide();
             loadApplications();
         })
@@ -321,6 +339,40 @@ function submitReject() {
         .catch(err => {
             console.error(err);
             showAlert('error', 'Rejection failed');
+        });
+}
+
+function fetchActivationLink(id) {
+    const params = new URLSearchParams({ action: 'activation_link', id: String(id) });
+    fetch(window.API_URL + 'applications.php?' + params.toString())
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                const fallbackMsg = 'Failed to retrieve activation link';
+                showAlert('error', (data.message || fallbackMsg));
+                return;
+            }
+
+            const activationLink = data.data?.activation_link || '';
+            if (!activationLink) {
+                showAlert('error', 'No activation link returned by server.');
+                return;
+            }
+
+            saveActivationLink({
+                applicationId: Number(id),
+                residentCode: data.data?.resident_code || '',
+                activationLink,
+                createdAt: new Date().toISOString()
+            });
+            renderStoredActivationLinks();
+
+            const exp = data.data?.activation_expires ? ` Expires: ${data.data.activation_expires}` : '';
+            showAlert('success', 'Activation link retrieved and saved locally.' + exp);
+        })
+        .catch(err => {
+            console.error(err);
+            showAlert('error', 'Failed to retrieve activation link');
         });
 }
 
@@ -381,4 +433,106 @@ function showAlert(type, message) {
     setTimeout(() => {
         try { alert.remove(); } catch (e) {}
     }, 5000);
+}
+
+function getStoredActivationLinks() {
+    try {
+        const raw = localStorage.getItem(ACTIVATION_LINK_STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveActivationLink(entry) {
+    const existing = getStoredActivationLinks();
+    const filtered = existing.filter(item => item.activationLink !== entry.activationLink);
+    filtered.unshift(entry);
+    const limited = filtered.slice(0, ACTIVATION_LINK_STORAGE_LIMIT);
+    localStorage.setItem(ACTIVATION_LINK_STORAGE_KEY, JSON.stringify(limited));
+}
+
+function renderStoredActivationLinks() {
+    const container = document.querySelector('.main-content .container-fluid');
+    if (!container) return;
+
+    const stored = getStoredActivationLinks();
+    const existingPanel = document.getElementById('activationLinksPanel');
+    if (!stored.length) {
+        if (existingPanel) existingPanel.remove();
+        return;
+    }
+
+    const latest = stored[0];
+    const itemsHtml = stored.slice(0, 5).map((item, idx) => {
+        const code = item.residentCode ? `Resident ID: ${esc(item.residentCode)}` : `Application #${esc(item.applicationId || '-')}`;
+        const safeLink = esc(item.activationLink || '');
+        return `
+            <li class="list-group-item d-flex flex-wrap align-items-center gap-2">
+                <span class="fw-semibold">${code}</span>
+                <input class="form-control form-control-sm" style="min-width:260px;max-width:560px" value="${safeLink}" readonly>
+                <a class="btn btn-sm btn-outline-primary" href="${safeLink}" target="_blank" rel="noopener">Open</a>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyActivationLinkFromInput(this)">Copy</button>
+            </li>
+        `;
+    }).join('');
+
+    const panelHtml = `
+        <div id="activationLinksPanel" class="alert alert-info border-info-subtle shadow-sm mb-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <strong>Recent Activation Links</strong>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearActivationLinks()">Clear</button>
+            </div>
+            <div class="small mb-2">Latest link is saved locally in this browser so it will not disappear after approval.</div>
+            <ul class="list-group">${itemsHtml}</ul>
+            <div class="small text-muted mt-2">Newest: ${esc(latest.createdAt || '')}</div>
+        </div>
+    `;
+
+    if (existingPanel) {
+        existingPanel.outerHTML = panelHtml;
+    } else {
+        container.insertAdjacentHTML('afterbegin', panelHtml);
+    }
+}
+
+function clearActivationLinks() {
+    localStorage.removeItem(ACTIVATION_LINK_STORAGE_KEY);
+    renderStoredActivationLinks();
+}
+
+function copyActivationLink(value) {
+    if (!value) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value)
+            .then(() => showAlert('success', 'Activation link copied to clipboard.'))
+            .catch(() => fallbackCopyText(value));
+        return;
+    }
+    fallbackCopyText(value);
+}
+
+function copyActivationLinkFromInput(btn) {
+    const input = btn ? btn.parentElement.querySelector('input') : null;
+    copyActivationLink(input ? input.value : '');
+}
+
+function fallbackCopyText(value) {
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', 'readonly');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+        document.execCommand('copy');
+        showAlert('success', 'Activation link copied to clipboard.');
+    } catch (e) {
+        showAlert('error', 'Unable to copy activation link automatically.');
+    } finally {
+        textarea.remove();
+    }
 }
