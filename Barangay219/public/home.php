@@ -16,7 +16,7 @@ $role = $_SESSION['role'] ?? '';
 $fullName = $_SESSION['full_name'] ?? ucfirst(str_replace('_', ' ', $role));
 
 $barangayName = 'Barangay 219, Tondo';
-$barangayNavName = 'Barangay 219';
+$barangayNavName = 'Tondo, Manila';
 $city = 'Manila';
 $province = 'Metro Manila';
 ?>
@@ -95,31 +95,58 @@ $province = 'Metro Manila';
             top: 0;
             width: 100%;
             z-index: 1100;
-            background: var(--gov-blue);
-            border-bottom: 1px solid #1e40af;
-            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 14px 26px -22px rgba(15, 23, 42, 0.7);
         }
 
         .navbar-gov .navbar-brand {
             display: flex;
             align-items: center;
-            gap: 0.7rem;
+            gap: 0.55rem;
             color: #ffffff !important;
             font-weight: 700;
             font-size: 1rem;
         }
 
         .navbar-gov .navbar-brand img {
-            height: 46px;
-            width: 46px;
-            border-radius: 0;
-            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
             object-fit: cover;
-            background: transparent;
+            background: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.78);
+        }
+
+        .navbar-gov .brand-text {
+            display: inline-flex;
+            flex-direction: column;
+            line-height: 1.1;
+        }
+
+        .navbar-gov .brand-title {
+            font-size: 0.98rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            color: #f8fafc;
+        }
+
+        .navbar-gov .brand-subtitle {
+            font-size: 0.74rem;
+            color: rgba(248, 250, 252, 0.82);
+            font-weight: 500;
+        }
+
+        .navbar-gov .navbar-toggler {
+            border-color: rgba(255, 255, 255, 0.32);
+        }
+
+        .navbar-gov .navbar-toggler:focus {
+            box-shadow: 0 0 0 0.18rem rgba(147, 197, 253, 0.35);
         }
 
         .navbar-gov .nav-link {
-            color: #dbeafe !important;
+            color: rgba(248, 250, 252, 0.86) !important;
             font-weight: 500;
             margin: 0 0.2rem;
             border-radius: 8px;
@@ -135,7 +162,7 @@ $province = 'Metro Manila';
             right: 0.8rem;
             bottom: 2px;
             height: 2px;
-            background: #ffffff;
+            background: #e2e8f0;
             border-radius: 99px;
             transform: scaleX(0);
             transform-origin: center;
@@ -573,6 +600,10 @@ $province = 'Metro Manila';
                 font-size: 0.95rem;
             }
 
+            .navbar-gov .brand-subtitle {
+                font-size: 0.68rem;
+            }
+
             .navbar-gov .d-flex {
                 margin-top: 0.8rem;
             }
@@ -606,12 +637,15 @@ $province = 'Metro Manila';
 </head>
 <body class="bg-white">
     <!-- NAVIGATION BAR -->
-    <nav class="navbar navbar-gov navbar-expand-lg navbar-light">
+    <nav class="navbar app-topbar navbar-gov navbar-expand-lg navbar-dark">
         <div class="container-lg">
             <!-- Brand / Logo -->
             <a class="navbar-brand" href="<?php echo BASE_URL; ?>home.php">
                 <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo">
-                <span><?php echo htmlspecialchars($barangayNavName); ?></span>
+                <span class="brand-text">
+                    <span class="brand-title">Barangay 219</span>
+                    <span class="brand-subtitle"><?php echo htmlspecialchars($barangayNavName); ?></span>
+                </span>
             </a>
 
             <!-- Toggler for mobile -->
@@ -659,7 +693,7 @@ $province = 'Metro Manila';
         <div class="container-lg">
             <div class="hero-content">
                 <div class="hero-text">
-                    <h1>E-Barangay Portal</h1>
+                    <h1>Barangay 219 e-Portal</h1>
                     <p>
                         Access barangay services, announcements, and community updates in one official and easy-to-use platform designed for every resident.
                     </p>
