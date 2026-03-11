@@ -30,251 +30,228 @@ if (!in_array($method, ['email', 'sms'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify Reset - <?php echo APP_NAME; ?></title>
-    <link href="<?php echo ASSETS_URL; ?>bootstrap.min.css" rel="stylesheet">
-    <link href="<?php echo ASSETS_URL; ?>style.css" rel="stylesheet">
+    <link href="<?php echo ASSETS_URL; ?>css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="<?php echo ASSETS_URL; ?>style.css?v=<?php echo time(); ?>" rel="stylesheet">
     <style>
-        body {
+        .login-container {
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            isolation: isolate;
+            overflow-x: hidden;
+            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
         }
-        .verify-container {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-            padding: 40px;
-            max-width: 500px;
-            width: 90%;
+        .login-container::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: url('<?php echo ASSETS_URL; ?>img/barangay_logo2.png') no-repeat center 55%;
+            background-size: min(500px, 74vw);
+            opacity: 0.045;
+            pointer-events: none;
         }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
+        .login-card {
+            position: relative;
+            z-index: 1;
+            max-width: 400px;
         }
-        .header h1 {
-            color: #333;
-            font-size: 28px;
-            margin-bottom: 10px;
+        .login-brand-logo {
+            width: 72px;
+            height: 72px;
+            object-fit: cover;
+            border-radius: 50%;
+            background: #ffffff;
+            padding: 0;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
         }
-        .header p {
-            color: #666;
-            font-size: 14px;
+
+        .login-card .card-title {
+            font-size: clamp(1.7rem, 3.2vw, 2.25rem);
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            line-height: 1.25;
+            margin-bottom: 0.45rem;
+            display: inline-block;
+            padding-bottom: 0.08em;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
         }
-        .form-section {
-            margin-bottom: 20px;
-        }
-        .form-section.hidden {
-            display: none;
+
+        .login-card .card-subtitle {
+            color: #475569;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            margin-bottom: 0;
         }
         .otp-input-container {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             gap: 10px;
-            margin: 30px 0;
+            margin: 1.25rem 0;
         }
         .otp-input {
-            width: 60px;
-            height: 60px;
-            font-size: 28px;
+            width: 48px;
+            height: 56px;
+            font-size: 1.5rem;
+            font-weight: 700;
             text-align: center;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            transition: border-color 0.3s;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            background: #f8f9fa;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+            outline: none;
+            caret-color: #0d6efd;
         }
         .otp-input:focus {
-            outline: none;
-            border-color: #667eea;
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
+            background: #fff;
         }
-        .code-input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-            margin-bottom: 15px;
+        .otp-input.filled {
+            border-color: #0d6efd;
+            background: #eef3ff;
         }
-        .code-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .submit-btn {
-            width: 100%;
-            padding: 12px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        .submit-btn:hover {
-            background: #5568d3;
-        }
-        .submit-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        .resend-section {
-            text-align: center;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-        }
-        .resend-btn {
-            background: none;
-            border: none;
-            color: #667eea;
-            cursor: pointer;
-            text-decoration: underline;
-            font-size: 14px;
-        }
-        .resend-btn:hover {
-            color: #5568d3;
-        }
-        .resend-btn:disabled {
-            color: #ccc;
-            cursor: not-allowed;
-        }
-        .timer {
-            color: #666;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-        .back-link {
-            text-align: center;
-            margin-top: 20px;
-        }
-        .back-link a {
-            color: #667eea;
+
+        .link-no-container,
+        .link-no-container:hover,
+        .link-no-container:focus,
+        .link-no-container:active {
+            background: transparent !important;
+            border-color: transparent !important;
+            box-shadow: none !important;
             text-decoration: none;
-            font-size: 14px;
         }
-        .back-link a:hover {
+
+        .link-no-container:focus-visible {
             text-decoration: underline;
+            outline: none;
         }
-        .alert {
-            padding: 12px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-        .alert-danger {
-            background: #fee;
-            color: #c00;
-            border: 1px solid #fcc;
-        }
-        .alert-success {
-            background: #efe;
-            color: #0a0;
-            border: 1px solid #cfc;
-        }
-        .alert-info {
-            background: #eef;
-            color: #009;
-            border: 1px solid #ccf;
-        }
-        .loading {
-            display: none;
-            text-align: center;
-            color: #667eea;
-        }
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+        @media (min-width: 992px) {
+            .login-card {
+                max-width: 520px;
+                padding: 2.25rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="verify-container">
-        <div class="header">
-            <h1>✓ Verify Your Identity</h1>
-            <p id="headerText">Enter the code sent to your email address</p>
-        </div>
-
-        <div id="alertContainer"></div>
-
-        <!-- Email Token Verification Form -->
-        <form id="emailVerifyForm" class="form-section <?php echo $method === 'sms' ? 'hidden' : ''; ?>">
-            <div class="alert alert-info" id="emailInfo">
-                <strong>Verification Code</strong><br>
-                Check your email for a verification link or code.
+    <div class="login-container">
+        <div class="login-card">
+            <div class="text-center mb-4">
+                <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo" class="login-brand-logo">
+                <h3 class="card-title mt-3">Barangay 219 e-Portal</h3>
+                <p class="card-subtitle">Tondo, Manila</p>
             </div>
 
-            <input 
-                type="text" 
-                class="code-input" 
-                id="emailCode" 
-                placeholder="Paste the code from your email" 
-                autocomplete="off"
-            >
+            <h5 class="fw-semibold mb-1 text-center">Verify Your Identity</h5>
+            <p class="text-muted small mb-3 text-center" id="headerText">
+                <?php echo $method === 'sms'
+                    ? 'Enter the 6-digit OTP sent to your phone number.'
+                    : 'Enter the verification code sent to your email address.'; ?>
+            </p>
 
-            <button type="submit" class="submit-btn" id="emailVerifyBtn">
-                <span>Verify Code</span>
-            </button>
+            <div id="alertContainer"></div>
 
-            <div class="loading" id="emailLoading" style="margin-top: 15px;">
-                <div class="spinner"></div>
-                <span>Verifying...</span>
-            </div>
-        </form>
+            <!-- Email Token Verification Form -->
+            <form id="emailVerifyForm" <?php echo $method === 'sms' ? 'style="display:none;"' : ''; ?>>
+                <div class="alert alert-info d-flex align-items-start gap-2 py-2">
+                    <i class="bi bi-envelope-fill mt-1 flex-shrink-0"></i>
+                    <div><strong>Verification Code</strong><br><small>Check your email for a verification link or code.</small></div>
+                </div>
 
-        <!-- SMS OTP Verification Form -->
-        <form id="otpVerifyForm" class="form-section <?php echo $method === 'email' ? 'hidden' : ''; ?>">
-            <div class="alert alert-info" id="smsInfo">
-                <strong>One-Time Password (OTP)</strong><br>
-                A 6-digit code has been sent to your phone number.
-                <br><span id="attemptsInfo" style="margin-top: 8px; display: block; font-size: 12px;"></span>
-            </div>
+                <div class="mb-3">
+                    <label for="emailCode" class="form-label">Verification Code</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="emailCode"
+                        placeholder="Paste the code from your email"
+                        autocomplete="off"
+                    >
+                </div>
 
-            <div class="otp-input-container" id="otpInputContainer">
-                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="0">
-                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="1">
-                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="2">
-                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="3">
-                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="4">
-                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="5">
-            </div>
-
-            <button type="button" class="submit-btn" id="otpVerifyBtn">
-                <span>Verify OTP</span>
-            </button>
-
-            <div class="loading" id="otpLoading" style="margin-top: 15px;">
-                <div class="spinner"></div>
-                <span>Verifying...</span>
-            </div>
-
-            <div class="resend-section">
-                <p style="font-size: 13px; margin-bottom: 10px;">Didn't receive the code?</p>
-                <button type="button" class="resend-btn" id="resendBtn">
-                    <span>Resend OTP</span>
+                <button type="submit" class="btn btn-primary w-100" id="emailVerifyBtn">
+                    <i class="bi bi-shield-check"></i> Verify Code
                 </button>
-                <div class="timer" id="resendTimer"></div>
-            </div>
-        </form>
 
-        <div class="back-link">
-            <a href="<?php echo BASE_URL; ?>forgot-password.php">← Change verification method</a>
+                <div id="emailLoading" class="text-center text-primary mt-3" style="display:none;">
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    Verifying...
+                </div>
+            </form>
+
+            <!-- SMS OTP Verification Form -->
+            <form id="otpVerifyForm" <?php echo $method === 'email' ? 'style="display:none;"' : ''; ?>>
+                <div class="alert alert-info d-flex align-items-start gap-2 py-2">
+                    <i class="bi bi-phone-fill mt-1 flex-shrink-0"></i>
+                    <div>
+                        <strong>One-Time Password (OTP)</strong><br>
+                        <small>A 6-digit code has been sent to your phone number.</small>
+                        <span id="attemptsInfo" class="d-block mt-1" style="font-size:12px;"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Enter OTP</label>
+                    <div class="otp-input-container" id="otpInputContainer">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="0">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="1">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="2">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="3">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="4">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="5">
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-primary w-100" id="otpVerifyBtn">
+                    <i class="bi bi-shield-check"></i> Verify OTP
+                </button>
+
+                <div id="otpLoading" class="text-center text-primary mt-3" style="display:none;">
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    Verifying...
+                </div>
+
+                <div class="text-center mt-3 pt-3 border-top">
+                    <p class="text-muted small mb-2">Didn't receive the code?</p>
+                    <button type="button" class="btn btn-link btn-sm p-0 link-no-container" id="resendBtn">
+                        <i class="bi bi-arrow-clockwise"></i> Resend OTP
+                    </button>
+                    <div class="text-muted small mt-1" id="resendTimer"></div>
+                </div>
+            </form>
+
+            <div class="mt-3 text-center">
+                <a href="<?php echo BASE_URL; ?>forgot-password.php" class="btn btn-link btn-sm p-0 link-no-container">
+                    <i class="bi bi-arrow-left"></i> Change verification method
+                </a>
+            </div>
         </div>
     </div>
 
+    <script src="<?php echo ASSETS_URL; ?>js/bootstrap.bundle.min.js"></script>
     <script>
         const method = '<?php echo $method; ?>';
         const identifier = '<?php echo htmlspecialchars($identifier); ?>';
         const tokenParam = '<?php echo htmlspecialchars($token); ?>';
+
+        function showAlert(message, type) {
+            const container = document.getElementById('alertContainer');
+            const icons = { success: 'check-circle-fill', danger: 'exclamation-triangle-fill', warning: 'exclamation-circle-fill', info: 'info-circle-fill' };
+            const icon = icons[type] || 'info-circle-fill';
+            container.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show d-flex align-items-start gap-2 py-2" role="alert">
+                <i class="bi bi-${icon} flex-shrink-0 mt-1"></i>
+                <div>${message}</div>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>`;
+        }
 
         // Auto-verify if token is provided in URL (from email link)
         if (method === 'email' && tokenParam) {
@@ -285,6 +262,9 @@ if (!in_array($method, ['email', 'sms'])) {
         const otpInputs = document.querySelectorAll('.otp-input');
         otpInputs.forEach((input, index) => {
             input.addEventListener('input', (e) => {
+                // Allow only single digit
+                e.target.value = e.target.value.replace(/\D/g, '').slice(-1);
+                e.target.classList.toggle('filled', e.target.value !== '');
                 if (e.target.value.length === 1 && index < otpInputs.length - 1) {
                     otpInputs[index + 1].focus();
                 }
@@ -292,6 +272,8 @@ if (!in_array($method, ['email', 'sms'])) {
 
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
+                    otpInputs[index - 1].value = '';
+                    otpInputs[index - 1].classList.remove('filled');
                     otpInputs[index - 1].focus();
                 }
             });
@@ -303,8 +285,12 @@ if (!in_array($method, ['email', 'sms'])) {
                 otpDigits.forEach((digit, i) => {
                     if (i < otpInputs.length) {
                         otpInputs[i].value = digit;
+                        otpInputs[i].classList.toggle('filled', digit !== '');
                     }
                 });
+                // Focus the next empty slot or last one
+                const next = otpDigits.length < otpInputs.length ? otpDigits.length : otpInputs.length - 1;
+                otpInputs[next].focus();
             });
         });
 
@@ -352,7 +338,7 @@ if (!in_array($method, ['email', 'sms'])) {
                 console.error('Error:', error);
                 showAlert('An error occurred. Please try again.', 'danger');
                 document.getElementById('emailVerifyBtn').disabled = false;
-                document.getElementById('emailLoading').style.display = 'none';
+                    document.getElementById('emailLoading').style.display = 'none';
             }
         }
 
@@ -488,21 +474,6 @@ if (!in_array($method, ['email', 'sms'])) {
                 timerDiv.textContent = '';
                 resendBtn.disabled = false;
             }
-        }
-
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alertContainer');
-            if (!alertContainer.innerHTML.includes(message)) {
-                alertContainer.innerHTML += `<div class="alert alert-${type}">${message}</div>`;
-            }
-
-            // Auto-remove alerts after 5 seconds
-            setTimeout(() => {
-                const alerts = document.querySelectorAll('.alert');
-                if (alerts.length > 0) {
-                    alerts[0].remove();
-                }
-            }, 5000);
         }
     </script>
 </body>
