@@ -160,6 +160,7 @@ $residentName = $username;
 $residentProfile = [
   'avatar' => 'https://i.pravatar.cc/160?img=12',
   'full_name' => $username,
+  'resident_id' => $username,
   'resident_status' => 'Pending Verification',
   'household_status' => 'Not Linked'
 ];
@@ -198,8 +199,14 @@ if ($conn && $residentId) {
     if (in_array('status', $residentCols, true)) {
       $selectResidentParts[] = 'status';
     }
+    if (in_array('verification_status', $residentCols, true)) {
+      $selectResidentParts[] = 'verification_status';
+    }
     if (in_array('record_status', $residentCols, true)) {
       $selectResidentParts[] = 'record_status';
+    }
+    if (in_array('resident_code', $residentCols, true)) {
+      $selectResidentParts[] = 'resident_code';
     }
     if (in_array('household_id', $residentCols, true)) {
       $selectResidentParts[] = 'household_id';
@@ -218,12 +225,19 @@ if ($conn && $residentId) {
       }
 
       $residentProfile['full_name'] = $residentName;
+      if (!empty($residentRow['resident_code'])) {
+        $residentProfile['resident_id'] = (string)$residentRow['resident_code'];
+      }
 
       if (!empty($residentRow['profile_image'])) {
         $residentProfile['avatar'] = htmlspecialchars((string)$residentRow['profile_image']);
       }
 
-      $residentStatusRaw = strtolower((string)($residentRow['status'] ?? $residentRow['record_status'] ?? ''));
+      $residentStatusRaw = strtolower(trim((string)(
+        ($residentRow['verification_status'] ?? '')
+        ?: ($residentRow['status'] ?? '')
+        ?: ($residentRow['record_status'] ?? '')
+      )));
       $isProfileIncomplete = empty($residentRow['first_name']) || empty($residentRow['last_name']) || empty($residentRow['address']) || empty($residentRow['contact_number']);
       if ($isProfileIncomplete) {
         $residentProfile['resident_status'] = 'Incomplete Profile';
@@ -597,6 +611,7 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
         <div>
           <h3><?php echo htmlspecialchars($residentProfile['full_name']); ?></h3>
           <p><?php echo htmlspecialchars($email ?: 'No email on file'); ?></p>
+          <p class="mb-0"><strong>Resident ID:</strong> <?php echo htmlspecialchars($residentProfile['resident_id'] ?: $username); ?></p>
         </div>
       </div>
       <div class="profile-status">
