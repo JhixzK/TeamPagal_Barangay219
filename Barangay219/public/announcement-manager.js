@@ -1,80 +1,69 @@
 /**
- * E-Barangay Announcements Module
- * Handles loading, displaying, and interacting with announcements
+ * Resident announcement list manager.
  */
-
 class AnnouncementManager {
   constructor() {
     this.announcements = [];
     this.apiUrl = '/TeamPagal_Barangay219/Barangay219/api/announcements.php';
     this.containerSelector = '.announcement-list';
-    this.modalSelector = '#announcementModal';
+    this.searchInput = '#searchInput';
+    this.defaultImagePath = 'assets/default-announcement.jpg';
     this.isLoading = false;
   }
 
-  /**
-   * Initialize the announcement manager
-   * Attaches event listeners and loads announcements
-   */
   init() {
     this.attachEventListeners();
     this.loadAnnouncements();
   }
 
-  /**
-   * Attach event listeners to modal and buttons
-   */
   attachEventListeners() {
-    // Close modal on close button
-    const closeBtn = document.querySelector(`${this.modalSelector} .modal-close`);
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.closeModal());
+    const searchInput = document.querySelector(this.searchInput);
+    if (searchInput) {
+      let searchTimeout;
+      searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => this.loadAnnouncements(), 250);
+      });
     }
 
-    // Close modal on backdrop click
-    const backdrop = document.querySelector(`${this.modalSelector} .modal-backdrop`);
-    if (backdrop) {
-      backdrop.addEventListener('click', () => this.closeModal());
-    }
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('.read-more-btn');
+      if (!button) return;
 
-    // Close modal on escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        this.closeModal();
-      }
+      const announcementId = button.dataset.id;
+      if (!announcementId) return;
+
+      this.handleReadMore(announcementId);
     });
   }
 
-  /**
-   * Load announcements from the API
-   */
   async loadAnnouncements() {
     if (this.isLoading) return;
-    
-    this.isLoading = true;
+
     const container = document.querySelector(this.containerSelector);
-    
-    if (!container) {
-      console.error(`Announcement container not found: ${this.containerSelector}`);
-      return;
-    }
+    if (!container) return;
 
+    this.isLoading = true;
     try {
-      const response = await fetch(`${this.apiUrl}?action=list`);
-      
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+      const searchTerm = (document.querySelector(this.searchInput)?.value || '').trim();
+      const params = new URLSearchParams({ action: 'list' });
+      if (searchTerm) {
+        params.append('q', searchTerm);
       }
 
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        this.announcements = data.data;
-        this.renderAnnouncements(data.data);
-      } else {
-        console.error('Failed to load announcements:', data.message);
-        this.showEmptyState(container);
+      const response = await fetch(`${this.apiUrl}?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error(`API Error ${response.status}`);
       }
+
+      const payload = await response.json();
+      if (!payload.success || !Array.isArray(payload.data)) {
+        this.showEmptyState(container);
+        return;
+      }
+
+      this.announcements = payload.data;
+      this.renderAnnouncements(payload.data);
     } catch (error) {
       console.error('Error loading announcements:', error);
       this.showErrorState(container, error.message);
@@ -83,170 +72,330 @@ class AnnouncementManager {
     }
   }
 
-  /**
-   * Render announcements in the container
-   * @param {Array} announcements - Array of announcement objects
-   */
   renderAnnouncements(announcements) {
     const container = document.querySelector(this.containerSelector);
-    
     if (!container) return;
 
-    // Clear existing content
-    container.innerHTML = '';
-
-    if (announcements.length === 0) {
+    if (!announcements.length) {
       this.showEmptyState(container);
       return;
     }
 
-    // Create announcement items
-    announcements.forEach(announcement => {
-      const item = this.createAnnouncementElement(announcement);
-      container.appendChild(item);
-    });
+    container.innerHTML = announcements.map((announcement) => this.buildCardMarkup(announcement)).join('');
   }
 
-  /**
-   * Create a single announcement DOM element
-   * @param {Object} announcement - Announcement data
-   * @returns {HTMLElement} - Announcement item element
-   */
-  createAnnouncementElement(announcement) {
-    const div = document.createElement('div');
-    div.className = 'announcement-item clickable';
-    div.setAttribute('data-id', announcement.id);
-    
-    // Format date
-    const postDate = new Date(announcement.date_posted);
-    const formattedDate = postDate.toLocaleDateString('en-US', {
+  buildCardMarkup(announcement) {
+    const imageUrl = this.getImageUrl(announcement.image_path);
+    const categoryClass = this.getCategoryClass(announcement.category);
+    const dateLabel = this.formatAnnouncementDate(announcement.created_at, {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     });
+    const preview = this.getSnippet(announcement.content || '', 150);
+    const hasMore = (announcement.content || '').length > preview.length;
 
-    // Create snippet (first 100 characters)
-    const snippet = this.getSnippet(announcement.content, 100);
+    const urgentBadge = announcement.priority === 'urgent'
+      ? '<span class="announcement-pill urgent"><i class="fa-solid fa-triangle-exclamation"></i>Urgent</span>'
+      : '';
+    const pinnedBadge = announcement.is_pinned
+      ? '<span class="announcement-pill pinned"><i class="fa-solid fa-thumbtack"></i>Pinned</span>'
+      : '';
 
-    div.innerHTML = `
-      <h4>${this.escapeHtml(announcement.title)}</h4>
-      <p>${this.escapeHtml(snippet)}${snippet.length < announcement.content.length ? '...' : ''}</p>
-      <span class="announcement-date">Posted: ${formattedDate}</span>
+    return `
+      <article class="announcement-card" data-id="${announcement.id}">
+        <div class="announcement-image-wrap">
+          <img
+            class="announcement-card-image"
+            src="${this.escapeHtml(imageUrl)}"
+            alt="${this.escapeHtml(announcement.title || 'Announcement image')}"
+            loading="lazy"
+            onerror="this.onerror=null;this.src='assets/default-announcement.jpg';"
+          >
+        </div>
+        <div class="announcement-card-body">
+          <div class="announcement-card-header">
+            <span class="badge badge-category ${categoryClass}">${this.escapeHtml(announcement.category || 'General')}</span>
+            <span class="announcement-date">${dateLabel}</span>
+          </div>
+          <div class="announcement-chip-row">${urgentBadge}${pinnedBadge}</div>
+          <h3 class="announcement-card-title">${this.escapeHtml(announcement.title || 'Untitled')}</h3>
+          <p class="announcement-card-preview">${this.escapeHtml(preview)}${hasMore ? '...' : ''}</p>
+          <div class="announcement-card-footer">
+            <button class="read-more-btn" data-id="${announcement.id}">Read More <span aria-hidden="true">→</span></button>
+          </div>
+        </div>
+      </article>
     `;
-
-    // Add click event to open modal
-    div.addEventListener('click', () => {
-      this.openModal(announcement);
-    });
-
-    return div;
   }
 
-  /**
-   * Get a snippet of text up to a certain length
-   * @param {string} text - Full text
-   * @param {number} length - Desired length
-   * @returns {string} - Truncated text
-   */
-  getSnippet(text, length = 100) {
-    if (text.length <= length) {
-      return text;
-    }
-    return text.substring(0, length).trim();
+  handleReadMore(announcementId) {
+    const encodedId = encodeURIComponent(String(announcementId));
+    window.location.href = `announcement_view.php?id=${encodedId}`;
   }
 
-  /**
-   * Open the announcement detail modal
-   * @param {Object} announcement - Announcement data
-   */
-  openModal(announcement) {
-    const modal = document.querySelector(this.modalSelector);
-    
-    if (!modal) {
-      console.error(`Modal not found: ${this.modalSelector}`);
-      return;
+  getSnippet(text, length) {
+    const safeText = String(text || '');
+    if (safeText.length <= length) return safeText;
+    return safeText.substring(0, length).trim();
+  }
+
+  getImageUrl(rawPath) {
+    if (!rawPath) {
+      return this.defaultImagePath;
     }
 
-    // Format date
-    const postDate = new Date(announcement.date_posted);
-    const formattedDate = postDate.toLocaleDateString('en-US', {
-      year: 'long',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    // Update modal content
-    const titleEl = modal.querySelector('.modal-title');
-    const contentEl = modal.querySelector('.modal-announcement-content');
-    const dateEl = modal.querySelector('.modal-announcement-date');
-
-    if (titleEl) titleEl.textContent = announcement.title;
-    if (contentEl) contentEl.innerHTML = this.escapeHtml(announcement.content).replace(/\n/g, '<br>');
-    if (dateEl) dateEl.textContent = `Posted: ${formattedDate}`;
-
-    // Show modal
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-  }
-
-  /**
-   * Close the announcement detail modal
-   */
-  closeModal() {
-    const modal = document.querySelector(this.modalSelector);
-    if (modal) {
-      modal.style.display = 'none';
-      document.body.style.overflow = 'auto';
+    const value = String(rawPath).trim();
+    if (!value) {
+      return this.defaultImagePath;
     }
+
+    if (/^https?:\/\//i.test(value)) {
+      return value;
+    }
+
+    const normalized = value.replace(/\\/g, '/').replace(/^\/+/, '');
+    if (normalized.startsWith('uploads/')) {
+      return `../${normalized}`;
+    }
+
+    if (normalized.startsWith('public/')) {
+      return normalized.replace(/^public\//, '');
+    }
+
+    return normalized;
   }
 
-  /**
-   * Show empty state when no announcements exist
-   * @param {HTMLElement} container - Container element
-   */
   showEmptyState(container) {
     container.innerHTML = `
       <div class="announcement-empty">
         <i class="fa-regular fa-newspaper"></i>
-        <p>No announcements at this time</p>
+        <p>No announcements available at the moment.</p>
       </div>
     `;
   }
 
-  /**
-   * Show error state
-   * @param {HTMLElement} container - Container element
-   * @param {string} error - Error message
-   */
-  showErrorState(container, error) {
+  showErrorState(container, message) {
     container.innerHTML = `
       <div class="announcement-error">
-        <i class="fa-solid fa-exclamation-circle"></i>
-        <p>Unable to load announcements</p>
-        <small>${this.escapeHtml(error)}</small>
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <p>Unable to load announcements.</p>
+        <small>${this.escapeHtml(message || 'Unexpected error')}</small>
       </div>
     `;
   }
 
-  /**
-   * Escape HTML special characters to prevent XSS
-   * @param {string} text - Text to escape
-   * @returns {string} - Escaped text
-   */
   escapeHtml(text) {
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = String(text ?? '');
     return div.innerHTML;
+  }
+
+  getCategoryClass(category) {
+    const normalized = String(category || '').toLowerCase();
+    if (normalized === 'event') return 'category-event';
+    if (normalized === 'advisory') return 'category-advisory';
+    if (normalized === 'emergency') return 'category-emergency';
+    return 'category-general';
+  }
+
+  formatAnnouncementDate(rawValue, options) {
+    const parsedDate = this.parseAnnouncementDate(rawValue);
+    if (!parsedDate) return 'Unknown Date';
+    return parsedDate.toLocaleDateString('en-US', options);
+  }
+
+  parseAnnouncementDate(rawValue) {
+    if (!rawValue) return null;
+
+    const asString = String(rawValue).trim();
+    if (!asString) return null;
+
+    const normalized = asString.includes(' ') && !asString.includes('T')
+      ? asString.replace(' ', 'T')
+      : asString;
+
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+
+    const dateOnly = asString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!dateOnly) return null;
+
+    const [, y, m, d] = dateOnly;
+    const fallback = new Date(Number(y), Number(m) - 1, Number(d));
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
   }
 }
 
-// Initialize when DOM is ready
+function injectAnnouncementStyles() {
+  if (document.getElementById('announcement-styles')) return;
+
+  const style = document.createElement('style');
+  style.id = 'announcement-styles';
+  style.textContent = `
+    .announcement-card {
+      display: flex;
+      flex-direction: column;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #e6ebf2;
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      min-height: 100%;
+    }
+
+    .announcement-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.13);
+    }
+
+    .announcement-image-wrap {
+      width: 100%;
+      height: 180px;
+      background: #f2f5fb;
+      overflow: hidden;
+    }
+
+    .announcement-card-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .announcement-card-body {
+      padding: 16px 18px 18px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .announcement-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .announcement-date {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .badge-category {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 999px;
+      text-transform: capitalize;
+      letter-spacing: 0.01em;
+    }
+
+    .badge-category.category-general { background: #eceff3; color: #4b5563; }
+    .badge-category.category-event { background: #e8f8ee; color: #1f7a3f; }
+    .badge-category.category-advisory { background: #e8f0ff; color: #2553b8; }
+    .badge-category.category-emergency { background: #fdecec; color: #b42318; }
+
+    .announcement-chip-row {
+      display: flex;
+      gap: 8px;
+      min-height: 24px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .announcement-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 4px 8px;
+    }
+
+    .announcement-pill.urgent { background: #fff1f1; color: #b42318; }
+    .announcement-pill.pinned { background: #fff7e8; color: #b45309; }
+
+    .announcement-card-title {
+      font-size: 20px;
+      line-height: 1.3;
+      color: #0f172a;
+      margin: 0 0 10px;
+      font-weight: 700;
+    }
+
+    .announcement-card-preview {
+      font-size: 14px;
+      line-height: 1.55;
+      color: #475569;
+      margin: 0 0 16px;
+      flex: 1;
+    }
+
+    .announcement-card-footer {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .read-more-btn {
+      border: none;
+      background: transparent;
+      color: #1d4ed8;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 6px 0;
+      cursor: pointer;
+    }
+
+    .read-more-btn:hover {
+      color: #1e40af;
+      text-decoration: underline;
+    }
+
+    .announcement-empty,
+    .announcement-error {
+      grid-column: 1 / -1;
+      text-align: center;
+      border: 1px dashed #d3dbe8;
+      border-radius: 12px;
+      background: #fcfdff;
+      padding: 48px 20px;
+      color: #94a3b8;
+    }
+
+    .announcement-empty i,
+    .announcement-error i {
+      font-size: 40px;
+      margin-bottom: 10px;
+      color: #c3cddd;
+    }
+
+    .announcement-empty p,
+    .announcement-error p {
+      margin: 0;
+      font-size: 16px;
+      color: #64748b;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    const announcementManager = new AnnouncementManager();
-    announcementManager.init();
+    injectAnnouncementStyles();
+    const manager = new AnnouncementManager();
+    manager.init();
   });
 } else {
-  const announcementManager = new AnnouncementManager();
-  announcementManager.init();
+  injectAnnouncementStyles();
+  const manager = new AnnouncementManager();
+  manager.init();
 }
