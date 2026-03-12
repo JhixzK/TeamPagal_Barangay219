@@ -303,17 +303,11 @@ if ($conn && $residentId) {
   }
 
   if (residentDashboardTableExists($conn, 'announcements')) {
-    $annCountRow = residentDashboardFetchOne($conn, "SELECT COUNT(*) AS total FROM announcements WHERE status = 'active'");
+    // Count both old schema (active) and new schema (published) announcements
+    $annCountRow = residentDashboardFetchOne($conn, "SELECT COUNT(*) AS total FROM announcements WHERE status = 'active' OR status = 'published'");
     $stats['active_announcements'] = (int)($annCountRow['total'] ?? 0);
-
-    $recentAnnouncements = residentDashboardFetchAll(
-      $conn,
-      "SELECT id, title, content, date_posted
-       FROM announcements
-       WHERE status = 'active'
-       ORDER BY date_posted DESC, created_at DESC
-       LIMIT 3"
-    );
+    
+    // Announcements are now loaded via JavaScript API and dashboard-announcements.js
   }
 
   if ($householdSnapshot['linked'] && residentDashboardTableExists($conn, 'households')) {
@@ -670,6 +664,19 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
       </article>
     </section>
 
+    <!-- Announcements Widget -->
+    <section class="announcements-widget panel">
+      <div class="panel-header">
+        <h3><i class="fa-regular fa-bullhorn"></i> Latest Announcements</h3>
+        <a href="<?php echo BASE_URL; ?>resident_announcements.php" class="view-all-link">View All</a>
+      </div>
+      <div id="dashboardAnnouncementsContainer" class="announcements-list-dashboard">
+        <div class="loading-placeholder">
+          <i class="fa-solid fa-spinner fa-spin"></i> Loading announcements...
+        </div>
+      </div>
+    </section>
+
     <section class="dashboard-grid-two">
       <article class="panel">
         <div class="panel-header">
@@ -721,30 +728,9 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
       </article>
 
       <article class="panel">
-        <div class="panel-header with-action">
-          <h3>Announcements</h3>
-          <a class="text-link" href="<?php echo BASE_URL; ?>resident_announcements.php">View All Announcements</a>
+        <div class="panel-header">
+          <h3>Recent Requests</h3>
         </div>
-        <div class="announcement-list">
-          <?php if (!$recentAnnouncements): ?>
-            <p class="info-empty">No active announcements at this time.</p>
-          <?php else: ?>
-            <?php foreach ($recentAnnouncements as $announcement): ?>
-              <div class="announcement-item">
-                <h4><?php echo htmlspecialchars($announcement['title']); ?></h4>
-                <p><?php echo htmlspecialchars(mb_strimwidth(strip_tags((string)$announcement['content']), 0, 150, '...')); ?></p>
-                <span>Posted: <?php echo !empty($announcement['date_posted']) ? htmlspecialchars(date('F d, Y', strtotime($announcement['date_posted']))) : '-'; ?></span>
-              </div>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </div>
-      </article>
-    </section>
-
-    <section class="panel">
-      <div class="panel-header">
-        <h3>Recent Requests</h3>
-      </div>
       <div class="table-wrap">
         <table class="request-table" id="requestTable">
           <thead>
@@ -802,5 +788,6 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
   </main>
 
   <script src="resident_dashboard.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_dashboard.js')); ?>"></script>
+  <script src="assets/css/js/dashboard-announcements.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/assets/css/js/dashboard-announcements.js')); ?>"></script>
 </body>
 </html>
