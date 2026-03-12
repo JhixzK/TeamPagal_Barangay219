@@ -47,11 +47,14 @@ if ($residentId) {
   <link rel="stylesheet" href="resident_dashboard.css">
   <style>
     .announcements-container {
-      max-width: 800px;
+      max-width: 900px;
+      margin: 0 auto;
     }
 
     .announcements-header {
-      margin-bottom: 24px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-soft);
     }
 
     .announcements-header h2 {
@@ -70,23 +73,35 @@ if ($residentId) {
     .announcements-filters {
       display: flex;
       gap: 12px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       flex-wrap: wrap;
     }
 
     .search-box {
       flex: 1;
-      min-width: 200px;
+      min-width: 280px;
+      position: relative;
+    }
+
+    .search-box i {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9aa4b2;
+      font-size: 14px;
+      pointer-events: none;
     }
 
     .search-box input {
       width: 100%;
-      padding: 10px 14px;
+      padding: 13px 14px 13px 40px;
       border: 1px solid var(--border-soft);
-      border-radius: var(--radius-md);
-      font-size: 14px;
+      border-radius: 999px;
+      font-size: 15px;
       font-family: "Poppins", sans-serif;
-      transition: border-color 0.2s ease;
+      background: #fff;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
     .search-box input:focus {
@@ -95,10 +110,28 @@ if ($residentId) {
       box-shadow: 0 0 0 3px rgba(45, 83, 185, 0.1);
     }
 
-    .announcements-list-wrapper {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+    .announcement-list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 1199px) {
+      .announcement-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      .announcements-header h2 {
+        font-size: 24px;
+      }
+
+      .announcement-list {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
     }
   </style>
 </head>
@@ -224,32 +257,18 @@ if ($residentId) {
 
       <div class="announcements-filters">
         <div class="search-box">
-          <input type="text" id="searchInput" placeholder="Search announcements...">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <input type="text" id="searchInput" placeholder="Search announcements..." aria-label="Search announcements by title">
         </div>
       </div>
 
-      <div class="announcement-list announcements-list-wrapper">
+      <div class="announcement-list">
         <!-- Announcements loaded here by announcement-manager.js -->
       </div>
     </section>
   </main>
 
-  <!-- Announcement Modal -->
-  <div id="announcementModal" class="modal" style="display: none;">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content modal-lg">
-      <div class="modal-header">
-        <h2 class="modal-title">Announcement</h2>
-        <button class="modal-close" aria-label="Close announcement">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p class="modal-announcement-date"></p>
-        <div class="modal-announcement-content"></div>
-      </div>
-    </div>
-  </div>
-
-  <script src="resident_dashboard.js"></script>
-  <script src="announcement-manager.js"></script>
+  <script src="resident_dashboard.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_dashboard.js')); ?>"></script>
+  <script src="announcement-manager.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/announcement-manager.js')); ?>"></script>
 </body>
 </html>
