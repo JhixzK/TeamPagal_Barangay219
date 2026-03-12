@@ -34,6 +34,7 @@ $valid_id_types = [
     <title>Resident Registration - <?php echo APP_NAME; ?></title>
     <link href="<?php echo ASSETS_URL; ?>css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="<?php echo ASSETS_URL; ?>style.css" rel="stylesheet">
     <style>
@@ -293,6 +294,28 @@ $valid_id_types = [
             box-shadow: 0 0 0 0.18rem rgba(29, 78, 216, 0.18);
         }
 
+        .flatpickr-calendar {
+            border: 1px solid var(--border-soft);
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+            border-radius: 12px;
+        }
+
+        .flatpickr-day.selected,
+        .flatpickr-day.startRange,
+        .flatpickr-day.endRange,
+        .flatpickr-day.selected:hover,
+        .flatpickr-day.startRange:hover,
+        .flatpickr-day.endRange:hover {
+            background: var(--gov-blue);
+            border-color: var(--gov-blue);
+        }
+
+        .flatpickr-months .flatpickr-month,
+        .flatpickr-current-month .flatpickr-monthDropdown-months,
+        .flatpickr-current-month input.cur-year {
+            font-weight: 600;
+        }
+
         .back-to-login {
             position: absolute;
             top: 1rem;
@@ -449,7 +472,8 @@ $valid_id_types = [
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label>Date of Birth <span class="text-danger">*</span></label>
-                                            <input type="date" name="birth_date" id="birth_date" class="form-control" required>
+                                            <input type="text" name="birth_date" id="birth_date" class="form-control" required autocomplete="off" placeholder="Select your birth date">
+                                            <div class="invalid-feedback">You must be 18 years old and above to register.</div>
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label>Age</label>
@@ -494,13 +518,14 @@ $valid_id_types = [
                                             <label>Household Role <span class="text-danger">*</span></label>
                                             <select name="household_role" class="form-select" required>
                                                 <option value="">Select</option>
-                                                <option value="Head">Head</option>
-                                                <option value="Member">Member</option>
+                                                <option value="Single Occupant">Single Occupant</option>
+                                                <option value="Member of Household">Member of Household</option>
+                                                <option value="Head of Household">Head of Household</option>
                                             </select>
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label>Number of Household Members</label>
-                                            <input type="number" name="household_members" class="form-control" min="1" max="20">
+                                            <input type="number" name="household_members" class="form-control" min="0" max="99" step="1" inputmode="numeric">
                                         </div>
                                     </div>
                                     <div class="row">
@@ -552,38 +577,49 @@ $valid_id_types = [
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label>Email Address</label>
-                                            <input type="email" name="email" class="form-control" maxlength="100" autocomplete="email">
+                                            <input type="email" name="email" id="email" class="form-control" maxlength="100" autocomplete="email" placeholder="@gmail.com">
+                                            <div class="invalid-feedback">Please enter a valid Gmail address (@gmail.com).</div>
                                         </div>
                                     </div>
                                     <hr>
                                     <h6 class="text-secondary mb-3">Residency Details</h6>
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
-                                            <label>House No.</label>
-                                            <input type="text" name="house_number" class="form-control" maxlength="30">
+                                            <label>House No. <span class="text-danger">*</span></label>
+                                            <input type="text" name="house_number" class="form-control" maxlength="30" required>
                                         </div>
                                         <div class="col-md-6 mb-3">
-                                            <label>Street / Purok / Sitio</label>
-                                            <input type="text" name="street" class="form-control" maxlength="100">
+                                            <label>Street / Purok / Sitio <span class="text-danger">*</span></label>
+                                            <input type="text" name="street" class="form-control" maxlength="100" required>
                                         </div>
                                     </div>
                                     <input type="hidden" name="barangay" value="<?php echo htmlspecialchars($barangay); ?>">
                                     <input type="hidden" name="city" value="<?php echo htmlspecialchars($city); ?>">
                                     <input type="hidden" name="province" value="<?php echo htmlspecialchars($province); ?>">
                                     <div class="row">
-                                        <div class="col-md-4 mb-3">
+                                        <div class="col-md-3 mb-3">
                                             <label>Barangay</label>
                                             <input type="text" class="form-control" value="<?php echo htmlspecialchars($barangay); ?>" readonly>
                                         </div>
-                                        <div class="col-md-4 mb-3">
+                                        <div class="col-md-3 mb-3">
                                             <label>City / Municipality</label>
                                             <input type="text" class="form-control" value="<?php echo htmlspecialchars($city); ?>" readonly>
                                         </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label>Length of Residency (years)</label>
-                                            <input type="number" name="length_of_residency_years" class="form-control" min="0" max="100">
+                                        <div class="col-md-3 mb-3">
+                                            <label>Residency (Years)</label>
+                                            <select name="residency_years" id="residency_years" class="form-select">
+                                                <option value="">Years</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label>Residency (Months) <span class="text-danger">*</span></label>
+                                            <select name="residency_months" id="residency_months" class="form-select" required>
+                                                <option value="">Months</option>
+                                            </select>
+                                            <div class="invalid-feedback">Minimum residency requirement is 6 months.</div>
                                         </div>
                                     </div>
+                                    <input type="hidden" name="length_of_residency_years" id="length_of_residency_years" value="">
                                     <hr>
                                     <h6 class="text-secondary mb-3">Emergency Contact</h6>
                                     <div class="row">
@@ -597,7 +633,22 @@ $valid_id_types = [
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label>Relationship <span class="text-danger">*</span></label>
-                                            <input type="text" name="emergency_contact_relationship" class="form-control" maxlength="30" required placeholder="e.g. Spouse, Parent">
+                                            <select name="emergency_contact_relationship" class="form-select" required>
+                                                <option value="">Select</option>
+                                                <option value="Parent">Parent</option>
+                                                <option value="Father">Father</option>
+                                                <option value="Mother">Mother</option>
+                                                <option value="Spouse">Spouse</option>
+                                                <option value="Partner">Partner</option>
+                                                <option value="Son">Son</option>
+                                                <option value="Daughter">Daughter</option>
+                                                <option value="Brother">Brother</option>
+                                                <option value="Sister">Sister</option>
+                                                <option value="Grandparent">Grandparent</option>
+                                                <option value="Uncle / Aunt">Uncle / Aunt</option>
+                                                <option value="Cousin">Cousin</option>
+                                                <option value="Relative (Other)">Relative (Other)</option>
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -607,8 +658,12 @@ $valid_id_types = [
                         <!-- Step 4: Review & Submit -->
                         <div class="step-content" data-step="4">
                             <div class="step-header">
-                                <div class="step-title">Phase 4: Review Summary</div>
+                                <div class="step-title">Phase 4: Review &amp; Edit</div>
                                 <div class="step-counter">Step 4 of 4</div>
+                            </div>
+                            <div class="note-box mb-3" style="border-left:4px solid #1d4ed8;">
+                                <i class="bi bi-pencil-square me-1 text-primary"></i>
+                                <strong>Review your information below.</strong> You may edit any field to correct mistakes before submitting.
                             </div>
                             <div id="reviewContent">
                                 <!-- Review content will be populated by JavaScript -->
@@ -745,6 +800,7 @@ $valid_id_types = [
     </div>
 </div>
 <script src="<?php echo ASSETS_URL; ?>js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
 window.API_URL = '<?php echo addslashes(API_URL); ?>';
 
@@ -796,6 +852,14 @@ phoneFields.forEach(fieldName => {
         });
     }
 });
+
+// Household members - digits only, max 2 digits
+const householdMembersField = document.querySelector('input[name="household_members"]');
+if (householdMembersField) {
+    householdMembersField.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 2);
+    });
+}
 
 // Professional ID field validation - Letters, numbers, hyphens, slashes, spaces, periods
 const idFields = ['valid_id_number', 'pwd_id_number', 'solo_parent_id_number', 'family_code'];
@@ -858,11 +922,76 @@ function calculateAge(dateString) {
 // Attach event listeners for birth date calculation
 const birthDateField = document.getElementById('birth_date');
 if (birthDateField) {
-    birthDateField.addEventListener('change', function() {
-        calculateAge(this.value);
-    });
-    birthDateField.addEventListener('input', function() {
-        calculateAge(this.value);
+    if (typeof flatpickr !== 'undefined') {
+        flatpickr(birthDateField, {
+            altInput: true,
+            altFormat: 'F j, Y',
+            dateFormat: 'Y-m-d',
+            maxDate: 'today',
+            allowInput: false,
+            monthSelectorType: 'dropdown',
+            animate: true,
+            disableMobile: false,
+            onChange: function(selectedDates, dateStr) {
+                calculateAge(dateStr);
+            }
+        });
+    } else {
+        birthDateField.addEventListener('change', function() {
+            calculateAge(this.value);
+        });
+        birthDateField.addEventListener('input', function() {
+            calculateAge(this.value);
+        });
+    }
+}
+
+// Residency selectors (Years + Months) and hidden backend value
+function initializeResidencySelectors() {
+    const yearsSelect = document.getElementById('residency_years');
+    const monthsSelect = document.getElementById('residency_months');
+    if (!yearsSelect || !monthsSelect) return;
+
+    for (let y = 0; y <= 100; y++) {
+        const opt = document.createElement('option');
+        opt.value = String(y);
+        opt.textContent = String(y);
+        yearsSelect.appendChild(opt);
+    }
+
+    for (let m = 0; m <= 11; m++) {
+        const opt = document.createElement('option');
+        opt.value = String(m);
+        opt.textContent = String(m);
+        monthsSelect.appendChild(opt);
+    }
+}
+
+function syncResidencyYearsValue() {
+    const yearsSelect = document.getElementById('residency_years');
+    const monthsSelect = document.getElementById('residency_months');
+    const hiddenYears = document.getElementById('length_of_residency_years');
+    if (!yearsSelect || !monthsSelect || !hiddenYears) return;
+
+    const years = parseInt(yearsSelect.value, 10);
+    const months = parseInt(monthsSelect.value, 10);
+
+    if (!Number.isFinite(years) || !Number.isFinite(months)) {
+        hiddenYears.value = '';
+        return;
+    }
+
+    hiddenYears.value = (years + (months / 12)).toFixed(2);
+}
+
+initializeResidencySelectors();
+
+const residencyYearsField = document.getElementById('residency_years');
+const residencyMonthsField = document.getElementById('residency_months');
+if (residencyYearsField && residencyMonthsField) {
+    ['change', 'input'].forEach(evt => {
+        residencyYearsField.addEventListener(evt, syncResidencyYearsValue);
+        residencyMonthsField.addEventListener(evt, syncResidencyYearsValue);
     });
 }
 
@@ -939,15 +1068,29 @@ function validateStep(step) {
     // Additional validations
     if (step === 1) {
         // Check if birth date is not in future
-        const birthDate = new Date(document.getElementById('birth_date').value);
+        const birthDateField = document.getElementById('birth_date');
+        const birthDate = new Date(birthDateField.value);
         const today = new Date();
+        birthDateField.setCustomValidity('');
+
         if (birthDate > today) {
-            document.getElementById('birth_date').classList.add('is-invalid');
+            birthDateField.classList.add('is-invalid');
+            birthDateField.setCustomValidity('Please enter a valid birth date.');
+            isValid = false;
+        }
+
+        // Enforce minimum age of 18 years old
+        const ageValue = parseInt(document.getElementById('ageDisplay').value, 10);
+        if (!Number.isFinite(ageValue) || ageValue < 18) {
+            birthDateField.classList.add('is-invalid');
+            birthDateField.setCustomValidity('You must be 18 years old and above to register.');
             isValid = false;
         }
     }
 
     if (step === 3) {
+        syncResidencyYearsValue();
+
         // Validate mobile number format
         const mobile = document.querySelector('input[name="mobile_number"]');
         if (mobile.value && !/^09\d{9}$/.test(mobile.value)) {
@@ -962,10 +1105,33 @@ function validateStep(step) {
             isValid = false;
         }
 
-        // Validate email if provided
+        // Validate email if provided - must be a Gmail address
         const email = document.querySelector('input[name="email"]');
-        if (email.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
+        if (email.value && !/^[a-zA-Z0-9._%+\-]+@gmail\.com$/.test(email.value)) {
             email.classList.add('is-invalid');
+            isValid = false;
+        }
+
+        // Require at least 6 months total residency
+        const yearsField = document.querySelector('select[name="residency_years"]');
+        const monthsField = document.querySelector('select[name="residency_months"]');
+        const yearsRaw = yearsField.value.trim();
+        const years = yearsRaw === '' ? 0 : parseInt(yearsRaw, 10);
+        const months = parseInt(monthsField.value, 10);
+        yearsField.setCustomValidity('');
+        monthsField.setCustomValidity('');
+
+        if (Number.isFinite(years) && Number.isFinite(months)) {
+            const totalMonths = (years * 12) + months;
+            if (totalMonths < 6) {
+                monthsField.classList.add('is-invalid');
+                monthsField.setCustomValidity('Minimum residency requirement is 6 months.');
+                isValid = false;
+            } else {
+                monthsField.classList.remove('is-invalid');
+            }
+        } else {
+            monthsField.classList.add('is-invalid');
             isValid = false;
         }
     }
@@ -977,24 +1143,107 @@ function populateReview() {
     const reviewContent = document.getElementById('reviewContent');
     reviewContent.innerHTML = '';
 
-    const formData = new FormData(document.getElementById('registerForm'));
     const reviewSections = [
-        { title: 'Personal Information', fields: ['first_name', 'middle_name', 'last_name', 'suffix', 'sex', 'birth_date', 'age', 'place_of_birth', 'civil_status', 'citizenship'] },
-        { title: 'Family Background', fields: ['household_role', 'father_name', 'mother_name', 'household_members', 'family_code', 'relationship_to_head'] },
-        { title: 'Contact & Residency', fields: ['mobile_number', 'email', 'house_number', 'street', 'purok_sitio', 'barangay', 'city', 'province', 'length_of_residency_years', 'emergency_contact_name', 'emergency_contact_number', 'emergency_contact_relationship'] }
+        {
+            title: 'Personal Information',
+            fields: [
+                { name: 'first_name', label: 'First Name' },
+                { name: 'middle_name', label: 'Middle Name' },
+                { name: 'last_name', label: 'Last Name' },
+                { name: 'suffix', label: 'Suffix' },
+                { name: 'sex', label: 'Sex' },
+                { name: 'birth_date', label: 'Date of Birth' },
+                { name: 'place_of_birth', label: 'Place of Birth' },
+                { name: 'civil_status', label: 'Civil Status' },
+                { name: 'citizenship', label: 'Citizenship' }
+            ]
+        },
+        {
+            title: 'Family Background',
+            fields: [
+                { name: 'household_role', label: 'Household Role' },
+                { name: 'household_members', label: 'No. of Household Members' },
+                { name: 'father_name', label: "Father's Name" },
+                { name: 'mother_name', label: "Mother's Name" },
+                { name: 'family_code', label: 'Family Code' },
+                { name: 'relationship_to_head', label: 'Relationship to Head' }
+            ]
+        },
+        {
+            title: 'Contact & Residency',
+            fields: [
+                { name: 'mobile_number', label: 'Mobile Number' },
+                { name: 'email', label: 'Email Address' },
+                { name: 'house_number', label: 'House No.' },
+                { name: 'street', label: 'Street / Purok / Sitio' },
+                { name: 'residency_years', label: 'Residency (Years)' },
+                { name: 'residency_months', label: 'Residency (Months)' },
+                { name: 'emergency_contact_name', label: 'Emergency Contact Name' },
+                { name: 'emergency_contact_number', label: 'Emergency Contact Number' },
+                { name: 'emergency_contact_relationship', label: 'Emergency Contact Relationship' }
+            ]
+        }
     ];
 
     reviewSections.forEach(section => {
-        let sectionHtml = `<div class="card section-card mb-4"><div class="card-body"><h6 class="text-secondary mb-3">${section.title}</h6>`;
-        section.fields.forEach(fieldName => {
-            const value = formData.get(fieldName) || '';
-            const label = document.querySelector(`label[for="${fieldName}"]`) || document.querySelector(`input[name="${fieldName}"]`)?.previousElementSibling?.textContent || fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            if (value) {
-                sectionHtml += `<div class="review-field"><span class="review-label">${label.replace('*', '').trim()}:</span> <span class="review-value">${value}</span></div>`;
+        const card = document.createElement('div');
+        card.className = 'card section-card mb-4';
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body';
+        const heading = document.createElement('h6');
+        heading.className = 'text-secondary mb-3';
+        heading.textContent = section.title;
+        cardBody.appendChild(heading);
+
+        const row = document.createElement('div');
+        row.className = 'row';
+
+        section.fields.forEach(fieldDef => {
+            const originalField = document.querySelector(`[name="${fieldDef.name}"]`);
+            if (!originalField) return;
+
+            const col = document.createElement('div');
+            col.className = 'col-md-6 mb-2';
+
+            const lbl = document.createElement('label');
+            lbl.className = 'form-label fw-semibold text-secondary';
+            lbl.style.fontSize = '0.82rem';
+            lbl.textContent = fieldDef.label;
+
+            // Clone the original input/select to preserve all options
+            const cloned = originalField.cloneNode(true);
+            if (cloned.tagName === 'SELECT') {
+                cloned.className = 'form-select form-select-sm review-edit-field';
+            } else {
+                cloned.className = 'form-control form-control-sm review-edit-field';
             }
+            cloned.removeAttribute('name');
+            cloned.removeAttribute('required');
+            cloned.removeAttribute('id');
+            cloned.style.cssText = '';
+            cloned.dataset.field = fieldDef.name;
+            // Explicitly set current value (cloneNode copies attributes, not live DOM state)
+            cloned.value = originalField.value;
+
+            // Sync edits back to the original form field
+            ['input', 'change'].forEach(evt => {
+                cloned.addEventListener(evt, function () {
+                    const orig = document.querySelector(`[name="${this.dataset.field}"]`);
+                    if (orig) orig.value = this.value;
+                    if (this.dataset.field === 'residency_years' || this.dataset.field === 'residency_months') {
+                        syncResidencyYearsValue();
+                    }
+                });
+            });
+
+            col.appendChild(lbl);
+            col.appendChild(cloned);
+            row.appendChild(col);
         });
-        sectionHtml += '</div></div>';
-        reviewContent.innerHTML += sectionHtml;
+
+        cardBody.appendChild(row);
+        card.appendChild(cardBody);
+        reviewContent.appendChild(card);
     });
 }
 
