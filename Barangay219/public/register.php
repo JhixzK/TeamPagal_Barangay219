@@ -25,6 +25,29 @@ $valid_id_types = [
     'national_id' => 'Philippine National ID',
     'other' => 'Other Valid ID'
 ];
+
+$barangay219_street_options = [
+    'Road 10',
+    'Road 10 Extension',
+    'Road 11',
+    'Road 11 Extension',
+    'Road 12',
+    'Road 12 Extension',
+    'Road 13',
+    'Road 13 Extension',
+    'Road 14',
+    'Road 15',
+    'R-10 (Radial Road 10)',
+    'Vitas Road',
+    'Purok 1',
+    'Purok 2',
+    'Purok 3',
+    'Purok 4',
+    'Purok 5',
+    'Sitio 1',
+    'Sitio 2',
+    'Sitio 3'
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -592,7 +615,12 @@ $valid_id_types = [
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label>Street / Purok / Sitio <span class="text-danger">*</span></label>
-                                            <input type="text" name="street" class="form-control" maxlength="100" required>
+                                            <select name="street" class="form-select" required>
+                                                <option value="">Select Street / Purok / Sitio</option>
+                                                <?php foreach ($barangay219_street_options as $street_option): ?>
+                                                <option value="<?php echo htmlspecialchars($street_option); ?>"><?php echo htmlspecialchars($street_option); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
                                         </div>
                                     </div>
                                     <input type="hidden" name="barangay" value="<?php echo htmlspecialchars($barangay); ?>">
