@@ -273,7 +273,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         </div>
                         <div class="col-md-3 mb-3">
                             <label for="contact_number" class="form-label">Contact Number <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="contact_number" name="contact_number" value="+63" maxlength="13" inputmode="numeric" pattern="\+63\d{10}" required>
+                            <input type="text" class="form-control" id="contact_number" name="contact_number" value="+63 " maxlength="14" inputmode="numeric" pattern="\+63\s\d{10}" required placeholder="+63 9XXXXXXXXX">
                         </div>
                     </div>
                     
