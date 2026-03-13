@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadHouseholds();
     applyHouseholdPermissions();
     initHouseholdStatFilters();
+    initHouseholdFormFormatting();
     document.getElementById('householdForm').addEventListener('submit', function(e) {
         e.preventDefault();
         saveHousehold();
@@ -91,8 +92,8 @@ function loadHouseholds() {
                 tbody.innerHTML = d.data.map(h => `
                     <tr>
                         <td>${h.id}</td>
-                        <td>${escapeHtml(h.family_head_name || '-')}</td>
-                        <td>${escapeHtml((h.address||'').substring(0,50))}${(h.address||'').length>50?'...':''}</td>
+                        <td>${escapeHtml(toTitleCase(h.family_head_name || '-'))}</td>
+                        <td>${escapeHtml(formatTitleCaseTruncate(h.address || '', 50))}${(h.address||'').length>50?'...':''}</td>
                         <td>${h.total_members}</td>
                         <td>${formatDate(h.registration_date)}</td>
                         <td>
@@ -145,7 +146,10 @@ function loadResidentsForDropdown() {
         .then(d => {
             if (d.success && d.data && d.data.residents) {
                 sel.innerHTML = '<option value="">-- Select Resident --</option>' +
-                    d.data.residents.map(r => `<option value="${r.id}">${escapeHtml(r.last_name + ', ' + r.first_name + ' ' + (r.middle_name||''))}</option>`).join('');
+                    d.data.residents.map(r => {
+                        const name = `${r.last_name || ''}, ${r.first_name || ''} ${r.middle_name || ''}`.trim();
+                        return `<option value="${r.id}">${escapeHtml(toTitleCase(name))}</option>`;
+                    }).join('');
                 if (currentVal) sel.value = currentVal;
             }
         })
@@ -153,6 +157,7 @@ function loadResidentsForDropdown() {
 }
 
 function saveHousehold() {
+    applyTitleCaseToForm();
     const householdId = document.getElementById('householdId').value;
     if (householdId && !HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
     if (!householdId && !HOUSEHOLD_PERMS.canCreate) { alert('Access denied'); return; }
@@ -185,8 +190,8 @@ function viewHousehold(id) {
             if (!d.success) { alert(d.message || 'Error'); return; }
             const h = d.data;
             document.getElementById('viewHouseholdInfo').innerHTML = `
-                <p><strong>Family Head:</strong> ${escapeHtml(h.family_head_name || '-')}</p>
-                <p><strong>Address:</strong> ${escapeHtml(h.address || '-')}</p>
+                <p><strong>Family Head:</strong> ${escapeHtml(toTitleCase(h.family_head_name || '-'))}</p>
+                <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
                 <p><strong>Total Members:</strong> ${h.total_members}</p>
                 <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
             `;
@@ -195,9 +200,10 @@ function viewHousehold(id) {
                         document.getElementById('viewHouseholdMembers').innerHTML = members.length
                 ? '<table class="table table-sm"><thead><tr><th>Name</th><th>Birth Date</th><th></th></tr></thead><tbody>' +
                   members.map(m => {
-                      const name = `${m.first_name} ${m.middle_name || ''} ${m.last_name}`.trim();
+                      const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
+                      const titledName = toTitleCase(name);
                                             const removeBtn = allowEditMembers && m.id !== h.family_head_id ? `<button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : (m.id !== h.family_head_id ? '' : '<span class="badge bg-primary">Head</span>');
-                                            return `<tr><td>${escapeHtml(name)}</td><td>${formatDate(m.birth_date)}</td><td>${removeBtn}</td></tr>`;
+                                            return `<tr><td>${escapeHtml(titledName)}</td><td>${formatDate(m.birth_date)}</td><td>${removeBtn}</td></tr>`;
                   }).join('') + '</tbody></table>'
                 : '<p class="text-muted">No members yet.</p>';
             loadResidentsForAddMember(id, members.map(m => m.id));
@@ -217,8 +223,8 @@ function loadResidentsForAddMember(householdId, excludeIds) {
                 const ids = new Set(excludeIds || []);
                 d.data.residents.forEach(r => {
                     if (!ids.has(r.id)) {
-                        const name = `${r.last_name}, ${r.first_name} ${r.middle_name || ''}`.trim();
-                        sel.innerHTML += `<option value="${r.id}">${escapeHtml(name)}</option>`;
+                        const name = `${r.last_name || ''}, ${r.first_name || ''} ${r.middle_name || ''}`.trim();
+                        sel.innerHTML += `<option value="${r.id}">${escapeHtml(toTitleCase(name))}</option>`;
                     }
                 });
             }
@@ -271,11 +277,14 @@ function editHousehold(id) {
         const sel = document.getElementById('family_head_id');
         if (residentsData.success && residentsData.data && residentsData.data.residents) {
             sel.innerHTML = '<option value="">-- Select Resident --</option>' +
-                residentsData.data.residents.map(r => `<option value="${r.id}">${escapeHtml(r.last_name + ', ' + r.first_name)}</option>`).join('');
+                residentsData.data.residents.map(r => {
+                    const name = `${r.last_name || ''}, ${r.first_name || ''}`.trim();
+                    return `<option value="${r.id}">${escapeHtml(toTitleCase(name))}</option>`;
+                }).join('');
         }
         document.getElementById('householdId').value = h.id;
         document.getElementById('family_head_id').value = h.family_head_id || '';
-        document.getElementById('address').value = h.address || '';
+        document.getElementById('address').value = toTitleCase(h.address || '');
         document.getElementById('total_members').value = h.total_members || 1;
         document.getElementById('registration_date').value = h.registration_date || '';
         document.getElementById('householdModalTitle').textContent = 'Edit Household';
@@ -301,4 +310,43 @@ function resetForm() {
 }
 
 function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
+function toTitleCase(text) {
+    if (!text) return '';
+    return String(text)
+        .trim()
+        .split(/\s+/)
+        .map(word => {
+            if (!word) return '';
+            const clean = word.replace(/[^a-zA-Z]/g, '');
+            if (clean.length > 0 && clean === clean.toUpperCase() && clean.length <= 3) {
+                return word;
+            }
+            const first = word.charAt(0).toUpperCase();
+            const rest = word.slice(1).toLowerCase();
+            return first + rest;
+        })
+        .join(' ');
+}
+
+function formatTitleCaseTruncate(text, maxLen) {
+    const titled = toTitleCase(text || '');
+    return titled.substring(0, maxLen);
+}
+
+function attachTitleCaseOnBlur(input) {
+    input.addEventListener('blur', function() {
+        this.value = toTitleCase(this.value);
+    });
+}
+
+function initHouseholdFormFormatting() {
+    const address = document.getElementById('address');
+    if (address) attachTitleCaseOnBlur(address);
+}
+
+function applyTitleCaseToForm() {
+    const address = document.getElementById('address');
+    if (address) address.value = toTitleCase(address.value);
+}
+
 function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
