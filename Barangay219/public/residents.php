@@ -24,9 +24,6 @@ include __DIR__ . '/../includes/sidebar.php';
                     <h2 class="mb-1"><i class="bi bi-people me-2"></i>Residents Management</h2>
                     <p class="module-subtitle mb-0">Maintain resident profiles, status records, and household-linked information.</p>
                 </div>
-                <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#residentModal" onclick="resetForm()">
-                    <i class="bi bi-plus-circle"></i> Add New Resident
-                </button>
             </div>
         </div>
 
@@ -182,7 +179,7 @@ include __DIR__ . '/../includes/sidebar.php';
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="residentModalTitle">Add New Resident</h5>
+                <h5 class="modal-title" id="residentModalTitle">Edit Resident</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="residentForm">
