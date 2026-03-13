@@ -140,14 +140,14 @@ function loadBlotters() {
                         const incidentLocation = b.incident_location ? escapeHtml(toTitleCase(b.incident_location)) : '-';
                         return `
                         <tr>
-                            <td>${b.id}</td>
-                            <td>${escapeHtml(toTitleCase(b.case_title || ''))}</td>
-                            <td>${escapeHtml(comp)}</td>
-                            <td>${incidentType}</td>
-                            <td>${incidentLocation}</td>
-                            <td>${formatDate(b.incident_date)}</td>
-                            <td><span class="badge bg-${getStatusColor(b.status)}">${b.status}</span></td>
-                            <td>
+                            <td class="text-center">${b.id}</td>
+                            <td class="text-center">${escapeHtml(toTitleCase(b.case_title || ''))}</td>
+                            <td class="text-center">${escapeHtml(comp)}</td>
+                            <td class="text-center">${incidentType}</td>
+                            <td class="text-center">${incidentLocation}</td>
+                            <td class="text-center">${formatDate(b.incident_date)}</td>
+                            <td class="text-center"><span class="badge bg-${getStatusColor(b.status)}">${b.status}</span></td>
+                            <td class="text-center">
                                 <div class="d-flex flex-wrap gap-1" role="group">
                                     <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewBlotter(${b.id})"><i class="bi bi-eye"></i></button>
                                     ${BLOTTER_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editBlotter(${b.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
