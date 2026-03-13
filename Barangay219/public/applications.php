@@ -52,6 +52,13 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
             <div class="col-sm-6 col-lg-2">
+                <div class="stat-card bg-secondary text-white" data-status="under_review" role="button" tabindex="0">
+                    <div class="stat-icon"><i class="bi bi-search"></i></div>
+                    <div class="stat-value" data-stat="under_review">-</div>
+                    <div class="stat-label">Under Review</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
                 <div class="stat-card bg-info text-white" data-status="issued" role="button" tabindex="0">
                     <div class="stat-icon"><i class="bi bi-box-arrow-up-right"></i></div>
                     <div class="stat-value" data-stat="issued">-</div>
@@ -93,6 +100,7 @@ include __DIR__ . '/../includes/sidebar.php';
         <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
             <li class="nav-item"><a class="nav-link active" href="#" data-status="">All</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="pending">Pending</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="under_review">Under Review</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="approved">Approved</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="issued">Released</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
@@ -244,7 +252,32 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div class="modal-body">
                 <input type="hidden" id="releaseId">
-                <p>Assign control number and mark as released?</p>
+                <div class="mb-2 small text-muted">Edit certificate content before issuing.</div>
+                <div class="mb-3">
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="releaseCertName" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Address <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="releaseCertAddress" rows="2" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Purpose <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="releaseCertPurpose" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Certificate Body <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="releaseCertBody" rows="4" required></textarea>
+                    <small class="text-muted">You may edit the certificate wording if necessary. Placeholders will automatically be replaced.</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Date Issued <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="releaseDateIssued" required>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label">Control Number</label>
+                    <input type="text" class="form-control" id="releaseControlNumber" readonly>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -299,6 +332,8 @@ include __DIR__ . '/../includes/sidebar.php';
     let currentStatus = '';
     let currentPage = 1;
     let applicationFilters = { q: '', type: '', from: '', to: '' };
+    let releaseAutoBodyEnabled = true;
+    let releaseLastAutoBody = '';
     const APP_PERMS = {
         canCreate: window.canModulePermission
             ? (window.canModulePermission('applications', 'can_create') || window.canModulePermission('certificates', 'can_create'))
@@ -357,6 +392,9 @@ include __DIR__ . '/../includes/sidebar.php';
                                 ${a.status === 'issued' ? `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print / PDF" aria-label="Print / PDF"><i class="bi bi-printer"></i></a>` : ''}
                                 <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewApp(${a.id})"><i class="bi bi-eye"></i></button>
                                   ${APP_PERMS.canEdit && a.status === 'pending' ? `
+                                      <button class="btn btn-sm btn-secondary" title="Move to Under Review" aria-label="Move to Under Review" onclick="updateStatus(${a.id}, 'under_review')"><i class="bi bi-search"></i></button>
+                                  ` : ''}
+                                  ${APP_PERMS.canEdit && a.status === 'under_review' ? `
                                       <button class="btn btn-sm btn-success" title="Approve" aria-label="Approve" onclick="updateStatus(${a.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
                                       <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="rejectApp(${a.id})"><i class="bi bi-x-lg"></i></button>
                                   ` : ''}
@@ -442,8 +480,68 @@ include __DIR__ . '/../includes/sidebar.php';
       function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
     function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
     function getStatusColor(s) {
-        const c = { 'pending':'warning','approved':'info','issued':'success','rejected':'danger','released':'success' };
+        const c = { 'pending':'warning','under_review':'secondary','approved':'info','issued':'success','rejected':'danger','released':'success' };
         return c[s] || 'secondary';
+    }
+
+    function buildDefaultCertificateTemplate() {
+        return [
+            'TO WHOM IT MAY CONCERN:',
+            '',
+            'This is to certify that [NAME], residing at [ADDRESS], is a bona fide resident of Barangay 219, Tondo, Manila.',
+            '',
+            'This certification is issued upon request for [PURPOSE].',
+            '',
+            'Issued this [DATE_ISSUED] at Barangay 219, Tondo, Manila.',
+            '',
+            'Control No: [CONTROL_NUMBER]'
+        ].join('\n');
+    }
+
+    function formatIssueDateForBody(dateValue) {
+        if (!dateValue) return '';
+        const parsed = new Date(dateValue + 'T00:00:00');
+        if (Number.isNaN(parsed.getTime())) return dateValue;
+        return parsed.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    }
+
+    function replaceBodyPlaceholders(template, values) {
+        return String(template || '')
+            .replace(/\[NAME\]/g, values.name)
+            .replace(/\[ADDRESS\]/g, values.address)
+            .replace(/\[PURPOSE\]/g, values.purpose)
+            .replace(/\[DATE_ISSUED\]/g, values.dateIssued)
+            .replace(/\[CONTROL_NUMBER\]/g, values.controlNumber);
+    }
+
+    function updateReleaseBodyAuto(force = false) {
+        if (!force && !releaseAutoBodyEnabled) return;
+
+        const name = (document.getElementById('releaseCertName')?.value || '').trim();
+        const address = (document.getElementById('releaseCertAddress')?.value || '').trim();
+        const purpose = (document.getElementById('releaseCertPurpose')?.value || '').trim();
+        const dateIssuedRaw = document.getElementById('releaseDateIssued')?.value || '';
+        const controlRaw = (document.getElementById('releaseControlNumber')?.value || '').trim();
+
+        const values = {
+            name: name || '[NAME]',
+            address: address || '[ADDRESS]',
+            purpose: purpose || '[PURPOSE]',
+            dateIssued: formatIssueDateForBody(dateIssuedRaw) || '[DATE_ISSUED]',
+            controlNumber: (controlRaw && !/^Auto-generated/i.test(controlRaw)) ? controlRaw : '[CONTROL_NUMBER]'
+        };
+
+        const body = replaceBodyPlaceholders(buildDefaultCertificateTemplate(), values);
+        const bodyInput = document.getElementById('releaseCertBody');
+        if (bodyInput) {
+            bodyInput.value = body;
+            releaseLastAutoBody = body;
+            releaseAutoBodyEnabled = true;
+        }
     }
 
     function initApplicationStatFilters() {
@@ -483,14 +581,20 @@ include __DIR__ . '/../includes/sidebar.php';
                         <tr><td><strong>Certificate Type</strong></td><td>${esc(toTitleCase((a.certificate_type||'').replace(/_/g,' ')))}</td></tr>
                         <tr><td><strong>Purpose</strong></td><td>${esc(toTitleCase(a.purpose || '-'))}</td></tr>
                         <tr><td><strong>Status</strong></td><td><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td></tr>
+                        <tr><td><strong>Certificate Name</strong></td><td>${esc(a.cert_name) || '-'}</td></tr>
+                        <tr><td><strong>Certificate Address</strong></td><td>${esc(a.cert_address) || '-'}</td></tr>
+                        <tr><td><strong>Certificate Purpose</strong></td><td>${esc(a.cert_purpose) || '-'}</td></tr>
+                        <tr><td><strong>Date Issued</strong></td><td>${formatDate(a.date_issued || a.issued_date) || '-'}</td></tr>
                         <tr><td><strong>Control Number</strong></td><td>${esc(a.control_number) || '-'}</td></tr>
                         <tr><td><strong>Created</strong></td><td>${formatDate(a.created_at)}</td></tr>
-                        <tr><td><strong>Issued Date</strong></td><td>${formatDate(a.issued_date) || '-'}</td></tr>
+                        <tr><td><strong>Approved At</strong></td><td>${formatDate(a.approved_at) || '-'}</td></tr>
                     </table>
                 `;
                 document.getElementById('viewModalBody').innerHTML = html;
                 let footer = '';
                 if (APP_PERMS.canEdit && a.status === 'pending') {
+                    footer = '<button class="btn btn-secondary" onclick="updateStatus('+a.id+',\'under_review\'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Mark Under Review</button>';
+                } else if (APP_PERMS.canEdit && a.status === 'under_review') {
                     footer = '<button class="btn btn-success" onclick="updateStatus('+a.id+',\'approved\'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Approve</button>' +
                         '<button class="btn btn-danger" onclick="rejectApp('+a.id+'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Reject</button>';
                 } else if (APP_PERMS.canEdit && a.status === 'approved') {
@@ -529,16 +633,94 @@ include __DIR__ . '/../includes/sidebar.php';
 
     window.openRelease = function(id) {
         if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
-        document.getElementById('releaseId').value = id;
-        new bootstrap.Modal(document.getElementById('releaseModal')).show();
+        fetch(API_URL + 'certificates.php?action=get&id=' + id)
+            .then(r => r.json())
+            .then(async d => {
+                if (!d.success || !d.data) { alert(d.message || 'Unable to load application'); return; }
+                const a = d.data;
+                document.getElementById('releaseId').value = id;
+                document.getElementById('releaseCertName').value = a.cert_name || toTitleCase(a.resident_name || '');
+                document.getElementById('releaseCertAddress').value = a.cert_address || a.address || '';
+                document.getElementById('releaseCertPurpose').value = a.cert_purpose || a.purpose || '';
+                document.getElementById('releaseDateIssued').value = (a.date_issued || new Date().toISOString().slice(0,10));
+
+                if (a.control_number) {
+                    document.getElementById('releaseControlNumber').value = a.control_number;
+                } else {
+                    try {
+                        const ctrlRes = await fetch(API_URL + 'certificates.php?action=generate_control');
+                        const ctrl = await ctrlRes.json();
+                        document.getElementById('releaseControlNumber').value = ctrl?.data?.control_number || 'Auto-generated on issue';
+                    } catch (e) {
+                        document.getElementById('releaseControlNumber').value = 'Auto-generated on issue';
+                    }
+                }
+
+                const existingBody = (a.cert_body || '').trim();
+                if (existingBody !== '') {
+                    const dateIssuedPretty = formatIssueDateForBody(document.getElementById('releaseDateIssued').value || '');
+                    const resolvedExisting = replaceBodyPlaceholders(existingBody, {
+                        name: (document.getElementById('releaseCertName').value || '').trim(),
+                        address: (document.getElementById('releaseCertAddress').value || '').trim(),
+                        purpose: (document.getElementById('releaseCertPurpose').value || '').trim(),
+                        dateIssued: dateIssuedPretty,
+                        controlNumber: (document.getElementById('releaseControlNumber').value || '').trim()
+                    });
+                    document.getElementById('releaseCertBody').value = resolvedExisting;
+                    releaseAutoBodyEnabled = false;
+                    releaseLastAutoBody = '';
+                } else {
+                    updateReleaseBodyAuto(true);
+                }
+
+                new bootstrap.Modal(document.getElementById('releaseModal')).show();
+            });
     };
+
+    ['releaseCertName', 'releaseCertAddress', 'releaseCertPurpose'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', () => updateReleaseBodyAuto());
+        }
+    });
+
+    const releaseDateInput = document.getElementById('releaseDateIssued');
+    if (releaseDateInput) {
+        releaseDateInput.addEventListener('change', () => updateReleaseBodyAuto());
+    }
+
+    const releaseBodyInput = document.getElementById('releaseCertBody');
+    if (releaseBodyInput) {
+        releaseBodyInput.addEventListener('input', () => {
+            if (!releaseAutoBodyEnabled) return;
+            if (releaseBodyInput.value !== releaseLastAutoBody) {
+                releaseAutoBodyEnabled = false;
+            }
+        });
+    }
 
     document.getElementById('btnRelease').addEventListener('click', function() {
         if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
         const id = document.getElementById('releaseId').value;
+        const certName = document.getElementById('releaseCertName').value.trim();
+        const certAddress = document.getElementById('releaseCertAddress').value.trim();
+        const certPurpose = document.getElementById('releaseCertPurpose').value.trim();
+        const certBody = document.getElementById('releaseCertBody').value.trim();
+        const dateIssued = document.getElementById('releaseDateIssued').value;
+
+        if (!certName || !certAddress || !certPurpose || !certBody || !dateIssued) {
+            alert('Name, address, purpose, certificate body, and date issued are required before issuing.');
+            return;
+        }
+
         const fd = new FormData();
         fd.append('action', 'release');
         fd.append('id', id);
+        fd.append('cert_name', certName);
+        fd.append('cert_address', certAddress);
+        fd.append('cert_purpose', certPurpose);
+        fd.append('cert_body', certBody);
+        fd.append('date_issued', dateIssued);
         fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
             .then(r => r.json())
             .then(d => {
