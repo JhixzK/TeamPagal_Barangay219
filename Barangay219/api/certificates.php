@@ -48,7 +48,8 @@ switch ($action) {
         if (!canPerformModulePermission('certificates', 'can_edit') && !canPerformModulePermission('applications', 'can_edit')) {
             sendResponse(false, 'Access denied', null, 403);
         }
-        generateControlNumber();
+        ensureCertificateSchemaForAdmin();
+        sendResponse(true, 'Control number generated', ['control_number' => generateControlNumber()]);
         break;
     default: sendResponse(false, 'Invalid action', null, 400);
 }
@@ -68,7 +69,7 @@ function generateApplicationRef() {
 function generateControlNumber() {
     $db = Database::getInstance();
     $year = date('Y');
-    $prefix = 'CTRL-' . $year . '-';
+    $prefix = 'BRGY219-' . $year . '-';
     $last = $db->fetchOne("SELECT control_number FROM certificate_requests WHERE control_number LIKE ? ORDER BY id DESC LIMIT 1", [$prefix . '%']);
     $seq = 1;
     if ($last && preg_match('/-(\d+)$/', $last['control_number'], $m)) {
@@ -77,9 +78,70 @@ function generateControlNumber() {
     return $prefix . str_pad($seq, 5, '0', STR_PAD_LEFT);
 }
 
+function ensureCertificateSchemaForAdmin() {
+    $db = Database::getInstance();
+    $db->query(
+        "CREATE TABLE IF NOT EXISTS certificate_requests (
+            id INT(11) NOT NULL AUTO_INCREMENT,
+            resident_id INT(11) NOT NULL,
+            requested_by INT(11) DEFAULT NULL,
+            certificate_type VARCHAR(120) NOT NULL,
+            purpose TEXT DEFAULT NULL,
+            status ENUM('pending','under_review','approved','rejected','issued','cancelled') NOT NULL DEFAULT 'pending',
+            issued_date DATE DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_resident (resident_id),
+            KEY idx_status (status),
+            KEY idx_type (certificate_type)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $columns = $db->fetchAll("SHOW COLUMNS FROM certificate_requests");
+    $map = [];
+    foreach ($columns as $column) {
+        $map[$column['Field']] = $column;
+    }
+
+    $addColumn = function ($name, $definition) use ($db, $map) {
+        if (!isset($map[$name])) {
+            $db->query("ALTER TABLE certificate_requests ADD COLUMN {$name} {$definition}");
+        }
+    };
+
+    $addColumn('reference_number', "VARCHAR(50) NULL");
+    $addColumn('attachment', "VARCHAR(255) NULL");
+    $addColumn('cert_name', "VARCHAR(255) NULL");
+    $addColumn('cert_address', "TEXT NULL");
+    $addColumn('cert_purpose', "TEXT NULL");
+    $addColumn('cert_body', "TEXT NULL");
+    $addColumn('issued_date', "DATE NULL");
+    $addColumn('date_issued', "DATE NULL");
+    $addColumn('control_number', "VARCHAR(50) NULL");
+    $addColumn('approved_at', "DATETIME NULL");
+    $addColumn('admin_id', "INT(11) NULL");
+
+    $db->query("ALTER TABLE certificate_requests MODIFY COLUMN status ENUM('pending','under_review','approved','rejected','issued','cancelled') NOT NULL DEFAULT 'pending'");
+
+    $missingRefs = $db->fetchAll("SELECT id, created_at FROM certificate_requests WHERE reference_number IS NULL OR reference_number = '' ORDER BY id ASC");
+    foreach ($missingRefs as $row) {
+        $id = (int)$row['id'];
+        $year = date('Y', strtotime($row['created_at'] ?: 'now'));
+        $reference = 'REQ-BRGY219-' . $year . '-' . str_pad((string)$id, 5, '0', STR_PAD_LEFT);
+        $db->query("UPDATE certificate_requests SET reference_number = ? WHERE id = ?", [$reference, $id]);
+    }
+
+    $index = $db->fetchOne("SHOW INDEX FROM certificate_requests WHERE Key_name = 'uniq_reference_number'");
+    if (!$index) {
+        $db->query("ALTER TABLE certificate_requests ADD UNIQUE KEY uniq_reference_number (reference_number)");
+    }
+}
+
 function listCertificates() {
     try {
         $db = Database::getInstance();
+        ensureCertificateSchemaForAdmin();
         $status = $_GET['status'] ?? '';
         $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
         $type = sanitizeInput($_GET['type'] ?? '');
@@ -96,7 +158,7 @@ function listCertificates() {
             $where .= " AND (c.application_ref LIKE ? OR c.control_number LIKE ? OR CONCAT(r.first_name, ' ', r.last_name) LIKE ?)";
             $params = array_merge($params, [$term, $term, $term]);
         }
-        if (in_array($status, ['pending', 'approved', 'rejected', 'issued'])) {
+        if (in_array($status, ['pending', 'under_review', 'approved', 'rejected', 'issued', 'cancelled'])) {
             $where .= " AND c.status = ?";
             $params[] = $status;
         }
@@ -148,6 +210,7 @@ function getCertificate() {
     if (!$id) { sendResponse(false, 'ID required', null, 400); return; }
     try {
         $db = Database::getInstance();
+        ensureCertificateSchemaForAdmin();
         $cert = $db->fetchOne("SELECT c.*, CONCAT(r.first_name, ' ', COALESCE(r.middle_name,''), ' ', r.last_name) as resident_name,
             r.address, r.birth_date, r.gender, r.civil_status, r.occupation, r.contact_number, r.citizenship
             FROM certificate_requests c LEFT JOIN residents r ON c.resident_id = r.id WHERE c.id = ?", [$id]);
@@ -169,13 +232,16 @@ function createCertificate() {
     if (!in_array($certificate_type, $allowed)) { sendResponse(false, 'Invalid certificate type', null, 400); return; }
     try {
         $db = Database::getInstance();
-        // Use minimal INSERT - works without migration (no application_ref, remarks columns)
-        $db->query("INSERT INTO certificate_requests (resident_id, requested_by, certificate_type, purpose, status) VALUES (?, ?, ?, ?, 'pending')",
-            [$resident_id, getCurrentUserId(), $certificate_type, $purpose ?: null]);
+        ensureCertificateSchemaForAdmin();
+        $referenceNumber = 'REQ-BRGY219-' . date('Y') . '-TMP';
+        $db->query("INSERT INTO certificate_requests (resident_id, requested_by, certificate_type, purpose, status, reference_number) VALUES (?, ?, ?, ?, 'pending', ?)",
+            [$resident_id, getCurrentUserId(), $certificate_type, $purpose ?: null, $referenceNumber]);
         $id = $db->lastInsertId();
         $appRef = 'APP-' . $id . '-' . date('Y');
+        $referenceNumber = 'REQ-BRGY219-' . date('Y') . '-' . str_pad((string)$id, 5, '0', STR_PAD_LEFT);
+        $db->query("UPDATE certificate_requests SET reference_number = ? WHERE id = ?", [$referenceNumber, $id]);
         logActivity('create', 'certificates', $id, ['application_ref' => $appRef, 'certificate_type' => $certificate_type]);
-        sendResponse(true, 'Application created', ['id' => $id, 'application_ref' => $appRef]);
+        sendResponse(true, 'Application created', ['id' => $id, 'application_ref' => $appRef, 'reference_number' => $referenceNumber]);
     } catch (Exception $e) {
         sendResponse(false, 'Error creating: ' . $e->getMessage(), null, 500);
     }
@@ -187,13 +253,45 @@ function updateCertificate() {
     $status = sanitizeInput($_POST['status'] ?? '');
     $remarks = sanitizeInput($_POST['remarks'] ?? '');
     if (!$id) { sendResponse(false, 'ID required', null, 400); return; }
-    $allowed = ['pending', 'approved', 'rejected', 'issued'];
+    $allowed = ['under_review', 'approved', 'rejected', 'issued'];
     if (!in_array($status, $allowed)) { sendResponse(false, 'Invalid status', null, 400); return; }
     try {
         $db = Database::getInstance();
+        ensureCertificateSchemaForAdmin();
+        $current = $db->fetchOne("SELECT status FROM certificate_requests WHERE id = ?", [$id]);
+        if (!$current) {
+            sendResponse(false, 'Application not found', null, 404);
+            return;
+        }
+
+        $currentStatus = (string)($current['status'] ?? 'pending');
+        $transitions = [
+            'pending' => ['under_review', 'rejected'],
+            'under_review' => ['approved', 'rejected'],
+            'approved' => ['issued'],
+            'rejected' => [],
+            'issued' => [],
+            'cancelled' => []
+        ];
+
+        if (!in_array($status, $transitions[$currentStatus] ?? [], true)) {
+            sendResponse(false, 'Invalid status transition', null, 400);
+            return;
+        }
+
         $updates = ["status = ?"];
         $params = [$status];
-        if ($status === 'issued') { $updates[] = "issued_date = CURDATE()"; }
+        if ($status === 'approved') {
+            $updates[] = "approved_at = NOW()";
+            $updates[] = "admin_id = ?";
+            $params[] = (int)getCurrentUserId();
+        }
+        if ($status === 'issued') {
+            $updates[] = "issued_date = CURDATE()";
+            $updates[] = "date_issued = CURDATE()";
+            $updates[] = "admin_id = ?";
+            $params[] = (int)getCurrentUserId();
+        }
         $cols = $db->getConnection()->query("SHOW COLUMNS FROM certificate_requests LIKE 'remarks'")->fetchAll();
         if (!empty($cols) && $remarks !== '') { $updates[] = "remarks = ?"; $params[] = $remarks; }
         $params[] = $id;
@@ -211,7 +309,8 @@ function approveCertificate() {
     if (!$id) { sendResponse(false, 'ID required', null, 400); return; }
     try {
         $db = Database::getInstance();
-        $db->query("UPDATE certificate_requests SET status = 'approved' WHERE id = ?", [$id]);
+        ensureCertificateSchemaForAdmin();
+        $db->query("UPDATE certificate_requests SET status = 'approved', approved_at = NOW(), admin_id = ? WHERE id = ? AND status = 'under_review'", [(int)getCurrentUserId(), $id]);
         logActivity('approve', 'certificates', $id);
         sendResponse(true, 'Approved');
     } catch (Exception $e) {
@@ -226,6 +325,7 @@ function rejectCertificate() {
     if (!$id) { sendResponse(false, 'ID required', null, 400); return; }
     try {
         $db = Database::getInstance();
+        ensureCertificateSchemaForAdmin();
         $cols = $db->getConnection()->query("SHOW COLUMNS FROM certificate_requests LIKE 'remarks'")->fetchAll();
         if (!empty($cols) && $reason) {
             $db->query("UPDATE certificate_requests SET status = 'rejected', remarks = ? WHERE id = ?", [$reason, $id]);
@@ -243,11 +343,63 @@ function releaseCertificate() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') { sendResponse(false, 'POST required', null, 405); return; }
     $id = intval($_POST['id'] ?? 0);
     if (!$id) { sendResponse(false, 'ID required', null, 400); return; }
+    $certName = sanitizeInput($_POST['cert_name'] ?? '');
+    $certAddress = sanitizeInput($_POST['cert_address'] ?? '');
+    $certPurpose = sanitizeInput($_POST['cert_purpose'] ?? '');
+    $certBody = trim((string)($_POST['cert_body'] ?? ''));
+    $dateIssued = sanitizeInput($_POST['date_issued'] ?? '');
+
+    if ($certName === '' || $certAddress === '' || $certPurpose === '' || $certBody === '') {
+        sendResponse(false, 'Certificate name, address, purpose, and body are required before issuing.', null, 400);
+        return;
+    }
+
+    if ($dateIssued !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateIssued)) {
+        sendResponse(false, 'Invalid date issued format.', null, 400);
+        return;
+    }
+
     try {
         $db = Database::getInstance();
-        // Use minimal UPDATE - works without control_number column
-        $db->query("UPDATE certificate_requests SET status = 'issued', issued_date = CURDATE() WHERE id = ? AND status = 'approved'", [$id]);
-        $ctrlNum = 'CTRL-' . $id . '-' . date('Y');
+        ensureCertificateSchemaForAdmin();
+        $row = $db->fetchOne("SELECT status FROM certificate_requests WHERE id = ?", [$id]);
+        if (!$row) {
+            sendResponse(false, 'Application not found', null, 404);
+            return;
+        }
+        if (($row['status'] ?? '') !== 'approved') {
+            sendResponse(false, 'Only approved applications can be issued.', null, 400);
+            return;
+        }
+
+        $ctrlNum = generateControlNumber();
+        $issueDateSql = $dateIssued !== '' ? $dateIssued : date('Y-m-d');
+
+        $db->query(
+            "UPDATE certificate_requests
+             SET status = 'issued',
+                 cert_name = ?,
+                 cert_address = ?,
+                 cert_purpose = ?,
+                 cert_body = ?,
+                 date_issued = ?,
+                 issued_date = ?,
+                 control_number = ?,
+                 admin_id = ?,
+                 approved_at = COALESCE(approved_at, NOW())
+             WHERE id = ? AND status = 'approved'",
+            [
+                $certName,
+                $certAddress,
+                $certPurpose,
+                $certBody,
+                $issueDateSql,
+                $issueDateSql,
+                $ctrlNum,
+                (int)getCurrentUserId(),
+                $id
+            ]
+        );
         try { logActivity('release', 'certificates', $id, ['control_number' => $ctrlNum]); } catch (Exception $e) { }
         sendResponse(true, 'Released', ['control_number' => $ctrlNum]);
     } catch (Exception $e) {
