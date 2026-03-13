@@ -313,9 +313,9 @@ function deleteHousehold() {
 }
 
 /**
- * Add household member (new table structure)
+ * Add household member record (household_members table)
  */
-function addHouseholdMember() {
+function addHouseholdMemberRecord() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         sendResponse(false, 'Invalid request method', null, 405);
         return;
@@ -384,7 +384,7 @@ function addHouseholdMember() {
         sendResponse(true, 'Household member added successfully');
         
     } catch (Exception $e) {
-        error_log("Add household member error: " . $e->getMessage());
+        error_log("Add household member record error: " . $e->getMessage());
         sendResponse(false, 'Error adding household member: ' . $e->getMessage(), null, 500);
     }
 }

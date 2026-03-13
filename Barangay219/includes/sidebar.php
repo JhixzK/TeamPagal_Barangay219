@@ -132,7 +132,7 @@ if (empty($avatar_path)) {
                     </div>
                     <small style="color:#6c757d;">
                         <span class="badge bg-light text-dark" style="font-size:0.75rem;">
-                            <?php echo ucfirst(str_replace('_', ' ', getCurrentUserRole() ?? '')); ?>
+                            <?php echo ucfirst(str_replace('_', ' ', getEffectiveUserRole() ?? '')); ?>
                         </span>
                     </small>
                 </div>

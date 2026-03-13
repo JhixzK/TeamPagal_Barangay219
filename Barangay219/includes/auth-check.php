@@ -48,8 +48,76 @@ function getCurrentUserRole() {
     return $_SESSION['role'] ?? null;
 }
 
+/**
+ * Get current user role (real role from session)
+ */
+function getRealUserRole() {
+    return $_SESSION['role'] ?? null;
+}
+
 function normalizeRole($role) {
     return $role !== null ? strtolower(trim((string)$role)) : null;
+}
+
+/**
+ * Get current view mode for non-resident users
+ */
+function getViewMode() {
+    if (!isLoggedIn()) {
+        return 'official';
+    }
+
+    $realRole = normalizeRole(getRealUserRole());
+    if ($realRole === normalizeRole(ROLE_RESIDENT)) {
+        return 'resident';
+    }
+
+    $mode = $_SESSION['view_mode'] ?? 'official';
+    return $mode === 'resident' ? 'resident' : 'official';
+}
+
+/**
+ * Check if current session is in resident view mode
+ */
+function isResidentView() {
+    return getViewMode() === 'resident';
+}
+
+/**
+ * Check if current user can switch view mode
+ */
+function canSwitchToResidentView() {
+    if (!isLoggedIn()) {
+        return false;
+    }
+
+    $realRole = normalizeRole(getRealUserRole());
+    return $realRole !== null && $realRole !== normalizeRole(ROLE_RESIDENT);
+}
+
+/**
+ * Set view mode for non-resident users
+ */
+function setViewMode($mode) {
+    if (!canSwitchToResidentView()) {
+        $_SESSION['view_mode'] = 'official';
+        return false;
+    }
+
+    $mode = $mode === 'resident' ? 'resident' : 'official';
+    $_SESSION['view_mode'] = $mode;
+    return true;
+}
+
+/**
+ * Effective role (real role or resident if in resident view)
+ */
+function getEffectiveUserRole() {
+    $realRole = normalizeRole(getRealUserRole());
+    if ($realRole === normalizeRole(ROLE_RESIDENT)) {
+        return ROLE_RESIDENT;
+    }
+    return isResidentView() ? ROLE_RESIDENT : $realRole;
 }
 
 /**
@@ -63,14 +131,14 @@ function getCurrentUsername() {
  * Check if user has specific role
  */
 function hasRole($role) {
-    return normalizeRole(getCurrentUserRole()) === normalizeRole($role);
+    return normalizeRole(getEffectiveUserRole()) === normalizeRole($role);
 }
 
 /**
  * Check if user has any of the specified roles
  */
 function hasAnyRole($roles) {
-    $userRole = normalizeRole(getCurrentUserRole());
+    $userRole = normalizeRole(getEffectiveUserRole());
     $normalized = array_map('normalizeRole', $roles);
     return in_array($userRole, $normalized, true);
 }
@@ -119,7 +187,7 @@ function canAccessModule($module) {
         return false;
     }
 
-    $role = normalizeRole(getCurrentUserRole());
+    $role = normalizeRole(getEffectiveUserRole());
     if ($role === ROLE_BARANGAY_CAPTAIN) {
         return true;
     }
@@ -144,8 +212,7 @@ function requireModuleAccess($module) {
     requireLogin();
     if (!canAccessModule($module)) {
         // Avoid self-redirect loops on pages that already live at dashboard.php.
-        $role = normalizeRole(getCurrentUserRole());
-        if ($role === normalizeRole(ROLE_RESIDENT)) {
+        if (isResidentView()) {
             header('Location: ' . BASE_URL . 'resident_dashboard.php?error=access_denied');
         } else {
             header('Location: ' . BASE_URL . 'home.php?error=access_denied');
@@ -162,7 +229,7 @@ function canPerformModulePermission($module, $permission) {
         return false;
     }
 
-    $role = normalizeRole(getCurrentUserRole());
+    $role = normalizeRole(getEffectiveUserRole());
     if ($role === ROLE_BARANGAY_CAPTAIN) {
         return true;
     }
