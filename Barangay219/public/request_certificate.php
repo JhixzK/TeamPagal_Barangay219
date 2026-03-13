@@ -171,6 +171,24 @@ function rcPrettyLabel($value) {
     return ucwords(trim($value));
 }
 
+function rcFormatPhone($value) {
+    $raw = trim((string)$value);
+    if ($raw === '') {
+        return '';
+    }
+    $digits = preg_replace('/\D+/', '', $raw);
+    if (strpos($digits, '63') === 0) {
+        $digits = substr($digits, 2);
+    }
+    if (strpos($digits, '0') === 0) {
+        $digits = substr($digits, 1);
+    }
+    $digits = substr($digits, 0, 10);
+    if (strlen($digits) < 10) {
+        return $raw;
+    }
+    return '+63 ' . $digits;
+}
 $certificateOptions = [
     'Barangay Clearance',
     'Certificate of Indigency',
@@ -310,7 +328,7 @@ if ($mysqli && $residentId > 0) {
             $residentFullAddress = (string)($row['address'] ?: 'Barangay 219, Tondo, Manila');
             $civilStatus = rcPrettyLabel($row['civil_status'] ?? '');
             $gender = rcPrettyLabel($row['gender'] ?? '');
-            $contactNumber = (string)($row['contact_number'] ?? '');
+            $contactNumber = rcFormatPhone($row['contact_number'] ?? '');
 
             $statusRaw = strtolower(trim((string)($row['verification_status'] ?: $row['status'] ?: $row['record_status'])));
             $eligibility['resident_verified'] = in_array($statusRaw, ['active', 'approved', 'verified'], true);
