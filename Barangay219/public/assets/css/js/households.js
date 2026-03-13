@@ -30,16 +30,20 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initHouseholdStatFilters() {
-    const container = document.querySelector('.module-stats[data-module="households"]');
-    if (!container) return;
-    container.querySelectorAll('[data-range]').forEach(card => {
-        const handleClick = () => {
-            const range = card.getAttribute('data-range') || 'all';
+    const tabs = document.querySelectorAll('#rangeTabs .nav-link');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            const range = this.getAttribute('data-range') || 'all';
             const fromInput = document.getElementById('filterFrom');
             const toInput = document.getElementById('filterTo');
             const today = new Date();
             let fromVal = '';
             let toVal = '';
+
             if (range === 'month') {
                 fromVal = formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
                 toVal = formatDateInput(today);
@@ -47,18 +51,12 @@ function initHouseholdStatFilters() {
                 fromVal = formatDateInput(new Date(today.getFullYear(), 0, 1));
                 toVal = formatDateInput(today);
             }
+
             householdFilters.from = fromVal;
             householdFilters.to = toVal;
             if (fromInput) fromInput.value = fromVal;
             if (toInput) toInput.value = toVal;
             loadHouseholds();
-        };
-        card.addEventListener('click', handleClick);
-        card.addEventListener('keypress', e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleClick();
-            }
         });
     });
 }
@@ -120,6 +118,7 @@ function searchHouseholds() {
 function applyFilters() {
     householdFilters.from = document.getElementById('filterFrom')?.value || '';
     householdFilters.to = document.getElementById('filterTo')?.value || '';
+    syncHouseholdRangeTabs();
     loadHouseholds();
     const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
     if (modal) modal.hide();
@@ -133,7 +132,26 @@ function resetHouseholds() {
     const toInput = document.getElementById('filterTo');
     if (fromInput) fromInput.value = '';
     if (toInput) toInput.value = '';
+    syncHouseholdRangeTabs();
     loadHouseholds();
+}
+
+function syncHouseholdRangeTabs() {
+    const today = new Date();
+    const monthFrom = formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
+    const yearFrom = formatDateInput(new Date(today.getFullYear(), 0, 1));
+    const todayVal = formatDateInput(today);
+
+    let activeRange = 'all';
+    if (householdFilters.from === monthFrom && householdFilters.to === todayVal) {
+        activeRange = 'month';
+    } else if (householdFilters.from === yearFrom && householdFilters.to === todayVal) {
+        activeRange = 'year';
+    }
+
+    document.querySelectorAll('#rangeTabs .nav-link').forEach(tab => {
+        tab.classList.toggle('active', (tab.getAttribute('data-range') || 'all') === activeRange);
+    });
 }
 
 function loadResidentsForDropdown() {
