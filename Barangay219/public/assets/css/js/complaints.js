@@ -45,13 +45,13 @@ function loadComplaints() {
                 const list = d.data.complaints || d.data || [];
                 tbody.innerHTML = list.map(c => `
                     <tr>
-                        <td>${c.id}</td>
-                        <td>${escapeHtml(toTitleCase(c.title || c.complaint_title || '-'))}</td>
-                        <td>${escapeHtml(toTitleCase(c.complainant_name || '-'))}</td>
-                        <td>${escapeHtml(toTitleCase(c.resident_name || '-'))}</td>
-                        <td>${formatDate(c.date_submitted || c.filing_date)}</td>
-                        <td><span class="badge bg-${getStatusColor(c.status)}">${escapeHtml(formatComplaintStatus(c.status))}</span></td>
-                        <td>
+                        <td class="text-center">${c.id}</td>
+                        <td class="text-center">${escapeHtml(toTitleCase(c.title || c.complaint_title || '-'))}</td>
+                        <td class="text-center">${escapeHtml(toTitleCase(c.complainant_name || '-'))}</td>
+                        <td class="text-center">${escapeHtml(toTitleCase(c.resident_name || '-'))}</td>
+                        <td class="text-center">${formatDate(c.date_submitted || c.filing_date)}</td>
+                        <td class="text-center"><span class="badge bg-${getStatusColor(c.status)}">${escapeHtml(formatComplaintStatus(c.status))}</span></td>
+                        <td class="text-center">
                             <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewComplaint(${c.id})"><i class="bi bi-eye"></i></button>
                             ${COMPLAINT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editComplaint(${c.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
                             ${COMPLAINT_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteComplaint(${c.id})"><i class="bi bi-trash"></i></button>` : ''}
