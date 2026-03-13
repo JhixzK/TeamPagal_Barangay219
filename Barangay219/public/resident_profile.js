@@ -97,6 +97,40 @@ function bytesToReadable(size) {
   return `${(size / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+function normalizePhoneDigits(raw) {
+  if (!raw) return "";
+  let digits = String(raw).replace(/\D/g, "");
+  if (digits.startsWith("63")) digits = digits.slice(2);
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  return digits.slice(0, 10);
+}
+
+function formatPhoneInput(raw) {
+  const digits = normalizePhoneDigits(raw);
+  return `+63 ${digits}`;
+}
+
+function initPhoneInputs() {
+  const phoneSelectors = [
+    'input[name="contact_number"]',
+    'input[name="emergency_contact_number"]'
+  ];
+  phoneSelectors.forEach((selector) => {
+    const field = document.querySelector(selector);
+    if (!field) return;
+    if (!field.value || field.value.trim() === "+63") {
+      field.value = "+63 ";
+    }
+    field.addEventListener("input", () => {
+      field.value = formatPhoneInput(field.value);
+    });
+    field.addEventListener("blur", () => {
+      const digits = normalizePhoneDigits(field.value);
+      field.value = digits ? `+63 ${digits}` : "+63 ";
+    });
+  });
+}
+
 function previewVerificationFile() {
   if (!verificationIdInput || !verificationPreview) {
     return;
@@ -142,6 +176,8 @@ function initProfilePage() {
   if (verificationIdInput) {
     verificationIdInput.addEventListener("change", previewVerificationFile);
   }
+
+  initPhoneInputs();
 
   window.addEventListener("resize", () => {
     if (window.innerWidth > 991 && sidebar) {
