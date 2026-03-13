@@ -41,22 +41,17 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initResidentStatFilters() {
-    const container = document.querySelector('.module-stats[data-module="residents"]');
-    if (!container) return;
-    container.querySelectorAll('[data-status]').forEach(card => {
-        const handleClick = () => {
-            const status = card.getAttribute('data-status') || '';
+    const tabs = document.querySelectorAll('#statusTabs .nav-link');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            const status = this.getAttribute('data-status') || '';
             residentFilters.status = status;
             const statusSel = document.getElementById('filterStatus');
             if (statusSel) statusSel.value = status;
             loadResidents(1);
-        };
-        card.addEventListener('click', handleClick);
-        card.addEventListener('keypress', e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleClick();
-            }
         });
     });
 }
@@ -290,6 +285,7 @@ function applyFilters() {
     residentFilters.gender = document.getElementById('filterGender')?.value || '';
     residentFilters.age_from = document.getElementById('filterAgeFrom')?.value || '';
     residentFilters.age_to = document.getElementById('filterAgeTo')?.value || '';
+    syncResidentStatusTabs();
     loadResidents(1);
     const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
     if (modal) modal.hide();
@@ -307,7 +303,15 @@ function resetResidents() {
     if (genderSel) genderSel.value = '';
     if (ageFrom) ageFrom.value = '';
     if (ageTo) ageTo.value = '';
+    syncResidentStatusTabs();
     loadResidents(1);
+}
+
+function syncResidentStatusTabs() {
+    document.querySelectorAll('#statusTabs .nav-link').forEach(tab => {
+        const tabStatus = tab.getAttribute('data-status') || '';
+        tab.classList.toggle('active', tabStatus === (residentFilters.status || ''));
+    });
 }
 
 /**
