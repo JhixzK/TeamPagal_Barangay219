@@ -102,13 +102,13 @@ include __DIR__ . '/../includes/sidebar.php';
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>Ref #</th>
-                        <th>Resident</th>
-                        <th>Type</th>
-                        <th>Purpose</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th class="text-center">Ref #</th>
+                        <th class="text-center">Resident</th>
+                        <th class="text-center">Type</th>
+                        <th class="text-center">Purpose</th>
+                        <th class="text-center">Date</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="applicationsTableBody">
@@ -345,26 +345,26 @@ include __DIR__ . '/../includes/sidebar.php';
                 if (apps.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No applications found.</td></tr>';
                 } else {
-                    tbody.innerHTML = apps.map(a => `
-                        <tr>
-                            <td><code>${esc(a.application_ref || 'APP-'+a.id)}</code></td>
-                            <td>${esc(a.resident_name || '-')}</td>
-                            <td>${esc((a.certificate_type || '').replace(/_/g, ' '))}</td>
-                            <td>${esc((a.purpose || '').substring(0,30))}${(a.purpose||'').length>30?'...':''}</td>
-                            <td>${formatDate(a.created_at)}</td>
-                            <td><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td>
-                            <td>
+                      tbody.innerHTML = apps.map(a => `
+                          <tr>
+                              <td class="text-center"><code>${esc(a.application_ref || 'APP-'+a.id)}</code></td>
+                              <td class="text-center">${esc(toTitleCase(a.resident_name || '-'))}</td>
+                              <td class="text-center">${esc(toTitleCase((a.certificate_type || '').replace(/_/g, ' ')))}</td>
+                              <td class="text-center">${esc(toTitleCase((a.purpose || '').substring(0,30)))}${(a.purpose||'').length>30?'...':''}</td>
+                              <td class="text-center">${formatDate(a.created_at)}</td>
+                              <td class="text-center"><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td>
+                              <td class="text-center">
                                 ${a.status === 'issued' ? `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print / PDF" aria-label="Print / PDF"><i class="bi bi-printer"></i></a>` : ''}
                                 <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewApp(${a.id})"><i class="bi bi-eye"></i></button>
-                                ${APP_PERMS.canEdit && a.status === 'pending' ? `
-                                <button class="btn btn-sm btn-success" title="Approve" aria-label="Approve" onclick="updateStatus(${a.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
-                                <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="rejectApp(${a.id})"><i class="bi bi-x-lg"></i></button>
-                                ` : ''}
-                                ${APP_PERMS.canEdit && a.status === 'approved' ? `<button class="btn btn-sm btn-info" title="Release" aria-label="Release" onclick="openRelease(${a.id})"><i class="bi bi-box-arrow-up-right"></i></button>` : ''}
-                                ${a.status === 'issued' ? (a.control_number ? `<small>${esc(a.control_number)}</small>` : '') : ''}
-                            </td>
-                        </tr>
-                    `).join('');
+                                  ${APP_PERMS.canEdit && a.status === 'pending' ? `
+                                      <button class="btn btn-sm btn-success" title="Approve" aria-label="Approve" onclick="updateStatus(${a.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
+                                      <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="rejectApp(${a.id})"><i class="bi bi-x-lg"></i></button>
+                                  ` : ''}
+                                  ${APP_PERMS.canEdit && a.status === 'approved' ? `<button class="btn btn-sm btn-info" title="Release" aria-label="Release" onclick="openRelease(${a.id})"><i class="bi bi-box-arrow-up-right"></i></button>` : ''}
+                                  ${a.status === 'issued' ? (a.control_number ? `<small>${esc(a.control_number)}</small>` : '') : ''}
+                              </td>
+                          </tr>
+                      `).join('');
                 }
                 const totalPages = data.data.total_pages || 1;
                 renderPagination(totalPages, data.data.page || 1);
@@ -422,7 +422,24 @@ include __DIR__ . '/../includes/sidebar.php';
         loadApplications();
     };
 
-    function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+      function toTitleCase(text) {
+          if (!text) return '';
+          return String(text)
+              .trim()
+              .split(/\s+/)
+              .map(word => {
+                  if (!word) return '';
+                  const clean = word.replace(/[^a-zA-Z]/g, '');
+                  if (clean.length > 0 && clean === clean.toUpperCase() && clean.length <= 3) {
+                      return word;
+                  }
+                  const first = word.charAt(0).toUpperCase();
+                  const rest = word.slice(1).toLowerCase();
+                  return first + rest;
+              })
+              .join(' ');
+      }
+      function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
     function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
     function getStatusColor(s) {
         const c = { 'pending':'warning','approved':'info','issued':'success','rejected':'danger','released':'success' };
@@ -462,9 +479,9 @@ include __DIR__ . '/../includes/sidebar.php';
                 document.getElementById('viewAppRef').textContent = a.application_ref || 'APP-' + a.id;
                 const html = `
                     <table class="table table-sm">
-                        <tr><td><strong>Resident</strong></td><td>${esc(a.resident_name)}</td></tr>
-                        <tr><td><strong>Certificate Type</strong></td><td>${esc((a.certificate_type||'').replace(/_/g,' '))}</td></tr>
-                        <tr><td><strong>Purpose</strong></td><td>${esc(a.purpose) || '-'}</td></tr>
+                        <tr><td><strong>Resident</strong></td><td>${esc(toTitleCase(a.resident_name || '-'))}</td></tr>
+                        <tr><td><strong>Certificate Type</strong></td><td>${esc(toTitleCase((a.certificate_type||'').replace(/_/g,' ')))}</td></tr>
+                        <tr><td><strong>Purpose</strong></td><td>${esc(toTitleCase(a.purpose || '-'))}</td></tr>
                         <tr><td><strong>Status</strong></td><td><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td></tr>
                         <tr><td><strong>Control Number</strong></td><td>${esc(a.control_number) || '-'}</td></tr>
                         <tr><td><strong>Created</strong></td><td>${formatDate(a.created_at)}</td></tr>
@@ -557,8 +574,8 @@ include __DIR__ . '/../includes/sidebar.php';
         fd.append('action', 'create');
         fd.append('resident_id', residentId);
         fd.append('certificate_type', certType);
-        fd.append('purpose', purpose);
-        fd.append('remarks', remarks);
+        fd.append('purpose', toTitleCase(purpose));
+        fd.append('remarks', toTitleCase(remarks));
         this.disabled = true;
         fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
             .then(r => r.json())
