@@ -573,7 +573,7 @@ $valid_id_types = [
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label>Mobile Number <span class="text-danger">*</span></label>
-                                            <input type="tel" name="mobile_number" class="form-control" maxlength="11" inputmode="numeric" autocomplete="tel" required placeholder="09xxxxxxxxx">
+                                            <input type="tel" name="mobile_number" class="form-control" maxlength="14" inputmode="numeric" autocomplete="tel" required placeholder="+63 9XXXXXXXXX" value="+63 ">
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label>Email Address</label>
@@ -629,7 +629,7 @@ $valid_id_types = [
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label>Number <span class="text-danger">*</span></label>
-                                            <input type="tel" name="emergency_contact_number" class="form-control" maxlength="11" inputmode="numeric" required placeholder="09xxxxxxxxx">
+                                            <input type="tel" name="emergency_contact_number" class="form-control" maxlength="14" inputmode="numeric" required placeholder="+63 9XXXXXXXXX" value="+63 ">
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label>Relationship <span class="text-danger">*</span></label>
@@ -873,16 +873,33 @@ nameFields.forEach(fieldName => {
     }
 });
 
-// Professional number field validation - Digits only for phone numbers
+// Phone field formatting - enforce +63 prefix with space
+function normalizePhoneDigits(raw) {
+    if (!raw) return '';
+    let digits = String(raw).replace(/\D/g, '');
+    if (digits.startsWith('63')) digits = digits.slice(2);
+    if (digits.startsWith('0')) digits = digits.slice(1);
+    return digits.slice(0, 10);
+}
+
+function formatPhoneInput(raw) {
+    const digits = normalizePhoneDigits(raw);
+    return '+63 ' + digits;
+}
+
 const phoneFields = ['mobile_number', 'emergency_contact_number'];
 phoneFields.forEach(fieldName => {
     const field = document.querySelector(`input[name="${fieldName}"]`);
     if (field) {
+        if (!field.value || field.value.trim() === '+63') {
+            field.value = '+63 ';
+        }
         field.addEventListener('input', function() {
-            // Remove all non-digits
-            let digits = this.value.replace(/[^0-9]/g, '');
-            // Limit to 11 digits (Philippine standard)
-            this.value = digits.slice(0, 11);
+            this.value = formatPhoneInput(this.value);
+        });
+        field.addEventListener('blur', function() {
+            const digits = normalizePhoneDigits(this.value);
+            this.value = digits ? ('+63 ' + digits) : '+63 ';
         });
     }
 });
@@ -1127,14 +1144,14 @@ function validateStep(step) {
 
         // Validate mobile number format
         const mobile = document.querySelector('input[name="mobile_number"]');
-        if (mobile.value && !/^09\d{9}$/.test(mobile.value)) {
+        if (mobile.value && !/^\+63\s\d{10}$/.test(mobile.value)) {
             mobile.classList.add('is-invalid');
             isValid = false;
         }
 
         // Validate emergency contact number format
         const emergencyContact = document.querySelector('input[name="emergency_contact_number"]');
-        if (emergencyContact.value && !/^09\d{9}$/.test(emergencyContact.value)) {
+        if (emergencyContact.value && !/^\+63\s\d{10}$/.test(emergencyContact.value)) {
             emergencyContact.classList.add('is-invalid');
             isValid = false;
         }
