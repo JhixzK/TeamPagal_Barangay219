@@ -189,8 +189,25 @@ function displayResidents(residents) {
         tbody.innerHTML = '<tr><td colspan="9" class="text-center">No residents found</td></tr>';
         return;
     }
-    
-    tbody.innerHTML = residents.map(resident => {
+
+    const statusRank = status => {
+        const s = String(status || '').toLowerCase();
+        if (s === 'active') return 0;
+        if (s === 'inactive') return 2;
+        return 1;
+    };
+
+    const sortedResidents = residents
+        .map((resident, idx) => ({ resident, idx }))
+        .sort((a, b) => {
+            const ra = statusRank(a.resident.status);
+            const rb = statusRank(b.resident.status);
+            if (ra !== rb) return ra - rb;
+            return a.idx - b.idx;
+        })
+        .map(item => item.resident);
+
+    tbody.innerHTML = sortedResidents.map(resident => {
         const rawFullName = `${resident.first_name || ''} ${resident.middle_name || ''} ${resident.last_name || ''} ${resident.suffix || ''}`.trim();
         const fullName = escapeHtml(toTitleCase(rawFullName));
         const age = calculateAge(resident.birth_date);
