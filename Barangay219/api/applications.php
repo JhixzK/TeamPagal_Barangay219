@@ -138,9 +138,19 @@ function listApplications() {
         $selectSex = $sexCol ? "`$sexCol` AS sex" : "NULL AS sex";
         $selectStatus = "`$statusCol` AS record_status";
         $selectReviewedAt = isset($cols['reviewed_at']) ? "reviewed_at" : "NULL AS reviewed_at";
+        $relCol = isset($cols['relationship_to_head']) ? 'relationship_to_head' : null;
+        $roleCol = isset($cols['household_role']) ? 'household_role' : null;
+        if ($relCol && $roleCol) {
+            $selectRelationship = "COALESCE(NULLIF(`$relCol`, ''), `$roleCol`) AS relationship_to_head";
+        } elseif ($relCol) {
+            $selectRelationship = "`$relCol` AS relationship_to_head";
+        } else {
+            $selectRelationship = "NULL AS relationship_to_head";
+        }
+        $selectHouseholdRole = $roleCol ? "`$roleCol` AS household_role" : "NULL AS household_role";
 
         $sql = "SELECT id, application_ref, first_name, middle_name, last_name, suffix, $selectSex, birth_date,
-                       civil_status, mobile_number, email, barangay, city, $selectStatus,
+                       civil_status, mobile_number, email, barangay, city, $selectRelationship, $selectHouseholdRole, family_code, $selectStatus,
                        created_at, $selectReviewedAt
                 FROM resident_applications
                 WHERE $where
@@ -297,6 +307,37 @@ function approveApplication() {
         $db->query("INSERT INTO residents ($resColSql) VALUES ($resPlaceholders)", $resInsertParams);
 
         $residentId = $db->lastInsertId();
+
+        // Auto-create household when applicant is Head of Household
+        $roleRaw = strtolower(trim((string)($app['relationship_to_head'] ?? $app['household_role'] ?? '')));
+        $isHead = $roleRaw !== '' && (strpos($roleRaw, 'head') !== false || strpos($roleRaw, 'single') !== false);
+        if ($isHead && tableExists($db, 'households')) {
+            $householdCols = array_flip(getTableColumns($db, 'households'));
+            if (isset($householdCols['family_head_id']) && isset($householdCols['address'])) {
+                $householdAddress = $address ?: trim((string)($app['barangay'] ?? ''));
+                $householdMembers = isset($app['household_members']) ? (int)$app['household_members'] : 1;
+                $householdMembers = max(1, $householdMembers);
+
+                $hhCols = ['family_head_id', 'address', 'total_members', 'registration_date'];
+                $hhValues = [$residentId, $householdAddress, $householdMembers, date('Y-m-d')];
+                // Keep only columns that exist
+                $finalCols = [];
+                $finalVals = [];
+                foreach ($hhCols as $idx => $col) {
+                    if (isset($householdCols[$col])) {
+                        $finalCols[] = $col;
+                        $finalVals[] = $hhValues[$idx];
+                    }
+                }
+                if ($finalCols) {
+                    $hhColSql = '`' . implode('`,`', $finalCols) . '`';
+                    $hhPlaceholders = implode(',', array_fill(0, count($finalCols), '?'));
+                    $db->query("INSERT INTO households ($hhColSql) VALUES ($hhPlaceholders)", $finalVals);
+                    $householdId = $db->lastInsertId();
+                    $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $residentId]);
+                }
+            }
+        }
 
         // Create user account with Resident ID as username, placeholder password until activation
         $activationToken = bin2hex(random_bytes(32));
