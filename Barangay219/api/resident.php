@@ -100,7 +100,8 @@ function listResidents() {
         $total = $db->fetchOne($countSql, $params)['total'];
         
         // Get residents - ordered by ID so new residents appear at the end
-        $sql = "SELECT r.*, h.address as household_address, h.total_members,
+        $sql = "SELECT r.*, h.address as household_address, h.total_members, h.family_head_id,
+                CASE WHEN h.family_head_id = r.id THEN 1 ELSE 0 END as is_household_head,
                 (SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count
                 FROM residents r
                 LEFT JOIN households h ON r.household_id = h.id
@@ -140,6 +141,7 @@ function getResident() {
         $db = Database::getInstance();
         
         $sql = "SELECT r.*, h.address as household_address, h.total_members, h.family_head_id,
+                CASE WHEN h.family_head_id = r.id THEN 1 ELSE 0 END as is_household_head,
                 (SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count
                 FROM residents r
                 LEFT JOIN households h ON r.household_id = h.id
@@ -361,7 +363,8 @@ function searchResidents() {
         $db = Database::getInstance();
         
         $searchTerm = "%{$query}%";
-        $sql = "SELECT r.*, h.address as household_address
+        $sql = "SELECT r.*, h.address as household_address, h.family_head_id,
+                CASE WHEN h.family_head_id = r.id THEN 1 ELSE 0 END as is_household_head
                 FROM residents r
                 LEFT JOIN households h ON r.household_id = h.id
                 WHERE r.first_name LIKE ? 
