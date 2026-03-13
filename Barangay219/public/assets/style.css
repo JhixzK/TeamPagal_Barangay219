@@ -442,6 +442,71 @@ body {
     display: inline-block;
 }
 
+.permissions-role-icons {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.permissions-role-icon {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    border-radius: 12px;
+    padding: 0.75rem 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    font-size: 0.86rem;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+
+.permissions-role-icon i {
+    font-size: 1.05rem;
+    color: #475569;
+}
+
+.permissions-role-icon:hover {
+    transform: translateY(-1px);
+}
+
+.permissions-role-icon.active {
+    border-color: #0d6efd;
+    background: #eaf2ff;
+    color: #0b3c9d;
+    box-shadow: 0 0 0 0.1rem rgba(13, 110, 253, 0.14);
+}
+
+.permissions-role-icon.active i {
+    color: #0d6efd;
+}
+
+.permissions-role-icon:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
+}
+
+@media (max-width: 1200px) {
+    .permissions-role-icons {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .permissions-role-icons {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 576px) {
+    .permissions-role-icons {
+        grid-template-columns: 1fr;
+    }
+}
+
 .permissions-table {
     border-radius: 10px;
     overflow: hidden;
