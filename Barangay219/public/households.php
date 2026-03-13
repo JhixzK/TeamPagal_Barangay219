@@ -80,12 +80,12 @@ include __DIR__ . '/../includes/sidebar.php';
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Family Head</th>
-                            <th>Address</th>
-                            <th>Total Members</th>
-                            <th>Registration Date</th>
-                            <th>Actions</th>
+                            <th class="text-center">ID</th>
+                            <th class="text-center">Family Head</th>
+                            <th class="text-center">Address</th>
+                            <th class="text-center">Total Members</th>
+                            <th class="text-center">Registration Date</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="householdsTableBody">
