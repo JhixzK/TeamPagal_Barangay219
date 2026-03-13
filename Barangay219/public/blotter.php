@@ -78,9 +78,18 @@ include __DIR__ . '/../includes/sidebar.php';
             <div class="table-responsive">
             <table class="table">
                 <thead>
-                    <tr><th>ID</th><th>Case Title</th><th>Complainant</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+                    <tr>
+                        <th>ID</th>
+                        <th>Case Title</th>
+                        <th>Complainant</th>
+                        <th>Incident Type</th>
+                        <th>Incident Location</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
                 </thead>
-                <tbody id="blotterTableBody"><tr><td colspan="6" class="text-center">Loading...</td></tr></tbody>
+                <tbody id="blotterTableBody"><tr><td colspan="8" class="text-center">Loading...</td></tr></tbody>
             </table>
             </div>
         </div>
