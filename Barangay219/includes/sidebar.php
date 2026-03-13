@@ -113,7 +113,7 @@ if (empty($avatar_path)) {
     $avatar_path = ASSETS_URL . 'img/default-avatar.svg';
 }
 ?>
-<div class="sidebar">
+<div class="sidebar" id="appSidebar">
     <div class="sidebar-content">
         <div class="sidebar-profile text-center mb-3" style="padding:0.5rem 1rem;">
             <a href="<?php echo BASE_URL; ?>profile.php" class="d-flex align-items-center gap-2 text-decoration-none">
@@ -183,7 +183,7 @@ if (empty($avatar_path)) {
     top: 56px;
     overflow-y: auto;
     z-index: 1000;
-    transition: width 0.25s ease;
+    transition: width 0.25s ease, left 0.25s ease;
     scrollbar-width: none;
 }
 
@@ -192,7 +192,7 @@ if (empty($avatar_path)) {
     height: 0;
 }
 
-.sidebar:hover {
+body.sidebar-expanded .sidebar {
     width: 250px;
 }
 
@@ -218,11 +218,11 @@ if (empty($avatar_path)) {
     transition: opacity 0.2s ease, max-width 0.2s ease, transform 0.2s ease;
 }
 
-.sidebar:hover .sidebar-profile a {
+body.sidebar-expanded .sidebar .sidebar-profile a {
     justify-content: flex-start;
 }
 
-.sidebar:hover .sidebar-profile .profile-meta {
+body.sidebar-expanded .sidebar .sidebar-profile .profile-meta {
     opacity: 1;
     max-width: 180px;
     transform: translateX(0);
@@ -246,7 +246,7 @@ if (empty($avatar_path)) {
     transition: opacity 0.2s ease, max-width 0.2s ease;
 }
 
-.sidebar:hover .nav-link span {
+body.sidebar-expanded .sidebar .nav-link span {
     opacity: 1;
     max-width: 160px;
 }
@@ -289,13 +289,13 @@ if (empty($avatar_path)) {
     transition: opacity 0.2s ease, max-height 0.2s ease, margin 0.2s ease;
 }
 
-.sidebar:hover .nav-section-title,
-.sidebar:hover .nav-divider {
+body.sidebar-expanded .sidebar .nav-section-title,
+body.sidebar-expanded .sidebar .nav-divider {
     opacity: 1;
     max-height: 40px;
 }
 
-.sidebar:hover .nav-divider {
+body.sidebar-expanded .sidebar .nav-divider {
     margin: 0.45rem 1rem;
 }
 
@@ -313,23 +313,24 @@ if (empty($avatar_path)) {
     transition: margin-left 0.25s ease;
 }
 
-.sidebar:hover + .main-content,
 body.sidebar-expanded .main-content {
     margin-left: 250px;
 }
 
 @media (max-width: 768px) {
     .sidebar {
-        position: relative;
-        top: 0;
+        left: -250px;
+        width: 250px;
+        height: calc(100vh - 56px);
+        top: 56px;
+        transition: left 0.25s ease;
+        border-right: 1px solid #dee2e6;
+        border-bottom: 0;
+        overflow-y: auto;
+    }
+
+    body.sidebar-expanded .sidebar {
         left: 0;
-        width: 100%;
-        height: auto;
-        max-height: none;
-        border-right: 0;
-        border-bottom: 1px solid #dee2e6;
-        overflow: visible;
-        transition: none;
     }
 
     .sidebar .sidebar-profile a {
@@ -350,11 +351,6 @@ body.sidebar-expanded .main-content {
     .main-content {
         margin-left: 0;
         padding: 1rem;
-        transition: none;
-    }
-
-    .sidebar:hover + .main-content {
-        margin-left: 0;
     }
 
     body.sidebar-expanded .main-content {
@@ -365,25 +361,70 @@ body.sidebar-expanded .main-content {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const sidebar = document.querySelector('.sidebar');
-    if (!sidebar) return;
+    const sidebar = document.getElementById('appSidebar') || document.querySelector('.sidebar');
+    const toggleBtn = document.getElementById('sidebarToggleBtn');
+    if (!sidebar || !toggleBtn) return;
 
+    const SIDEBAR_STATE_KEY = 'bp_sidebar_expanded';
     const mobile = () => window.matchMedia('(max-width: 768px)').matches;
+    const icon = toggleBtn.querySelector('i');
 
-    sidebar.addEventListener('mouseenter', function() {
-        if (!mobile()) {
-            document.body.classList.add('sidebar-expanded');
+    function setExpanded(expanded, persist = true) {
+        document.body.classList.toggle('sidebar-expanded', expanded);
+        toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        if (icon) {
+            icon.classList.toggle('bi-list', !expanded);
+            icon.classList.toggle('bi-x-lg', expanded);
         }
+        if (persist) {
+            try {
+                localStorage.setItem(SIDEBAR_STATE_KEY, expanded ? '1' : '0');
+            } catch (e) {
+                // Ignore storage errors (private mode/storage disabled)
+            }
+        }
+    }
+
+    toggleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const isExpanded = document.body.classList.contains('sidebar-expanded');
+        setExpanded(!isExpanded);
     });
 
-    sidebar.addEventListener('mouseleave', function() {
-        document.body.classList.remove('sidebar-expanded');
+    document.addEventListener('click', function(e) {
+        if (!mobile()) {
+            return;
+        }
+        if (!document.body.classList.contains('sidebar-expanded')) {
+            return;
+        }
+        if (sidebar.contains(e.target) || toggleBtn.contains(e.target)) {
+            return;
+        }
+        setExpanded(false, false);
+    });
+
+    sidebar.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', function() {
+            if (mobile()) {
+                setExpanded(false, false);
+            }
+        });
     });
 
     window.addEventListener('resize', function() {
         if (mobile()) {
-            document.body.classList.remove('sidebar-expanded');
+            setExpanded(false, false);
         }
     });
+
+    let preferredExpanded = false;
+    try {
+        preferredExpanded = localStorage.getItem(SIDEBAR_STATE_KEY) === '1';
+    } catch (e) {
+        preferredExpanded = false;
+    }
+
+    setExpanded(!mobile() && preferredExpanded, false);
 });
 </script>
