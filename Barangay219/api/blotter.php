@@ -170,18 +170,49 @@ function updateBlotter() {
     $id = intval($_POST['id'] ?? 0);
     if (!$id) { sendResponse(false, 'ID required', null, 400); return; }
     $hearings_raw = $_POST['hearings'] ?? null;
+    $complainants_raw = $_POST['complainants'] ?? null;
+    $respondents_raw = $_POST['respondents'] ?? null;
     try {
         $db = Database::getInstance();
         ensureEnhancedBlotterColumns($db);
 
         $updates = [];
         $params = [];
-        foreach (['case_title', 'complainant_name', 'respondent_name', 'incident_date', 'incident_location', 'description', 'status', 'settlement_date'] as $field) {
+        foreach (['case_title', 'incident_date', 'incident_location', 'description', 'status', 'settlement_date'] as $field) {
             if (isset($_POST[$field])) {
                 $updates[] = "$field = ?";
                 $params[] = $field === 'incident_date' || $field === 'settlement_date' ? $_POST[$field] : sanitizeInput($_POST[$field]);
             }
         }
+
+        if ($complainants_raw !== null) {
+            $decoded = json_decode($complainants_raw, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $updates[] = "complainant_name = ?";
+                $params[] = json_encode($decoded);
+            } else {
+                $updates[] = "complainant_name = ?";
+                $params[] = sanitizeInput($complainants_raw);
+            }
+        } elseif (isset($_POST['complainant_name'])) {
+            $updates[] = "complainant_name = ?";
+            $params[] = sanitizeInput($_POST['complainant_name']);
+        }
+
+        if ($respondents_raw !== null) {
+            $decoded = json_decode($respondents_raw, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $updates[] = "respondent_name = ?";
+                $params[] = json_encode($decoded);
+            } else {
+                $updates[] = "respondent_name = ?";
+                $params[] = sanitizeInput($respondents_raw);
+            }
+        } elseif (isset($_POST['respondent_name'])) {
+            $updates[] = "respondent_name = ?";
+            $params[] = sanitizeInput($_POST['respondent_name']);
+        }
+
         if (isset($_POST['incident_type']) && blotterTableHasColumn($db, 'incident_type')) {
             $incident_type = sanitizeInput($_POST['incident_type']);
             $incident_type_custom = sanitizeInput($_POST['incident_type_custom'] ?? '');
@@ -340,6 +371,29 @@ function handleProofUpload($file) {
 }
 
 function ensureEnhancedBlotterColumns($db) {
+    try {
+        $partyCols = $db->fetchAll(
+            "SELECT COLUMN_NAME, DATA_TYPE
+             FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'blotters'
+               AND COLUMN_NAME IN ('complainant_name', 'respondent_name')"
+        );
+
+        foreach ($partyCols as $col) {
+            $name = strtolower((string)($col['COLUMN_NAME'] ?? ''));
+            $type = strtolower((string)($col['DATA_TYPE'] ?? ''));
+            if (($name === 'complainant_name' || $name === 'respondent_name') && $type !== 'text' && $type !== 'longtext' && $type !== 'mediumtext') {
+                if ($name === 'complainant_name') {
+                    $db->query("ALTER TABLE blotters MODIFY complainant_name TEXT NOT NULL");
+                } else {
+                    $db->query("ALTER TABLE blotters MODIFY respondent_name TEXT NULL");
+                }
+            }
+        }
+    } catch (Exception $e) {
+    }
+
     try {
         $hasIncidentType = !empty($db->fetchOne("SHOW COLUMNS FROM blotters LIKE 'incident_type'"));
         if (!$hasIncidentType) {
