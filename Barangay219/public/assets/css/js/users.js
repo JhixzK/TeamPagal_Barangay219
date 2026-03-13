@@ -208,11 +208,14 @@ function editUser(id) {
                 document.getElementById('userId').value = user.id;
                 document.getElementById('username').value = user.username;
                 document.getElementById('email').value = user.email || '';
-                document.getElementById('role').value = user.role;
+                setRoleSelectValue(user.role);
                 document.getElementById('resident_id').value = user.resident_id || '';
                 document.getElementById('status').value = user.status;
                 document.getElementById('password').required = false;
+                togglePasswordField(false);
                 document.getElementById('userModalTitle').textContent = 'Edit User';
+
+                toggleEditFieldLocks(true);
 
                 const roleSelect = document.getElementById('role');
                 if (roleSelect) {
@@ -393,6 +396,8 @@ function resetForm() {
     document.getElementById('userId').value = '';
     document.getElementById('password').required = true;
     document.getElementById('userModalTitle').textContent = 'Add New User';
+    togglePasswordField(true);
+    toggleEditFieldLocks(false);
 
     const roleSelect = document.getElementById('role');
     if (roleSelect) {
@@ -645,4 +650,39 @@ function showAlert(type, message) {
     setTimeout(() => {
         alertDiv.remove();
     }, 5000);
+}
+
+function togglePasswordField(show) {
+    const field = document.getElementById('passwordField');
+    if (field) {
+        field.style.display = show ? '' : 'none';
+    }
+}
+
+function toggleEditFieldLocks(isEditing) {
+    const lockIds = ['username', 'email', 'resident_id', 'status'];
+    lockIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.disabled = !!isEditing;
+        }
+    });
+}
+
+function setRoleSelectValue(role) {
+    const roleSelect = document.getElementById('role');
+    if (!roleSelect) return;
+
+    const raw = String(role || '').trim();
+    const normalized = raw.toLowerCase();
+
+    const hasOption = Array.from(roleSelect.options).some(opt => opt.value === normalized);
+    if (!hasOption && normalized) {
+        const option = document.createElement('option');
+        option.value = normalized;
+        option.textContent = raw.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        roleSelect.appendChild(option);
+    }
+
+    roleSelect.value = normalized || '';
 }
