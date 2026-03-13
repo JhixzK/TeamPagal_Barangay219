@@ -85,12 +85,13 @@ include __DIR__ . '/../includes/sidebar.php';
                         <th>Sex</th>
                         <th>Contact</th>
                         <th>Submitted</th>
+                        <th>Household Role</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="applicationsTableBody">
-                    <tr><td colspan="7" class="text-center py-4">Loading...</td></tr>
+                    <tr><td colspan="8" class="text-center py-4">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
