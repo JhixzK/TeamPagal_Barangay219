@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAnnouncements();
     attachEventListeners();
     applyAnnouncementPermissions();
+    initAnnouncementFormFormatting();
 });
 
 let announcementFilters = { q: '' };
@@ -52,8 +53,8 @@ function loadAnnouncements() {
             if (d.success && d.data && Array.isArray(d.data)) {
                 tbody.innerHTML = d.data.map(a => `
                     <tr>
-                        <td><strong>${escapeHtml(a.title)}</strong></td>
-                        <td>${escapeHtml(a.category || 'General')}</td>
+                        <td><strong>${escapeHtml(toTitleCase(a.title || '-'))}</strong></td>
+                        <td>${escapeHtml(toTitleCase(a.category || 'General'))}</td>
                         <td>
                             <span class="badge ${a.priority === 'urgent' ? 'bg-danger' : 'bg-secondary'}">
                                 ${a.priority === 'urgent' ? '🚨 Urgent' : 'Normal'}
@@ -165,8 +166,8 @@ function handleStatClick(e) {
 function buildTableRow(a) {
     return `
         <tr>
-            <td><strong>${escapeHtml(a.title)}</strong></td>
-            <td>${escapeHtml(a.category || 'General')}</td>
+            <td><strong>${escapeHtml(toTitleCase(a.title || '-'))}</strong></td>
+            <td>${escapeHtml(toTitleCase(a.category || 'General'))}</td>
             <td>
                 <span class="badge ${a.priority === 'urgent' ? 'bg-danger' : 'bg-secondary'}">
                     ${a.priority === 'urgent' ? '🚨 Urgent' : 'Normal'}
@@ -238,6 +239,7 @@ function createAnnouncement() {
         return;
     }
     
+    applyTitleCaseToCreateForm();
     const title = document.getElementById('createTitle')?.value.trim();
     const content = document.getElementById('createContent')?.value.trim();
     const category = document.getElementById('createCategory')?.value || 'General';
@@ -328,8 +330,8 @@ function editAnnouncement(id) {
             
             const a = d.data;
             document.getElementById('editId').value = a.id;
-            document.getElementById('editTitle').value = a.title;
-            document.getElementById('editContent').value = a.content;
+            document.getElementById('editTitle').value = toTitleCase(a.title || '');
+            document.getElementById('editContent').value = toTitleCase(a.content || '');
             document.getElementById('editCategory').value = a.category || 'General';
             document.getElementById('editPriority').value = a.priority || 'normal';
             document.getElementById('editExpires').value = a.expires_at || '';
@@ -369,6 +371,7 @@ function saveAnnouncement() {
         return;
     }
     
+    applyTitleCaseToEditForm();
     const id = document.getElementById('editId')?.value;
     const title = document.getElementById('editTitle')?.value.trim();
     const content = document.getElementById('editContent')?.value.trim();
@@ -552,6 +555,52 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return String(text || '').replace(/[&<>"']/g, m => map[m]);
+}
+
+function toTitleCase(text) {
+    if (!text) return '';
+    return String(text)
+        .trim()
+        .split(/\s+/)
+        .map(word => {
+            if (!word) return '';
+            const clean = word.replace(/[^a-zA-Z]/g, '');
+            if (clean.length > 0 && clean === clean.toUpperCase() && clean.length <= 3) {
+                return word;
+            }
+            const first = word.charAt(0).toUpperCase();
+            const rest = word.slice(1).toLowerCase();
+            return first + rest;
+        })
+        .join(' ');
+}
+
+function attachTitleCaseOnBlur(input) {
+    if (!input) return;
+    input.addEventListener('blur', function() {
+        this.value = toTitleCase(this.value);
+    });
+}
+
+function initAnnouncementFormFormatting() {
+    attachTitleCaseOnBlur(document.getElementById('createTitle'));
+    attachTitleCaseOnBlur(document.getElementById('createContent'));
+    attachTitleCaseOnBlur(document.getElementById('editTitle'));
+    attachTitleCaseOnBlur(document.getElementById('editContent'));
+}
+
+function applyTitleCaseToCreateForm() {
+    const title = document.getElementById('createTitle');
+    const content = document.getElementById('createContent');
+    if (title) title.value = toTitleCase(title.value);
+    if (content) content.value = toTitleCase(content.value);
+}
+
+function applyTitleCaseToEditForm() {
+    const title = document.getElementById('editTitle');
+    const content = document.getElementById('editContent');
+    if (title) title.value = toTitleCase(title.value);
+    if (content) content.value = toTitleCase(content.value);
 }
 
 function formatDate(dateStr) {
