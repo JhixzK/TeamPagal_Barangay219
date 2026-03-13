@@ -27,6 +27,24 @@ function h($value) {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
 
+function rpFormatPhone($value) {
+    $raw = trim((string)$value);
+    if ($raw === '') {
+        return '';
+    }
+    $digits = preg_replace('/\D+/', '', $raw);
+    if (strpos($digits, '63') === 0) {
+        $digits = substr($digits, 2);
+    }
+    if (strpos($digits, '0') === 0) {
+        $digits = substr($digits, 1);
+    }
+    $digits = substr($digits, 0, 10);
+    if (strlen($digits) < 10) {
+        return $raw;
+    }
+    return '+63 ' . $digits;
+}
 function rpConnectMysqli() {
     mysqli_report(MYSQLI_REPORT_OFF);
     $conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
@@ -544,7 +562,7 @@ $criticalFields = [
     'Household Link' => ((int)$pick($resident, ['household_id'], 0)) > 0 ? 'linked' : '',
     'Birth Date' => trim((string)$pick($resident, ['birth_date', 'date_of_birth'])),
     'Gender' => trim((string)$pick($resident, ['gender', 'sex'])),
-    'Contact Number' => trim((string)$pick($resident, ['contact_number', 'mobile_number'])),
+    'Contact Number' => rpFormatPhone($pick($resident, ['contact_number', 'mobile_number'])),
     'Email' => trim((string)$pick($resident, ['email'], $pick($user, ['email'])))
 ];
 
@@ -798,20 +816,20 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
           <button class="btn-link toggle-btn" data-target="form-contact"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
         </div>
         <div class="info-list">
-          <div class="info-row"><span>Mobile Number</span><strong><?php echo h($pick($resident, ['contact_number', 'mobile_number'], 'N/A')); ?></strong></div>
+          <div class="info-row"><span>Mobile Number</span><strong><?php echo h(rpFormatPhone($pick($resident, ['contact_number', 'mobile_number'], 'N/A'))); ?></strong></div>
           <div class="info-row"><span>Email Address</span><strong><?php echo h($pick($resident, ['email'], $pick($user, ['email'], 'N/A'))); ?></strong></div>
           <div class="info-row"><span>Emergency Contact Person</span><strong><?php echo h($pick($resident, ['emergency_contact_name'], 'N/A')); ?></strong></div>
-          <div class="info-row"><span>Emergency Contact Number</span><strong><?php echo h($pick($resident, ['emergency_contact_number'], 'N/A')); ?></strong></div>
+          <div class="info-row"><span>Emergency Contact Number</span><strong><?php echo h(rpFormatPhone($pick($resident, ['emergency_contact_number'], 'N/A'))); ?></strong></div>
           <div class="info-row"><span>Relationship</span><strong><?php echo h($pick($resident, ['emergency_contact_relationship'], 'N/A')); ?></strong></div>
         </div>
 
         <form method="POST" class="edit-form hidden" id="form-contact">
           <input type="hidden" name="section" value="contact">
           <div class="form-grid two-col">
-            <label><span>Mobile Number</span><input type="text" name="contact_number" value="<?php echo h($pick($resident, ['contact_number', 'mobile_number'])); ?>"></label>
+            <label><span>Mobile Number</span><input type="text" name="contact_number" value="<?php echo h(rpFormatPhone($pick($resident, ['contact_number', 'mobile_number']))); ?>"></label>
             <label><span>Email Address</span><input type="email" name="email" value="<?php echo h($pick($resident, ['email'], $pick($user, ['email']))); ?>"></label>
             <label><span>Emergency Contact Person</span><input type="text" name="emergency_contact_name" value="<?php echo h($pick($resident, ['emergency_contact_name'])); ?>"></label>
-            <label><span>Emergency Contact Number</span><input type="text" name="emergency_contact_number" value="<?php echo h($pick($resident, ['emergency_contact_number'])); ?>"></label>
+            <label><span>Emergency Contact Number</span><input type="text" name="emergency_contact_number" value="<?php echo h(rpFormatPhone($pick($resident, ['emergency_contact_number']))); ?>"></label>
             <label class="full"><span>Emergency Contact Relationship</span><input type="text" name="emergency_contact_relationship" value="<?php echo h($pick($resident, ['emergency_contact_relationship'])); ?>"></label>
           </div>
           <div class="form-actions"><button class="btn-primary" type="submit">Save Contact Info</button></div>
