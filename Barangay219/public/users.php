@@ -227,7 +227,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <input type="text" class="form-control" id="username" name="username" required>
                         </div>
                         
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-6 mb-3" id="passwordField">
                             <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
                             <input type="password" class="form-control" id="password" name="password">
                             <small class="text-muted">Leave blank to keep current password</small>
