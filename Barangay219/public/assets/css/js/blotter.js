@@ -4,28 +4,27 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
     console.warn('API_URL invalid or missing; using fallback:', window.API_URL);
 }
 
-// Phone number input validation - only allow + and digits, max 13 characters, always starts with +63
+// Phone number input validation - enforce +63 prefix with space and 10 digits
 function validatePhoneInput(input) {
-    input.addEventListener('input', function() {
-        // Always ensure it starts with +63
-        if (!this.value.startsWith('+63')) {
-            this.value = '+63';
-            return;
+    const ensurePrefix = () => {
+        if (!input.value.startsWith('+63')) {
+            input.value = '+63 ';
+        } else if (input.value === '+63') {
+            input.value = '+63 ';
         }
-        // Remove any non-digit and non-plus characters
-        let value = this.value.replace(/[^\d+]/g, '');
-        // Limit to 13 characters (+63 + 10 digits)
-        value = value.substring(0, 13);
-        this.value = value;
+    };
+
+    ensurePrefix();
+
+    input.addEventListener('input', function() {
+        const digits = normalizePhoneDigits(this.value);
+        this.value = '+63 ' + digits;
     });
     
     // Add blur event to ensure +63 is always present
     input.addEventListener('blur', function() {
-        if (this.value.trim() === '' || this.value === '+63') {
-            this.value = '+63';
-        } else if (!this.value.startsWith('+63')) {
-            this.value = '+63';
-        }
+        const digits = normalizePhoneDigits(this.value);
+        this.value = digits ? ('+63 ' + digits) : '+63 ';
     });
 }
 
@@ -134,11 +133,15 @@ function loadBlotters() {
                         else resp = b.respondent_name;
                     } catch (e) { resp = b.respondent_name || '-'; }
 
+                        const incidentType = b.incident_type ? formatIncidentType(b.incident_type) : '-';
+                        const incidentLocation = b.incident_location ? escapeHtml(b.incident_location) : '-';
                         return `
                         <tr>
                             <td>${b.id}</td>
                             <td>${b.case_title}</td>
                             <td>${escapeHtml(comp)}</td>
+                            <td>${incidentType}</td>
+                            <td>${incidentLocation}</td>
                             <td>${formatDate(b.incident_date)}</td>
                             <td><span class="badge bg-${getStatusColor(b.status)}">${b.status}</span></td>
                             <td>
@@ -151,14 +154,14 @@ function loadBlotters() {
                         </tr>`;
                 }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No blotter records found or access denied</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No blotter records found or access denied</td></tr>';
                 console.warn('Blotter API returned error:', d.message);
             }
         })
         .catch(err => {
             console.error('Error loading blotters:', err);
             const tbody = document.getElementById('blotterTableBody');
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading blotters</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error loading blotters</td></tr>';
         });
 }
 
@@ -206,7 +209,7 @@ function viewBlotter(id) {
                                     <p class="mb-1"><strong>Complainant ${idx + 1}:</strong> ${c.name || '-'}</p>
                                     <p class="mb-1"><strong>Address:</strong> ${c.address || '-'}</p>
                                     <p class="mb-1"><strong>Barangay:</strong> ${c.barangay || '-'}</p>
-                                    <p class="mb-0"><strong>Contact:</strong> ${c.contact || '-'}</p>
+                                    <p class="mb-0"><strong>Contact:</strong> ${formatPhoneNumber(c.contact) || '-'}</p>
                                 </div>
                             </div>
                         `).join('');
@@ -227,7 +230,7 @@ function viewBlotter(id) {
                                     <p class="mb-1"><strong>Respondent ${idx + 1}:</strong> ${r.name || '-'}</p>
                                     <p class="mb-1"><strong>Address:</strong> ${r.address || '-'}</p>
                                     <p class="mb-1"><strong>Barangay:</strong> ${r.barangay || '-'}</p>
-                                    <p class="mb-0"><strong>Contact:</strong> ${r.contact || '-'}</p>
+                                    <p class="mb-0"><strong>Contact:</strong> ${formatPhoneNumber(r.contact) || '-'}</p>
                                 </div>
                             </div>
                         `).join('');
@@ -451,7 +454,7 @@ function addComplainantRow(data = {}) {
         </div>
         <div class="col-12 col-md-2">
             <label class="form-label">Contact Number <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" placeholder="+63xxxxxxxxxx" data-contact name="complainant_contact" maxlength="13" pattern="\+63\d{10}" value="+63" required>
+            <input type="text" class="form-control" placeholder="+63 9XXXXXXXXX" data-contact name="complainant_contact" maxlength="14" pattern="\+63\s\d{10}" value="+63 " required>
         </div>
         <div class="col-12 col-md-1 d-flex align-items-end">
             <button type="button" class="btn btn-danger btn-sm remove-party" style="width:100%;">&times;</button>
@@ -461,7 +464,7 @@ function addComplainantRow(data = {}) {
     if (data.name) div.querySelector('[data-name]').value = data.name;
     if (data.address) div.querySelector('[data-address]').value = data.address;
     if (data.barangay) div.querySelector('[data-barangay]').value = data.barangay;
-    if (data.contact) div.querySelector('[data-contact]').value = data.contact;
+    if (data.contact) div.querySelector('[data-contact]').value = formatPhoneForInput(data.contact);
 
     // Add name input validation to all name fields
     const nameInput = div.querySelector('[data-name]');
@@ -502,7 +505,7 @@ function addRespondentRow(data = {}) {
         </div>
         <div class="col-12 col-md-2">
             <label class="form-label">Contact Number <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" placeholder="+63xxxxxxxxxx" data-contact name="respondent_contact" maxlength="13" pattern="\+63\d{10}" value="+63" required>
+            <input type="text" class="form-control" placeholder="+63 9XXXXXXXXX" data-contact name="respondent_contact" maxlength="14" pattern="\+63\s\d{10}" value="+63 " required>
         </div>
         <div class="col-12 col-md-1 d-flex align-items-end">
             <button type="button" class="btn btn-danger btn-sm remove-party" style="width:100%;">&times;</button>
@@ -511,7 +514,7 @@ function addRespondentRow(data = {}) {
     if (data.name) div.querySelector('[data-name]').value = data.name;
     if (data.address) div.querySelector('[data-address]').value = data.address;
     if (data.barangay) div.querySelector('[data-barangay]').value = data.barangay;
-    if (data.contact) div.querySelector('[data-contact]').value = data.contact;
+    if (data.contact) div.querySelector('[data-contact]').value = formatPhoneForInput(data.contact);
 
     // Add name input validation to all name fields
     const nameInput = div.querySelector('[data-name]');
@@ -662,6 +665,27 @@ function submitBlotterForm(e) {
         .catch(err => { console.error(err); alert('Error creating blotter'); });
 }
 
+function normalizePhoneDigits(raw) {
+    if (!raw) return '';
+    let digits = String(raw).replace(/\D/g, '');
+    if (digits.startsWith('63')) digits = digits.slice(2);
+    if (digits.startsWith('0')) digits = digits.slice(1);
+    return digits.slice(0, 10);
+}
+
+function formatPhoneNumber(raw) {
+    if (!raw) return '';
+    const digits = normalizePhoneDigits(raw);
+    if (!digits) return String(raw).trim();
+    if (digits.length < 10) return String(raw).trim();
+    return '+63 ' + digits;
+}
+
+function formatPhoneForInput(raw) {
+    const digits = normalizePhoneDigits(raw);
+    return '+63 ' + digits;
+}
+
 function escapeHtml(unsafe) {
     return unsafe
          .replace(/&/g, "&amp;")
@@ -681,7 +705,8 @@ function updatePrimaryComplainantInfo() {
     }
     const name = firstRow.querySelector('[data-name]')?.value?.trim() || '-';
     const contact = firstRow.querySelector('[data-contact]')?.value?.trim() || '-';
-    infoEl.textContent = `Complainant Name & Contact: ${name} (${contact})`;
+    const contactLabel = contact === '-' ? '-' : (formatPhoneNumber(contact) || contact);
+    infoEl.textContent = `Complainant Name & Contact: ${name} (${contactLabel})`;
 }
 
 function formatIncidentType(type) {
