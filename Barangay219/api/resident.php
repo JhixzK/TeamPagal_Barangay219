@@ -25,10 +25,7 @@ switch ($action) {
         break;
     
     case 'create':
-        if (!canPerformModulePermission('residents', 'can_create')) {
-            sendResponse(false, 'Access denied', null, 403);
-        }
-        createResident();
+        sendResponse(false, 'Creating new residents from Residents Management is disabled. Approve resident applications instead.', null, 403);
         break;
     
     case 'update':
