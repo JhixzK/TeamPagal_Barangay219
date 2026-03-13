@@ -73,14 +73,14 @@ include __DIR__ . '/../includes/sidebar.php';
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>Title</th>
-                            <th>Category</th>
-                            <th>Priority</th>
-                            <th>Status</th>
-                            <th>Created</th>
-                            <th>Expires</th>
-                            <th>Views</th>
-                            <th>Actions</th>
+                            <th class="text-center">Title</th>
+                            <th class="text-center">Category</th>
+                            <th class="text-center">Priority</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Created</th>
+                            <th class="text-center">Expires</th>
+                            <th class="text-center">Views</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="announcementsTableBody"><tr><td colspan="8" class="text-center">Loading...</td></tr></tbody>
