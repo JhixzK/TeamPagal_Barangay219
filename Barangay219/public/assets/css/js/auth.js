@@ -83,6 +83,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 errorMessage += '<li>Is the API URL correct? (' + apiUrl + 'auth.php)</li>';
                 errorMessage += '<li>Check browser console (F12) for more details</li>';
                 errorMessage += '</ul>';
+            } else if (e.message.includes('HTTP error! status: 401')) {
+                errorMessage = 'Wrong username/password. Please try again.';
             } else if (e.message.includes('HTTP error')) {
                 errorMessage += 'Server error: ' + e.message;
             } else {
