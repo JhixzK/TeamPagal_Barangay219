@@ -77,6 +77,7 @@ function applyComplaintFilters() {
     complaintFilters.status = document.getElementById('filterStatus')?.value || '';
     complaintFilters.from = document.getElementById('filterFrom')?.value || '';
     complaintFilters.to = document.getElementById('filterTo')?.value || '';
+    syncComplaintStatusTabs();
     loadComplaints();
     const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
     if (modal) modal.hide();
@@ -92,27 +93,30 @@ function resetComplaints() {
     if (statusSel) statusSel.value = '';
     if (fromInput) fromInput.value = '';
     if (toInput) toInput.value = '';
+    syncComplaintStatusTabs();
     loadComplaints();
 }
 
 function initComplaintStatFilters() {
-    const container = document.querySelector('.module-stats[data-module="complaints"]');
-    if (!container) return;
-    container.querySelectorAll('[data-status]').forEach(card => {
-        const handleClick = () => {
-            const status = card.getAttribute('data-status') || '';
+    const tabs = document.querySelectorAll('#statusTabs .nav-link');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            const status = this.getAttribute('data-status') || '';
             complaintFilters.status = status;
             const statusSel = document.getElementById('filterStatus');
             if (statusSel) statusSel.value = status;
             loadComplaints();
-        };
-        card.addEventListener('click', handleClick);
-        card.addEventListener('keypress', e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleClick();
-            }
         });
+    });
+}
+
+function syncComplaintStatusTabs() {
+    document.querySelectorAll('#statusTabs .nav-link').forEach(tab => {
+        const tabStatus = tab.getAttribute('data-status') || '';
+        tab.classList.toggle('active', tabStatus === (complaintFilters.status || ''));
     });
 }
 
