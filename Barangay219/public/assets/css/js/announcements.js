@@ -53,22 +53,22 @@ function loadAnnouncements() {
             if (d.success && d.data && Array.isArray(d.data)) {
                 tbody.innerHTML = d.data.map(a => `
                     <tr>
-                        <td><strong>${escapeHtml(toTitleCase(a.title || '-'))}</strong></td>
-                        <td>${escapeHtml(toTitleCase(a.category || 'General'))}</td>
-                        <td>
+                        <td class="text-center"><strong>${escapeHtml(toTitleCase(a.title || '-'))}</strong></td>
+                        <td class="text-center">${escapeHtml(toTitleCase(a.category || 'General'))}</td>
+                        <td class="text-center">
                             <span class="badge ${a.priority === 'urgent' ? 'bg-danger' : 'bg-secondary'}">
                                 ${a.priority === 'urgent' ? '🚨 Urgent' : 'Normal'}
                             </span>
                         </td>
-                        <td>
+                        <td class="text-center">
                             <span class="badge bg-${a.status === 'published' ? 'success' : 'warning'}">
                                 ${a.status === 'published' ? 'Published' : 'Draft'}
                             </span>
                         </td>
-                        <td>${formatDate(a.created_at)}</td>
-                        <td>${a.expires_at ? formatDate(a.expires_at) : '-'}</td>
-                        <td><span class="badge bg-info">${a.views || 0}</span></td>
-                        <td>
+                        <td class="text-center">${formatDate(a.created_at)}</td>
+                        <td class="text-center">${a.expires_at ? formatDate(a.expires_at) : '-'}</td>
+                        <td class="text-center"><span class="badge bg-info">${a.views || 0}</span></td>
+                        <td class="text-center">
                             <div class="btn-group btn-group-sm" role="group">
                                 <button class="btn btn-outline-primary" title="Edit" onclick="editAnnouncement(${a.id})">
                                     <i class="bi bi-pencil"></i>
@@ -166,22 +166,22 @@ function handleStatClick(e) {
 function buildTableRow(a) {
     return `
         <tr>
-            <td><strong>${escapeHtml(toTitleCase(a.title || '-'))}</strong></td>
-            <td>${escapeHtml(toTitleCase(a.category || 'General'))}</td>
-            <td>
+            <td class="text-center"><strong>${escapeHtml(toTitleCase(a.title || '-'))}</strong></td>
+            <td class="text-center">${escapeHtml(toTitleCase(a.category || 'General'))}</td>
+            <td class="text-center">
                 <span class="badge ${a.priority === 'urgent' ? 'bg-danger' : 'bg-secondary'}">
                     ${a.priority === 'urgent' ? '🚨 Urgent' : 'Normal'}
                 </span>
             </td>
-            <td>
+            <td class="text-center">
                 <span class="badge bg-${a.status === 'published' ? 'success' : 'warning'}">
                     ${a.status === 'published' ? 'Published' : 'Draft'}
                 </span>
             </td>
-            <td>${formatDate(a.created_at)}</td>
-            <td>${a.expires_at ? formatDate(a.expires_at) : '-'}</td>
-            <td><span class="badge bg-info">${a.views || 0}</span></td>
-            <td>
+            <td class="text-center">${formatDate(a.created_at)}</td>
+            <td class="text-center">${a.expires_at ? formatDate(a.expires_at) : '-'}</td>
+            <td class="text-center"><span class="badge bg-info">${a.views || 0}</span></td>
+            <td class="text-center">
                 <div class="btn-group btn-group-sm" role="group">
                     <button class="btn btn-outline-primary" title="Edit" onclick="editAnnouncement(${a.id})">
                         <i class="bi bi-pencil"></i>
