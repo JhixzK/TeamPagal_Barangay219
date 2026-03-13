@@ -498,6 +498,7 @@ function renderStoredActivationLinks() {
                 <input class="form-control form-control-sm" style="min-width:260px;max-width:560px" value="${safeLink}" readonly>
                 <a class="btn btn-sm btn-outline-primary" href="${safeLink}" target="_blank" rel="noopener">Open</a>
                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyActivationLinkFromInput(this)">Copy</button>
+                <button type="button" class="btn btn-sm btn-outline-success" onclick="sendActivationEmailFromItem(this)" data-app-id="${esc(item.applicationId || '')}" data-link="${safeLink}" data-code="${esc(item.residentCode || '')}">Send Email</button>
             </li>
         `;
     }).join('');
@@ -540,6 +541,50 @@ function copyActivationLink(value) {
 function copyActivationLinkFromInput(btn) {
     const input = btn ? btn.parentElement.querySelector('input') : null;
     copyActivationLink(input ? input.value : '');
+}
+
+function sendActivationEmailFromItem(btn) {
+    if (!btn) return;
+    const appId = btn.getAttribute('data-app-id') || '';
+    const link = btn.getAttribute('data-link') || '';
+    const residentCode = btn.getAttribute('data-code') || '';
+    if (!appId || !link) {
+        showAlert('error', 'Missing application data for email.');
+        return;
+    }
+    btn.disabled = true;
+    fetch(`${window.API_URL}applications.php?action=get&id=${encodeURIComponent(appId)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                throw new Error(data.message || 'Unable to load application email.');
+            }
+            const app = data.data || {};
+            const email = (app.email || '').toString().trim();
+            if (!email) {
+                throw new Error('Applicant email is missing.');
+            }
+            const subject = `Barangay 219 Account Activation${residentCode ? ' - ' + residentCode : ''}`;
+            const bodyLines = [
+                'Good day!',
+                '',
+                'Your resident account has been approved. Please activate your account using the link below:',
+                link,
+                '',
+                residentCode ? `Resident ID: ${residentCode}` : '',
+                '',
+                'Thank you.'
+            ].filter(Boolean);
+            const mailto = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines.join('\\n'))}`;
+            window.location.href = mailto;
+        })
+        .catch(err => {
+            console.error(err);
+            showAlert('error', err.message || 'Unable to prepare email.');
+        })
+        .finally(() => {
+            btn.disabled = false;
+        });
 }
 
 function fallbackCopyText(value) {
