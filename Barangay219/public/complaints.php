@@ -32,44 +32,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="row g-3 mb-4 module-stats" data-module="complaints">
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-primary text-white" data-status="" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-files"></i></div>
-                    <div class="stat-value" data-stat="total">-</div>
-                    <div class="stat-label">Total Complaints</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-warning text-dark" data-status="pending" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
-                    <div class="stat-value" data-stat="pending">-</div>
-                    <div class="stat-label">Pending</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-2">
-                <div class="stat-card bg-info text-white" data-status="under_review" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-search"></i></div>
-                    <div class="stat-value" data-stat="under_review">-</div>
-                    <div class="stat-label">Under Review</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-2">
-                <div class="stat-card bg-success text-white" data-status="resolved" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
-                    <div class="stat-value" data-stat="resolved">-</div>
-                    <div class="stat-label">Resolved</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-2">
-                <div class="stat-card bg-secondary text-white" data-status="dismissed" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-x-circle"></i></div>
-                    <div class="stat-value" data-stat="dismissed">-</div>
-                    <div class="stat-label">Dismissed</div>
-                </div>
-            </div>
-        </div>
-
         <div class="search-bar mb-3">
             <div class="row">
                 <div class="col-md-6">
@@ -93,6 +55,14 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
+        <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
+            <li class="nav-item"><a class="nav-link active" href="#" data-status="">All</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="pending">Pending</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="under_review">Under Review</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="resolved">Resolved</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="dismissed">Dismissed</a></li>
+        </ul>
+
         <div class="data-table">
             <div class="table-responsive">
                 <table class="table table-hover">
@@ -113,6 +83,29 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
     </div>
 </div>
+
+<style>
+.complaints-page .app-tabs {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.45rem;
+}
+
+.complaints-page .app-tabs .nav-item {
+    margin: 0;
+}
+
+.complaints-page .app-tabs .nav-link {
+    width: 100%;
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    .complaints-page .app-tabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+</style>
 
 <!-- Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1">
@@ -308,5 +301,4 @@ document.getElementById('btnCreate').addEventListener('click', function() {
         });
 });
 </script>
-<script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/complaints.js?v=<?php echo time(); ?>"></script>
