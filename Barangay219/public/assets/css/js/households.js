@@ -23,7 +23,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('householdModal').addEventListener('show.bs.modal', function() {
         loadResidentsForDropdown();
     });
-    document.getElementById('btnAddMember').addEventListener('click', addMemberToHousehold);
+    const addMemberEditBtn = document.getElementById('btnAddMemberEdit');
+    if (addMemberEditBtn) {
+        addMemberEditBtn.addEventListener('click', addMemberToHousehold);
+    }
 });
 
 function initHouseholdStatFilters() {
@@ -68,12 +71,8 @@ function formatDateInput(date) {
 }
 
 function applyHouseholdPermissions() {
-    if (!HOUSEHOLD_PERMS.canCreate) {
-        const openBtn = document.getElementById('btnOpenCreate');
-        if (openBtn) openBtn.style.display = 'none';
-    }
     if (!HOUSEHOLD_PERMS.canEdit) {
-        const addMemberBtn = document.getElementById('btnAddMember');
+        const addMemberBtn = document.getElementById('btnAddMemberEdit');
         if (addMemberBtn) addMemberBtn.style.display = 'none';
     }
 }
@@ -94,7 +93,7 @@ function loadHouseholds() {
                         <td class="text-center">${h.id}</td>
                         <td class="text-center">${escapeHtml(toTitleCase(h.family_head_name || '-'))}</td>
                         <td class="text-center">${escapeHtml(formatTitleCaseTruncate(h.address || '', 50))}${(h.address||'').length>50?'...':''}</td>
-                        <td class="text-center">${h.total_members}</td>
+                        <td class="text-center"><span class="badge bg-success">${h.total_members}</span></td>
                         <td class="text-center">${formatDate(h.registration_date)}</td>
                         <td class="text-center">
                             ${HOUSEHOLD_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary me-1" title="Edit" aria-label="Edit" onclick="editHousehold(${h.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
@@ -159,11 +158,14 @@ function loadResidentsForDropdown() {
 function saveHousehold() {
     applyTitleCaseToForm();
     const householdId = document.getElementById('householdId').value;
+    if (!householdId) {
+        alert('Creating new household groups from this module is disabled. Select an existing household and add members there.');
+        return;
+    }
     if (householdId && !HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
-    if (!householdId && !HOUSEHOLD_PERMS.canCreate) { alert('Access denied'); return; }
     const form = document.getElementById('householdForm');
     const formData = new FormData(form);
-    formData.append('action', document.getElementById('householdId').value ? 'update' : 'create');
+    formData.append('action', 'update');
     const total = form.total_members.value;
     if (total) formData.set('total_members', parseInt(total, 10) || 1);
 
@@ -198,22 +200,26 @@ function viewHousehold(id) {
             const members = h.members || [];
                         const allowEditMembers = HOUSEHOLD_PERMS.canEdit;
                         document.getElementById('viewHouseholdMembers').innerHTML = members.length
-                ? '<table class="table table-sm"><thead><tr><th>Name</th><th>Birth Date</th><th></th></tr></thead><tbody>' +
+                ? '<table class="table table-sm"><thead><tr><th>Name</th><th>Role</th><th>Age</th><th>Birth Date</th><th></th></tr></thead><tbody>' +
                   members.map(m => {
                       const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
                       const titledName = toTitleCase(name);
-                                            const removeBtn = allowEditMembers && m.id !== h.family_head_id ? `<button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : (m.id !== h.family_head_id ? '' : '<span class="badge bg-primary">Head</span>');
-                                            return `<tr><td>${escapeHtml(titledName)}</td><td>${formatDate(m.birth_date)}</td><td>${removeBtn}</td></tr>`;
+                                            const isHead = Number(m.id) === Number(h.family_head_id);
+                                            const roleLabel = isHead
+                                                ? '<span class="badge bg-primary">Head</span>'
+                                                : '<span class="badge bg-light text-dark border">Member</span>';
+                                            const removeBtn = allowEditMembers && !isHead ? `<button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : '';
+                                            return `<tr><td>${escapeHtml(titledName)}</td><td>${roleLabel}</td><td>${calculateAge(m.birth_date)}</td><td>${formatDate(m.birth_date)}</td><td>${removeBtn}</td></tr>`;
                   }).join('') + '</tbody></table>'
                 : '<p class="text-muted">No members yet.</p>';
-            loadResidentsForAddMember(id, members.map(m => m.id));
             new bootstrap.Modal(document.getElementById('viewHouseholdModal')).show();
         })
         .catch(() => alert('Error loading household'));
 }
 
 function loadResidentsForAddMember(householdId, excludeIds) {
-    const sel = document.getElementById('addMemberResident');
+    const sel = document.getElementById('addMemberResidentEdit');
+    if (!sel) return;
     sel.innerHTML = '<option value="">-- Select resident to add --</option>';
     sel.dataset.householdId = householdId;
     fetch(window.API_URL + 'resident.php?action=list&limit=500')
@@ -233,9 +239,11 @@ function loadResidentsForAddMember(householdId, excludeIds) {
 
 function addMemberToHousehold() {
     if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
-    const sel = document.getElementById('addMemberResident');
+    const sel = document.getElementById('addMemberResidentEdit');
+    if (!sel) { alert('Member selector not available'); return; }
     const residentId = sel.value;
-    const householdId = currentViewHouseholdId || sel.dataset.householdId;
+    const formHouseholdId = document.getElementById('householdId')?.value || '';
+    const householdId = formHouseholdId || currentViewHouseholdId || sel.dataset.householdId;
     if (!residentId || !householdId) { alert('Select a resident'); return; }
     const fd = new FormData();
     fd.append('action', 'add_member');
@@ -245,7 +253,16 @@ function addMemberToHousehold() {
         .then(r => r.json())
         .then(d => {
             if (d.success) {
-                viewHousehold(parseInt(householdId));
+                loadHouseholds();
+                Promise.all([
+                    fetch(window.API_URL + 'households.php?action=get&id=' + householdId).then(r => r.json()),
+                    fetch(window.API_URL + 'resident.php?action=list&limit=500').then(r => r.json())
+                ]).then(([householdData]) => {
+                    if (!householdData.success) return;
+                    const h = householdData.data;
+                    loadResidentsForAddMember(parseInt(householdId, 10), (h.members || []).map(m => m.id));
+                    document.getElementById('total_members').value = h.total_members || 1;
+                });
             } else alert('Error: ' + (d.message || 'Failed'));
         });
 }
@@ -288,6 +305,7 @@ function editHousehold(id) {
         document.getElementById('total_members').value = h.total_members || 1;
         document.getElementById('registration_date').value = h.registration_date || '';
         document.getElementById('householdModalTitle').textContent = 'Edit Household';
+        loadResidentsForAddMember(h.id, (h.members || []).map(m => m.id));
         new bootstrap.Modal(document.getElementById('householdModal')).show();
     }).catch(() => alert('Error loading household'));
 }
@@ -306,10 +324,29 @@ function deleteHousehold(id) {
 function resetForm() {
     document.getElementById('householdForm').reset();
     document.getElementById('householdId').value = '';
-    document.getElementById('householdModalTitle').textContent = 'Add New Household';
+    document.getElementById('householdModalTitle').textContent = 'Edit Household';
+    const sel = document.getElementById('addMemberResidentEdit');
+    if (sel) {
+        sel.innerHTML = '<option value="">-- Select resident to add --</option>';
+        delete sel.dataset.householdId;
+    }
 }
 
 function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
+
+function calculateAge(birthDate) {
+    if (!birthDate) return '-';
+    const today = new Date();
+    const birth = new Date(birthDate);
+    if (Number.isNaN(birth.getTime())) return '-';
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
+    return age >= 0 ? age : '-';
+}
+
 function toTitleCase(text) {
     if (!text) return '';
     return String(text)
