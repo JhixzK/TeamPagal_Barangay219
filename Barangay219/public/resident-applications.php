@@ -23,30 +23,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="row g-3 mb-4 module-stats" data-module="resident_applications">
-            <div class="col-sm-6 col-lg-4">
-                <div class="stat-card bg-warning text-dark" data-status="pending" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
-                    <div class="stat-value" data-stat="pending">-</div>
-                    <div class="stat-label">Pending</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-4">
-                <div class="stat-card bg-success text-white" data-status="approved" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
-                    <div class="stat-value" data-stat="approved">-</div>
-                    <div class="stat-label">Approved</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-4">
-                <div class="stat-card bg-danger text-white" data-status="rejected" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-x-circle"></i></div>
-                    <div class="stat-value" data-stat="rejected">-</div>
-                    <div class="stat-label">Rejected</div>
-                </div>
-            </div>
-        </div>
-
         <div class="search-bar mb-3">
             <div class="row">
                 <div class="col-md-6">
@@ -69,6 +45,13 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
         </div>
+
+        <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
+            <li class="nav-item"><a class="nav-link" href="#" data-status="">All</a></li>
+            <li class="nav-item"><a class="nav-link active" href="#" data-status="pending">Pending</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="approved">Approved</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
+        </ul>
 
         <div class="table-responsive data-table">
             <table class="table table-hover">
@@ -117,17 +100,28 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .resident-apps-page .app-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     border-bottom: 0;
-    gap: 0.35rem;
+    gap: 0.45rem;
+}
+
+.resident-apps-page .app-tabs .nav-item {
+    margin: 0;
 }
 
 .resident-apps-page .app-tabs .nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
     border: 1px solid #dbe3ee;
     border-radius: 999px;
     color: #475569;
     font-weight: 600;
-    padding: 0.4rem 0.85rem;
+    padding: 0.55rem 0.85rem;
     background: #ffffff;
+    white-space: nowrap;
 }
 
 .resident-apps-page .app-tabs .nav-link.active {
@@ -139,6 +133,12 @@ include __DIR__ . '/../includes/sidebar.php';
 .resident-apps-page .data-table .table th,
 .resident-apps-page .data-table .table td {
     vertical-align: middle;
+}
+
+@media (max-width: 768px) {
+    .resident-apps-page .app-tabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 </style>
 
