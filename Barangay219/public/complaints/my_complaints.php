@@ -73,6 +73,16 @@ foreach ($complaints as $complaint) {
 
     <div class="header-right">
       <span class="date-badge" id="topDateBadge"><?php echo date('F d, Y'); ?></span>
+      <?php if (canSwitchToResidentView()): ?>
+        <div class="view-switch" role="group" aria-label="View mode switch">
+          <span class="view-label">Official</span>
+          <label class="switch">
+            <input type="checkbox" data-view-mode-toggle <?php echo isResidentView() ? 'checked' : ''; ?>>
+            <span class="slider"></span>
+          </label>
+          <span class="view-label">Resident</span>
+        </div>
+      <?php endif; ?>
       <button class="icon-btn" aria-label="Notifications">
         <i class="fa-regular fa-bell"></i>
       </button>
@@ -274,5 +284,6 @@ foreach ($complaints as $complaint) {
   setDateBadges();
 })();
 </script>
+<script src="<?php echo ASSETS_URL; ?>css/js/view-mode-switch.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>
