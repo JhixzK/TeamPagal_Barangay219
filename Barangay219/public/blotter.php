@@ -25,24 +25,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="search-bar mb-3">
-            <div class="row g-2 align-items-center">
-                <div class="col-md-8">
-                    <input type="text" class="form-control" id="searchInput" placeholder="Search by case title, complainant, or status...">
-                </div>
-                <div class="col-md-2">
-                    <button class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#filterModal">
-                        <i class="bi bi-funnel"></i> Filter
-                    </button>
-                </div>
-                <div class="col-md-2">
-                    <button class="btn btn-secondary w-100" onclick="window.location.reload()">
-                        <i class="bi bi-arrow-clockwise"></i> Refresh
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <div class="row g-3 mb-4 module-stats" data-module="blotters">
             <div class="col-sm-6 col-lg-3">
                 <div class="stat-card bg-primary text-white" data-status="" role="button" tabindex="0">
@@ -70,6 +52,24 @@ include __DIR__ . '/../includes/sidebar.php';
                     <div class="stat-icon"><i class="bi bi-handshake"></i></div>
                     <div class="stat-value" data-stat="settled">-</div>
                     <div class="stat-label">Settled</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="search-bar mb-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-8">
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search by case title, complainant, or status...">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-secondary w-100" onclick="window.location.reload()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
                 </div>
             </div>
         </div>
