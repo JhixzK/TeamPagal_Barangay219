@@ -67,12 +67,16 @@ function initResidentFormValidation() {
     const lastName = document.getElementById('last_name');
     const suffix = document.getElementById('suffix');
     const contact = document.getElementById('contact_number');
+    const address = document.getElementById('address');
+    const citizenship = document.getElementById('citizenship');
 
     if (firstName) validateNameInput(firstName);
     if (middleName) validateNameInput(middleName);
     if (lastName) validateNameInput(lastName);
     if (suffix) validateNameInput(suffix, true);
     if (contact) validatePhoneInput(contact);
+    if (address) attachTitleCaseOnBlur(address);
+    if (citizenship) attachTitleCaseOnBlur(citizenship);
 }
 
 // Name input validation - only allow letters, spaces, and dots (for suffix)
@@ -80,6 +84,9 @@ function validateNameInput(input, allowDot = false) {
     input.addEventListener('input', function() {
         const regex = allowDot ? /[^a-zA-Z\s.]/g : /[^a-zA-Z\s]/g;
         this.value = this.value.replace(regex, '');
+    });
+    input.addEventListener('blur', function() {
+        this.value = toTitleCase(this.value);
     });
 }
 
@@ -184,7 +191,8 @@ function displayResidents(residents) {
     }
     
     tbody.innerHTML = residents.map(resident => {
-        const fullName = `${escapeHtml(resident.first_name)} ${escapeHtml(resident.middle_name || '')} ${escapeHtml(resident.last_name)} ${escapeHtml(resident.suffix || '')}`.trim();
+        const rawFullName = `${resident.first_name || ''} ${resident.middle_name || ''} ${resident.last_name || ''} ${resident.suffix || ''}`.trim();
+        const fullName = escapeHtml(toTitleCase(rawFullName));
         const age = calculateAge(resident.birth_date);
         const residentCode = resident.resident_code ? escapeHtml(resident.resident_code) : '<span class="text-muted">N/A</span>';
         
@@ -198,7 +206,7 @@ function displayResidents(residents) {
                 <td>${fullName}</td>
                 <td>${formatDate(resident.birth_date)} (${age} yrs)</td>
                 <td>${formatGender(resident.gender)}</td>
-                <td>${escapeHtml((resident.address||'').substring(0,40))}${(resident.address||'').length>40?'...':''}</td>
+                <td>${escapeHtml(formatTitleCaseTruncate(resident.address || '', 40))}${(resident.address||'').length>40?'...':''}</td>
                 <td>${escapeHtml(formatPhoneNumber(resident.contact_number) || '-')}</td>
                 <td>${householdRole}</td>
                 <td><span class="badge ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
@@ -307,10 +315,10 @@ function editResident(id) {
                 householdsData.data.map(h => `<option value="${h.id}">${escapeHtml(h.family_head_name || 'Household #'+h.id)}</option>`).join('');
         }
         document.getElementById('residentId').value = resident.id;
-        document.getElementById('first_name').value = resident.first_name;
-        document.getElementById('middle_name').value = resident.middle_name || '';
-        document.getElementById('last_name').value = resident.last_name;
-        document.getElementById('suffix').value = resident.suffix || '';
+        document.getElementById('first_name').value = toTitleCase(resident.first_name || '');
+        document.getElementById('middle_name').value = toTitleCase(resident.middle_name || '');
+        document.getElementById('last_name').value = toTitleCase(resident.last_name || '');
+        document.getElementById('suffix').value = toTitleCase(resident.suffix || '');
         document.getElementById('birth_date').value = resident.birth_date;
         document.getElementById('gender').value = resident.gender;
         document.getElementById('civil_status').value = resident.civil_status || '';
@@ -325,8 +333,8 @@ function editResident(id) {
             }
             occupationSelect.value = occupationValue;
         }
-        document.getElementById('citizenship').value = resident.citizenship || 'Filipino';
-        document.getElementById('address').value = resident.address;
+        document.getElementById('citizenship').value = toTitleCase(resident.citizenship || 'Filipino');
+        document.getElementById('address').value = toTitleCase(resident.address || '');
         document.getElementById('contact_number').value = formatPhoneForInput(resident.contact_number) || '+63 ';
         document.getElementById('household_id').value = resident.household_id || '';
         document.getElementById('status').value = resident.status;
@@ -347,20 +355,20 @@ function viewResident(id) {
         .then(data => {
             if (!data.success) { showAlert('error', data.message); return; }
             const r = data.data;
-            const fullName = `${r.first_name} ${r.middle_name || ''} ${r.last_name} ${r.suffix || ''}`.trim();
+            const fullName = `${r.first_name || ''} ${r.middle_name || ''} ${r.last_name || ''} ${r.suffix || ''}`.trim();
             const age = calculateAge(r.birth_date);
             const residentCode = r.resident_code ? escapeHtml(r.resident_code) : '-';
             document.getElementById('viewResidentBody').innerHTML = `
                 <table class="table table-sm">
                     <tr><td><strong>Resident ID</strong></td><td>${residentCode}</td></tr>
-                    <tr><td><strong>Full Name</strong></td><td>${escapeHtml(fullName)}</td></tr>
+                    <tr><td><strong>Full Name</strong></td><td>${escapeHtml(toTitleCase(fullName))}</td></tr>
                     <tr><td><strong>Birth Date</strong></td><td>${formatDate(r.birth_date)} (${age} yrs)</td></tr>
                     <tr><td><strong>Gender</strong></td><td>${formatGender(r.gender)}</td></tr>
-                    <tr><td><strong>Civil Status</strong></td><td>${escapeHtml(r.civil_status || '-')}</td></tr>
+                    <tr><td><strong>Civil Status</strong></td><td>${escapeHtml(toTitleCase(r.civil_status || '-'))}</td></tr>
                     <tr><td><strong>Contact</strong></td><td>${escapeHtml(formatPhoneNumber(r.contact_number) || '-')}</td></tr>
-                    <tr><td><strong>Address</strong></td><td>${escapeHtml(r.address || '-')}</td></tr>
-                    <tr><td><strong>Occupation</strong></td><td>${escapeHtml(r.occupation || '-')}</td></tr>
-                    <tr><td><strong>Citizenship</strong></td><td>${escapeHtml(r.citizenship || '-')}</td></tr>
+                    <tr><td><strong>Address</strong></td><td>${escapeHtml(toTitleCase(r.address || '-'))}</td></tr>
+                    <tr><td><strong>Occupation</strong></td><td>${escapeHtml(toTitleCase(r.occupation || '-'))}</td></tr>
+                    <tr><td><strong>Citizenship</strong></td><td>${escapeHtml(toTitleCase(r.citizenship || '-'))}</td></tr>
                     <tr><td><strong>Household</strong></td><td>${r.household_address ? 'Household #'+r.household_id+' ('+r.total_members+' members)' : 'None'}</td></tr>
                     <tr><td><strong>Household Role</strong></td><td>${r.household_id ? (String(r.is_household_head)==='1' ? 'Head of Household' : 'Member') : '-'}</td></tr>
                     <tr><td><strong>Certificates</strong></td><td>${r.certificates_count || 0} issued</td></tr>
@@ -378,6 +386,7 @@ function viewResident(id) {
  * Save resident (create or update)
  */
 function saveResident() {
+    applyTitleCaseToForm();
     const form = document.getElementById('residentForm');
     const formData = new FormData(form);
     const residentId = document.getElementById('residentId').value;
@@ -512,6 +521,50 @@ function formatDate(dateString) {
     if (!dateString) return '-';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function toTitleCase(text) {
+    if (!text) return '';
+    return String(text)
+        .trim()
+        .split(/\s+/)
+        .map(word => {
+            if (!word) return '';
+            const clean = word.replace(/[^a-zA-Z]/g, '');
+            if (clean.length > 0 && clean === clean.toUpperCase() && clean.length <= 3) {
+                return word;
+            }
+            const first = word.charAt(0).toUpperCase();
+            const rest = word.slice(1).toLowerCase();
+            return first + rest;
+        })
+        .join(' ');
+}
+
+function formatTitleCaseTruncate(text, maxLen) {
+    const titled = toTitleCase(text || '');
+    return titled.substring(0, maxLen);
+}
+
+function attachTitleCaseOnBlur(input) {
+    input.addEventListener('blur', function() {
+        this.value = toTitleCase(this.value);
+    });
+}
+
+function applyTitleCaseToForm() {
+    const fields = [
+        'first_name',
+        'middle_name',
+        'last_name',
+        'suffix',
+        'address',
+        'citizenship'
+    ];
+    fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = toTitleCase(el.value);
+    });
 }
 
 function normalizePhoneDigits(raw) {
