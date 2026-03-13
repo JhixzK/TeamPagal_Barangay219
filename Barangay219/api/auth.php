@@ -30,6 +30,10 @@ switch ($action) {
         checkAuth();
         break;
     
+    case 'view_mode':
+        handleViewMode();
+        break;
+    
     default:
         sendResponse(false, 'Invalid action', null, 400);
         break;
@@ -112,6 +116,11 @@ function handleLogin() {
         $_SESSION['resident_id'] = $user['resident_id'];
         $_SESSION['logged_in'] = true;
         $_SESSION['login_time'] = time();
+        if ($user['role'] === ROLE_RESIDENT) {
+            unset($_SESSION['view_mode']);
+        } else {
+            $_SESSION['view_mode'] = 'official';
+        }
         
         // Regenerate session ID for security
         session_regenerate_id(true);
@@ -172,6 +181,45 @@ function checkAuth() {
     } else {
         sendResponse(false, 'User is not authenticated', null, 401);
     }
+}
+
+/**
+ * Toggle view mode for non-resident users
+ */
+function handleViewMode() {
+    if (!isLoggedIn()) {
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            header('Location: ' . BASE_URL . 'index.php');
+            exit();
+        }
+        sendResponse(false, 'User is not authenticated', null, 401);
+        return;
+    }
+
+    $mode = sanitizeInput($_GET['mode'] ?? $_POST['mode'] ?? '');
+    if ($mode !== 'resident' && $mode !== 'official') {
+        $mode = 'official';
+    }
+
+    if (!setViewMode($mode)) {
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            header('Location: ' . BASE_URL . 'dashboard.php');
+            exit();
+        }
+        sendResponse(false, 'View mode switch not allowed', null, 403);
+        return;
+    }
+
+    $redirect = $mode === 'resident'
+        ? BASE_URL . 'resident_dashboard.php'
+        : BASE_URL . 'dashboard.php';
+
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        header('Location: ' . $redirect);
+        exit();
+    }
+
+    sendResponse(true, 'View mode updated', ['redirect' => $redirect]);
 }
 
 /**
