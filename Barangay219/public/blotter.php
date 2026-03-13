@@ -25,37 +25,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="row g-3 mb-4 module-stats" data-module="blotters">
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-primary text-white" data-status="" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-files"></i></div>
-                    <div class="stat-value" data-stat="total">-</div>
-                    <div class="stat-label">Total Cases</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-warning text-dark" data-status="pending" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
-                    <div class="stat-value" data-stat="pending">-</div>
-                    <div class="stat-label">Pending</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-success text-white" data-status="resolved" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
-                    <div class="stat-value" data-stat="resolved">-</div>
-                    <div class="stat-label">Resolved</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-info text-white" data-status="settled" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-handshake"></i></div>
-                    <div class="stat-value" data-stat="settled">-</div>
-                    <div class="stat-label">Settled</div>
-                </div>
-            </div>
-        </div>
-
         <div class="search-bar mb-3">
             <div class="row g-2 align-items-center">
                 <div class="col-md-8">
@@ -73,6 +42,13 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
         </div>
+
+        <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
+            <li class="nav-item"><a class="nav-link active" href="#" data-status="">All</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="pending">Pending</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="resolved">Resolved</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="settled">Settled</a></li>
+        </ul>
 
         <div class="data-table mt-2">
             <div class="table-responsive">
@@ -387,6 +363,40 @@ include __DIR__ . '/../includes/sidebar.php';
     .blotterModal .card-body p {
         font-size: 0.95rem;
         color: #333;
+    }
+
+    .blotter-page .app-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.45rem;
+        border-bottom: 0;
+    }
+
+    .blotter-page .app-tabs .nav-item {
+        margin: 0;
+    }
+
+    .blotter-page .app-tabs .nav-link {
+        width: 100%;
+        text-align: center;
+        border: 1px solid #dbe3ee;
+        border-radius: 999px;
+        color: #475569;
+        font-weight: 600;
+        padding: 0.5rem 0.8rem;
+        background: #ffffff;
+    }
+
+    .blotter-page .app-tabs .nav-link.active {
+        color: #1d4ed8;
+        background: #e8f0ff;
+        border-color: #bfdbfe;
+    }
+
+    @media (max-width: 768px) {
+        .blotter-page .app-tabs {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
 </style>
 
