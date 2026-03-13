@@ -8,12 +8,12 @@ define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../config/constants.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
-if (isLoggedIn()) {
+$token = trim($_GET['token'] ?? '');
+
+if (isLoggedIn() && !$token) {
     header('Location: ' . BASE_URL . 'dashboard.php');
     exit();
 }
-
-$token = trim($_GET['token'] ?? '');
 ?>
 <!DOCTYPE html>
 <html lang="en">
