@@ -67,6 +67,8 @@ $valid_id_types = [
             background: url('<?php echo ASSETS_URL; ?>img/crop219logo.png') no-repeat 95% center;
             background-size: calc(900px * var(--bg-zoom-inverse, 1));
             opacity: 0.90;
+            filter: blur(6px);
+            transform: scale(1.03);
             pointer-events: none;
             z-index: 0;
         }
