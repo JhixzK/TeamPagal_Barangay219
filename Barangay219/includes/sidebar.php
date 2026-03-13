@@ -115,6 +115,11 @@ if (empty($avatar_path)) {
 ?>
 <div class="sidebar" id="appSidebar">
     <div class="sidebar-content">
+        <div class="sidebar-toggle-wrap">
+            <button class="btn btn-sm btn-outline-primary sidebar-toggle-btn" type="button" id="sidebarToggleBtn" aria-label="Toggle sidebar" aria-controls="appSidebar" aria-expanded="false">
+                <i class="bi bi-list"></i>
+            </button>
+        </div>
         <div class="sidebar-profile text-center mb-3" style="padding:0.5rem 1rem;">
             <a href="<?php echo BASE_URL; ?>profile.php" class="d-flex align-items-center gap-2 text-decoration-none">
                 <img src="<?php echo $avatar_path; ?>" alt="Avatar" class="rounded-circle" style="width:48px;height:48px;object-fit:cover;border:2px solid #fff;box-shadow:0 0 0 2px rgba(13,110,253,0.08);">
@@ -198,6 +203,27 @@ body.sidebar-expanded .sidebar {
 
 .sidebar-content {
     padding: 1rem 0;
+}
+
+.sidebar .sidebar-toggle-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 0 0.75rem 0.65rem;
+}
+
+.sidebar .sidebar-toggle-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+body.sidebar-expanded .sidebar .sidebar-toggle-wrap {
+    justify-content: flex-end;
+    padding: 0 1rem 0.65rem;
 }
 
 .sidebar .sidebar-profile {
@@ -335,6 +361,11 @@ body.sidebar-expanded .main-content {
 
     .sidebar .sidebar-profile a {
         justify-content: flex-start;
+    }
+
+    .sidebar .sidebar-toggle-wrap {
+        justify-content: flex-end;
+        padding: 0 1rem 0.65rem;
     }
 
     .sidebar .sidebar-profile .profile-meta,
