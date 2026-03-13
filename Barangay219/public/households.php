@@ -17,11 +17,8 @@ include __DIR__ . '/../includes/sidebar.php';
                 <div>
                     <p class="module-kicker text-uppercase small mb-1">Records Module</p>
                     <h2 class="mb-1"><i class="bi bi-house-door me-2"></i>Households Management</h2>
-                    <p class="module-subtitle mb-0">Track household records, family heads, and member composition.</p>
+                    <p class="module-subtitle mb-0">Manage household groups and let residents join selected households.</p>
                 </div>
-                <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#householdModal" onclick="resetForm(); loadResidentsForDropdown();">
-                    <i class="bi bi-plus-circle"></i> Add New Household
-                </button>
             </div>
         </div>
 
@@ -127,7 +124,7 @@ include __DIR__ . '/../includes/sidebar.php';
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="householdModalTitle">Add New Household</h5>
+                <h5 class="modal-title" id="householdModalTitle">Edit Household</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="householdForm">
@@ -138,7 +135,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <select class="form-select" id="family_head_id" name="family_head_id" required>
                             <option value="">-- Select Resident --</option>
                         </select>
-                        <small class="text-muted">Select the head of the household. Add resident first if not in list.</small>
+                        <small class="text-muted">Select the head from existing residents in this group.</small>
                     </div>
                     <div class="mb-3">
                         <label for="address" class="form-label">Address <span class="text-danger">*</span></label>
@@ -153,6 +150,14 @@ include __DIR__ . '/../includes/sidebar.php';
                             <label for="registration_date" class="form-label">Registration Date</label>
                             <input type="date" class="form-control" id="registration_date" name="registration_date">
                         </div>
+                    </div>
+                    <hr>
+                    <h6>Join Selected Household</h6>
+                    <div class="input-group mb-2">
+                        <select class="form-select" id="addMemberResidentEdit">
+                            <option value="">-- Select resident to add --</option>
+                        </select>
+                        <button class="btn btn-primary" type="button" id="btnAddMemberEdit">Add</button>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -177,14 +182,6 @@ include __DIR__ . '/../includes/sidebar.php';
                 <hr>
                 <h6>Members</h6>
                 <div id="viewHouseholdMembers"></div>
-                <hr>
-                <h6>Add Member</h6>
-                <div class="input-group mb-2">
-                    <select class="form-select" id="addMemberResident">
-                        <option value="">-- Select resident to add --</option>
-                    </select>
-                    <button class="btn btn-primary" type="button" id="btnAddMember">Add</button>
-                </div>
             </div>
         </div>
     </div>
