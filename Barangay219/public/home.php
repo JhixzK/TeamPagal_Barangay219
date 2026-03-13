@@ -10,9 +10,19 @@ require_once __DIR__ . '/../includes/auth-check.php';
 
 // Check if user is logged in
 $isLoggedIn = isLoggedIn();
+$role = $_SESSION['role'] ?? '';
+
+if ($isLoggedIn) {
+    if ($role === 'resident') {
+        header('Location: ' . BASE_URL . 'resident_dashboard.php');
+    } else {
+        header('Location: ' . BASE_URL . 'dashboard.php');
+    }
+    exit();
+}
+
 $userId = getCurrentUserId();
 $username = $_SESSION['username'] ?? '';
-$role = $_SESSION['role'] ?? '';
 $fullName = $_SESSION['full_name'] ?? ucfirst(str_replace('_', ' ', $role));
 
 $barangayName = 'Barangay 219, Tondo';
