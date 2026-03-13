@@ -166,7 +166,7 @@ function renderApplications(apps) {
                 <td><code>${esc(app.application_ref || 'APP-' + app.id)}</code></td>
                 <td>${esc(fullName || '-')}</td>
                 <td>${esc(app.sex || '-')}</td>
-                <td>${esc(app.mobile_number || '-')}</td>
+                <td>${esc(formatPhoneNumber(app.mobile_number) || '-')}</td>
                 <td>${formatDate(app.created_at)}</td>
                 <td>${roleInfo.badge}</td>
                 <td>${statusBadge}</td>
@@ -242,12 +242,12 @@ function viewApplication(id) {
                     <div class="col-md-6"><strong>Civil Status:</strong> ${esc(app.civil_status || '-')}</div>
                     <div class="col-md-6"><strong>Citizenship:</strong> ${esc(app.citizenship || '-')}</div>
                     <div class="col-md-12"><strong>Address:</strong> ${esc(address || '-')}</div>
-                    <div class="col-md-6"><strong>Mobile:</strong> ${esc(app.mobile_number || '-')}</div>
+                    <div class="col-md-6"><strong>Mobile:</strong> ${esc(formatPhoneNumber(app.mobile_number) || '-')}</div>
                     <div class="col-md-6"><strong>Email:</strong> ${esc(app.email || '-')}</div>
                     <div class="col-md-6"><strong>Household Role:</strong> ${roleInfo.label}</div>
                     <div class="col-md-6"><strong>Relationship to Head:</strong> ${esc(roleInfo.relationship || '-')}</div>
                     <div class="col-md-6"><strong>Emergency Contact:</strong> ${esc(app.emergency_contact_name || '-')}</div>
-                    <div class="col-md-6"><strong>Emergency Number:</strong> ${esc(app.emergency_contact_number || '-')}</div>
+                    <div class="col-md-6"><strong>Emergency Number:</strong> ${esc(formatPhoneNumber(app.emergency_contact_number) || '-')}</div>
                     <div class="col-md-6"><strong>Relationship:</strong> ${esc(app.emergency_contact_relationship || '-')}</div>
                     <div class="col-md-6"><strong>Employment:</strong> ${esc(app.employment_status || '-')}</div>
                     <div class="col-md-6"><strong>Education:</strong> ${esc(app.educational_attainment || '-')}</div>
@@ -435,6 +435,22 @@ function formatDate(value) {
     const date = new Date(value);
     if (isNaN(date.getTime())) return esc(value);
     return date.toLocaleDateString();
+}
+
+function normalizePhoneDigits(raw) {
+    if (!raw) return '';
+    let digits = String(raw).replace(/\D/g, '');
+    if (digits.startsWith('63')) digits = digits.slice(2);
+    if (digits.startsWith('0')) digits = digits.slice(1);
+    return digits.slice(0, 10);
+}
+
+function formatPhoneNumber(raw) {
+    if (!raw) return '';
+    const digits = normalizePhoneDigits(raw);
+    if (!digits) return String(raw).trim();
+    if (digits.length < 10) return String(raw).trim();
+    return '+63 ' + digits;
 }
 
 function esc(value) {
