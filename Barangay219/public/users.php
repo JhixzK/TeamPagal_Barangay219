@@ -95,14 +95,14 @@ include __DIR__ . '/../includes/sidebar.php';
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Username</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Role</th>
-                            <th>Status</th>
-                            <th>Created</th>
-                            <th>Actions</th>
+                            <th class="text-center">ID</th>
+                            <th class="text-center">Username</th>
+                            <th class="text-center">Name</th>
+                            <th class="text-center">Email</th>
+                            <th class="text-center">Role</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Created</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="usersTableBody">
