@@ -202,15 +202,15 @@ function displayResidents(residents) {
             : '<span class="text-muted">-</span>';
         return `
             <tr>
-                <td>${residentCode}</td>
-                <td>${fullName}</td>
-                <td>${formatDate(resident.birth_date)} (${age} yrs)</td>
-                <td>${formatGender(resident.gender)}</td>
-                <td>${escapeHtml(formatTitleCaseTruncate(resident.address || '', 40))}${(resident.address||'').length>40?'...':''}</td>
-                <td>${escapeHtml(formatPhoneNumber(resident.contact_number) || '-')}</td>
-                <td>${householdRole}</td>
-                <td><span class="badge ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
-                <td>
+                <td class="text-center">${residentCode}</td>
+                <td class="text-center">${fullName}</td>
+                <td class="text-center">${formatDate(resident.birth_date)} (${age} yrs)</td>
+                <td class="text-center">${formatGender(resident.gender)}</td>
+                <td class="text-center">${escapeHtml(formatTitleCaseTruncate(resident.address || '', 40))}${(resident.address||'').length>40?'...':''}</td>
+                <td class="text-center">${escapeHtml(formatPhoneNumber(resident.contact_number) || '-')}</td>
+                <td class="text-center">${householdRole}</td>
+                <td class="text-center"><span class="badge ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
+                <td class="text-center">
                     ${RESIDENT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editResident(${resident.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
                     <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewResident(${resident.id})"><i class="bi bi-eye"></i></button>
                     ${RESIDENT_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteResident(${resident.id})"><i class="bi bi-trash"></i></button>` : ''}
