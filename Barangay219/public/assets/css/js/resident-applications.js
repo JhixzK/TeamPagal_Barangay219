@@ -163,14 +163,14 @@ function renderApplications(apps) {
         const roleInfo = getHouseholdRoleInfo(app);
         return `
             <tr>
-                <td><code>${esc(app.application_ref || 'APP-' + app.id)}</code></td>
-                <td>${esc(fullName || '-')}</td>
-                <td>${esc(app.sex || '-')}</td>
-                <td>${esc(formatPhoneNumber(app.mobile_number) || '-')}</td>
-                <td>${formatDate(app.created_at)}</td>
-                <td>${roleInfo.badge}</td>
-                <td>${statusBadge}</td>
-                <td>${actions}</td>
+                <td class="text-center"><code>${esc(app.application_ref || 'APP-' + app.id)}</code></td>
+                <td class="text-center">${esc(toTitleCase(fullName || '-'))}</td>
+                <td class="text-center">${esc(toTitleCase(app.sex || '-'))}</td>
+                <td class="text-center">${esc(formatPhoneNumber(app.mobile_number) || '-')}</td>
+                <td class="text-center">${formatDate(app.created_at)}</td>
+                <td class="text-center"><div class="d-flex justify-content-center">${roleInfo.badge}</div></td>
+                <td class="text-center">${statusBadge}</td>
+                <td class="text-center">${actions}</td>
             </tr>
         `;
     }).join('');
@@ -235,22 +235,22 @@ function viewApplication(id) {
             const roleInfo = getHouseholdRoleInfo(app);
             document.getElementById('viewModalBody').innerHTML = `
                 <div class="row g-3">
-                    <div class="col-md-6"><strong>Name:</strong> ${esc(fullName || '-')}</div>
-                    <div class="col-md-6"><strong>Sex:</strong> ${esc(app.sex || '-')}</div>
+                    <div class="col-md-6"><strong>Name:</strong> ${esc(toTitleCase(fullName || '-'))}</div>
+                    <div class="col-md-6"><strong>Sex:</strong> ${esc(toTitleCase(app.sex || '-'))}</div>
                     <div class="col-md-6"><strong>Birth Date:</strong> ${formatDate(app.birth_date)}</div>
-                    <div class="col-md-6"><strong>Place of Birth:</strong> ${esc(app.place_of_birth || '-')}</div>
-                    <div class="col-md-6"><strong>Civil Status:</strong> ${esc(app.civil_status || '-')}</div>
-                    <div class="col-md-6"><strong>Citizenship:</strong> ${esc(app.citizenship || '-')}</div>
-                    <div class="col-md-12"><strong>Address:</strong> ${esc(address || '-')}</div>
+                    <div class="col-md-6"><strong>Place of Birth:</strong> ${esc(toTitleCase(app.place_of_birth || '-'))}</div>
+                    <div class="col-md-6"><strong>Civil Status:</strong> ${esc(toTitleCase(app.civil_status || '-'))}</div>
+                    <div class="col-md-6"><strong>Citizenship:</strong> ${esc(toTitleCase(app.citizenship || '-'))}</div>
+                    <div class="col-md-12"><strong>Address:</strong> ${esc(toTitleCase(address || '-'))}</div>
                     <div class="col-md-6"><strong>Mobile:</strong> ${esc(formatPhoneNumber(app.mobile_number) || '-')}</div>
                     <div class="col-md-6"><strong>Email:</strong> ${esc(app.email || '-')}</div>
-                    <div class="col-md-6"><strong>Household Role:</strong> ${roleInfo.label}</div>
-                    <div class="col-md-6"><strong>Relationship to Head:</strong> ${esc(roleInfo.relationship || '-')}</div>
-                    <div class="col-md-6"><strong>Emergency Contact:</strong> ${esc(app.emergency_contact_name || '-')}</div>
+                    <div class="col-md-6"><strong>Household Role:</strong> ${esc(toTitleCase(roleInfo.label || '-'))}</div>
+                    <div class="col-md-6"><strong>Relationship to Head:</strong> ${esc(toTitleCase(roleInfo.relationship || '-'))}</div>
+                    <div class="col-md-6"><strong>Emergency Contact:</strong> ${esc(toTitleCase(app.emergency_contact_name || '-'))}</div>
                     <div class="col-md-6"><strong>Emergency Number:</strong> ${esc(formatPhoneNumber(app.emergency_contact_number) || '-')}</div>
-                    <div class="col-md-6"><strong>Relationship:</strong> ${esc(app.emergency_contact_relationship || '-')}</div>
-                    <div class="col-md-6"><strong>Employment:</strong> ${esc(app.employment_status || '-')}</div>
-                    <div class="col-md-6"><strong>Education:</strong> ${esc(app.educational_attainment || '-')}</div>
+                    <div class="col-md-6"><strong>Relationship:</strong> ${esc(toTitleCase(app.emergency_contact_relationship || '-'))}</div>
+                    <div class="col-md-6"><strong>Employment:</strong> ${esc(toTitleCase(app.employment_status || '-'))}</div>
+                    <div class="col-md-6"><strong>Education:</strong> ${esc(toTitleCase(app.educational_attainment || '-'))}</div>
                     <div class="col-md-6"><strong>Submitted:</strong> ${formatDate(app.created_at)}</div>
                     <div class="col-md-6"><strong>Status:</strong> ${getStatusBadge(app.record_status)}</div>
                     <div class="col-md-6"><strong>Valid ID:</strong> ${idDoc}</div>
@@ -435,6 +435,24 @@ function formatDate(value) {
     const date = new Date(value);
     if (isNaN(date.getTime())) return esc(value);
     return date.toLocaleDateString();
+}
+
+function toTitleCase(text) {
+    if (!text) return '';
+    return String(text)
+        .trim()
+        .split(/\s+/)
+        .map(word => {
+            if (!word) return '';
+            const clean = word.replace(/[^a-zA-Z]/g, '');
+            if (clean.length > 0 && clean === clean.toUpperCase() && clean.length <= 3) {
+                return word;
+            }
+            const first = word.charAt(0).toUpperCase();
+            const rest = word.slice(1).toLowerCase();
+            return first + rest;
+        })
+        .join(' ');
 }
 
 function normalizePhoneDigits(raw) {
