@@ -104,13 +104,14 @@ include __DIR__ . '/../includes/sidebar.php';
                             <th>Gender</th>
                             <th>Address</th>
                             <th>Contact</th>
+                            <th>Household Role</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="residentsTableBody">
                         <tr>
-                            <td colspan="8" class="text-center">
+                            <td colspan="9" class="text-center">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
