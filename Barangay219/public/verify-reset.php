@@ -42,16 +42,16 @@ if (!in_array($method, ['email', 'sms'])) {
             position: relative;
             isolation: isolate;
             overflow-x: hidden;
-            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+            background: #ffffff;
         }
         .login-container::before {
             content: '';
             position: fixed;
             inset: 0;
             z-index: 0;
-            background: url('<?php echo ASSETS_URL; ?>img/barangay_logo2.png') no-repeat center 55%;
-            background-size: min(500px, 74vw);
-            opacity: 0.045;
+            background: url('<?php echo ASSETS_URL; ?>img/crop219logo.png') no-repeat 95% center;
+            background-size: calc(900px * var(--bg-zoom-inverse, 1));
+            opacity: 0.90;
             pointer-events: none;
         }
         .login-card {
@@ -238,6 +238,40 @@ if (!in_array($method, ['email', 'sms'])) {
 
     <script src="<?php echo ASSETS_URL; ?>js/bootstrap.bundle.min.js"></script>
     <script>
+        (function () {
+            var baseOuterInnerRatio = window.outerWidth && window.innerWidth ? window.outerWidth / window.innerWidth : 1;
+            if (!isFinite(baseOuterInnerRatio) || baseOuterInnerRatio <= 0) {
+                baseOuterInnerRatio = 1;
+            }
+
+            function syncBackgroundZoom() {
+                var viewportScale = window.visualViewport && window.visualViewport.scale ? window.visualViewport.scale : 1;
+                if (!isFinite(viewportScale) || viewportScale <= 0) {
+                    viewportScale = 1;
+                }
+
+                var desktopScale = 1;
+                if (window.outerWidth && window.innerWidth) {
+                    desktopScale = (window.outerWidth / window.innerWidth) / baseOuterInnerRatio;
+                }
+                if (!isFinite(desktopScale) || desktopScale <= 0) {
+                    desktopScale = 1;
+                }
+
+                var zoomScale = Math.max(viewportScale, desktopScale);
+                document.documentElement.style.setProperty('--bg-zoom-inverse', (1 / zoomScale).toFixed(4));
+            }
+
+            syncBackgroundZoom();
+            window.addEventListener('resize', syncBackgroundZoom, { passive: true });
+            window.addEventListener('orientationchange', syncBackgroundZoom, { passive: true });
+
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', syncBackgroundZoom, { passive: true });
+                window.visualViewport.addEventListener('scroll', syncBackgroundZoom, { passive: true });
+            }
+        })();
+
         const method = '<?php echo $method; ?>';
         const identifier = '<?php echo htmlspecialchars($identifier); ?>';
         const tokenParam = '<?php echo htmlspecialchars($token); ?>';
