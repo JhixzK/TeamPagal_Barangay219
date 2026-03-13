@@ -19,6 +19,8 @@ const ACTIVATION_LINK_STORAGE_LIMIT = 20;
 let currentStatus = 'pending';
 let currentPage = 1;
 let appFilters = { q: '', sex: '', from: '', to: '' };
+let isApproveSubmitting = false;
+let isRejectSubmitting = false;
 
 document.addEventListener('DOMContentLoaded', function() {
     bindTabs();
@@ -280,8 +282,12 @@ function openApprove(id) {
 }
 
 function submitApprove() {
+    if (isApproveSubmitting) return;
     const id = document.getElementById('approveId').value;
     const remarks = document.getElementById('approveRemarks').value.trim();
+    const approveBtn = document.getElementById('btnApprove');
+    isApproveSubmitting = true;
+    if (approveBtn) approveBtn.disabled = true;
     const formData = new FormData();
     formData.append('action', 'approve');
     formData.append('id', id);
@@ -312,6 +318,10 @@ function submitApprove() {
         .catch(err => {
             console.error(err);
             showAlert('error', 'Approval failed');
+        })
+        .finally(() => {
+            isApproveSubmitting = false;
+            if (approveBtn) approveBtn.disabled = false;
         });
 }
 
@@ -323,8 +333,12 @@ function openReject(id) {
 }
 
 function submitReject() {
+    if (isRejectSubmitting) return;
     const id = document.getElementById('rejectId').value;
     const reason = document.getElementById('rejectReason').value.trim();
+    const rejectBtn = document.getElementById('btnReject');
+    isRejectSubmitting = true;
+    if (rejectBtn) rejectBtn.disabled = true;
     const formData = new FormData();
     formData.append('action', 'reject');
     formData.append('id', id);
@@ -344,6 +358,10 @@ function submitReject() {
         .catch(err => {
             console.error(err);
             showAlert('error', 'Rejection failed');
+        })
+        .finally(() => {
+            isRejectSubmitting = false;
+            if (rejectBtn) rejectBtn.disabled = false;
         });
 }
 
