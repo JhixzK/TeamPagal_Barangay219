@@ -904,6 +904,47 @@ phoneFields.forEach(fieldName => {
     }
 });
 
+// Title-case all text inputs/areas except email
+function toTitleCase(text) {
+    if (!text) return '';
+    return String(text)
+        .trim()
+        .split(/\s+/)
+        .map(word => {
+            if (!word) return '';
+            const clean = word.replace(/[^a-zA-Z]/g, '');
+            if (clean.length > 0 && clean === clean.toUpperCase() && clean.length <= 3) {
+                return word;
+            }
+            const first = word.charAt(0).toUpperCase();
+            const rest = word.slice(1).toLowerCase();
+            return first + rest;
+        })
+        .join(' ');
+}
+
+function applyTitleCaseToRegisterForm() {
+    const form = document.getElementById('registerForm');
+    if (!form) return;
+    const fields = form.querySelectorAll('input[type="text"], textarea');
+    fields.forEach(field => {
+        if (field.name === 'email') return;
+        field.value = toTitleCase(field.value);
+    });
+}
+
+function initRegisterTitleCase() {
+    const form = document.getElementById('registerForm');
+    if (!form) return;
+    const fields = form.querySelectorAll('input[type="text"], textarea');
+    fields.forEach(field => {
+        if (field.name === 'email') return;
+        field.addEventListener('blur', function() {
+            this.value = toTitleCase(this.value);
+        });
+    });
+}
+
 // Household members - digits only, max 2 digits
 const householdMembersField = document.querySelector('input[name="household_members"]');
 if (householdMembersField) {
@@ -1318,6 +1359,7 @@ document.getElementById('prevBtn').addEventListener('click', function() {
 // Form submission
 document.getElementById('registerForm').addEventListener('submit', async function(e) {
     e.preventDefault();
+    applyTitleCaseToRegisterForm();
     if (!validateStep(4)) {
         alert('Please complete all required fields and confirm the information.');
         return;
@@ -1348,8 +1390,9 @@ document.getElementById('registerForm').addEventListener('submit', async functio
     btn.disabled = false;
 });
 
-// Initialize
-showStep(1);
+  // Initialize
+  initRegisterTitleCase();
+  showStep(1);
 </script>
 </body>
 </html>
