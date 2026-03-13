@@ -110,7 +110,7 @@ function initResidentApplicationStatFilters() {
 
 function loadApplications() {
     const tbody = document.getElementById('applicationsTableBody');
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border"></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="spinner-border"></div></td></tr>';
 
     const params = new URLSearchParams({
         action: 'list',
@@ -133,7 +133,7 @@ function loadApplications() {
         })
         .then(data => {
             if (!data.success) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-danger">' + esc(data.message || 'Error') + '</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-danger">' + esc(data.message || 'Error') + '</td></tr>';
                 return;
             }
             const apps = data.data.applications || [];
@@ -145,14 +145,14 @@ function loadApplications() {
             const message = err && err.message === 'NON_JSON_RESPONSE'
                 ? 'Failed to load applications (session/API host mismatch).'
                 : 'Failed to load applications';
-            tbody.innerHTML = '<tr><td colspan="7" class="text-danger">' + esc(message) + '</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-danger">' + esc(message) + '</td></tr>';
         });
 }
 
 function renderApplications(apps) {
     const tbody = document.getElementById('applicationsTableBody');
     if (!apps.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No applications found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No applications found.</td></tr>';
         return;
     }
 
@@ -160,6 +160,7 @@ function renderApplications(apps) {
         const fullName = [app.first_name, app.middle_name, app.last_name].filter(Boolean).join(' ');
         const statusBadge = getStatusBadge(app.record_status);
         const actions = renderActions(app);
+        const roleInfo = getHouseholdRoleInfo(app);
         return `
             <tr>
                 <td><code>${esc(app.application_ref || 'APP-' + app.id)}</code></td>
@@ -167,6 +168,7 @@ function renderApplications(apps) {
                 <td>${esc(app.sex || '-')}</td>
                 <td>${esc(app.mobile_number || '-')}</td>
                 <td>${formatDate(app.created_at)}</td>
+                <td>${roleInfo.badge}</td>
                 <td>${statusBadge}</td>
                 <td>${actions}</td>
             </tr>
@@ -230,6 +232,7 @@ function viewApplication(id) {
             const idDoc = buildFileLink(app.id_document_path, 'Valid ID');
             const proofDoc = buildFileLink(app.proof_of_residency_path, 'Proof of Residency');
 
+            const roleInfo = getHouseholdRoleInfo(app);
             document.getElementById('viewModalBody').innerHTML = `
                 <div class="row g-3">
                     <div class="col-md-6"><strong>Name:</strong> ${esc(fullName || '-')}</div>
@@ -241,6 +244,8 @@ function viewApplication(id) {
                     <div class="col-md-12"><strong>Address:</strong> ${esc(address || '-')}</div>
                     <div class="col-md-6"><strong>Mobile:</strong> ${esc(app.mobile_number || '-')}</div>
                     <div class="col-md-6"><strong>Email:</strong> ${esc(app.email || '-')}</div>
+                    <div class="col-md-6"><strong>Household Role:</strong> ${roleInfo.label}</div>
+                    <div class="col-md-6"><strong>Relationship to Head:</strong> ${esc(roleInfo.relationship || '-')}</div>
                     <div class="col-md-6"><strong>Emergency Contact:</strong> ${esc(app.emergency_contact_name || '-')}</div>
                     <div class="col-md-6"><strong>Emergency Number:</strong> ${esc(app.emergency_contact_number || '-')}</div>
                     <div class="col-md-6"><strong>Relationship:</strong> ${esc(app.emergency_contact_relationship || '-')}</div>
@@ -405,6 +410,24 @@ function getStatusBadge(status) {
     };
     const color = map[status] || 'secondary';
     return `<span class="badge bg-${color}">${esc(status || 'unknown')}</span>`;
+}
+
+function getHouseholdRoleInfo(app) {
+    const raw = (app.relationship_to_head || app.household_role || '').toString().trim();
+    const lower = raw.toLowerCase();
+    if (!raw) {
+        return {
+            label: '-',
+            relationship: '',
+            badge: '<span class="text-muted">-</span>'
+        };
+    }
+    const isHead = lower === 'head' || lower.includes('head') || lower.includes('single');
+    return {
+        label: isHead ? 'Head' : 'Member',
+        relationship: (app.relationship_to_head || '').toString().trim() || raw,
+        badge: isHead ? '<span class="badge bg-primary">Head</span>' : '<span class="badge bg-light text-dark border">Member</span>'
+    };
 }
 
 function formatDate(value) {
