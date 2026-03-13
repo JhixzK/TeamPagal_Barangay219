@@ -9,7 +9,7 @@ require_once __DIR__ . '/auth-check.php';
 function residentComplaintsRequireResident() {
     requireLogin();
 
-    if (normalizeRole(getCurrentUserRole()) !== normalizeRole(ROLE_RESIDENT)) {
+    if (!isResidentView()) {
         header('Location: ' . BASE_URL . 'dashboard.php');
         exit();
     }
