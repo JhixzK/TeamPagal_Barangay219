@@ -27,44 +27,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="row g-3 mb-4 module-stats" data-module="residents">
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-primary text-white" data-status="" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-people"></i></div>
-                    <div class="stat-value" data-stat="total">-</div>
-                    <div class="stat-label">Total Residents</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-2">
-                <div class="stat-card bg-success text-white" data-status="active" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-person-check"></i></div>
-                    <div class="stat-value" data-stat="active">-</div>
-                    <div class="stat-label">Active</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-2">
-                <div class="stat-card bg-secondary text-white" data-status="inactive" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-person-dash"></i></div>
-                    <div class="stat-value" data-stat="inactive">-</div>
-                    <div class="stat-label">Inactive</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-2">
-                <div class="stat-card bg-dark text-white" data-status="deceased" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-person-x"></i></div>
-                    <div class="stat-value" data-stat="deceased">-</div>
-                    <div class="stat-label">Deceased</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-info text-white" data-status="transferred" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-arrow-left-right"></i></div>
-                    <div class="stat-value" data-stat="transferred">-</div>
-                    <div class="stat-label">Transferred</div>
-                </div>
-            </div>
-        </div>
-
         <!-- Search Bar -->
         <div class="search-bar">
             <div class="row">
@@ -88,6 +50,14 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
         </div>
+
+        <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
+            <li class="nav-item"><a class="nav-link active" href="#" data-status="">All</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="active">Active</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="inactive">Inactive</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="deceased">Deceased</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="transferred">Transferred</a></li>
+        </ul>
 
         <!-- Residents Table -->
         <div class="data-table">
@@ -126,6 +96,42 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
     </div>
 </div>
+
+<style>
+.residents-page .app-tabs {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.45rem;
+    border-bottom: 0;
+}
+
+.residents-page .app-tabs .nav-item {
+    margin: 0;
+}
+
+.residents-page .app-tabs .nav-link {
+    width: 100%;
+    text-align: center;
+    border: 1px solid #dbe3ee;
+    border-radius: 999px;
+    color: #475569;
+    font-weight: 600;
+    padding: 0.5rem 0.8rem;
+    background: #ffffff;
+}
+
+.residents-page .app-tabs .nav-link.active {
+    color: #1d4ed8;
+    background: #e8f0ff;
+    border-color: #bfdbfe;
+}
+
+@media (max-width: 768px) {
+    .residents-page .app-tabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+</style>
 
 <!-- Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1">
