@@ -34,9 +34,9 @@ $userInfo = getUserInfo();
         // Provide API URL and permissions to client JS (escaped)
         window.API_URL = '<?php echo addslashes(API_URL); ?>';
         <?php if (isLoggedIn()): ?>
-        window.CURRENT_ROLE = <?php echo json_encode(getCurrentUserRole()); ?>;
+        window.CURRENT_ROLE = <?php echo json_encode(getEffectiveUserRole()); ?>;
         window.IS_ADMIN = <?php echo isAdmin() ? 'true' : 'false'; ?>;
-        window.ROLE_PERMISSIONS = <?php echo json_encode(getRolePermissions(getCurrentUserRole())); ?>;
+        window.ROLE_PERMISSIONS = <?php echo json_encode(getRolePermissions(getEffectiveUserRole())); ?>;
         window.canModulePermission = function(module, perm) {
             if (window.IS_ADMIN) return true;
             var perms = window.ROLE_PERMISSIONS || {};
@@ -69,6 +69,17 @@ $userInfo = getUserInfo();
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav"></div>
+            <?php if (canSwitchToResidentView()): ?>
+            <div class="view-switch ms-auto" role="group" aria-label="View mode switch">
+                <span class="view-label">Official</span>
+                <label class="switch">
+                    <input type="checkbox" data-view-mode-toggle <?php echo isResidentView() ? 'checked' : ''; ?>>
+                    <span class="slider"></span>
+                </label>
+                <span class="view-label">Resident</span>
+            </div>
+            <?php endif; ?>
         </div>
     </nav>
+    <script src="<?php echo ASSETS_URL; ?>css/js/view-mode-switch.js?v=<?php echo time(); ?>"></script>
     <?php endif; ?>
