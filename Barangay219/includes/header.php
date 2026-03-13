@@ -58,9 +58,6 @@ $userInfo = getUserInfo();
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark app-topbar">
         <div class="container-fluid">
-            <button class="btn btn-sm btn-outline-light me-2" type="button" id="sidebarToggleBtn" aria-label="Toggle sidebar" aria-controls="appSidebar" aria-expanded="false">
-                <i class="bi bi-list"></i>
-            </button>
             <a class="navbar-brand" href="<?php echo BASE_URL; ?>dashboard.php">
                 <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo" class="app-navbar-logo">
                 <span class="app-brand-text">
