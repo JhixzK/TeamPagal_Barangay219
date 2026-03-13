@@ -98,7 +98,13 @@ include __DIR__ . '/../includes/sidebar.php';
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th><th>Title</th><th>Complainant</th><th>Resident</th><th>Date</th><th>Status</th><th>Actions</th>
+                            <th class="text-center">ID</th>
+                            <th class="text-center">Title</th>
+                            <th class="text-center">Complainant</th>
+                            <th class="text-center">Resident</th>
+                            <th class="text-center">Date</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="complaintsTableBody"><tr><td colspan="7" class="text-center">Loading...</td></tr></tbody>
