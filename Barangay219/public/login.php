@@ -38,7 +38,7 @@ if (isLoggedIn()) {
             position: relative;
             isolation: isolate;
             overflow-x: hidden;
-            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+            background: #ffffff;
         }
 
         .login-container::before {
@@ -46,9 +46,9 @@ if (isLoggedIn()) {
             position: fixed;
             inset: 0;
             z-index: 0;
-            background: url('<?php echo ASSETS_URL; ?>img/barangay_logo2.png') no-repeat center 55%;
-            background-size: min(500px, 74vw);
-            opacity: 0.045;
+            background: url('<?php echo ASSETS_URL; ?>img/crop219logo.png') no-repeat 95% center;
+            background-size: min(900px, 90vw);
+            opacity: 0.90;
             pointer-events: none;
         }
 
@@ -123,8 +123,6 @@ if (isLoggedIn()) {
             background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%);
             color: #ffffff;
             text-decoration: none;
-            backdrop-filter: blur(3px);
-            -webkit-backdrop-filter: blur(3px);
             box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
             transition: filter 0.2s ease, transform 0.2s ease;
         }
