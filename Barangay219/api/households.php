@@ -25,10 +25,7 @@ switch ($action) {
         break;
     
     case 'create':
-        if (!canPerformModulePermission('households', 'can_create')) {
-            sendResponse(false, 'Access denied', null, 403);
-        }
-        createHousehold();
+        sendResponse(false, 'Creating new household groups is disabled. Add members to an existing household instead.', null, 403);
         break;
     
     case 'update':
