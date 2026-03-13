@@ -91,12 +91,12 @@ function loadHouseholds() {
             if (d.success && d.data) {
                 tbody.innerHTML = d.data.map(h => `
                     <tr>
-                        <td>${h.id}</td>
-                        <td>${escapeHtml(toTitleCase(h.family_head_name || '-'))}</td>
-                        <td>${escapeHtml(formatTitleCaseTruncate(h.address || '', 50))}${(h.address||'').length>50?'...':''}</td>
-                        <td>${h.total_members}</td>
-                        <td>${formatDate(h.registration_date)}</td>
-                        <td>
+                        <td class="text-center">${h.id}</td>
+                        <td class="text-center">${escapeHtml(toTitleCase(h.family_head_name || '-'))}</td>
+                        <td class="text-center">${escapeHtml(formatTitleCaseTruncate(h.address || '', 50))}${(h.address||'').length>50?'...':''}</td>
+                        <td class="text-center">${h.total_members}</td>
+                        <td class="text-center">${formatDate(h.registration_date)}</td>
+                        <td class="text-center">
                             ${HOUSEHOLD_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary me-1" title="Edit" aria-label="Edit" onclick="editHousehold(${h.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
                             <button class="btn btn-sm btn-primary me-1" title="View" aria-label="View" onclick="viewHousehold(${h.id})"><i class="bi bi-eye"></i></button>
                             ${HOUSEHOLD_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteHousehold(${h.id})"><i class="bi bi-trash"></i></button>` : ''}
