@@ -56,6 +56,7 @@ const BLOTTER_PERMS = {
 
 let blotterFilters = { q: '', status: '', from: '', to: '' };
 let searchDebounceTimer = null;
+let residentDirectoryCache = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     loadBlotters();
@@ -324,7 +325,13 @@ function editBlotter(id) {
             try {
                 const comps = JSON.parse(info.complainant_name);
                 if (Array.isArray(comps)) {
-                    comps.forEach(c => addComplainantRow({ name: toTitleCase(c.name || ''), address: toTitleCase(c.address || ''), barangay: toTitleCase(c.barangay || ''), contact: c.contact || '' }));
+                    comps.forEach(c => addComplainantRow({
+                        name: toTitleCase(c.name || ''),
+                        address: toTitleCase(c.address || ''),
+                        contact: c.contact || '',
+                        residency: c.residency || 'non_resident',
+                        resident_id: c.resident_id || null
+                    }));
                 } else {
                     addComplainantRow({ name: toTitleCase(info.complainant_name) });
                 }
@@ -334,7 +341,13 @@ function editBlotter(id) {
             try {
                 const resps = JSON.parse(info.respondent_name);
                 if (Array.isArray(resps)) {
-                    resps.forEach(r => addRespondentRow({ name: toTitleCase(r.name || ''), address: toTitleCase(r.address || ''), barangay: toTitleCase(r.barangay || ''), contact: r.contact || '' }));
+                    resps.forEach(r => addRespondentRow({
+                        name: toTitleCase(r.name || ''),
+                        address: toTitleCase(r.address || ''),
+                        contact: r.contact || '',
+                        residency: r.residency || 'non_resident',
+                        resident_id: r.resident_id || null
+                    }));
                 } else {
                     addRespondentRow({ name: toTitleCase(info.respondent_name) });
                 }
@@ -394,6 +407,172 @@ function initBlotterModal() {
     initBlotterTextFormatting();
 }
 
+function getResidentDirectory() {
+    if (Array.isArray(residentDirectoryCache)) {
+        return Promise.resolve(residentDirectoryCache);
+    }
+    return fetch(window.API_URL + 'resident.php?action=list&limit=1000')
+        .then(r => r.json())
+        .then(d => {
+            if (d.success && d.data && Array.isArray(d.data.residents)) {
+                residentDirectoryCache = d.data.residents;
+                return residentDirectoryCache;
+            }
+            residentDirectoryCache = [];
+            return residentDirectoryCache;
+        })
+        .catch(() => {
+            residentDirectoryCache = [];
+            return residentDirectoryCache;
+        });
+}
+
+function setupPartyRowResidency(row, type, data = {}) {
+    const residency = String(data.residency || 'non_resident').toLowerCase() === 'resident' ? 'resident' : 'non_resident';
+    const searchWrap = row.querySelector('[data-resident-search-wrap]');
+    const searchInput = row.querySelector('[data-resident-search]');
+    const residentList = row.querySelector('[data-resident-list]');
+    const residentResults = row.querySelector('[data-resident-results]');
+    const residentIdInput = row.querySelector('[data-resident-id]');
+    const nameInput = row.querySelector('[data-name]');
+    const addressInput = row.querySelector('[data-address]');
+    const contactInput = row.querySelector('[data-contact]');
+    const residentRadio = row.querySelector('[data-residency="resident"]');
+    const nonResidentRadio = row.querySelector('[data-residency="non_resident"]');
+
+    const setReadonlyState = (isResident) => {
+        if (searchWrap) searchWrap.style.display = isResident ? '' : 'none';
+        if (nameInput) nameInput.readOnly = isResident;
+        if (addressInput) addressInput.readOnly = isResident;
+        if (contactInput) {
+            contactInput.readOnly = isResident;
+            if (!isResident && !contactInput.value.trim()) {
+                contactInput.value = '+63 ';
+            }
+        }
+    };
+
+    const residentLabel = (resident) => {
+        const fullName = `${resident.last_name || ''}, ${resident.first_name || ''} ${resident.middle_name || ''}`.trim();
+        const code = resident.resident_code ? ` (${resident.resident_code})` : '';
+        return `${toTitleCase(fullName)}${code}`;
+    };
+
+    const fillFromResident = (residentId) => {
+        const residentNumericId = parseInt(residentId || '0', 10);
+        if (!residentNumericId || !Array.isArray(residentDirectoryCache)) return;
+        const resident = residentDirectoryCache.find(r => Number(r.id) === residentNumericId);
+        if (!resident) return;
+        if (residentIdInput) residentIdInput.value = String(residentNumericId);
+        if (searchInput) searchInput.value = residentLabel(resident);
+        const fullName = `${resident.first_name || ''} ${resident.middle_name || ''} ${resident.last_name || ''} ${resident.suffix || ''}`.trim();
+        if (nameInput) nameInput.value = toTitleCase(fullName);
+        if (addressInput) addressInput.value = toTitleCase(resident.address || '');
+        if (contactInput) contactInput.value = formatPhoneForInput(resident.contact_number || '');
+    };
+
+    const resolveResidentFromSearch = () => {
+        if (!searchInput || !residentList || !residentIdInput) return;
+        const value = (searchInput.value || '').trim();
+        if (!value) {
+            residentIdInput.value = '';
+            return;
+        }
+        const match = Array.from(residentList.options).find(opt => opt.value === value);
+        const id = match ? parseInt(match.dataset.id || '0', 10) : 0;
+        if (!id) {
+            residentIdInput.value = '';
+            return;
+        }
+        fillFromResident(id);
+    };
+
+    const renderResidentResults = (keyword = '') => {
+        if (!residentResults || !Array.isArray(residentDirectoryCache)) return;
+        const term = String(keyword || '').trim().toLowerCase();
+        const filtered = residentDirectoryCache.filter(r => {
+            if (!term) return true;
+            const fullName = `${r.first_name || ''} ${r.middle_name || ''} ${r.last_name || ''} ${r.suffix || ''}`.toLowerCase();
+            const code = String(r.resident_code || '').toLowerCase();
+            return fullName.includes(term) || code.includes(term);
+        }).slice(0, 25);
+
+        if (filtered.length === 0) {
+            residentResults.innerHTML = '<div class="list-group-item text-muted small">No matching residents</div>';
+            residentResults.style.display = '';
+            return;
+        }
+
+        residentResults.innerHTML = filtered.map(r => {
+            const label = escapeHtml(residentLabel(r));
+            const address = escapeHtml(toTitleCase(r.address || ''));
+            return `<button type="button" class="list-group-item list-group-item-action" data-resident-pick="${r.id}"><div class="fw-semibold">${label}</div><div class="small text-muted text-truncate">${address}</div></button>`;
+        }).join('');
+        residentResults.style.display = '';
+
+        residentResults.querySelectorAll('[data-resident-pick]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                fillFromResident(btn.getAttribute('data-resident-pick'));
+                residentResults.style.display = 'none';
+            });
+        });
+    };
+
+    if (residentList) {
+        getResidentDirectory().then(residents => {
+            const currentId = parseInt(data.resident_id || '0', 10);
+            residentList.innerHTML = residents.map(r => {
+                const label = escapeHtml(residentLabel(r));
+                return `<option value="${label}" data-id="${r.id}"></option>`;
+            }).join('');
+            if (currentId > 0) {
+                fillFromResident(currentId);
+            }
+        });
+        if (searchInput) {
+            searchInput.addEventListener('change', resolveResidentFromSearch);
+            searchInput.addEventListener('blur', resolveResidentFromSearch);
+            searchInput.addEventListener('focus', () => renderResidentResults(searchInput.value));
+            searchInput.addEventListener('click', () => renderResidentResults(searchInput.value));
+            searchInput.addEventListener('input', () => {
+                if (residentIdInput) residentIdInput.value = '';
+                renderResidentResults(searchInput.value);
+            });
+        }
+    }
+
+    if (residentResults) {
+        document.addEventListener('click', (event) => {
+            if (!row.contains(event.target)) {
+                residentResults.style.display = 'none';
+            }
+        });
+    }
+
+    if (residentRadio) {
+        residentRadio.checked = residency === 'resident';
+        residentRadio.addEventListener('change', () => {
+            setReadonlyState(true);
+            if (residentIdInput && residentIdInput.value) {
+                fillFromResident(residentIdInput.value);
+            } else {
+                resolveResidentFromSearch();
+            }
+        });
+    }
+    if (nonResidentRadio) {
+        nonResidentRadio.checked = residency === 'non_resident';
+        nonResidentRadio.addEventListener('change', () => {
+            setReadonlyState(false);
+            if (residentIdInput) residentIdInput.value = '';
+            if (searchInput) searchInput.value = '';
+            if (residentResults) residentResults.style.display = 'none';
+        });
+    }
+
+    setReadonlyState(residency === 'resident');
+}
+
 function resetBlotterForm() {
     document.getElementById('blotterForm').reset();
     document.getElementById('blotterId').value = '';
@@ -445,6 +624,24 @@ function addComplainantRow(data = {}) {
     const div = document.createElement('div');
     div.className = 'row mb-3 g-2 party-row';
     div.innerHTML = `
+        <div class="col-12">
+            <label class="form-label d-block mb-1">Residency</label>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="${id}_residency" data-residency="resident" value="resident">
+                <label class="form-check-label">Resident</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="${id}_residency" data-residency="non_resident" value="non_resident" checked>
+                <label class="form-check-label">Non-Resident</label>
+            </div>
+        </div>
+        <div class="col-12" data-resident-search-wrap style="display:none; position:relative;">
+            <label class="form-label">Search Resident</label>
+            <input type="text" class="form-control" data-resident-search list="${id}_resident_list" placeholder="Search resident by name">
+            <datalist id="${id}_resident_list" data-resident-list></datalist>
+            <input type="hidden" data-resident-id>
+            <div class="list-group mt-1 shadow-sm" data-resident-results style="display:none; max-height:220px; overflow:auto;"></div>
+        </div>
         <div class="col-12 col-md-4">
             <label class="form-label">Complainant Name <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Full name" data-name name="complainant_name" required>
@@ -453,11 +650,7 @@ function addComplainantRow(data = {}) {
             <label class="form-label">Address <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Address" data-address name="complainant_address" required>
         </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Barangay <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" placeholder="Barangay" data-barangay name="complainant_barangay" required>
-        </div>
-        <div class="col-12 col-md-2">
+        <div class="col-12 col-md-4">
             <label class="form-label">Contact Number <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="+63 9XXXXXXXXX" data-contact name="complainant_contact" maxlength="14" pattern="\+63\s\d{10}" value="+63 " required>
         </div>
@@ -468,16 +661,14 @@ function addComplainantRow(data = {}) {
     // populate
     if (data.name) div.querySelector('[data-name]').value = toTitleCase(data.name);
     if (data.address) div.querySelector('[data-address]').value = toTitleCase(data.address);
-    if (data.barangay) div.querySelector('[data-barangay]').value = toTitleCase(data.barangay);
     if (data.contact) div.querySelector('[data-contact]').value = formatPhoneForInput(data.contact);
+
+    setupPartyRowResidency(div, 'complainant', data);
 
     // Add name input validation to all name fields
     const nameInput = div.querySelector('[data-name]');
     validateNameInput(nameInput);
     
-    const barangayInput = div.querySelector('[data-barangay]');
-    attachTitleCaseOnBlur(barangayInput);
-
     const addressInput = div.querySelector('[data-address]');
     attachTitleCaseOnBlur(addressInput);
 
@@ -495,10 +686,29 @@ function addComplainantRow(data = {}) {
 }
 
 function addRespondentRow(data = {}) {
+    const id = 'resp_' + Date.now() + Math.floor(Math.random()*1000);
     const container = document.getElementById('respondentsContainer');
     const div = document.createElement('div');
     div.className = 'row mb-3 g-2 party-row';
     div.innerHTML = `
+        <div class="col-12">
+            <label class="form-label d-block mb-1">Residency</label>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="${id}_residency" data-residency="resident" value="resident">
+                <label class="form-check-label">Resident</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="${id}_residency" data-residency="non_resident" value="non_resident" checked>
+                <label class="form-check-label">Non-Resident</label>
+            </div>
+        </div>
+        <div class="col-12" data-resident-search-wrap style="display:none; position:relative;">
+            <label class="form-label">Search Resident</label>
+            <input type="text" class="form-control" data-resident-search list="${id}_resident_list" placeholder="Search resident by name">
+            <datalist id="${id}_resident_list" data-resident-list></datalist>
+            <input type="hidden" data-resident-id>
+            <div class="list-group mt-1 shadow-sm" data-resident-results style="display:none; max-height:220px; overflow:auto;"></div>
+        </div>
         <div class="col-12 col-md-4">
             <label class="form-label">Respondent Name <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Full name" data-name name="respondent_name" required>
@@ -507,11 +717,7 @@ function addRespondentRow(data = {}) {
             <label class="form-label">Address <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="Address" data-address name="respondent_address" required>
         </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Barangay <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" placeholder="Barangay" data-barangay name="respondent_barangay" required>
-        </div>
-        <div class="col-12 col-md-2">
+        <div class="col-12 col-md-4">
             <label class="form-label">Contact Number <span class="text-danger">*</span></label>
             <input type="text" class="form-control" placeholder="+63 9XXXXXXXXX" data-contact name="respondent_contact" maxlength="14" pattern="\+63\s\d{10}" value="+63 " required>
         </div>
@@ -521,16 +727,14 @@ function addRespondentRow(data = {}) {
     `;
     if (data.name) div.querySelector('[data-name]').value = toTitleCase(data.name);
     if (data.address) div.querySelector('[data-address]').value = toTitleCase(data.address);
-    if (data.barangay) div.querySelector('[data-barangay]').value = toTitleCase(data.barangay);
     if (data.contact) div.querySelector('[data-contact]').value = formatPhoneForInput(data.contact);
+
+    setupPartyRowResidency(div, 'respondent', data);
 
     // Add name input validation to all name fields
     const nameInput = div.querySelector('[data-name]');
     validateNameInput(nameInput);
     
-    const barangayInput = div.querySelector('[data-barangay]');
-    attachTitleCaseOnBlur(barangayInput);
-
     const addressInput = div.querySelector('[data-address]');
     attachTitleCaseOnBlur(addressInput);
 
@@ -614,21 +818,37 @@ function submitBlotterForm(e) {
 
     // collect complainants
     const comps = [];
+    let partyValidationError = '';
     document.querySelectorAll('#complainantsContainer .party-row').forEach(row => {
         const name = row.querySelector('[data-name]').value.trim();
         const address = row.querySelector('[data-address]').value.trim();
-        const barangay = row.querySelector('[data-barangay]').value.trim();
         const contact = row.querySelector('[data-contact]').value.trim();
-        if (name) comps.push({ name, address, barangay, contact });
+        const residency = row.querySelector('[data-residency="resident"]')?.checked ? 'resident' : 'non_resident';
+        const residentId = row.querySelector('[data-resident-id]')?.value || '';
+        if (residency === 'resident' && !residentId) {
+            partyValidationError = 'Please select a resident for all complainants marked as resident.';
+            return;
+        }
+        if (name) comps.push({ name, address, contact, residency, resident_id: residentId ? parseInt(residentId, 10) : null });
     });
     const resps = [];
     document.querySelectorAll('#respondentsContainer .party-row').forEach(row => {
         const name = row.querySelector('[data-name]').value.trim();
         const address = row.querySelector('[data-address]').value.trim();
-        const barangay = row.querySelector('[data-barangay]').value.trim();
         const contact = row.querySelector('[data-contact]').value.trim();
-        if (name) resps.push({ name, address, barangay, contact });
+        const residency = row.querySelector('[data-residency="resident"]')?.checked ? 'resident' : 'non_resident';
+        const residentId = row.querySelector('[data-resident-id]')?.value || '';
+        if (residency === 'resident' && !residentId) {
+            partyValidationError = 'Please select a resident for all respondents marked as resident.';
+            return;
+        }
+        if (name) resps.push({ name, address, contact, residency, resident_id: residentId ? parseInt(residentId, 10) : null });
     });
+
+    if (partyValidationError) {
+        alert(partyValidationError);
+        return;
+    }
 
     payload.append('complainants', JSON.stringify(comps));
     payload.append('respondents', JSON.stringify(resps));
@@ -757,10 +977,8 @@ function applyTitleCaseToBlotterForm() {
     document.querySelectorAll('#complainantsContainer .party-row, #respondentsContainer .party-row').forEach(row => {
         const name = row.querySelector('[data-name]');
         const address = row.querySelector('[data-address]');
-        const barangay = row.querySelector('[data-barangay]');
         if (name) name.value = toTitleCase(name.value);
         if (address) address.value = toTitleCase(address.value);
-        if (barangay) barangay.value = toTitleCase(barangay.value);
     });
     document.querySelectorAll('#hearingsContainer .hearing-row').forEach(row => {
         const outcome = row.querySelector('[data-hearing-outcome]');
