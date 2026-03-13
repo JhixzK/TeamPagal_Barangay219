@@ -146,7 +146,8 @@ $middle_name = sanitize($_POST['middle_name'] ?? '');
 $suffix = sanitize($_POST['suffix'] ?? '');
 $place_of_birth = sanitize($_POST['place_of_birth'] ?? '');
 $family_code = sanitize($_POST['family_code'] ?? '');
-$relationship_to_head = sanitize($_POST['relationship_to_head'] ?? ($_POST['household_role'] ?? ''));
+$household_role = sanitize($_POST['household_role'] ?? '');
+$relationship_to_head = sanitize($_POST['relationship_to_head'] ?? ($household_role ?? ''));
 $house_number = sanitize($_POST['house_number'] ?? '');
 $street = sanitize($_POST['street'] ?? '');
 $purok_sitio = sanitize($_POST['purok_sitio'] ?? '');
@@ -201,6 +202,7 @@ try {
         'citizenship' => $citizenship,
         'family_code' => $family_code ?: null,
         'relationship_to_head' => $relationship_to_head ?: null,
+        'household_role' => ($household_role ?: $relationship_to_head) ?: null,
         'house_number' => $house_number ?: null,
         'street' => $street ?: null,
         'purok_sitio' => $purok_sitio ?: null,
