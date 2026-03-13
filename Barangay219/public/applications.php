@@ -29,51 +29,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="row g-3 mb-4 module-stats" data-module="applications">
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-primary text-white" data-status="" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-files"></i></div>
-                    <div class="stat-value" data-stat="total">-</div>
-                    <div class="stat-label">Total Applications</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-warning text-dark" data-status="pending" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
-                    <div class="stat-value" data-stat="pending">-</div>
-                    <div class="stat-label">Pending</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-2">
-                <div class="stat-card bg-success text-white" data-status="approved" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
-                    <div class="stat-value" data-stat="approved">-</div>
-                    <div class="stat-label">Approved</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-2">
-                <div class="stat-card bg-secondary text-white" data-status="under_review" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-search"></i></div>
-                    <div class="stat-value" data-stat="under_review">-</div>
-                    <div class="stat-label">Under Review</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-2">
-                <div class="stat-card bg-info text-white" data-status="issued" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-box-arrow-up-right"></i></div>
-                    <div class="stat-value" data-stat="issued">-</div>
-                    <div class="stat-label">Released</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-2">
-                <div class="stat-card bg-danger text-white" data-status="rejected" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-x-circle"></i></div>
-                    <div class="stat-value" data-stat="rejected">-</div>
-                    <div class="stat-label">Rejected</div>
-                </div>
-            </div>
-        </div>
-
         <div class="search-bar mb-3">
             <div class="row">
                 <div class="col-md-6">
@@ -152,17 +107,28 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .apps-page .app-tabs {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     border-bottom: 0;
-    gap: 0.35rem;
+    gap: 0.45rem;
+}
+
+.apps-page .app-tabs .nav-item {
+    margin: 0;
 }
 
 .apps-page .app-tabs .nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
     border: 1px solid #dbe3ee;
     border-radius: 999px;
     color: #475569;
     font-weight: 600;
-    padding: 0.4rem 0.85rem;
+    padding: 0.55rem 0.85rem;
     background: #ffffff;
+    white-space: nowrap;
 }
 
 .apps-page .app-tabs .nav-link.active {
@@ -181,6 +147,18 @@ include __DIR__ . '/../includes/sidebar.php';
     color: #0f172a;
     padding: 0.1rem 0.35rem;
     border-radius: 6px;
+}
+
+@media (max-width: 992px) {
+    .apps-page .app-tabs {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 576px) {
+    .apps-page .app-tabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 </style>
 
