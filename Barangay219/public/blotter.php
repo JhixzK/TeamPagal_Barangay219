@@ -79,14 +79,14 @@ include __DIR__ . '/../includes/sidebar.php';
             <table class="table">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Case Title</th>
-                        <th>Complainant</th>
-                        <th>Incident Type</th>
-                        <th>Incident Location</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th class="text-center">ID</th>
+                        <th class="text-center">Case Title</th>
+                        <th class="text-center">Complainant</th>
+                        <th class="text-center">Incident Type</th>
+                        <th class="text-center">Incident Location</th>
+                        <th class="text-center">Date</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="blotterTableBody"><tr><td colspan="8" class="text-center">Loading...</td></tr></tbody>
