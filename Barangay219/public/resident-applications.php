@@ -70,24 +70,18 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
-            <li class="nav-item"><a class="nav-link active" href="#" data-status="pending">Pending</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" data-status="approved">Approved</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
-        </ul>
-
         <div class="table-responsive data-table">
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>Ref #</th>
-                        <th>Applicant</th>
-                        <th>Sex</th>
-                        <th>Contact</th>
-                        <th>Submitted</th>
-                        <th>Household Role</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th class="text-center">Ref #</th>
+                        <th class="text-center">Applicant</th>
+                        <th class="text-center">Sex</th>
+                        <th class="text-center">Contact</th>
+                        <th class="text-center">Submitted</th>
+                        <th class="text-center" style="width: 140px;">Household Role</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="applicationsTableBody">
