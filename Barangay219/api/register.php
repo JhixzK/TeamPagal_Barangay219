@@ -64,6 +64,18 @@ function getTableColumns($db, $table) {
     return array_map(static function($r) { return $r['column_name']; }, $rows);
 }
 
+function addColumnIfMissing($db, $table, $column, $definition) {
+    $row = $db->fetchOne(
+        "SELECT COUNT(*) AS cnt
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?",
+        [$table, $column]
+    );
+    if (empty($row) || (int)$row['cnt'] === 0) {
+        $db->query("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
+    }
+}
+
 // Validate required fields
 $first_name = sanitize($_POST['first_name'] ?? '');
 $last_name = sanitize($_POST['last_name'] ?? '');
@@ -148,6 +160,7 @@ $place_of_birth = sanitize($_POST['place_of_birth'] ?? '');
 $family_code = sanitize($_POST['family_code'] ?? '');
 $household_role = sanitize($_POST['household_role'] ?? '');
 $relationship_to_head = sanitize($_POST['relationship_to_head'] ?? ($household_role ?? ''));
+$household_members = isset($_POST['household_members']) ? (int)$_POST['household_members'] : null;
 $house_number = sanitize($_POST['house_number'] ?? '');
 $street = sanitize($_POST['street'] ?? '');
 $purok_sitio = sanitize($_POST['purok_sitio'] ?? '');
@@ -187,6 +200,11 @@ try {
 
     $db->beginTransaction();
 
+    // Ensure newer columns exist for household role tracking (safe no-op if already present)
+    addColumnIfMissing($db, 'resident_applications', 'relationship_to_head', "VARCHAR(50) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'household_role', "VARCHAR(80) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'household_members', "INT(11) DEFAULT NULL");
+
     $existingCols = array_flip(getTableColumns($db, 'resident_applications'));
 
     $insertData = [
@@ -203,6 +221,7 @@ try {
         'family_code' => $family_code ?: null,
         'relationship_to_head' => $relationship_to_head ?: null,
         'household_role' => ($household_role ?: $relationship_to_head) ?: null,
+        'household_members' => ($household_members !== null && $household_members > 0) ? $household_members : null,
         'house_number' => $house_number ?: null,
         'street' => $street ?: null,
         'purok_sitio' => $purok_sitio ?: null,
