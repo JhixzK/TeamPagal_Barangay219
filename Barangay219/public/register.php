@@ -842,6 +842,7 @@ window.API_URL = '<?php echo addslashes(API_URL); ?>';
 
 let currentStep = 1;
 const totalSteps = 4;
+let isRegisterSubmitting = false;
 
 // Phase 1 name validation - letters, hyphens, apostrophes, periods only (no spaces)
 const phase1NameFields = ['first_name', 'middle_name', 'last_name'];
@@ -1361,12 +1362,16 @@ document.getElementById('prevBtn').addEventListener('click', function() {
 // Form submission
 document.getElementById('registerForm').addEventListener('submit', async function(e) {
     e.preventDefault();
+    if (isRegisterSubmitting) {
+        return;
+    }
     applyTitleCaseToRegisterForm();
     if (!validateStep(4)) {
         alert('Please complete all required fields and confirm the information.');
         return;
     }
     const btn = document.getElementById('submitBtn');
+    isRegisterSubmitting = true;
     btn.disabled = true;
     const alc = document.getElementById('alertContainer');
     alc.innerHTML = '';
@@ -1389,7 +1394,10 @@ document.getElementById('registerForm').addEventListener('submit', async functio
     } catch (err) {
         alc.innerHTML = '<div class="alert alert-danger">Network error. Please try again.</div>';
     }
-    btn.disabled = false;
+    if (btn.style.display !== 'none') {
+        btn.disabled = false;
+    }
+    isRegisterSubmitting = false;
 });
 
   // Initialize
