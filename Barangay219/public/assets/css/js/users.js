@@ -134,14 +134,14 @@ function displayUsers(users) {
     
     tbody.innerHTML = users.map(user => `
         <tr>
-            <td>${user.id}</td>
-            <td>${escapeHtml(user.username)}</td>
-            <td>${escapeHtml(user.full_name || '-')}</td>
-            <td>${escapeHtml(user.email || '-')}</td>
-            <td><span class="badge bg-info">${formatRole(user.role)}</span></td>
-            <td><span class="badge ${getStatusClass(user.status)}">${formatStatus(user.status)}</span></td>
-            <td>${formatDate(user.created_at)}</td>
-            <td>
+            <td class="text-center">${user.id}</td>
+            <td class="text-center">${escapeHtml(user.username)}</td>
+            <td class="text-center">${escapeHtml(user.full_name || '-')}</td>
+            <td class="text-center">${escapeHtml(user.email || '-')}</td>
+            <td class="text-center"><span class="badge bg-info">${formatRole(user.role)}</span></td>
+            <td class="text-center"><span class="badge ${getStatusClass(user.status)}">${formatStatus(user.status)}</span></td>
+            <td class="text-center">${formatDate(user.created_at)}</td>
+            <td class="text-center">
                 ${USER_MANAGEMENT_PERMS.canEdit ? `
                     <button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editUser(${user.id})">
                         <i class="bi bi-pencil-square"></i>
