@@ -44,6 +44,45 @@ function sanitize($s) {
     return htmlspecialchars(strip_tags(trim($s ?? '')), ENT_QUOTES, 'UTF-8');
 }
 
+function normalizeIdentifier($value) {
+    return strtolower(preg_replace('/[^a-z0-9]/i', '', (string)$value));
+}
+
+function findDuplicateApplication($db, $first_name, $last_name, $birth_date, $mobile_number, $valid_id_type, $valid_id_number) {
+    $normalizedId = normalizeIdentifier($valid_id_number);
+
+    if ($normalizedId !== '') {
+        $byId = $db->fetchOne(
+            "SELECT id, application_ref, record_status, created_at
+             FROM resident_applications
+             WHERE valid_id_type = ?
+               AND LOWER(REPLACE(REPLACE(valid_id_number, ' ', ''), '-', '')) = ?
+               AND record_status IN ('pending', 'approved')
+             ORDER BY id DESC
+             LIMIT 1",
+            [$valid_id_type, $normalizedId]
+        );
+        if (!empty($byId)) {
+            return $byId;
+        }
+    }
+
+    $byIdentity = $db->fetchOne(
+        "SELECT id, application_ref, record_status, created_at
+         FROM resident_applications
+         WHERE LOWER(first_name) = LOWER(?)
+           AND LOWER(last_name) = LOWER(?)
+           AND birth_date = ?
+           AND mobile_number = ?
+           AND record_status IN ('pending', 'approved')
+         ORDER BY id DESC
+         LIMIT 1",
+        [$first_name, $last_name, $birth_date, $mobile_number]
+    );
+
+    return $byIdentity ?: null;
+}
+
 function tableExists($db, $table) {
     $row = $db->fetchOne(
         "SELECT COUNT(*) AS cnt
@@ -105,6 +144,37 @@ if (!$emergency_contact_relationship) $errors[] = 'Emergency contact relationshi
 if (!in_array($valid_id_type, $allowed_id_types)) $errors[] = 'Valid ID type is required.';
 if (!$valid_id_number || strlen($valid_id_number) > 100) $errors[] = 'Valid ID number is required.';
 if (!$data_privacy) $errors[] = 'Data Privacy Act consent is required.';
+
+$lockName = null;
+$lockAcquired = false;
+$db = null;
+
+try {
+    $db = Database::getInstance();
+    if (!tableExists($db, 'resident_applications')) {
+        sendJson(false, 'Registration module is not ready. Please run database/migrations/001_resident_registration_workflow.sql', null, 500);
+    }
+
+    $lockName = 'regdup_' . substr(sha1(strtolower($valid_id_type . '|' . normalizeIdentifier($valid_id_number))), 0, 40);
+    $lockRow = $db->fetchOne("SELECT GET_LOCK(?, 10) AS lck", [$lockName]);
+    $lockAcquired = !empty($lockRow) && (int)$lockRow['lck'] === 1;
+
+    if (!$lockAcquired) {
+        sendJson(false, 'A similar registration is currently being processed. Please wait a moment and try again.', null, 429);
+    }
+
+    $duplicate = findDuplicateApplication($db, $first_name, $last_name, $birth_date, $mobile_number, $valid_id_type, $valid_id_number);
+    if (!empty($duplicate)) {
+        sendJson(false, 'Duplicate submission detected. An application with the same identity already exists.', [
+            'existing_application_ref' => $duplicate['application_ref'] ?? null,
+            'existing_status' => $duplicate['record_status'] ?? null,
+            'existing_created_at' => $duplicate['created_at'] ?? null
+        ], 409);
+    }
+} catch (Exception $e) {
+    error_log('Registration duplicate check error: ' . $e->getMessage());
+    sendJson(false, 'Unable to validate duplicate submission. Please try again.', null, 500);
+}
 
 // Barangay/City/Province - fixed for Barangay 219
 $barangay = 'Barangay 219, Tondo';
@@ -182,21 +252,16 @@ $is_4ps = isset($_POST['is_4ps_beneficiary']) && $_POST['is_4ps_beneficiary'] ==
 $age = (int)date('Y') - (int)date('Y', strtotime($birth_date));
 $is_senior = $is_senior || $age >= 60;
 
-// Generate application ref: APP-YYYYMMDD-NNNN
-$prefix = 'APP-' . date('Ymd') . '-';
-$db = Database::getInstance();
-$last = $db->fetchOne("SELECT application_ref FROM resident_applications WHERE application_ref LIKE ? ORDER BY id DESC LIMIT 1", [$prefix . '%']);
-$seq = 1;
-if ($last) {
-    $parts = explode('-', $last['application_ref']);
-    $seq = (int)($parts[2] ?? 0) + 1;
-}
-$application_ref = $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
-
 try {
-    if (!tableExists($db, 'resident_applications')) {
-        sendJson(false, 'Registration module is not ready. Please run database/migrations/001_resident_registration_workflow.sql', null, 500);
+    // Generate application ref: APP-YYYYMMDD-NNNN
+    $prefix = 'APP-' . date('Ymd') . '-';
+    $last = $db->fetchOne("SELECT application_ref FROM resident_applications WHERE application_ref LIKE ? ORDER BY id DESC LIMIT 1", [$prefix . '%']);
+    $seq = 1;
+    if ($last) {
+        $parts = explode('-', $last['application_ref']);
+        $seq = (int)($parts[2] ?? 0) + 1;
     }
+    $application_ref = $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
 
     $db->beginTransaction();
 
@@ -301,4 +366,12 @@ try {
         $message .= ' [' . $e->getMessage() . ']';
     }
     sendJson(false, $message, null, 500);
+} finally {
+    if ($lockAcquired && $db && $lockName) {
+        try {
+            $db->query("SELECT RELEASE_LOCK(?)", [$lockName]);
+        } catch (Exception $ignored) {
+            // Lock auto-releases at connection end.
+        }
+    }
 }
