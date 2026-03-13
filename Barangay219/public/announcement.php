@@ -26,30 +26,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="row g-3 mb-4 module-stats" data-module="announcements">
-            <div class="col-sm-6 col-lg-4">
-                <div class="stat-card bg-primary text-white" data-status="" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-megaphone"></i></div>
-                    <div class="stat-value" data-stat="total">-</div>
-                    <div class="stat-label">Total</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-4">
-                <div class="stat-card bg-success text-white" data-status="published" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-broadcast"></i></div>
-                    <div class="stat-value" data-stat="published">-</div>
-                    <div class="stat-label">Published</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-4">
-                <div class="stat-card bg-secondary text-white" data-status="draft" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-pencil-square"></i></div>
-                    <div class="stat-value" data-stat="draft">-</div>
-                    <div class="stat-label">Draft</div>
-                </div>
-            </div>
-        </div>
-
         <div class="search-bar mb-3">
             <div class="row g-2">
                 <div class="col-md-8">
@@ -67,6 +43,12 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
         </div>
+
+        <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
+            <li class="nav-item"><a class="nav-link active" href="#" data-status="">All</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="published">Published</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="draft">Draft</a></li>
+        </ul>
 
         <div class="data-table">
             <div class="table-responsive">
@@ -89,6 +71,23 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
     </div>
 </div>
+
+<style>
+.announcements-page .app-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+}
+
+.announcements-page .app-tabs .nav-item {
+    margin: 0;
+}
+
+.announcements-page .app-tabs .nav-link {
+    width: 100%;
+    text-align: center;
+}
+</style>
 
 <!-- Create Announcement Modal -->
 <div class="modal fade" id="createModal" tabindex="-1">
@@ -237,5 +236,4 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
-<script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/announcements.js?v=<?php echo time(); ?>"></script>
