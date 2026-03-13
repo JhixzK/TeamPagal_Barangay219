@@ -177,7 +177,7 @@ function displayResidents(residents) {
     const tbody = document.getElementById('residentsTableBody');
     
     if (residents.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No residents found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center">No residents found</td></tr>';
         return;
     }
     
@@ -186,7 +186,10 @@ function displayResidents(residents) {
         const age = calculateAge(resident.birth_date);
         const residentCode = resident.resident_code ? escapeHtml(resident.resident_code) : '<span class="text-muted">N/A</span>';
         
-        const householdInfo = resident.household_address ? `Household #${resident.household_id}` : '-';
+        const isHead = String(resident.is_household_head) === '1';
+        const householdRole = resident.household_id
+            ? (isHead ? '<span class="badge bg-primary">Head</span>' : '<span class="badge bg-light text-dark border">Member</span>')
+            : '<span class="text-muted">-</span>';
         return `
             <tr>
                 <td>${residentCode}</td>
@@ -195,6 +198,7 @@ function displayResidents(residents) {
                 <td>${formatGender(resident.gender)}</td>
                 <td>${escapeHtml((resident.address||'').substring(0,40))}${(resident.address||'').length>40?'...':''}</td>
                 <td>${escapeHtml(resident.contact_number || '-')}</td>
+                <td>${householdRole}</td>
                 <td><span class="badge ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
                 <td>
                     ${RESIDENT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editResident(${resident.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
@@ -356,6 +360,7 @@ function viewResident(id) {
                     <tr><td><strong>Occupation</strong></td><td>${escapeHtml(r.occupation || '-')}</td></tr>
                     <tr><td><strong>Citizenship</strong></td><td>${escapeHtml(r.citizenship || '-')}</td></tr>
                     <tr><td><strong>Household</strong></td><td>${r.household_address ? 'Household #'+r.household_id+' ('+r.total_members+' members)' : 'None'}</td></tr>
+                    <tr><td><strong>Household Role</strong></td><td>${r.household_id ? (String(r.is_household_head)==='1' ? 'Head of Household' : 'Member') : '-'}</td></tr>
                     <tr><td><strong>Certificates</strong></td><td>${r.certificates_count || 0} issued</td></tr>
                     <tr><td><strong>Status</strong></td><td><span class="badge ${getStatusClass(r.status)}">${formatStatus(r.status)}</span></td></tr>
                 </table>
