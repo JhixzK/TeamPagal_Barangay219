@@ -24,6 +24,33 @@ $token = trim($_GET['token'] ?? '');
     <link href="<?php echo ASSETS_URL; ?>css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <link href="<?php echo ASSETS_URL; ?>style.css" rel="stylesheet">
+    <style>
+        .login-container {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            background: none !important;
+            background-image: none !important;
+        }
+
+        .login-container::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: url('<?php echo ASSETS_URL; ?>img/crop219logo.png') no-repeat 95% center;
+            background-size: 900px;
+            opacity: 0.85;
+            filter: blur(7px);
+            transform: scale(1.03);
+            pointer-events: none;
+        }
+
+        .login-card {
+            position: relative;
+            z-index: 1;
+        }
+    </style>
 </head>
 <body>
     <div class="login-container">
