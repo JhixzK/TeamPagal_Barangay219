@@ -83,24 +83,26 @@ function validateNameInput(input, allowDot = false) {
     });
 }
 
-// Phone number input validation - only allow + and digits, max 13 characters, always starts with +63
+// Phone number input validation - enforce +63 prefix with space and 10 digits
 function validatePhoneInput(input) {
-    input.addEventListener('input', function() {
-        if (!this.value.startsWith('+63')) {
-            this.value = '+63';
-            return;
+    const ensurePrefix = () => {
+        if (!input.value.startsWith('+63')) {
+            input.value = '+63 ';
+        } else if (input.value === '+63') {
+            input.value = '+63 ';
         }
-        let value = this.value.replace(/[^\d+]/g, '');
-        value = value.substring(0, 13);
-        this.value = value;
+    };
+
+    ensurePrefix();
+
+    input.addEventListener('input', function() {
+        const digits = normalizePhoneDigits(this.value);
+        this.value = '+63 ' + digits;
     });
 
     input.addEventListener('blur', function() {
-        if (this.value.trim() === '' || this.value === '+63') {
-            this.value = '+63';
-        } else if (!this.value.startsWith('+63')) {
-            this.value = '+63';
-        }
+        const digits = normalizePhoneDigits(this.value);
+        this.value = digits ? ('+63 ' + digits) : '+63 ';
     });
 }
 
@@ -197,7 +199,7 @@ function displayResidents(residents) {
                 <td>${formatDate(resident.birth_date)} (${age} yrs)</td>
                 <td>${formatGender(resident.gender)}</td>
                 <td>${escapeHtml((resident.address||'').substring(0,40))}${(resident.address||'').length>40?'...':''}</td>
-                <td>${escapeHtml(resident.contact_number || '-')}</td>
+                <td>${escapeHtml(formatPhoneNumber(resident.contact_number) || '-')}</td>
                 <td>${householdRole}</td>
                 <td><span class="badge ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
                 <td>
@@ -325,7 +327,7 @@ function editResident(id) {
         }
         document.getElementById('citizenship').value = resident.citizenship || 'Filipino';
         document.getElementById('address').value = resident.address;
-        document.getElementById('contact_number').value = resident.contact_number || '';
+        document.getElementById('contact_number').value = formatPhoneForInput(resident.contact_number) || '+63 ';
         document.getElementById('household_id').value = resident.household_id || '';
         document.getElementById('status').value = resident.status;
         document.getElementById('residentModalTitle').textContent = 'Edit Resident';
@@ -355,7 +357,7 @@ function viewResident(id) {
                     <tr><td><strong>Birth Date</strong></td><td>${formatDate(r.birth_date)} (${age} yrs)</td></tr>
                     <tr><td><strong>Gender</strong></td><td>${formatGender(r.gender)}</td></tr>
                     <tr><td><strong>Civil Status</strong></td><td>${escapeHtml(r.civil_status || '-')}</td></tr>
-                    <tr><td><strong>Contact</strong></td><td>${escapeHtml(r.contact_number || '-')}</td></tr>
+                    <tr><td><strong>Contact</strong></td><td>${escapeHtml(formatPhoneNumber(r.contact_number) || '-')}</td></tr>
                     <tr><td><strong>Address</strong></td><td>${escapeHtml(r.address || '-')}</td></tr>
                     <tr><td><strong>Occupation</strong></td><td>${escapeHtml(r.occupation || '-')}</td></tr>
                     <tr><td><strong>Citizenship</strong></td><td>${escapeHtml(r.citizenship || '-')}</td></tr>
@@ -468,7 +470,7 @@ function resetForm() {
     document.getElementById('residentId').value = '';
     document.getElementById('citizenship').value = 'Filipino';
     document.getElementById('status').value = 'active';
-    document.getElementById('contact_number').value = '+63';
+    document.getElementById('contact_number').value = '+63 ';
     document.getElementById('residentModalTitle').textContent = 'Add New Resident';
     initResidentFormValidation();
 }
@@ -510,6 +512,27 @@ function formatDate(dateString) {
     if (!dateString) return '-';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function normalizePhoneDigits(raw) {
+    if (!raw) return '';
+    let digits = String(raw).replace(/\D/g, '');
+    if (digits.startsWith('63')) digits = digits.slice(2);
+    if (digits.startsWith('0')) digits = digits.slice(1);
+    return digits.slice(0, 10);
+}
+
+function formatPhoneNumber(raw) {
+    if (!raw) return '';
+    const digits = normalizePhoneDigits(raw);
+    if (!digits) return String(raw).trim();
+    if (digits.length < 10) return String(raw).trim();
+    return '+63 ' + digits;
+}
+
+function formatPhoneForInput(raw) {
+    const digits = normalizePhoneDigits(raw);
+    return '+63 ' + digits;
 }
 
 function escapeHtml(text) {
