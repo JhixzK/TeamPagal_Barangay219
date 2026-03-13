@@ -122,20 +122,7 @@ function loadBlotters() {
             const tbody = document.getElementById('blotterTableBody');
             if (d.success) {
                 tbody.innerHTML = d.data.map(b => {
-                    // try to parse complainants/respondents JSON stored in DB
-                    let comp = '-';
-                    try {
-                        const c = JSON.parse(b.complainant_name);
-                        if (Array.isArray(c)) comp = c.map(x => toTitleCase(x.name)).join(', ');
-                        else comp = b.complainant_name;
-                    } catch (e) { comp = b.complainant_name || '-'; }
-
-                    let resp = '-';
-                    try {
-                        const r = JSON.parse(b.respondent_name);
-                        if (Array.isArray(r)) resp = r.map(x => x.name).join(', ');
-                        else resp = b.respondent_name;
-                    } catch (e) { resp = b.respondent_name || '-'; }
+                    const comp = extractPartyNamesOnly(b.complainant_name);
 
                         const incidentType = b.incident_type ? formatIncidentType(b.incident_type) : '-';
                         const incidentLocation = b.incident_location ? escapeHtml(toTitleCase(b.incident_location)) : '-';
@@ -167,6 +154,34 @@ function loadBlotters() {
             const tbody = document.getElementById('blotterTableBody');
             tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error loading blotters</td></tr>';
         });
+}
+
+function extractPartyNamesOnly(rawValue) {
+    if (!rawValue) return '-';
+
+    const source = String(rawValue);
+
+    try {
+        const parsed = JSON.parse(source);
+        if (Array.isArray(parsed)) {
+            const names = parsed
+                .map(item => toTitleCase(String(item?.name || '').trim()))
+                .filter(Boolean);
+            return names.length ? names.join(', ') : '-';
+        }
+    } catch (e) {
+        // Handle malformed/truncated JSON by extracting any "name":"..." fragments.
+        const nameMatches = [...source.matchAll(/"name"\s*:\s*"([^"\\]+(?:\\.[^"\\]*)*)"/g)];
+        if (nameMatches.length) {
+            const names = nameMatches
+                .map(m => toTitleCase(String(m[1] || '').replace(/\\"/g, '"').trim()))
+                .filter(Boolean);
+            if (names.length) return names.join(', ');
+        }
+    }
+
+    const text = toTitleCase(source.trim());
+    return text || '-';
 }
 
 function applyFilters() {
