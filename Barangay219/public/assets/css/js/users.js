@@ -10,11 +10,11 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
 }
 
 const ROLE_OPTIONS = [
-    { value: 'barangay_captain', label: 'Barangay Captain' },
-    { value: 'secretary', label: 'Secretary' },
-    { value: 'treasurer', label: 'Treasurer' },
-    { value: 'kagawad', label: 'Kagawad' },
-    { value: 'sk_chairman', label: 'SK Chairman' }
+    { value: 'barangay_captain', label: 'Barangay Captain', icon: 'bi-shield-fill-check' },
+    { value: 'secretary', label: 'Secretary', icon: 'bi-journal-text' },
+    { value: 'treasurer', label: 'Treasurer', icon: 'bi-cash-coin' },
+    { value: 'kagawad', label: 'Kagawad', icon: 'bi-people-fill' },
+    { value: 'sk_chairman', label: 'SK Chairman', icon: 'bi-stars' }
 ];
 
 const MODULES = [
@@ -472,8 +472,9 @@ function showActivityLogs() {
  */
 function initPermissionsUI() {
     const roleSelect = document.getElementById('permissionsRole');
+    const roleIcons = document.getElementById('permissionsRoleIcons');
     const tableBody = document.getElementById('permissionsTableBody');
-    if (!roleSelect || !tableBody) {
+    if (!roleSelect || !roleIcons || !tableBody) {
         return;
     }
 
@@ -481,8 +482,46 @@ function initPermissionsUI() {
         `<option value="${role.value}">${role.label}</option>`
     ).join('');
 
+    roleIcons.innerHTML = ROLE_OPTIONS.map(role => `
+        <button type="button" class="permissions-role-icon" data-role="${role.value}" title="${role.label}" aria-label="${role.label}" aria-pressed="false">
+            <i class="bi ${role.icon}"></i>
+            <span>${role.label}</span>
+        </button>
+    `).join('');
+
+    if (!roleSelect.value && ROLE_OPTIONS.length > 0) {
+        roleSelect.value = ROLE_OPTIONS[0].value;
+    }
+
     renderPermissionsTable();
-    roleSelect.addEventListener('change', loadRolePermissions);
+    roleSelect.addEventListener('change', function() {
+        syncPermissionsRoleIcons(roleSelect.value);
+        loadRolePermissions();
+    });
+
+    roleIcons.addEventListener('click', function(e) {
+        const btn = e.target.closest('.permissions-role-icon');
+        if (!btn) {
+            return;
+        }
+        const role = btn.getAttribute('data-role');
+        selectPermissionsRole(role);
+    });
+
+    roleIcons.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter' && e.key !== ' ') {
+            return;
+        }
+        const btn = e.target.closest('.permissions-role-icon');
+        if (!btn) {
+            return;
+        }
+        e.preventDefault();
+        const role = btn.getAttribute('data-role');
+        selectPermissionsRole(role);
+    });
+
+    syncPermissionsRoleIcons(roleSelect.value);
 
     document.getElementById('permissionsTableBody').addEventListener('change', function(e) {
         const target = e.target;
@@ -634,6 +673,26 @@ function applyPermissionsLock(role) {
     if (saveBtn) {
         saveBtn.disabled = isCaptain;
     }
+}
+
+function selectPermissionsRole(role) {
+    const roleSelect = document.getElementById('permissionsRole');
+    if (!roleSelect || !role) {
+        return;
+    }
+    if (roleSelect.value === role) {
+        return;
+    }
+    roleSelect.value = role;
+    roleSelect.dispatchEvent(new Event('change'));
+}
+
+function syncPermissionsRoleIcons(activeRole) {
+    document.querySelectorAll('#permissionsRoleIcons .permissions-role-icon').forEach(btn => {
+        const isActive = btn.getAttribute('data-role') === activeRole;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
 }
 
 function showAlert(type, message) {
