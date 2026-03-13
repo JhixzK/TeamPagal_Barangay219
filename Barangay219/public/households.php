@@ -22,37 +22,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="row g-3 mb-4 module-stats" data-module="households">
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-primary text-white" data-range="all" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-house"></i></div>
-                    <div class="stat-value" data-stat="total_households">-</div>
-                    <div class="stat-label">Total Households</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-success text-white" data-range="all" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-people"></i></div>
-                    <div class="stat-value" data-stat="total_members">-</div>
-                    <div class="stat-label">Total Members</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-info text-white" data-range="month" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-calendar-plus"></i></div>
-                    <div class="stat-value" data-stat="new_this_month">-</div>
-                    <div class="stat-label">New This Month</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-secondary text-white" data-range="year" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-calendar"></i></div>
-                    <div class="stat-value" data-stat="new_this_year">-</div>
-                    <div class="stat-label">New This Year</div>
-                </div>
-            </div>
-        </div>
-
         <div class="search-bar mb-3">
             <div class="row">
                 <div class="col-md-6">
@@ -71,6 +40,12 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
         </div>
+
+        <ul class="nav nav-tabs app-tabs mb-3" id="rangeTabs">
+            <li class="nav-item"><a class="nav-link active" href="#" data-range="all">All</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-range="month">New This Month</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-range="year">New This Year</a></li>
+        </ul>
 
         <div class="data-table">
             <div class="table-responsive">
@@ -93,6 +68,42 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
     </div>
 </div>
+
+<style>
+.households-page .app-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+    border-bottom: 0;
+}
+
+.households-page .app-tabs .nav-item {
+    margin: 0;
+}
+
+.households-page .app-tabs .nav-link {
+    width: 100%;
+    text-align: center;
+    border: 1px solid #dbe3ee;
+    border-radius: 999px;
+    color: #475569;
+    font-weight: 600;
+    padding: 0.5rem 0.8rem;
+    background: #ffffff;
+}
+
+.households-page .app-tabs .nav-link.active {
+    color: #1d4ed8;
+    background: #e8f0ff;
+    border-color: #bfdbfe;
+}
+
+@media (max-width: 768px) {
+    .households-page .app-tabs {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
 
 <!-- Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1">
