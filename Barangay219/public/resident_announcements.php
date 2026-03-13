@@ -10,8 +10,7 @@ require_once __DIR__ . '/../includes/auth-check.php';
 // Require login and check if user is a resident
 requireLogin();
 
-$currentRole = getCurrentUserRole();
-if (normalizeRole($currentRole) !== normalizeRole(ROLE_RESIDENT)) {
+if (!isResidentView()) {
     header('Location: ' . BASE_URL . 'dashboard.php');
     exit();
 }
@@ -152,6 +151,16 @@ if ($residentId) {
 
     <div class="header-right">
       <span class="date-badge" id="topDateBadge"><?php echo date('F d, Y'); ?></span>
+      <?php if (canSwitchToResidentView()): ?>
+        <div class="view-switch" role="group" aria-label="View mode switch">
+          <span class="view-label">Official</span>
+          <label class="switch">
+            <input type="checkbox" data-view-mode-toggle <?php echo isResidentView() ? 'checked' : ''; ?>>
+            <span class="slider"></span>
+          </label>
+          <span class="view-label">Resident</span>
+        </div>
+      <?php endif; ?>
       <button class="icon-btn" aria-label="Notifications">
         <i class="fa-regular fa-bell"></i>
       </button>
@@ -269,6 +278,7 @@ if ($residentId) {
   </main>
 
   <script src="resident_dashboard.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_dashboard.js')); ?>"></script>
+  <script src="<?php echo ASSETS_URL; ?>css/js/view-mode-switch.js?v=<?php echo time(); ?>"></script>
   <script src="announcement-manager.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/announcement-manager.js')); ?>"></script>
 </body>
 </html>
