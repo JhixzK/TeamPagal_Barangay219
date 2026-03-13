@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadComplaints();
     applyComplaintPermissions();
     initComplaintStatFilters();
+    initComplaintFormFormatting();
 });
 
 let complaintFilters = { q: '', status: '', from: '', to: '' };
@@ -45,9 +46,9 @@ function loadComplaints() {
                 tbody.innerHTML = list.map(c => `
                     <tr>
                         <td>${c.id}</td>
-                        <td>${escapeHtml(c.title || c.complaint_title)}</td>
-                        <td>${escapeHtml(c.complainant_name)}</td>
-                        <td>${escapeHtml(c.resident_name || '-')}</td>
+                        <td>${escapeHtml(toTitleCase(c.title || c.complaint_title || '-'))}</td>
+                        <td>${escapeHtml(toTitleCase(c.complainant_name || '-'))}</td>
+                        <td>${escapeHtml(toTitleCase(c.resident_name || '-'))}</td>
                         <td>${formatDate(c.date_submitted || c.filing_date)}</td>
                         <td><span class="badge bg-${getStatusColor(c.status)}">${escapeHtml(formatComplaintStatus(c.status))}</span></td>
                         <td>
@@ -122,14 +123,14 @@ function viewComplaint(id) {
             if (!d.success) return alert(d.message || 'Error');
             const c = d.data;
             const html = `
-                <strong>Title:</strong> ${escapeHtml(c.title || c.complaint_title)}<br>
-                <strong>Complainant:</strong> ${escapeHtml(c.complainant_name)}<br>
-                <strong>Respondent:</strong> ${escapeHtml(c.respondent_name || '-')}<br>
-                <strong>Type:</strong> ${escapeHtml(c.category || c.complaint_type || '-')}<br>
+                <strong>Title:</strong> ${escapeHtml(toTitleCase(c.title || c.complaint_title || '-'))}<br>
+                <strong>Complainant:</strong> ${escapeHtml(toTitleCase(c.complainant_name || '-'))}<br>
+                <strong>Respondent:</strong> ${escapeHtml(toTitleCase(c.respondent_name || '-'))}<br>
+                <strong>Type:</strong> ${escapeHtml(toTitleCase(c.category || c.complaint_type || '-'))}<br>
                 <strong>Date:</strong> ${formatDate(c.date_submitted || c.filing_date)}<br>
                 <strong>Status:</strong> <span class="badge bg-${getStatusColor(c.status)}">${escapeHtml(formatComplaintStatus(c.status))}</span><br>
-                <strong>Narrative:</strong><br>${escapeHtml(c.description || c.narrative)}<br>
-                ${c.remarks ? '<strong>Remarks:</strong><br>' + escapeHtml(c.remarks) : ''}
+                <strong>Narrative:</strong><br>${escapeHtml(toTitleCase(c.description || c.narrative || '-'))}<br>
+                ${c.remarks ? '<strong>Remarks:</strong><br>' + escapeHtml(toTitleCase(c.remarks)) : ''}
             `;
             const modal = new bootstrap.Modal(document.getElementById('viewModal'));
             document.getElementById('viewModalBody').innerHTML = html;
@@ -147,20 +148,21 @@ function editComplaint(id) {
             if (!d.success) return alert(d.message || 'Error');
             const c = d.data;
             document.getElementById('editId').value = c.id;
-            document.getElementById('editTitle').value = c.title || c.complaint_title;
-            document.getElementById('editComplainant').value = c.complainant_name;
-            document.getElementById('editRespondent').value = c.respondent_name || '';
-            document.getElementById('editType').value = c.category || c.complaint_type || '';
-            document.getElementById('editNarrative').value = c.description || c.narrative;
+            document.getElementById('editTitle').value = toTitleCase(c.title || c.complaint_title || '');
+            document.getElementById('editComplainant').value = toTitleCase(c.complainant_name || '');
+            document.getElementById('editRespondent').value = toTitleCase(c.respondent_name || '');
+            document.getElementById('editType').value = toTitleCase(c.category || c.complaint_type || '');
+            document.getElementById('editNarrative').value = toTitleCase(c.description || c.narrative || '');
             document.getElementById('editFilingDate').value = c.filing_date || c.incident_date || '';
             document.getElementById('editStatus').value = c.status || 'Pending Review';
-            document.getElementById('editRemarks').value = c.remarks || '';
+            document.getElementById('editRemarks').value = toTitleCase(c.remarks || '');
             new bootstrap.Modal(document.getElementById('editModal')).show();
         });
 }
 
 function saveComplaint() {
     if (!COMPLAINT_PERMS.canEdit) { alert('Access denied'); return; }
+    applyTitleCaseToEditForm();
     const fd = new FormData();
     fd.append('action', 'update');
     fd.append('id', document.getElementById('editId').value);
@@ -217,5 +219,71 @@ function formatComplaintStatus(status) {
     };
     return labels[status] || status || 'Pending Review';
 }
+function toTitleCase(text) {
+    if (!text) return '';
+    return String(text)
+        .trim()
+        .split(/\s+/)
+        .map(word => {
+            if (!word) return '';
+            const clean = word.replace(/[^a-zA-Z]/g, '');
+            if (clean.length > 0 && clean === clean.toUpperCase() && clean.length <= 3) {
+                return word;
+            }
+            const first = word.charAt(0).toUpperCase();
+            const rest = word.slice(1).toLowerCase();
+            return first + rest;
+        })
+        .join(' ');
+}
+
+function attachTitleCaseOnBlur(input) {
+    if (!input) return;
+    input.addEventListener('blur', function() {
+        this.value = toTitleCase(this.value);
+    });
+}
+
+function initComplaintFormFormatting() {
+    const createForm = document.getElementById('createForm');
+    if (createForm) {
+        attachTitleCaseOnBlur(createForm.querySelector('[name="complaint_title"]'));
+        attachTitleCaseOnBlur(createForm.querySelector('[name="complainant_name"]'));
+        attachTitleCaseOnBlur(createForm.querySelector('[name="respondent_name"]'));
+        attachTitleCaseOnBlur(createForm.querySelector('[name="complaint_type"]'));
+        attachTitleCaseOnBlur(createForm.querySelector('[name="narrative"]'));
+        attachTitleCaseOnBlur(createForm.querySelector('[name="remarks"]'));
+    }
+    const editTitle = document.getElementById('editTitle');
+    const editComplainant = document.getElementById('editComplainant');
+    const editRespondent = document.getElementById('editRespondent');
+    const editType = document.getElementById('editType');
+    const editNarrative = document.getElementById('editNarrative');
+    const editRemarks = document.getElementById('editRemarks');
+    attachTitleCaseOnBlur(editTitle);
+    attachTitleCaseOnBlur(editComplainant);
+    attachTitleCaseOnBlur(editRespondent);
+    attachTitleCaseOnBlur(editType);
+    attachTitleCaseOnBlur(editNarrative);
+    attachTitleCaseOnBlur(editRemarks);
+}
+
+function applyTitleCaseToEditForm() {
+    const ids = ['editTitle','editComplainant','editRespondent','editType','editNarrative','editRemarks'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = toTitleCase(el.value);
+    });
+}
+
+function applyTitleCaseToCreateForm(form) {
+    if (!form) return;
+    const fields = ['complaint_title','complainant_name','respondent_name','complaint_type','narrative','remarks'];
+    fields.forEach(name => {
+        const el = form.querySelector(`[name="${name}"]`);
+        if (el) el.value = toTitleCase(el.value);
+    });
+}
+
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, x => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[x]); }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
