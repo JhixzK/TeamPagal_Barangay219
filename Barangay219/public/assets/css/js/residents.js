@@ -408,6 +408,11 @@ function saveResident() {
     const formData = new FormData(form);
     const residentId = document.getElementById('residentId').value;
 
+    if (!residentId) {
+        showAlert('error', 'Creating new residents from Residents Management is disabled. Use approved resident applications instead.');
+        return;
+    }
+
     if (residentId && !RESIDENT_PERMS.canEdit) {
         showAlert('error', 'Access denied');
         return;
@@ -497,7 +502,7 @@ function resetForm() {
     document.getElementById('citizenship').value = 'Filipino';
     document.getElementById('status').value = 'active';
     document.getElementById('contact_number').value = '+63 ';
-    document.getElementById('residentModalTitle').textContent = 'Add New Resident';
+    document.getElementById('residentModalTitle').textContent = 'Edit Resident';
     initResidentFormValidation();
 }
 
