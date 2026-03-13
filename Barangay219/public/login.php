@@ -47,7 +47,7 @@ if (isLoggedIn()) {
             inset: 0;
             z-index: 0;
             background: url('<?php echo ASSETS_URL; ?>img/crop219logo.png') no-repeat 95% center;
-            background-size: min(900px, 90vw);
+            background-size: calc(900px * var(--bg-zoom-inverse, 1));
             opacity: 0.90;
             pointer-events: none;
         }
@@ -202,6 +202,40 @@ if (isLoggedIn()) {
             window.API_URL = '<?php echo addslashes(API_URL); ?>';
             console.warn('Using fallback API URL:', window.API_URL);
         }
+
+        (function () {
+            var baseOuterInnerRatio = window.outerWidth && window.innerWidth ? window.outerWidth / window.innerWidth : 1;
+            if (!isFinite(baseOuterInnerRatio) || baseOuterInnerRatio <= 0) {
+                baseOuterInnerRatio = 1;
+            }
+
+            function syncBackgroundZoom() {
+                var viewportScale = window.visualViewport && window.visualViewport.scale ? window.visualViewport.scale : 1;
+                if (!isFinite(viewportScale) || viewportScale <= 0) {
+                    viewportScale = 1;
+                }
+
+                var desktopScale = 1;
+                if (window.outerWidth && window.innerWidth) {
+                    desktopScale = (window.outerWidth / window.innerWidth) / baseOuterInnerRatio;
+                }
+                if (!isFinite(desktopScale) || desktopScale <= 0) {
+                    desktopScale = 1;
+                }
+
+                var zoomScale = Math.max(viewportScale, desktopScale);
+                document.documentElement.style.setProperty('--bg-zoom-inverse', (1 / zoomScale).toFixed(4));
+            }
+
+            syncBackgroundZoom();
+            window.addEventListener('resize', syncBackgroundZoom, { passive: true });
+            window.addEventListener('orientationchange', syncBackgroundZoom, { passive: true });
+
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', syncBackgroundZoom, { passive: true });
+                window.visualViewport.addEventListener('scroll', syncBackgroundZoom, { passive: true });
+            }
+        })();
 
         (function () {
             var passwordInput = document.getElementById('password');
