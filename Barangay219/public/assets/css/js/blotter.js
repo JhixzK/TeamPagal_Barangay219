@@ -77,22 +77,17 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initBlotterStatFilters() {
-    const container = document.querySelector('.module-stats[data-module="blotters"]');
-    if (!container) return;
-    container.querySelectorAll('[data-status]').forEach(card => {
-        const handleClick = () => {
-            const status = card.getAttribute('data-status') || '';
+    const tabs = document.querySelectorAll('#statusTabs .nav-link');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            const status = this.getAttribute('data-status') || '';
             blotterFilters.status = status;
             const statusSel = document.getElementById('filterStatus');
             if (statusSel) statusSel.value = status;
             loadBlotters();
-        };
-        card.addEventListener('click', handleClick);
-        card.addEventListener('keypress', e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleClick();
-            }
         });
     });
 }
@@ -188,9 +183,17 @@ function applyFilters() {
     blotterFilters.status = document.getElementById('filterStatus')?.value || '';
     blotterFilters.from = document.getElementById('filterFrom')?.value || '';
     blotterFilters.to = document.getElementById('filterTo')?.value || '';
+    syncBlotterStatusTabs();
     loadBlotters();
     const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
     if (modal) modal.hide();
+}
+
+function syncBlotterStatusTabs() {
+    document.querySelectorAll('#statusTabs .nav-link').forEach(tab => {
+        const tabStatus = tab.getAttribute('data-status') || '';
+        tab.classList.toggle('active', tabStatus === (blotterFilters.status || ''));
+    });
 }
 
 function viewBlotter(id) {
