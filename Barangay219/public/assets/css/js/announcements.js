@@ -11,10 +11,11 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAnnouncements();
     attachEventListeners();
     applyAnnouncementPermissions();
+    initAnnouncementStatusTabs();
     initAnnouncementFormFormatting();
 });
 
-let announcementFilters = { q: '' };
+let announcementFilters = { q: '', status: '' };
 
 const ANNOUNCEMENT_PERMS = {
     canCreate: window.canModulePermission ? window.canModulePermission('announcements', 'can_create') : true,
@@ -43,6 +44,7 @@ function applyAnnouncementPermissions() {
 function loadAnnouncements() {
     const params = new URLSearchParams({ action: 'list' });
     if (announcementFilters.q) params.append('q', announcementFilters.q);
+    if (announcementFilters.status) params.append('status', announcementFilters.status);
 
     fetch(window.API_URL + 'announcement.php?' + params.toString())
         .then(r => r.json())
@@ -99,7 +101,7 @@ function loadAnnouncements() {
             } else {
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No announcements</td></tr>';
             }
-            updateStatistics(d.data || []);
+            syncAnnouncementStatusTabs();
         })
         .catch(err => {
             console.error('Error loading announcements:', err);
@@ -108,56 +110,24 @@ function loadAnnouncements() {
         });
 }
 
-/**
- * Update statistics cards
- */
-function updateStatistics(data) {
-    const container = document.querySelector('.module-stats[data-module="announcements"]');
-    if (!container) return;
-    
-    const total = data.length;
-    const published = data.filter(a => a.status === 'published').length;
-    const draft = data.filter(a => a.status === 'draft').length;
-    
-    const stats = {
-        'total': total,
-        'published': published,
-        'draft': draft
-    };
-    
-    Object.entries(stats).forEach(([stat, value]) => {
-        const elem = container.querySelector(`[data-stat="${stat}"]`);
-        if (elem) elem.textContent = value;
-    });
-    
-    // Attach click handlers to stat cards
-    container.querySelectorAll('[data-status]').forEach(card => {
-        card.removeEventListener('click', handleStatClick);
-        card.addEventListener('click', handleStatClick);
+function initAnnouncementStatusTabs() {
+    const tabs = document.querySelectorAll('#statusTabs .nav-link');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            announcementFilters.status = this.getAttribute('data-status') || '';
+            loadAnnouncements();
+        });
     });
 }
 
-/**
- * Handle stat card clicks
- */
-function handleStatClick(e) {
-    const status = e.currentTarget.getAttribute('data-status');
-    announcementFilters.q = '';
-    document.getElementById('searchInput').value = '';
-    
-    if (status) {
-        // Filter by status
-        fetch(window.API_URL + 'announcement.php?action=list&status=' + status)
-            .then(r => r.json())
-            .then(d => {
-                const tbody = document.getElementById('announcementsTableBody');
-                if (d.success && d.data) {
-                    tbody.innerHTML = d.data.map(a => buildTableRow(a)).join('');
-                }
-            });
-    } else {
-        loadAnnouncements();
-    }
+function syncAnnouncementStatusTabs() {
+    document.querySelectorAll('#statusTabs .nav-link').forEach(tab => {
+        const tabStatus = tab.getAttribute('data-status') || '';
+        tab.classList.toggle('active', tabStatus === (announcementFilters.status || ''));
+    });
 }
 
 /**
@@ -226,7 +196,8 @@ function searchAnnouncements() {
 function resetAnnouncements() {
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.value = '';
-    announcementFilters = { q: '' };
+    announcementFilters = { q: '', status: '' };
+    syncAnnouncementStatusTabs();
     loadAnnouncements();
 }
 
