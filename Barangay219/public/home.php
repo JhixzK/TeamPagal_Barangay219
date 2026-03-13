@@ -19,6 +19,13 @@ $barangayName = 'Barangay 219, Tondo';
 $barangayNavName = 'Tondo, Manila';
 $city = 'Manila';
 $province = 'Metro Manila';
+
+$heroSlides = [
+    ASSETS_URL . 'img/219pic4.jpg',
+    ASSETS_URL . 'img/219pic3.jpg',
+    ASSETS_URL . 'img/219pic5.jpg',
+    ASSETS_URL . 'img/219pic6.jpg'
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -39,6 +46,8 @@ $province = 'Metro Manila';
             --gov-blue: #1d4ed8;
             --gov-red: #dc2626;
             --gov-white: #ffffff;
+            --nav-height-desktop: 78px;
+            --nav-height-mobile: 74px;
             --blue-soft: #eff6ff;
             --text-primary: #0f172a;
             --text-secondary: #475569;
@@ -54,7 +63,7 @@ $province = 'Metro Manila';
         body {
             background: var(--gov-white);
             color: var(--text-primary);
-            padding-top: 78px;
+            padding-top: var(--nav-height-desktop);
             line-height: 1.6;
             scroll-behavior: smooth;
         }
@@ -231,8 +240,47 @@ $province = 'Metro Manila';
         }
 
         .hero-section {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
             background: #ffffff;
-            padding: 88px 0 72px;
+            margin-top: calc(-1 * var(--nav-height-desktop));
+            min-height: 100vh;
+            padding: calc(88px + var(--nav-height-desktop)) 0 84px;
+        }
+
+        .hero-slideshow {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .hero-slide {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 1.2s ease-in-out;
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: cover;
+            will-change: opacity;
+        }
+
+        .hero-slide.is-active {
+            opacity: 1;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.52);
+            pointer-events: none;
+        }
+
+        .hero-section .container-lg {
+            position: relative;
+            z-index: 1;
         }
 
         .hero-content {
@@ -279,11 +327,11 @@ $province = 'Metro Manila';
             font-weight: 800;
             line-height: 1.2;
             margin-bottom: 1rem;
-            color: var(--text-primary);
+            color: #ffffff;
         }
 
         .hero-text p {
-            color: var(--text-secondary);
+            color: rgba(248, 250, 252, 0.92);
             font-size: 1.05rem;
             max-width: 610px;
             margin-bottom: 1.8rem;
@@ -319,14 +367,14 @@ $province = 'Metro Manila';
         }
 
         .btn-hero-outline {
-            background: #ffffff;
-            color: var(--gov-blue);
-            border-color: #bfdbfe;
+            background: rgba(255, 255, 255, 0.95);
+            color: #1e40af;
+            border-color: rgba(255, 255, 255, 0.95);
         }
 
         .btn-hero-outline:hover {
-            color: var(--gov-blue);
-            background: #eff6ff;
+            color: #1e3a8a;
+            background: #ffffff;
         }
 
         .hero-seal {
@@ -339,7 +387,7 @@ $province = 'Metro Manila';
             width: min(520px, 96vw);
             max-height: 520px;
             object-fit: contain;
-            filter: drop-shadow(0 16px 28px rgba(29, 78, 216, 0.16));
+            filter: drop-shadow(0 16px 28px rgba(15, 23, 42, 0.38));
         }
 
         .about-panel,
@@ -569,6 +617,10 @@ $province = 'Metro Manila';
                 animation: none;
             }
 
+            .hero-slide {
+                transition: none;
+            }
+
             .reveal-on-scroll {
                 opacity: 1;
                 transform: none;
@@ -611,7 +663,14 @@ $province = 'Metro Manila';
 
         @media (max-width: 768px) {
             body {
-                padding-top: 74px;
+                padding-top: var(--nav-height-mobile);
+            }
+
+            .hero-section {
+                margin-top: calc(-1 * var(--nav-height-mobile));
+                min-height: 92vh;
+                padding-top: calc(64px + var(--nav-height-mobile));
+                padding-bottom: 64px;
             }
 
             .section-padding {
@@ -690,6 +749,16 @@ $province = 'Metro Manila';
 
     <!-- HERO SECTION -->
     <section class="hero-section">
+        <div class="hero-slideshow" id="heroSlideshow" aria-hidden="true">
+            <?php foreach ($heroSlides as $index => $slideImage): ?>
+                <div
+                    class="hero-slide<?php echo $index === 0 ? ' is-active' : ''; ?>"
+                    style="background-image: url('<?php echo htmlspecialchars($slideImage, ENT_QUOTES, 'UTF-8'); ?>');"
+                ></div>
+            <?php endforeach; ?>
+            <div class="hero-overlay"></div>
+        </div>
+
         <div class="container-lg">
             <div class="hero-content">
                 <div class="hero-text">
@@ -1046,6 +1115,24 @@ $province = 'Metro Manila';
             });
 
             revealTargets.forEach(el => revealObserver.observe(el));
+        })();
+
+        // Hero background slideshow (hero section only)
+        (function() {
+            const slides = document.querySelectorAll('#heroSlideshow .hero-slide');
+            if (slides.length <= 1) {
+                return;
+            }
+
+            let activeIndex = 0;
+            const intervalMs = 7000;
+
+            window.setInterval(() => {
+                const nextIndex = (activeIndex + 1) % slides.length;
+                slides[activeIndex].classList.remove('is-active');
+                slides[nextIndex].classList.add('is-active');
+                activeIndex = nextIndex;
+            }, intervalMs);
         })();
     </script>
 </body>
