@@ -55,7 +55,7 @@ if ($mysqli && $residentId > 0) {
     }
 
     if ($tracking !== '') {
-        $sql = 'SELECT request_id, tracking_code, certificate_type, date_requested, status FROM document_requests WHERE tracking_code = ? AND resident_id = ? LIMIT 1';
+      $sql = 'SELECT id, reference_number, certificate_type, created_at, status FROM certificate_requests WHERE reference_number = ? AND resident_id = ? LIMIT 1';
         $stmt = $mysqli->prepare($sql);
         if ($stmt) {
             $stmt->bind_param('si', $tracking, $residentId);
@@ -161,9 +161,9 @@ if ($tracking === '') {
       <?php else: ?>
         <div class="confirmation-badge">Submitted</div>
         <div class="summary-grid single-col">
-          <div class="summary-item"><span>Tracking ID</span><strong><?php echo htmlspecialchars($requestData['tracking_code']); ?></strong></div>
+          <div class="summary-item"><span>Tracking ID</span><strong><?php echo htmlspecialchars($requestData['reference_number']); ?></strong></div>
           <div class="summary-item"><span>Certificate Type</span><strong><?php echo htmlspecialchars($requestData['certificate_type']); ?></strong></div>
-          <div class="summary-item"><span>Date Requested</span><strong><?php echo htmlspecialchars(date('F d, Y h:i A', strtotime($requestData['date_requested']))); ?></strong></div>
+          <div class="summary-item"><span>Date Requested</span><strong><?php echo htmlspecialchars(date('F d, Y h:i A', strtotime($requestData['created_at']))); ?></strong></div>
           <div class="summary-item"><span>Status</span><strong class="status-badge submitted">Submitted</strong></div>
           <div class="summary-item"><span>Expected Processing Time</span><strong>1-2 working days</strong></div>
         </div>
