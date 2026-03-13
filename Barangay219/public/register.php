@@ -54,7 +54,7 @@ $valid_id_types = [
         }
 
         .register-page {
-            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+            background: #ffffff;
             min-height: 100vh;
             position: relative;
             overflow-x: hidden;
@@ -64,9 +64,9 @@ $valid_id_types = [
             content: '';
             position: fixed;
             inset: 0;
-            background: url('<?php echo ASSETS_URL; ?>img/barangay_logo2.png') no-repeat center 55%;
-            background-size: min(500px, 74vw);
-            opacity: 0.045;
+            background: url('<?php echo ASSETS_URL; ?>img/crop219logo.png') no-repeat 95% center;
+            background-size: calc(900px * var(--bg-zoom-inverse, 1));
+            opacity: 0.90;
             pointer-events: none;
             z-index: 0;
         }
@@ -802,6 +802,40 @@ $valid_id_types = [
 <script src="<?php echo ASSETS_URL; ?>js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
+window.addEventListener('DOMContentLoaded', function () {
+    var baseOuterInnerRatio = window.outerWidth && window.innerWidth ? window.outerWidth / window.innerWidth : 1;
+    if (!isFinite(baseOuterInnerRatio) || baseOuterInnerRatio <= 0) {
+        baseOuterInnerRatio = 1;
+    }
+
+    function syncBackgroundZoom() {
+        var viewportScale = window.visualViewport && window.visualViewport.scale ? window.visualViewport.scale : 1;
+        if (!isFinite(viewportScale) || viewportScale <= 0) {
+            viewportScale = 1;
+        }
+
+        var desktopScale = 1;
+        if (window.outerWidth && window.innerWidth) {
+            desktopScale = (window.outerWidth / window.innerWidth) / baseOuterInnerRatio;
+        }
+        if (!isFinite(desktopScale) || desktopScale <= 0) {
+            desktopScale = 1;
+        }
+
+        var zoomScale = Math.max(viewportScale, desktopScale);
+        document.documentElement.style.setProperty('--bg-zoom-inverse', (1 / zoomScale).toFixed(4));
+    }
+
+    syncBackgroundZoom();
+    window.addEventListener('resize', syncBackgroundZoom, { passive: true });
+    window.addEventListener('orientationchange', syncBackgroundZoom, { passive: true });
+
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', syncBackgroundZoom, { passive: true });
+        window.visualViewport.addEventListener('scroll', syncBackgroundZoom, { passive: true });
+    }
+});
+
 window.API_URL = '<?php echo addslashes(API_URL); ?>';
 
 let currentStep = 1;
