@@ -145,11 +145,11 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div class="card-body">
                 <div class="row g-3 align-items-end mb-3">
-                    <div class="col-md-4">
+                    <div class="col-12">
                         <label class="form-label" for="permissionsRole">Role</label>
-                        <select class="form-select" id="permissionsRole"></select>
+                        <select class="form-select d-none" id="permissionsRole"></select>
+                        <div id="permissionsRoleIcons" class="permissions-role-icons" role="group" aria-label="Select role"></div>
                     </div>
-                    <div class="col-md-8"></div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-bordered table-sm align-middle permissions-table">
