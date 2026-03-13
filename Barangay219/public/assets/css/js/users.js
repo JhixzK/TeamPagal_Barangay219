@@ -131,8 +131,25 @@ function displayUsers(users) {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center">No users found</td></tr>';
         return;
     }
-    
-    tbody.innerHTML = users.map(user => `
+
+    const statusRank = status => {
+        const s = String(status || '').toLowerCase();
+        if (s === 'active') return 0;
+        if (s === 'inactive') return 2;
+        return 1;
+    };
+
+    const sortedUsers = users
+        .map((user, idx) => ({ user, idx }))
+        .sort((a, b) => {
+            const ra = statusRank(a.user.status);
+            const rb = statusRank(b.user.status);
+            if (ra !== rb) return ra - rb;
+            return a.idx - b.idx;
+        })
+        .map(item => item.user);
+
+    tbody.innerHTML = sortedUsers.map(user => `
         <tr>
             <td class="text-center">${user.id}</td>
             <td class="text-center">${escapeHtml(user.username)}</td>
