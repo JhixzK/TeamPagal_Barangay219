@@ -278,6 +278,9 @@ include __DIR__ . '/../includes/sidebar.php';
 <script>
 document.getElementById('btnCreate').addEventListener('click', function() {
     const f = document.getElementById('createForm');
+    if (window.applyTitleCaseToCreateForm) {
+        window.applyTitleCaseToCreateForm(f);
+    }
     const fd = new FormData();
     fd.append('action', 'create');
     fd.append('complaint_title', f.complaint_title.value);
