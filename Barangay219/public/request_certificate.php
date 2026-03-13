@@ -189,6 +189,26 @@ function rcFormatPhone($value) {
     }
     return '+63 ' . $digits;
 }
+
+function rcGenerateReferenceNumber($conn) {
+  $year = date('Y');
+  $prefix = 'REQ-BRGY219-' . $year . '-';
+  $seq = 1;
+
+  $row = rcFetchOne(
+    $conn,
+    "SELECT reference_number FROM certificate_requests WHERE reference_number LIKE ? ORDER BY id DESC LIMIT 1",
+    's',
+    [$prefix . '%']
+  );
+
+  if (!empty($row['reference_number']) && preg_match('/-(\d+)$/', (string)$row['reference_number'], $match)) {
+    $seq = (int)$match[1] + 1;
+  }
+
+  return $prefix . str_pad((string)$seq, 5, '0', STR_PAD_LEFT);
+}
+
 $certificateOptions = [
     'Barangay Clearance',
     'Certificate of Indigency',
@@ -265,27 +285,30 @@ if ($mysqli) {
 }
 
 if ($mysqli && $residentId > 0) {
-    $createTableSql = "CREATE TABLE IF NOT EXISTS document_requests (
-        request_id INT(11) NOT NULL AUTO_INCREMENT,
-        tracking_code VARCHAR(40) DEFAULT NULL,
-        resident_id INT(11) NOT NULL,
-        certificate_type VARCHAR(120) NOT NULL,
-        purpose VARCHAR(120) NOT NULL,
-        business_name VARCHAR(180) DEFAULT NULL,
-        business_address VARCHAR(255) DEFAULT NULL,
-        uploaded_files TEXT DEFAULT NULL,
-        status VARCHAR(50) NOT NULL DEFAULT 'Submitted',
-        date_requested DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        admin_notes TEXT DEFAULT NULL,
-        created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (request_id),
-        UNIQUE KEY uniq_tracking_code (tracking_code),
-        KEY idx_resident_id (resident_id),
-        KEY idx_status (status),
-        KEY idx_certificate_type (certificate_type),
-        KEY idx_date_requested (date_requested)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+  $createTableSql = "CREATE TABLE IF NOT EXISTS certificate_requests (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    resident_id INT(11) NOT NULL,
+    certificate_type VARCHAR(120) NOT NULL,
+    purpose TEXT DEFAULT NULL,
+    attachment VARCHAR(255) DEFAULT NULL,
+    reference_number VARCHAR(50) NOT NULL,
+    status ENUM('pending','under_review','approved','rejected','issued','cancelled') NOT NULL DEFAULT 'pending',
+    cert_name VARCHAR(255) DEFAULT NULL,
+    cert_address TEXT DEFAULT NULL,
+    cert_purpose TEXT DEFAULT NULL,
+    cert_body TEXT DEFAULT NULL,
+    date_issued DATE DEFAULT NULL,
+    control_number VARCHAR(50) DEFAULT NULL,
+    approved_at DATETIME DEFAULT NULL,
+    admin_id INT(11) DEFAULT NULL,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uniq_reference_number (reference_number),
+    KEY idx_resident_id (resident_id),
+    KEY idx_status (status),
+    KEY idx_certificate_type (certificate_type)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
     $mysqli->query($createTableSql);
 
@@ -353,7 +376,7 @@ if ($mysqli && $residentId > 0) {
           rcLog('Residents table missing');
     }
 
-    $eligibility['request_table_ready'] = rcTableExists($mysqli, 'document_requests');
+    $eligibility['request_table_ready'] = rcTableExists($mysqli, 'certificate_requests');
 }
 
 if ($mysqli && $residentId <= 0) {
@@ -363,12 +386,11 @@ if ($mysqli && $residentId <= 0) {
 
 $canSubmit = $eligibility['resident_verified']
     && $eligibility['profile_complete']
-    && $eligibility['household_linked']
     && $eligibility['request_table_ready']
     && empty($errors);
 
 if (!$canSubmit && empty($errors)) {
-    $warningMessage = 'Your profile is incomplete, not verified, or not linked to a household. Please update your profile before requesting certificates.';
+  $warningMessage = 'Your profile is incomplete or not verified. Please update your profile before requesting certificates.';
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -471,11 +493,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors) && $mysqli) {
-        $duplicateSql = "SELECT request_id
-                         FROM document_requests
+        $duplicateSql = "SELECT id
+                         FROM certificate_requests
                          WHERE resident_id = ?
                            AND certificate_type = ?
-                           AND LOWER(REPLACE(status, '_', ' ')) IN ('submitted', 'pending', 'under review')
+                           AND status IN ('pending', 'under_review', 'approved')
                          LIMIT 1";
         $duplicateRow = rcFetchOne($mysqli, $duplicateSql, 'is', [$residentId, $formData['certificate_type']]);
         if ($duplicateRow) {
@@ -509,37 +531,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors) && $mysqli) {
         $finalPurpose = $formData['purpose'] === 'Others' ? $formData['purpose_other'] : $formData['purpose'];
-        $uploadedFilesJson = json_encode($uploadedPaths);
+      $attachmentValue = $uploadedPaths[0] ?? null;
+      $referenceNumber = rcGenerateReferenceNumber($mysqli);
 
         $mysqli->begin_transaction();
 
         try {
-            $insertSql = "INSERT INTO document_requests (
-                            resident_id,
-                            certificate_type,
-                            purpose,
-                            business_name,
-                            business_address,
-                            uploaded_files,
-                            status,
-                            date_requested,
-                            admin_notes
-                          ) VALUES (?, ?, ?, ?, ?, ?, 'Submitted', NOW(), NULL)";
+        $insertSql = "INSERT INTO certificate_requests (
+                resident_id,
+                certificate_type,
+                purpose,
+                attachment,
+                reference_number,
+                status,
+                created_at
+                ) VALUES (?, ?, ?, ?, ?, 'pending', NOW())";
             $stmt = $mysqli->prepare($insertSql);
             if (!$stmt) {
                 throw new Exception('Failed to prepare insert statement.');
             }
 
-            $businessNameValue = $formData['certificate_type'] === 'Business Clearance' ? $formData['business_name'] : null;
-            $businessAddressValue = $formData['certificate_type'] === 'Business Clearance' ? $formData['business_address'] : null;
             $stmt->bind_param(
-                'isssss',
+          'issss',
                 $residentId,
                 $formData['certificate_type'],
                 $finalPurpose,
-                $businessNameValue,
-                $businessAddressValue,
-                $uploadedFilesJson
+          $attachmentValue,
+          $referenceNumber
             );
 
             if (!$stmt->execute()) {
@@ -547,26 +565,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception('Failed to save request.');
             }
 
-            $newId = (int)$stmt->insert_id;
             $stmt->close();
-
-            $trackingCode = sprintf('BRGY219-%s-%06d', date('Y'), $newId);
-
-            $updateSql = "UPDATE document_requests SET tracking_code = ? WHERE request_id = ?";
-            $updateStmt = $mysqli->prepare($updateSql);
-            if (!$updateStmt) {
-                throw new Exception('Failed to update tracking code.');
-            }
-            $updateStmt->bind_param('si', $trackingCode, $newId);
-            if (!$updateStmt->execute()) {
-                $updateStmt->close();
-                throw new Exception('Failed to save tracking code.');
-            }
-            $updateStmt->close();
 
             $mysqli->commit();
 
-            header('Location: ' . BASE_URL . 'request_confirmation.php?tracking=' . urlencode($trackingCode));
+            header('Location: ' . BASE_URL . 'request_confirmation.php?tracking=' . urlencode($referenceNumber));
             exit();
         } catch (Exception $ex) {
             $mysqli->rollback();
@@ -838,7 +841,7 @@ if ($mysqli) {
         <div class="eligibility-list">
           <span class="eligibility-pill <?php echo $eligibility['resident_verified'] ? 'ok' : 'bad'; ?>">Resident Verified</span>
           <span class="eligibility-pill <?php echo $eligibility['profile_complete'] ? 'ok' : 'bad'; ?>">Profile Complete</span>
-          <span class="eligibility-pill <?php echo $eligibility['household_linked'] ? 'ok' : 'bad'; ?>">Household Linked</span>
+          <span class="eligibility-pill ok">Household Linked (Optional)</span>
         </div>
       </section>
 

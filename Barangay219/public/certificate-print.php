@@ -14,11 +14,22 @@ $id = (int)($_GET['id'] ?? 0);
 if (!$id) { header('Location: ' . BASE_URL . 'certificates.php'); exit; }
 
 $db = Database::getInstance();
-$cert = $db->fetchOne("SELECT c.*, r.first_name, r.middle_name, r.last_name, r.suffix, r.address, r.birth_date, r.gender, r.civil_status, r.occupation, r.citizenship
-    FROM certificate_requests c LEFT JOIN residents r ON c.resident_id = r.id WHERE c.id = ?", [$id]);
+$cert = $db->fetchOne("SELECT * FROM certificate_requests WHERE id = ?", [$id]);
 if (!$cert) { header('Location: ' . BASE_URL . 'certificates.php'); exit; }
 
-$fullName = trim($cert['first_name'] . ' ' . ($cert['middle_name'] ?? '') . ' ' . $cert['last_name'] . ' ' . ($cert['suffix'] ?? ''));
+$fullName = trim((string)($cert['cert_name'] ?? ''));
+$certAddress = trim((string)($cert['cert_address'] ?? ''));
+$purposeText = trim((string)($cert['cert_purpose'] ?? $cert['purpose'] ?? ''));
+$certBody = trim((string)($cert['cert_body'] ?? ''));
+
+if ($fullName === '') {
+    $fullName = 'N/A';
+}
+
+if ($certAddress === '') {
+    $certAddress = 'Barangay 219, Tondo, Manila';
+}
+
 $certTypeLabels = [
     'barangay_clearance' => 'Barangay Clearance',
     'certificate_residency' => 'Certificate of Residency',
@@ -27,8 +38,9 @@ $certTypeLabels = [
     'transfer_request' => 'Transfer Request'
 ];
 $certLabel = $certTypeLabels[$cert['certificate_type']] ?? ucfirst(str_replace('_', ' ', $cert['certificate_type']));
-$controlNum = $cert['control_number'] ?? 'CTRL-' . $id . '-' . date('Y');
-$issuedTs = $cert['issued_date'] ? strtotime((string)$cert['issued_date']) : time();
+$controlNum = $cert['control_number'] ?? 'BRGY219-' . date('Y') . '-' . str_pad((string)$id, 5, '0', STR_PAD_LEFT);
+$issuedBase = $cert['date_issued'] ?? $cert['issued_date'] ?? null;
+$issuedTs = $issuedBase ? strtotime((string)$issuedBase) : time();
 $issuedDate = date('F d, Y', $issuedTs);
 $issuedDay = (int)date('j', $issuedTs);
 $issuedMonthYear = date('F Y', $issuedTs);
@@ -53,56 +65,43 @@ $barangayKagawad = [
 ];
 
 $subjectLine = strtoupper($certLabel);
-$purposeText = trim((string)($cert['purpose'] ?? ''));
-$residentAddress = trim((string)($cert['address'] ?? '')) ?: 'Barangay 219, Tondo, Manila';
-$civilStatus = $cert['civil_status'] ? ucfirst((string)$cert['civil_status']) : 'Single';
-$citizenship = $cert['citizenship'] ?: 'Filipino';
 
-switch ($cert['certificate_type']) {
-    case 'certificate_indigency':
-        $subjectLine = 'BARANGAY INDIGENCY';
+$placeholderValues = [
+    '[NAME]' => $fullName,
+    '[ADDRESS]' => $certAddress,
+    '[PURPOSE]' => ($purposeText !== '' ? $purposeText : 'legal purpose'),
+    '[DATE_ISSUED]' => $issuedDate,
+    '[CONTROL_NUMBER]' => $controlNum
+];
+
+if ($certBody !== '') {
+    $resolvedBody = strtr($certBody, $placeholderValues);
+    // Treat saved body as final snapshot text. Split by blank lines into printable paragraphs.
+    $blocks = preg_split('/\R{2,}/', trim($resolvedBody));
+    $paragraphs = [];
+    foreach ($blocks as $block) {
+        $cleanBlock = trim((string)$block);
+        if ($cleanBlock === '') {
+            continue;
+        }
+        $paragraphs[] = nl2br(htmlspecialchars($cleanBlock));
+    }
+
+    if (empty($paragraphs)) {
         $paragraphs = [
             'TO WHOM IT MAY CONCERN:',
-            'This is to certify that <span class="uline strong">' . htmlspecialchars($fullName) . '</span>, of legal age, <span class="uline">' . htmlspecialchars($civilStatus) . '</span>, and a bona fide resident of <span class="uline">' . htmlspecialchars($residentAddress) . '</span>.',
-            'This is to further certify that the above-mentioned person belongs to an indigent family of this barangay' . ($purposeText !== '' ? ' and requested this for <span class="uline">' . htmlspecialchars($purposeText) . '</span>' : '') . '.',
-            'Issued this <span class="uline">' . $issuedDay . 'th</span> day of <span class="uline">' . htmlspecialchars($issuedMonthYear) . '</span> at Barangay 219 Zone 20 Manila.'
-        ];
-        break;
-    case 'certificate_residency':
-        $subjectLine = 'CERTIFICATE OF RESIDENCY';
-        $paragraphs = [
-            'TO WHOM IT MAY CONCERN:',
-            'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, of legal age, ' . htmlspecialchars($civilStatus) . ', ' . htmlspecialchars($citizenship) . ' citizen, is a bona fide resident of <strong>' . htmlspecialchars($residentAddress) . '</strong>, Barangay 219, Tondo, Manila.',
+            'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong> is a resident of <strong>' . htmlspecialchars($certAddress) . '</strong>.',
             'This certification is issued upon the request of the above-named person ' . ($purposeText !== '' ? 'for <strong>' . htmlspecialchars($purposeText) . '</strong>' : 'for legal purpose') . '.',
             'Issued this <strong>' . $issuedDay . '</strong> day of <strong>' . htmlspecialchars($issuedMonthYear) . '</strong> at Barangay 219, Tondo, Manila.'
         ];
-        break;
-    case 'certificate_good_moral':
-        $subjectLine = 'CERTIFICATE OF GOOD MORAL CHARACTER';
-        $paragraphs = [
-            'TO WHOM IT MAY CONCERN:',
-            'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, of legal age, ' . htmlspecialchars($civilStatus) . ', ' . htmlspecialchars($citizenship) . ' citizen, and a resident of <strong>' . htmlspecialchars($residentAddress) . '</strong>, is known in this community to be a person of good moral character and has no derogatory record filed in this barangay as of this date.',
-            'This certification is issued upon request of the above-named person ' . ($purposeText !== '' ? 'for <strong>' . htmlspecialchars($purposeText) . '</strong>' : 'for legal purpose') . '.',
-            'Issued this <strong>' . $issuedDay . '</strong> day of <strong>' . htmlspecialchars($issuedMonthYear) . '</strong> at Barangay 219, Tondo, Manila.'
-        ];
-        break;
-    case 'barangay_clearance':
-        $subjectLine = 'BARANGAY CLEARANCE';
-        $paragraphs = [
-            'TO WHOM IT MAY CONCERN:',
-            'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, of legal age, ' . htmlspecialchars($civilStatus) . ', ' . htmlspecialchars($citizenship) . ' citizen, and a resident of <strong>' . htmlspecialchars($residentAddress) . '</strong>, is known to be of good standing in this barangay and has no pending complaint or derogatory record as of this date.',
-            'This clearance is issued upon request of the above-named person ' . ($purposeText !== '' ? 'for <strong>' . htmlspecialchars($purposeText) . '</strong>' : 'for legal purpose') . '.',
-            'Issued this <strong>' . $issuedDay . '</strong> day of <strong>' . htmlspecialchars($issuedMonthYear) . '</strong> at Barangay 219, Tondo, Manila.'
-        ];
-        break;
-    default:
-        $paragraphs = [
-            'TO WHOM IT MAY CONCERN:',
-            'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, of legal age, ' . htmlspecialchars($civilStatus) . ', ' . htmlspecialchars($citizenship) . ' citizen, and a resident of <strong>' . htmlspecialchars($residentAddress) . '</strong>, has requested this certification.',
-            'This certification is issued upon the request of the above-named person ' . ($purposeText !== '' ? 'for <strong>' . htmlspecialchars($purposeText) . '</strong>' : 'for legal purpose') . '.',
-            'Issued this <strong>' . $issuedDay . '</strong> day of <strong>' . htmlspecialchars($issuedMonthYear) . '</strong> at Barangay 219, Tondo, Manila.'
-        ];
-        break;
+    }
+} else {
+    $paragraphs = [
+        'TO WHOM IT MAY CONCERN:',
+        'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong> is a resident of <strong>' . htmlspecialchars($certAddress) . '</strong>.',
+        'This certification is issued upon the request of the above-named person ' . ($purposeText !== '' ? 'for <strong>' . htmlspecialchars($purposeText) . '</strong>' : 'for legal purpose') . '.',
+        'Issued this <strong>' . $issuedDay . '</strong> day of <strong>' . htmlspecialchars($issuedMonthYear) . '</strong> at Barangay 219, Tondo, Manila.'
+    ];
 }
 ?>
 <!DOCTYPE html>

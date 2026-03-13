@@ -254,10 +254,10 @@ if ($conn && $residentId) {
     }
   }
 
-  if (residentDashboardTableExists($conn, 'document_requests')) {
-    $requestTable = 'document_requests';
-  } elseif (residentDashboardTableExists($conn, 'certificate_requests')) {
+  if (residentDashboardTableExists($conn, 'certificate_requests')) {
     $requestTable = 'certificate_requests';
+  } elseif (residentDashboardTableExists($conn, 'document_requests')) {
+    $requestTable = 'document_requests';
   }
 
   if ($requestTable !== null) {

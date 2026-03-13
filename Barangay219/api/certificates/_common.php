@@ -53,6 +53,14 @@ function ensureCertificateRequestSchema() {
             reference_number VARCHAR(50) NOT NULL,
             status ENUM('pending','under_review','approved','rejected','issued','cancelled') NOT NULL DEFAULT 'pending',
             attachment VARCHAR(255) DEFAULT NULL,
+            cert_name VARCHAR(255) DEFAULT NULL,
+            cert_address TEXT DEFAULT NULL,
+            cert_purpose TEXT DEFAULT NULL,
+            cert_body TEXT DEFAULT NULL,
+            date_issued DATE DEFAULT NULL,
+            control_number VARCHAR(50) DEFAULT NULL,
+            approved_at DATETIME DEFAULT NULL,
+            admin_id INT(11) DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -79,6 +87,14 @@ function ensureCertificateRequestSchema() {
 
     $addColumnIfMissing('reference_number', "VARCHAR(50) NULL");
     $addColumnIfMissing('attachment', "VARCHAR(255) NULL");
+    $addColumnIfMissing('cert_name', "VARCHAR(255) NULL");
+    $addColumnIfMissing('cert_address', "TEXT NULL");
+    $addColumnIfMissing('cert_purpose', "TEXT NULL");
+    $addColumnIfMissing('cert_body', "TEXT NULL");
+    $addColumnIfMissing('date_issued', "DATE NULL");
+    $addColumnIfMissing('control_number', "VARCHAR(50) NULL");
+    $addColumnIfMissing('approved_at', "DATETIME NULL");
+    $addColumnIfMissing('admin_id', "INT(11) NULL");
     $addColumnIfMissing('created_at', "TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
     $addColumnIfMissing('updated_at', "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
 
@@ -93,7 +109,7 @@ function ensureCertificateRequestSchema() {
     foreach ($missingRefs as $row) {
         $id = (int)$row['id'];
         $year = date('Y', strtotime($row['created_at'] ?: 'now'));
-        $referenceNumber = 'BRGY-' . $year . '-' . str_pad((string)$id, 4, '0', STR_PAD_LEFT);
+        $referenceNumber = 'REQ-BRGY219-' . $year . '-' . str_pad((string)$id, 5, '0', STR_PAD_LEFT);
         $db->query("UPDATE certificate_requests SET reference_number = ? WHERE id = ?", [$referenceNumber, $id]);
     }
 
@@ -110,7 +126,7 @@ function ensureCertificateRequestSchema() {
 function generateCertificateReferenceNumber() {
     $db = Database::getInstance();
     $year = date('Y');
-    $prefix = 'BRGY-' . $year . '-';
+    $prefix = 'REQ-BRGY219-' . $year . '-';
 
     $lastRow = $db->fetchOne(
         "SELECT reference_number FROM certificate_requests WHERE reference_number LIKE ? ORDER BY id DESC LIMIT 1",
@@ -118,11 +134,11 @@ function generateCertificateReferenceNumber() {
     );
 
     $nextSequence = 1;
-    if (!empty($lastRow['reference_number']) && preg_match('/BRGY-\\d{4}-(\\d{4})$/', $lastRow['reference_number'], $matches)) {
+    if (!empty($lastRow['reference_number']) && preg_match('/REQ-BRGY219-\\d{4}-(\\d{5})$/', $lastRow['reference_number'], $matches)) {
         $nextSequence = ((int)$matches[1]) + 1;
     }
 
-    return $prefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT);
+    return $prefix . str_pad((string)$nextSequence, 5, '0', STR_PAD_LEFT);
 }
 
 function normalizeCertificateType($value) {
