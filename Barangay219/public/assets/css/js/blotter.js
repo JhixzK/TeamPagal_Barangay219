@@ -35,6 +35,9 @@ function validateNameInput(input) {
         let value = this.value.replace(/[^a-zA-Z\s]/g, '');
         this.value = value;
     });
+    input.addEventListener('blur', function() {
+        this.value = toTitleCase(this.value);
+    });
 }
 
 // Number-only validation (allow digits only)
@@ -122,7 +125,7 @@ function loadBlotters() {
                     let comp = '-';
                     try {
                         const c = JSON.parse(b.complainant_name);
-                        if (Array.isArray(c)) comp = c.map(x => x.name).join(', ');
+                        if (Array.isArray(c)) comp = c.map(x => toTitleCase(x.name)).join(', ');
                         else comp = b.complainant_name;
                     } catch (e) { comp = b.complainant_name || '-'; }
 
@@ -134,11 +137,11 @@ function loadBlotters() {
                     } catch (e) { resp = b.respondent_name || '-'; }
 
                         const incidentType = b.incident_type ? formatIncidentType(b.incident_type) : '-';
-                        const incidentLocation = b.incident_location ? escapeHtml(b.incident_location) : '-';
+                        const incidentLocation = b.incident_location ? escapeHtml(toTitleCase(b.incident_location)) : '-';
                         return `
                         <tr>
                             <td>${b.id}</td>
-                            <td>${b.case_title}</td>
+                            <td>${escapeHtml(toTitleCase(b.case_title || ''))}</td>
                             <td>${escapeHtml(comp)}</td>
                             <td>${incidentType}</td>
                             <td>${incidentLocation}</td>
@@ -182,11 +185,11 @@ function viewBlotter(id) {
                 const info = d.data;
                 
                 // Populate Case Information
-                document.getElementById('viewCaseTitle').textContent = info.case_title || '-';
+                document.getElementById('viewCaseTitle').textContent = toTitleCase(info.case_title || '-') || '-';
                 document.getElementById('viewIncidentDate').textContent = formatDate(info.incident_date) || '-';
                 document.getElementById('viewIncidentType').textContent = info.incident_type ? formatIncidentType(info.incident_type) : 'Not specified';
-                document.getElementById('viewIncidentLocation').textContent = info.incident_location || '-';
-                document.getElementById('viewDescription').textContent = info.description || '-';
+                document.getElementById('viewIncidentLocation').textContent = toTitleCase(info.incident_location || '-') || '-';
+                document.getElementById('viewDescription').textContent = toTitleCase(info.description || '-') || '-';
                 const proofPath = info.proof_of_incident_path || '';
                 const proofEl = document.getElementById('viewIncidentProof');
                 if (proofEl) {
@@ -206,16 +209,16 @@ function viewBlotter(id) {
                         complainantsHTML = comps.map((c, idx) => `
                             <div class="card mb-2">
                                 <div class="card-body py-2">
-                                    <p class="mb-1"><strong>Complainant ${idx + 1}:</strong> ${c.name || '-'}</p>
-                                    <p class="mb-1"><strong>Address:</strong> ${c.address || '-'}</p>
-                                    <p class="mb-1"><strong>Barangay:</strong> ${c.barangay || '-'}</p>
+                                    <p class="mb-1"><strong>Complainant ${idx + 1}:</strong> ${toTitleCase(c.name || '-') || '-'}</p>
+                                    <p class="mb-1"><strong>Address:</strong> ${toTitleCase(c.address || '-') || '-'}</p>
+                                    <p class="mb-1"><strong>Barangay:</strong> ${toTitleCase(c.barangay || '-') || '-'}</p>
                                     <p class="mb-0"><strong>Contact:</strong> ${formatPhoneNumber(c.contact) || '-'}</p>
                                 </div>
                             </div>
                         `).join('');
                     }
                 } catch(e) {
-                    complainantsHTML = `<p>${info.complainant_name || '-'}</p>`;
+                    complainantsHTML = `<p>${toTitleCase(info.complainant_name || '-') || '-'}</p>`;
                 }
                 document.getElementById('viewComplainantsInfo').innerHTML = complainantsHTML || '<p>-</p>';
                 
@@ -227,16 +230,16 @@ function viewBlotter(id) {
                         respondentsHTML = resps.map((r, idx) => `
                             <div class="card mb-2">
                                 <div class="card-body py-2">
-                                    <p class="mb-1"><strong>Respondent ${idx + 1}:</strong> ${r.name || '-'}</p>
-                                    <p class="mb-1"><strong>Address:</strong> ${r.address || '-'}</p>
-                                    <p class="mb-1"><strong>Barangay:</strong> ${r.barangay || '-'}</p>
+                                    <p class="mb-1"><strong>Respondent ${idx + 1}:</strong> ${toTitleCase(r.name || '-') || '-'}</p>
+                                    <p class="mb-1"><strong>Address:</strong> ${toTitleCase(r.address || '-') || '-'}</p>
+                                    <p class="mb-1"><strong>Barangay:</strong> ${toTitleCase(r.barangay || '-') || '-'}</p>
                                     <p class="mb-0"><strong>Contact:</strong> ${formatPhoneNumber(r.contact) || '-'}</p>
                                 </div>
                             </div>
                         `).join('');
                     }
                 } catch(e) {
-                    respondentsHTML = `<p>${info.respondent_name || '-'}</p>`;
+                    respondentsHTML = `<p>${toTitleCase(info.respondent_name || '-') || '-'}</p>`;
                 }
                 document.getElementById('viewRespondentsInfo').innerHTML = respondentsHTML || '<p>-</p>';
                 
@@ -289,10 +292,10 @@ function editBlotter(id) {
             document.getElementById('blotterModalTitle').textContent = 'Edit Blotter Case';
             document.querySelector('#blotterForm .btn-primary').textContent = 'Update Blotter Case';
             document.getElementById('blotterId').value = info.id;
-            document.getElementById('case_title').value = info.case_title || '';
+            document.getElementById('case_title').value = toTitleCase(info.case_title || '');
             document.getElementById('incident_date').value = info.incident_date || '';
-            document.getElementById('incident_location').value = info.incident_location || '';
-            document.getElementById('description').value = info.description || '';
+            document.getElementById('incident_location').value = toTitleCase(info.incident_location || '');
+            document.getElementById('description').value = toTitleCase(info.description || '');
             const incidentTypeEl = document.getElementById('incident_type');
             if (incidentTypeEl) {
                 const normalized = String(info.incident_type || '').trim().toLowerCase();
@@ -321,22 +324,22 @@ function editBlotter(id) {
             try {
                 const comps = JSON.parse(info.complainant_name);
                 if (Array.isArray(comps)) {
-                    comps.forEach(c => addComplainantRow({ name: c.name || '', address: c.address || '', barangay: c.barangay || '', contact: c.contact || '' }));
+                    comps.forEach(c => addComplainantRow({ name: toTitleCase(c.name || ''), address: toTitleCase(c.address || ''), barangay: toTitleCase(c.barangay || ''), contact: c.contact || '' }));
                 } else {
-                    addComplainantRow({ name: info.complainant_name });
+                    addComplainantRow({ name: toTitleCase(info.complainant_name) });
                 }
             } catch (e) {
-                if (info.complainant_name) addComplainantRow({ name: info.complainant_name });
+                if (info.complainant_name) addComplainantRow({ name: toTitleCase(info.complainant_name) });
             }
             try {
                 const resps = JSON.parse(info.respondent_name);
                 if (Array.isArray(resps)) {
-                    resps.forEach(r => addRespondentRow({ name: r.name || '', address: r.address || '', barangay: r.barangay || '', contact: r.contact || '' }));
+                    resps.forEach(r => addRespondentRow({ name: toTitleCase(r.name || ''), address: toTitleCase(r.address || ''), barangay: toTitleCase(r.barangay || ''), contact: r.contact || '' }));
                 } else {
-                    addRespondentRow({ name: info.respondent_name });
+                    addRespondentRow({ name: toTitleCase(info.respondent_name) });
                 }
             } catch (e) {
-                if (info.respondent_name) addRespondentRow({ name: info.respondent_name });
+                if (info.respondent_name) addRespondentRow({ name: toTitleCase(info.respondent_name) });
             }
 
             if (Array.isArray(info.hearings) && info.hearings.length > 0) {
@@ -388,6 +391,7 @@ function initBlotterModal() {
     document.getElementById('addHearingBtn').addEventListener('click', addHearingRow);
     document.getElementById('blotterForm').addEventListener('submit', submitBlotterForm);
     toggleIncidentTypeCustom();
+    initBlotterTextFormatting();
 }
 
 function resetBlotterForm() {
@@ -414,6 +418,7 @@ function resetBlotterForm() {
     const incidentType = document.getElementById('incident_type');
     if (incidentType) incidentType.value = '';
     toggleIncidentTypeCustom();
+    initBlotterTextFormatting();
 }
 
 function deleteBlotter(id) {
@@ -461,9 +466,9 @@ function addComplainantRow(data = {}) {
         </div>
     `;
     // populate
-    if (data.name) div.querySelector('[data-name]').value = data.name;
-    if (data.address) div.querySelector('[data-address]').value = data.address;
-    if (data.barangay) div.querySelector('[data-barangay]').value = data.barangay;
+    if (data.name) div.querySelector('[data-name]').value = toTitleCase(data.name);
+    if (data.address) div.querySelector('[data-address]').value = toTitleCase(data.address);
+    if (data.barangay) div.querySelector('[data-barangay]').value = toTitleCase(data.barangay);
     if (data.contact) div.querySelector('[data-contact]').value = formatPhoneForInput(data.contact);
 
     // Add name input validation to all name fields
@@ -471,7 +476,10 @@ function addComplainantRow(data = {}) {
     validateNameInput(nameInput);
     
     const barangayInput = div.querySelector('[data-barangay]');
-    validateNumberInput(barangayInput);
+    attachTitleCaseOnBlur(barangayInput);
+
+    const addressInput = div.querySelector('[data-address]');
+    attachTitleCaseOnBlur(addressInput);
 
     // Add phone input validation
     const contactInput = div.querySelector('[data-contact]');
@@ -511,9 +519,9 @@ function addRespondentRow(data = {}) {
             <button type="button" class="btn btn-danger btn-sm remove-party" style="width:100%;">&times;</button>
         </div>
     `;
-    if (data.name) div.querySelector('[data-name]').value = data.name;
-    if (data.address) div.querySelector('[data-address]').value = data.address;
-    if (data.barangay) div.querySelector('[data-barangay]').value = data.barangay;
+    if (data.name) div.querySelector('[data-name]').value = toTitleCase(data.name);
+    if (data.address) div.querySelector('[data-address]').value = toTitleCase(data.address);
+    if (data.barangay) div.querySelector('[data-barangay]').value = toTitleCase(data.barangay);
     if (data.contact) div.querySelector('[data-contact]').value = formatPhoneForInput(data.contact);
 
     // Add name input validation to all name fields
@@ -521,7 +529,10 @@ function addRespondentRow(data = {}) {
     validateNameInput(nameInput);
     
     const barangayInput = div.querySelector('[data-barangay]');
-    validateNumberInput(barangayInput);
+    attachTitleCaseOnBlur(barangayInput);
+
+    const addressInput = div.querySelector('[data-address]');
+    attachTitleCaseOnBlur(addressInput);
 
     // Add phone input validation
     const contactInput = div.querySelector('[data-contact]');
@@ -568,9 +579,14 @@ function addHearingRow(data = {}) {
 
     if (data.hearing_date) div.querySelector('[data-hearing-date]').value = data.hearing_date;
     if (data.status) div.querySelector('[data-hearing-status]').value = data.status;
-    if (data.outcome) div.querySelector('[data-hearing-outcome]').value = data.outcome;
-    if (data.notes) div.querySelector('[data-hearing-notes]').value = data.notes;
+    if (data.outcome) div.querySelector('[data-hearing-outcome]').value = toTitleCase(data.outcome);
+    if (data.notes) div.querySelector('[data-hearing-notes]').value = toTitleCase(data.notes);
     if (data.next_hearing_date) div.querySelector('[data-next-hearing-date]').value = data.next_hearing_date;
+
+    const outcomeInput = div.querySelector('[data-hearing-outcome]');
+    const notesInput = div.querySelector('[data-hearing-notes]');
+    attachTitleCaseOnBlur(outcomeInput);
+    attachTitleCaseOnBlur(notesInput);
 
     div.querySelector('.remove-hearing').addEventListener('click', () => div.remove());
     container.appendChild(div);
@@ -578,6 +594,7 @@ function addHearingRow(data = {}) {
 
 function submitBlotterForm(e) {
     e.preventDefault();
+    applyTitleCaseToBlotterForm();
     const form = document.getElementById('blotterForm');
     const payload = new FormData();
     payload.append('case_title', document.getElementById('case_title').value || '');
@@ -695,6 +712,64 @@ function escapeHtml(unsafe) {
          .replace(/'/g, "&#039;");
 }
 
+function toTitleCase(text) {
+    if (!text) return '';
+    return String(text)
+        .trim()
+        .split(/\s+/)
+        .map(word => {
+            if (!word) return '';
+            const clean = word.replace(/[^a-zA-Z]/g, '');
+            if (clean.length > 0 && clean === clean.toUpperCase() && clean.length <= 3) {
+                return word;
+            }
+            const first = word.charAt(0).toUpperCase();
+            const rest = word.slice(1).toLowerCase();
+            return first + rest;
+        })
+        .join(' ');
+}
+
+function attachTitleCaseOnBlur(input) {
+    if (!input) return;
+    input.addEventListener('blur', function() {
+        this.value = toTitleCase(this.value);
+    });
+}
+
+function initBlotterTextFormatting() {
+    const caseTitleInput = document.getElementById('case_title');
+    const incidentLocationInput = document.getElementById('incident_location');
+    const descriptionInput = document.getElementById('description');
+    const incidentTypeCustomInput = document.getElementById('incident_type_custom');
+    attachTitleCaseOnBlur(caseTitleInput);
+    attachTitleCaseOnBlur(incidentLocationInput);
+    attachTitleCaseOnBlur(descriptionInput);
+    attachTitleCaseOnBlur(incidentTypeCustomInput);
+}
+
+function applyTitleCaseToBlotterForm() {
+    const ids = ['case_title', 'incident_location', 'description', 'incident_type_custom'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = toTitleCase(el.value);
+    });
+    document.querySelectorAll('#complainantsContainer .party-row, #respondentsContainer .party-row').forEach(row => {
+        const name = row.querySelector('[data-name]');
+        const address = row.querySelector('[data-address]');
+        const barangay = row.querySelector('[data-barangay]');
+        if (name) name.value = toTitleCase(name.value);
+        if (address) address.value = toTitleCase(address.value);
+        if (barangay) barangay.value = toTitleCase(barangay.value);
+    });
+    document.querySelectorAll('#hearingsContainer .hearing-row').forEach(row => {
+        const outcome = row.querySelector('[data-hearing-outcome]');
+        const notes = row.querySelector('[data-hearing-notes]');
+        if (outcome) outcome.value = toTitleCase(outcome.value);
+        if (notes) notes.value = toTitleCase(notes.value);
+    });
+}
+
 function updatePrimaryComplainantInfo() {
     const infoEl = document.getElementById('primaryComplainantInfo');
     if (!infoEl) return;
@@ -706,7 +781,7 @@ function updatePrimaryComplainantInfo() {
     const name = firstRow.querySelector('[data-name]')?.value?.trim() || '-';
     const contact = firstRow.querySelector('[data-contact]')?.value?.trim() || '-';
     const contactLabel = contact === '-' ? '-' : (formatPhoneNumber(contact) || contact);
-    infoEl.textContent = `Complainant Name & Contact: ${name} (${contactLabel})`;
+    infoEl.textContent = `Complainant Name & Contact: ${toTitleCase(name) || name} (${contactLabel})`;
 }
 
 function formatIncidentType(type) {
