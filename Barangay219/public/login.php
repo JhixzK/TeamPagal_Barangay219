@@ -181,7 +181,6 @@ if (isLoggedIn()) {
             </form>
             <div class="mt-3 text-center">
                 <a href="register.php" class="btn btn-outline-secondary w-100">Register as Resident</a>
-                <a href="activate-account.php" class="btn btn-link w-100 mt-2 link-no-container">Activate Account (after approval)</a>
             </div>
         </div>
     </div>
