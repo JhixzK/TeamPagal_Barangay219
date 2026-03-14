@@ -181,6 +181,24 @@ if (isLoggedIn()) {
             box-shadow: 0 0 0 0.22rem rgba(96, 165, 250, 0.32);
         }
 
+        .login-legal-links {
+            margin-top: 0.65rem;
+            text-align: center;
+            font-size: 0.82rem;
+            color: #64748b;
+        }
+
+        .login-legal-links a {
+            color: #334155;
+            text-decoration: none;
+        }
+
+        .login-legal-links a:hover,
+        .login-legal-links a:focus {
+            color: #1e3a8a;
+            text-decoration: underline;
+        }
+
         @media (min-width: 992px) {
             .login-card {
                 max-width: 520px;
@@ -232,6 +250,11 @@ if (isLoggedIn()) {
             </form>
             <div class="mt-3 text-center">
                 <a href="register.php" class="btn btn-outline-secondary w-100 register-resident-btn">Register as Resident</a>
+                <div class="login-legal-links">
+                    <a href="terms-of-use.php">Terms of Use</a>
+                    <span class="mx-2">|</span>
+                    <a href="privacy-policy.php">Privacy Policy</a>
+                </div>
             </div>
         </div>
         <div class="login-footer-note">Barangay 219 e-Portal v1.0</div>
