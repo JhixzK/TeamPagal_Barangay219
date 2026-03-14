@@ -42,6 +42,8 @@ if (isLoggedIn()) {
             background: url('<?php echo ASSETS_URL; ?>img/crop219logo.png') no-repeat 95% center;
             background-size: calc(900px * var(--bg-zoom-inverse, 1));
             opacity: 0.90;
+            filter: blur(6px);
+            transform: scale(1.03);
             pointer-events: none;
         }
         .login-card {
@@ -179,7 +181,6 @@ if (isLoggedIn()) {
                     >
                     <div class="form-text d-flex justify-content-between">
                         <span>Please type your registered email address.</span>
-                        <span id="emailValidFeedback" class="fw-semibold"></span>
                     </div>
                 </div>
 
@@ -295,20 +296,14 @@ if (isLoggedIn()) {
         // Real-time email validation feedback
         document.getElementById('userEmail').addEventListener('input', function() {
             const val = this.value.trim();
-            const feedback = document.getElementById('emailValidFeedback');
             if (!val) {
                 this.classList.remove('is-valid', 'is-invalid');
-                feedback.textContent = '';
             } else if (isValidEmail(val)) {
                 this.classList.add('is-valid');
                 this.classList.remove('is-invalid');
-                feedback.textContent = 'Valid ✓';
-                feedback.className = 'fw-semibold text-success';
             } else {
                 this.classList.add('is-invalid');
                 this.classList.remove('is-valid');
-                feedback.textContent = 'Invalid email';
-                feedback.className = 'fw-semibold text-danger';
             }
         });
 
