@@ -44,6 +44,17 @@ if (!in_array($method, ['email', 'sms'])) {
             overflow-x: hidden;
             background: #ffffff;
         }
+
+        .login-stack {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 56px 16px 24px;
+        }
+
         .login-container::before {
             content: '';
             position: fixed;
@@ -59,12 +70,15 @@ if (!in_array($method, ['email', 'sms'])) {
         .login-card {
             position: relative;
             z-index: 1;
-            max-width: 400px;
+            width: 100%;
+            max-width: 520px;
+            border-radius: 16px;
             background: rgba(255, 255, 255, 0.80);
             border: 1px solid rgba(236, 240, 226, 0.9);
             box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
             backdrop-filter: blur(3px);
             -webkit-backdrop-filter: blur(3px);
+            padding: 2rem 1.15rem;
         }
         .login-brand-logo {
             width: 72px;
@@ -125,6 +139,12 @@ if (!in_array($method, ['email', 'sms'])) {
             background: #eef3ff;
         }
 
+        .otp-input.is-invalid {
+            border-color: #dc3545;
+            background: #fff5f5;
+            box-shadow: 0 0 0 0.18rem rgba(220, 53, 69, 0.12);
+        }
+
         .link-no-container,
         .link-no-container:hover,
         .link-no-container:focus,
@@ -140,24 +160,62 @@ if (!in_array($method, ['email', 'sms'])) {
             outline: none;
         }
 
+        .back-home-outside {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+            z-index: 2;
+            width: 44px;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 1.1rem;
+            border: 1px solid rgba(255, 255, 255, 0.45);
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%);
+            color: #ffffff;
+            text-decoration: none;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
+            transition: filter 0.2s ease, transform 0.2s ease;
+        }
+
+        .back-home-outside:hover {
+            filter: brightness(1.08);
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .login-footer-note {
+            margin-top: 0.9rem;
+            font-size: 0.82rem;
+            color: rgba(15, 23, 42, 0.82);
+            text-align: center;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+        }
+
         @media (min-width: 992px) {
             .login-card {
-                max-width: 520px;
                 padding: 2.25rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-card">
-            <div class="text-center mb-4">
-                <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo" class="login-brand-logo">
-                <h3 class="card-title mt-3">Barangay 219 e-Portal</h3>
-                <p class="card-subtitle">Tondo, Manila</p>
-            </div>
+    <a href="<?php echo BASE_URL; ?>forgot-password.php" class="back-home-outside" aria-label="Back to Forgot Password" title="Back to Forgot Password">
+        <i class="bi bi-arrow-left"></i>
+    </a>
 
-            <h5 class="fw-semibold mb-1 text-center">Verify Your Identity</h5>
+    <div class="login-container">
+        <div class="login-stack">
+            <div class="login-card">
+                <div class="text-center mb-4">
+                    <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo" class="login-brand-logo">
+                    <h3 class="card-title mt-3">Verify User</h3>
+                    <p class="card-subtitle">Barangay 219 e-Portal</p>
+                </div>
+
             <p class="text-muted small mb-3 text-center" id="headerText">
                 <?php echo $method === 'sms'
                     ? 'Enter the 6-digit OTP sent to your phone number.'
@@ -182,6 +240,7 @@ if (!in_array($method, ['email', 'sms'])) {
                         placeholder="Paste the code from your email"
                         autocomplete="off"
                     >
+                    <div class="invalid-feedback" id="emailCodeErrorText"></div>
                 </div>
 
                 <button type="submit" class="btn btn-primary w-100" id="emailVerifyBtn">
@@ -215,6 +274,7 @@ if (!in_array($method, ['email', 'sms'])) {
                         <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="4">
                         <input type="text" class="otp-input" maxlength="1" inputmode="numeric" data-index="5">
                     </div>
+                    <div class="invalid-feedback d-block" id="otpErrorText"></div>
                 </div>
 
                 <button type="button" class="btn btn-primary w-100" id="otpVerifyBtn">
@@ -235,11 +295,8 @@ if (!in_array($method, ['email', 'sms'])) {
                 </div>
             </form>
 
-            <div class="mt-3 text-center">
-                <a href="<?php echo BASE_URL; ?>forgot-password.php" class="btn btn-link btn-sm p-0 link-no-container">
-                    <i class="bi bi-arrow-left"></i> Change verification method
-                </a>
             </div>
+            <div class="login-footer-note">Barangay 219 e-Portal v1.0</div>
         </div>
     </div>
 
@@ -294,6 +351,42 @@ if (!in_array($method, ['email', 'sms'])) {
             </div>`;
         }
 
+        function setEmailCodeError(message) {
+            const emailCodeField = document.getElementById('emailCode');
+            const emailCodeErrorText = document.getElementById('emailCodeErrorText');
+            if (!emailCodeField || !emailCodeErrorText) return;
+            emailCodeField.classList.add('is-invalid');
+            emailCodeErrorText.textContent = message;
+        }
+
+        function clearEmailCodeError() {
+            const emailCodeField = document.getElementById('emailCode');
+            const emailCodeErrorText = document.getElementById('emailCodeErrorText');
+            if (!emailCodeField || !emailCodeErrorText) return;
+            emailCodeField.classList.remove('is-invalid');
+            emailCodeErrorText.textContent = '';
+        }
+
+        function setOtpError(message) {
+            const otpErrorText = document.getElementById('otpErrorText');
+            if (otpErrorText) {
+                otpErrorText.textContent = message;
+            }
+            document.querySelectorAll('.otp-input').forEach(input => {
+                input.classList.add('is-invalid');
+            });
+        }
+
+        function clearOtpError() {
+            const otpErrorText = document.getElementById('otpErrorText');
+            if (otpErrorText) {
+                otpErrorText.textContent = '';
+            }
+            document.querySelectorAll('.otp-input').forEach(input => {
+                input.classList.remove('is-invalid');
+            });
+        }
+
         // Auto-verify if token is provided in URL (from email link)
         if (method === 'email' && tokenParam) {
             verifyEmailToken(tokenParam);
@@ -306,6 +399,7 @@ if (!in_array($method, ['email', 'sms'])) {
                 // Allow only single digit
                 e.target.value = e.target.value.replace(/\D/g, '').slice(-1);
                 e.target.classList.toggle('filled', e.target.value !== '');
+                clearOtpError();
                 if (e.target.value.length === 1 && index < otpInputs.length - 1) {
                     otpInputs[index + 1].focus();
                 }
@@ -336,12 +430,18 @@ if (!in_array($method, ['email', 'sms'])) {
         });
 
         // Email verification
+        document.getElementById('emailCode').addEventListener('input', () => {
+            clearEmailCodeError();
+        });
+
         document.getElementById('emailVerifyForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const code = document.getElementById('emailCode').value.trim();
+            clearEmailCodeError();
 
             if (!code) {
-                showAlert('Please enter the verification code', 'danger');
+                setEmailCodeError('Please enter the verification code.');
+                document.getElementById('emailCode').focus();
                 return;
             }
 
@@ -371,7 +471,7 @@ if (!in_array($method, ['email', 'sms'])) {
                         window.location.href = '<?php echo BASE_URL; ?>reset-password.php';
                     }, 2000);
                 } else {
-                    showAlert(result.message || 'Verification failed', 'danger');
+                    setEmailCodeError(result.message || 'Verification failed.');
                     document.getElementById('emailVerifyBtn').disabled = false;
                     document.getElementById('emailLoading').style.display = 'none';
                 }
@@ -388,10 +488,11 @@ if (!in_array($method, ['email', 'sms'])) {
             const otp = Array.from(document.querySelectorAll('.otp-input'))
                 .map(input => input.value)
                 .join('');
+            clearOtpError();
 
             // OTP must be exactly 6 digits
             if (otp.length !== 6) {
-                showAlert('Please enter all 6 digits', 'danger');
+                setOtpError('Please enter all 6 digits.');
                 return;
             }
 
@@ -422,10 +523,9 @@ if (!in_array($method, ['email', 'sms'])) {
                         window.location.href = '<?php echo BASE_URL; ?>reset-password.php';
                     }, 2000);
                 } else {
-                    showAlert(result.message || 'OTP verification failed', 'danger');
-                    if (result.data && result.data.attempts_remaining !== undefined) {
-                        const attemptsRemaining = result.data.attempts_remaining;
-                        showAlert(`⚠️ Attempts remaining: ${attemptsRemaining}`, 'warning');
+                    setOtpError(result.message || 'OTP verification failed.');
+                    if (result.data && Number.isFinite(Number(result.data.attempts_remaining))) {
+                        const attemptsRemaining = Number(result.data.attempts_remaining);
                         updateAttemptsDisplay(attemptsRemaining);
                     }
                     // Clear inputs
