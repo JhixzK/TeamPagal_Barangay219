@@ -652,17 +652,17 @@ $barangay219_street_options = [
                                             <input type="text" class="form-control" value="<?php echo htmlspecialchars($city); ?>" readonly>
                                         </div>
                                         <div class="col-md-3 mb-3">
+                                            <label>Residency (Months)</label>
+                                            <select name="residency_months" id="residency_months" class="form-select">
+                                                <option value="">Months</option>
+                                            </select>
+                                            <div class="invalid-feedback">Minimum residency requirement is 6 months.</div>
+                                        </div>
+                                        <div class="col-md-3 mb-3">
                                             <label>Residency (Years)</label>
                                             <select name="residency_years" id="residency_years" class="form-select">
                                                 <option value="">Years</option>
                                             </select>
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label>Residency (Months) <span class="text-danger">*</span></label>
-                                            <select name="residency_months" id="residency_months" class="form-select" required>
-                                                <option value="">Months</option>
-                                            </select>
-                                            <div class="invalid-feedback">Minimum residency requirement is 6 months.</div>
                                         </div>
                                     </div>
                                     <input type="hidden" name="length_of_residency_years" id="length_of_residency_years" value="">
@@ -1112,8 +1112,15 @@ function syncResidencyYearsValue() {
     const hiddenYears = document.getElementById('length_of_residency_years');
     if (!yearsSelect || !monthsSelect || !hiddenYears) return;
 
-    const years = parseInt(yearsSelect.value, 10);
-    const months = parseInt(monthsSelect.value, 10);
+    const yearsRaw = yearsSelect.value.trim();
+    const monthsRaw = monthsSelect.value.trim();
+    const years = yearsRaw === '' ? 0 : parseInt(yearsRaw, 10);
+    const months = monthsRaw === '' ? 0 : parseInt(monthsRaw, 10);
+
+    if (yearsRaw === '' && monthsRaw === '') {
+        hiddenYears.value = '';
+        return;
+    }
 
     if (!Number.isFinite(years) || !Number.isFinite(months)) {
         hiddenYears.value = '';
@@ -1197,7 +1204,7 @@ function showStep(step) {
         nextBtn.style.display = 'inline-block';
         submitBtn.style.display = 'none';
     } else if (step === totalSteps) {
-        prevBtn.style.display = 'inline-block';
+        prevBtn.style.display = 'none';
         nextBtn.style.display = 'none';
         submitBtn.style.display = 'inline-block';
         populateReview();
@@ -1280,12 +1287,17 @@ function validateStep(step) {
         const yearsField = document.querySelector('select[name="residency_years"]');
         const monthsField = document.querySelector('select[name="residency_months"]');
         const yearsRaw = yearsField.value.trim();
+        const monthsRaw = monthsField.value.trim();
         const years = yearsRaw === '' ? 0 : parseInt(yearsRaw, 10);
-        const months = parseInt(monthsField.value, 10);
+        const months = monthsRaw === '' ? 0 : parseInt(monthsRaw, 10);
         yearsField.setCustomValidity('');
         monthsField.setCustomValidity('');
 
-        if (Number.isFinite(years) && Number.isFinite(months)) {
+        if (yearsRaw === '' && monthsRaw === '') {
+            monthsField.classList.add('is-invalid');
+            monthsField.setCustomValidity('Please select your residency length.');
+            isValid = false;
+        } else if (Number.isFinite(years) && Number.isFinite(months)) {
             const totalMonths = (years * 12) + months;
             if (totalMonths < 6) {
                 monthsField.classList.add('is-invalid');
@@ -1293,9 +1305,11 @@ function validateStep(step) {
                 isValid = false;
             } else {
                 monthsField.classList.remove('is-invalid');
+                monthsField.setCustomValidity('');
             }
         } else {
             monthsField.classList.add('is-invalid');
+            monthsField.setCustomValidity('Please select a valid residency length.');
             isValid = false;
         }
     }
