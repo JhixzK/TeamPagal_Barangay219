@@ -175,10 +175,10 @@ if (isLoggedIn()) {
         .register-resident-btn.active,
         .register-resident-btn.show,
         .register-resident-btn:focus:active {
-            color: #334155;
-            background: #e2e8f0;
+            color: #ffffff;
+            background: #60a5fa;
             border-color: #60a5fa;
-            box-shadow: 0 0 0 0.22rem rgba(59, 130, 246, 0.32);
+            box-shadow: 0 0 0 0.22rem rgba(96, 165, 250, 0.32);
         }
 
         @media (min-width: 992px) {
