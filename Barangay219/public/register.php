@@ -448,8 +448,7 @@ $barangay219_street_options = [
                     </div>
 
                     <div class="note-box mb-4">
-                        <strong>No username or password needed.</strong>
-                        Your application will be reviewed by the barangay. After approval, you will receive your Resident ID and instructions to activate your account.
+                        <strong>NOTE:</strong> Your application will be reviewed by the barangay officials. After approval, you will receive your Resident ID and instructions to activate your account.
                     </div>
                     <div id="alertContainer"></div>
 
