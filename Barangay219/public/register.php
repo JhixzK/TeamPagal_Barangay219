@@ -97,17 +97,19 @@ $barangay219_street_options = [
         }
 
         .register-shell {
-            border: 1px solid var(--border-soft);
+            border: 1px solid rgba(236, 240, 226, 0.9);
             border-radius: 16px;
-            box-shadow: var(--shadow-soft);
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
             overflow: hidden;
-            background: #ffffff;
+            background: rgba(255, 255, 255, 0.80);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
             position: relative;
             z-index: 1;
         }
 
         .register-header {
-            background: #ffffff;
+            background: rgba(255, 255, 255, 0.72);
             border-bottom: 1px solid var(--border-soft);
             padding-top: 1.05rem !important;
             padding-bottom: 1.05rem !important;
@@ -159,7 +161,7 @@ $barangay219_street_options = [
         }
 
         .register-form-body {
-            background: #ffffff;
+            background: rgba(255, 255, 255, 0.68);
         }
 
         .step-indicator {
@@ -543,7 +545,6 @@ $barangay219_street_options = [
                                             <label>Household Role <span class="text-danger">*</span></label>
                                             <select name="household_role" class="form-select" required>
                                                 <option value="">Select</option>
-                                                <option value="Single Occupant">Single Occupant</option>
                                                 <option value="Member of Household">Member of Household</option>
                                                 <option value="Head of Household">Head of Household</option>
                                             </select>
@@ -551,6 +552,21 @@ $barangay219_street_options = [
                                         <div class="col-md-6 mb-3">
                                             <label>Number of Household Members</label>
                                             <input type="number" name="household_members" class="form-control" min="0" max="99" step="1" inputmode="numeric">
+                                        </div>
+                                    </div>
+                                    <div class="row" id="householdTypeRow" style="display:none;">
+                                        <div class="col-md-6 mb-3">
+                                            <label>Household Type <span class="text-danger">*</span></label>
+                                            <select name="household_type" id="household_type" class="form-select">
+                                                <option value="">Select Household Type</option>
+                                                <option value="Nuclear Family">Nuclear Family</option>
+                                                <option value="Extended Family">Extended Family</option>
+                                                <option value="Single Parent Household">Single Parent Household</option>
+                                                <option value="Couple Only">Couple Only</option>
+                                                <option value="Single Person Household">Single Person Household</option>
+                                                <option value="Non-Relative Household">Non-Relative Household</option>
+                                                <option value="Other (Specify)">Other (Specify)</option>
+                                            </select>
                                         </div>
                                     </div>
                                     <div class="row">
@@ -1126,6 +1142,31 @@ if (residencyYearsField && residencyMonthsField) {
     });
 });
 
+function toggleHouseholdTypeField() {
+    const householdRoleField = document.querySelector('select[name="household_role"]');
+    const householdTypeRow = document.getElementById('householdTypeRow');
+    const householdTypeField = document.getElementById('household_type');
+
+    if (!householdRoleField || !householdTypeRow || !householdTypeField) {
+        return;
+    }
+
+    const isHeadOfHousehold = householdRoleField.value === 'Head of Household';
+    householdTypeRow.style.display = isHeadOfHousehold ? 'flex' : 'none';
+    householdTypeField.required = isHeadOfHousehold;
+
+    if (!isHeadOfHousehold) {
+        householdTypeField.value = '';
+        householdTypeField.classList.remove('is-invalid');
+    }
+}
+
+const householdRoleField = document.querySelector('select[name="household_role"]');
+if (householdRoleField) {
+    householdRoleField.addEventListener('change', toggleHouseholdTypeField);
+    toggleHouseholdTypeField();
+}
+
 // Step navigation
 function showStep(step) {
     // Hide all steps
@@ -1259,6 +1300,17 @@ function validateStep(step) {
         }
     }
 
+    const roleField = document.querySelector('select[name="household_role"]');
+    const householdTypeField = document.getElementById('household_type');
+    if (roleField && householdTypeField && roleField.value === 'Head of Household') {
+        if (!householdTypeField.value.trim()) {
+            householdTypeField.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            householdTypeField.classList.remove('is-invalid');
+        }
+    }
+
     return isValid;
 }
 
@@ -1285,6 +1337,7 @@ function populateReview() {
             title: 'Family Background',
             fields: [
                 { name: 'household_role', label: 'Household Role' },
+                { name: 'household_type', label: 'Household Type' },
                 { name: 'household_members', label: 'No. of Household Members' },
                 { name: 'father_name', label: "Father's Name" },
                 { name: 'mother_name', label: "Mother's Name" },
@@ -1355,6 +1408,9 @@ function populateReview() {
                     if (orig) orig.value = this.value;
                     if (this.dataset.field === 'residency_years' || this.dataset.field === 'residency_months') {
                         syncResidencyYearsValue();
+                    }
+                    if (this.dataset.field === 'household_role') {
+                        toggleHouseholdTypeField();
                     }
                 });
             });
