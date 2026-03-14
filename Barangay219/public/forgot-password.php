@@ -34,6 +34,17 @@ if (isLoggedIn()) {
             overflow-x: hidden;
             background: #ffffff;
         }
+
+        .login-stack {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 56px 16px 24px;
+        }
+
         .login-container::before {
             content: '';
             position: fixed;
@@ -49,12 +60,15 @@ if (isLoggedIn()) {
         .login-card {
             position: relative;
             z-index: 1;
-            max-width: 400px;
+            width: 100%;
+            max-width: 520px;
+            border-radius: 16px;
             background: rgba(255, 255, 255, 0.80);
             border: 1px solid rgba(236, 240, 226, 0.9);
             box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
             backdrop-filter: blur(3px);
             -webkit-backdrop-filter: blur(3px);
+            padding: 2rem 1.15rem;
         }
         .login-brand-logo {
             width: 72px;
@@ -133,44 +147,81 @@ if (isLoggedIn()) {
             outline: none;
         }
 
+        .back-home-outside {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+            z-index: 2;
+            width: 44px;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 1.1rem;
+            border: 1px solid rgba(255, 255, 255, 0.45);
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%);
+            color: #ffffff;
+            text-decoration: none;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
+            transition: filter 0.2s ease, transform 0.2s ease;
+        }
+
+        .back-home-outside:hover {
+            filter: brightness(1.08);
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .login-footer-note {
+            margin-top: 0.9rem;
+            font-size: 0.82rem;
+            color: rgba(15, 23, 42, 0.82);
+            text-align: center;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+        }
+
         @media (min-width: 992px) {
             .login-card {
-                max-width: 520px;
                 padding: 2.25rem;
             }
         }
     </style>
 </head>
 <body>
+    <a href="<?php echo BASE_URL; ?>login.php" class="back-home-outside" aria-label="Back to Login" title="Back to Login">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+
     <div class="login-container">
-        <div class="login-card">
-            <div class="text-center mb-4">
-                <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo" class="login-brand-logo">
-                <h3 class="card-title mt-3">Barangay 219 e-Portal</h3>
-                <p class="card-subtitle">Tondo, Manila</p>
-            </div>
-
-            <h5 class="fw-semibold mb-1 text-center">Forgot Password</h5>
-            <p class="text-muted small mb-3 text-center">Reset your password using your registered email or phone number.</p>
-
-            <div id="alertContainer"></div>
-
-            <!-- Choose Verification Method -->
-            <form id="forgotPasswordForm">
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">How would you like to verify?</label>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="method-btn active" id="emailMethodBtn" onclick="selectMethod('email'); return false;">
-                            <i class="bi bi-envelope-fill"></i> Email
-                            <small>Get a link via email</small>
-                        </button>
-                        <button type="button" class="method-btn" id="smsMethodBtn" onclick="selectMethod('sms'); return false;">
-                            <i class="bi bi-phone-fill"></i> SMS
-                            <small>Get code via text</small>
-                        </button>
-                    </div>
-                    <input type="hidden" id="selectedMethod" name="method" value="email">
+        <div class="login-stack">
+            <div class="login-card">
+                <div class="text-center mb-4">
+                    <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo" class="login-brand-logo">
+                    <h3 class="card-title mt-3">Forgot Password</h3>
+                    <p class="card-subtitle">Barangay 219 e-Portal</p>
                 </div>
+                <p class="text-muted small mb-3 text-center">Reset your password using your registered email or phone number.</p>
+
+                <div id="alertContainer"></div>
+
+                <!-- Choose Verification Method -->
+                <form id="forgotPasswordForm">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">How would you like to verify?</label>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="method-btn active" id="emailMethodBtn" onclick="selectMethod('email'); return false;">
+                                <i class="bi bi-envelope-fill"></i> Email
+                                <small>Get a link via email</small>
+                            </button>
+                            <button type="button" class="method-btn" id="smsMethodBtn" onclick="selectMethod('sms'); return false;">
+                                <i class="bi bi-phone-fill"></i> SMS
+                                <small>Get code via text</small>
+                            </button>
+                        </div>
+                        <input type="hidden" id="selectedMethod" name="method" value="email">
+                    </div>
 
                 <!-- Email Input Section -->
                 <div id="emailSection" class="mb-3">
@@ -187,6 +238,8 @@ if (isLoggedIn()) {
                     <div class="form-text d-flex justify-content-between">
                         <span>Please type your registered email address.</span>
                     </div>
+                    <div class="invalid-feedback" id="emailErrorText"></div>
+                    <div class="valid-feedback">Valid Gmail address.</div>
                 </div>
 
                 <!-- Mobile Input Section -->
@@ -197,32 +250,28 @@ if (isLoggedIn()) {
                         class="form-control"
                         id="userMobile"
                         name="mobile"
-                        placeholder="09xxxxxxxxx"
+                        placeholder="+63 9XXXXXXXXX"
                         autocomplete="off"
-                        maxlength="11"
+                        maxlength="14"
                         inputmode="numeric"
                     >
-                    <div class="form-text">
-                        Please type your registered mobile number.
-                        <span id="mobileDigitCount" class="fw-semibold"></span>
+                    <div class="form-text">Please type your registered mobile number.</div>
+                    <div class="invalid-feedback" id="mobileErrorText"></div>
+                    <div class="valid-feedback">Valid mobile number.</div>
+                </div>
+
+                    <button type="submit" class="btn btn-primary w-100" id="submitBtn">
+                        <i class="bi bi-send"></i> Send Reset Code
+                    </button>
+
+                    <div id="loadingSpinner" class="text-center text-primary mt-3" style="display:none;">
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        Sending code...
                     </div>
-                </div>
+                </form>
 
-                <button type="submit" class="btn btn-primary w-100" id="submitBtn">
-                    <i class="bi bi-send"></i> Send Reset Code
-                </button>
-
-                <div id="loadingSpinner" class="text-center text-primary mt-3" style="display:none;">
-                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                    Sending code...
-                </div>
-            </form>
-
-            <div class="mt-3 text-center">
-                <a href="<?php echo BASE_URL; ?>login.php" class="btn btn-link btn-sm p-0 link-no-container">
-                    <i class="bi bi-arrow-left"></i> Back to Login
-                </a>
             </div>
+            <div class="login-footer-note">Barangay 219 e-Portal v1.0</div>
         </div>
     </div>
 
@@ -270,6 +319,23 @@ if (isLoggedIn()) {
             </div>`;
         }
 
+        function setEmailError(message) {
+            const emailField = document.getElementById('userEmail');
+            const emailErrorText = document.getElementById('emailErrorText');
+            if (!emailField || !emailErrorText) return;
+            emailField.classList.add('is-invalid');
+            emailField.classList.remove('is-valid');
+            emailErrorText.textContent = message;
+        }
+
+        function clearEmailError() {
+            const emailField = document.getElementById('userEmail');
+            const emailErrorText = document.getElementById('emailErrorText');
+            if (!emailField || !emailErrorText) return;
+            emailField.classList.remove('is-invalid');
+            emailErrorText.textContent = '';
+        }
+
         function selectMethod(method) {
             const emailBtn = document.getElementById('emailMethodBtn');
             const smsBtn = document.getElementById('smsMethodBtn');
@@ -282,6 +348,8 @@ if (isLoggedIn()) {
                 emailSec.style.display = 'none';
                 mobileSec.style.display = 'block';
                 document.getElementById('selectedMethod').value = 'sms';
+                clearEmailError();
+                clearMobileError();
                 setTimeout(() => document.getElementById('userMobile').focus(), 50);
             } else {
                 emailBtn.classList.add('active');
@@ -289,51 +357,95 @@ if (isLoggedIn()) {
                 emailSec.style.display = 'block';
                 mobileSec.style.display = 'none';
                 document.getElementById('selectedMethod').value = 'email';
+                clearEmailError();
+                clearMobileError();
                 setTimeout(() => document.getElementById('userEmail').focus(), 50);
             }
         }
 
         function isValidEmail(email) {
-            // Must have local part, @, domain with dot and at least 2-char TLD
-            return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+            // Gmail-only format for this flow
+            return /^[a-zA-Z0-9._%+\-]+@gmail\.com$/i.test(email);
+        }
+
+        function normalizePhoneDigits(raw) {
+            if (!raw) return '';
+            let digits = String(raw).replace(/\D/g, '');
+            if (digits.startsWith('63')) digits = digits.slice(2);
+            if (digits.startsWith('0')) digits = digits.slice(1);
+            return digits.slice(0, 10);
+        }
+
+        function formatPhoneInput(raw) {
+            const digits = normalizePhoneDigits(raw);
+            return '+63 ' + digits;
+        }
+
+        function setMobileError(message) {
+            const mobileField = document.getElementById('userMobile');
+            const mobileErrorText = document.getElementById('mobileErrorText');
+            if (!mobileField || !mobileErrorText) return;
+            mobileField.classList.add('is-invalid');
+            mobileField.classList.remove('is-valid');
+            mobileErrorText.textContent = message;
+        }
+
+        function clearMobileError() {
+            const mobileField = document.getElementById('userMobile');
+            const mobileErrorText = document.getElementById('mobileErrorText');
+            if (!mobileField || !mobileErrorText) return;
+            mobileField.classList.remove('is-invalid');
+            mobileErrorText.textContent = '';
         }
 
         // Real-time email validation feedback
         document.getElementById('userEmail').addEventListener('input', function() {
             const val = this.value.trim();
+            clearEmailError();
             if (!val) {
                 this.classList.remove('is-valid', 'is-invalid');
             } else if (isValidEmail(val)) {
                 this.classList.add('is-valid');
                 this.classList.remove('is-invalid');
             } else {
-                this.classList.add('is-invalid');
                 this.classList.remove('is-valid');
             }
         });
 
-        // Mobile input - digits only, must start with 09
-        document.getElementById('userMobile').addEventListener('input', function(e) {
-            let cleaned = e.target.value.replace(/\D/g, '');
-            if (cleaned.length > 11) cleaned = cleaned.slice(0, 11);
-            e.target.value = cleaned;
-
-            const counter = document.getElementById('mobileDigitCount');
-            if (cleaned.length === 0) {
-                counter.textContent = '';
-            } else if (cleaned.length < 11) {
-                counter.textContent = `${cleaned.length}/11 digits`;
-                counter.className = 'fw-semibold text-danger';
-            } else {
-                if (cleaned.startsWith('09')) {
-                    counter.textContent = 'Valid ✓';
-                    counter.className = 'fw-semibold text-success';
-                } else {
-                    counter.textContent = 'Must start with 09';
-                    counter.className = 'fw-semibold text-danger';
-                }
+        // Mobile input - enforce +63 style (same pattern used in registration)
+        const mobileInput = document.getElementById('userMobile');
+        if (mobileInput) {
+            if (!mobileInput.value || mobileInput.value.trim() === '+63') {
+                mobileInput.value = '+63 ';
             }
-        });
+
+            mobileInput.addEventListener('focus', function() {
+                if (!this.value || this.value.trim() === '+63') {
+                    this.value = '+63 ';
+                }
+            });
+
+            mobileInput.addEventListener('input', function() {
+                const digits = normalizePhoneDigits(this.value);
+                this.value = '+63 ' + digits;
+                clearMobileError();
+                if (digits.length === 10 && digits.startsWith('9')) {
+                    this.classList.add('is-valid');
+                } else {
+                    this.classList.remove('is-valid');
+                }
+            });
+
+            mobileInput.addEventListener('blur', function() {
+                const digits = normalizePhoneDigits(this.value);
+                this.value = digits ? ('+63 ' + digits) : '+63 ';
+                if (digits.length === 10 && digits.startsWith('9')) {
+                    this.classList.add('is-valid');
+                } else {
+                    this.classList.remove('is-valid');
+                }
+            });
+        }
 
         // Form submission
         document.getElementById('forgotPasswordForm').addEventListener('submit', async function(e) {
@@ -345,30 +457,36 @@ if (isLoggedIn()) {
             if (method === 'email') {
                 identifier = document.getElementById('userEmail').value.trim();
                 if (!identifier) {
-                    showAlert('danger', 'Please enter your email address.');
-                    return;
-                }
-                if (!isValidEmail(identifier)) {
-                    showAlert('danger', 'Please enter a valid email address (e.g. yourname@gmail.com).');
+                    setEmailError('Please enter your email address.');
                     document.getElementById('userEmail').focus();
                     return;
                 }
+                if (!isValidEmail(identifier)) {
+                    setEmailError('Please enter a valid email address (e.g. yourname@gmail.com).');
+                    document.getElementById('userEmail').focus();
+                    return;
+                }
+                clearEmailError();
             } else {
                 const raw = document.getElementById('userMobile').value.trim();
-                const digits = raw.replace(/\D/g, '');
+                const digits = normalizePhoneDigits(raw);
                 if (!digits) {
-                    showAlert('danger', 'Please enter your mobile number.');
+                    setMobileError('Please enter your mobile number.');
+                    document.getElementById('userMobile').focus();
                     return;
                 }
-                if (digits.length !== 11) {
-                    showAlert('danger', 'Mobile number must be exactly 11 digits.');
+                if (digits.length !== 10) {
+                    setMobileError('Please enter a complete mobile number (10 digits after +63).');
+                    document.getElementById('userMobile').focus();
                     return;
                 }
-                if (!digits.startsWith('09')) {
-                    showAlert('danger', 'Mobile number must start with 09 (e.g., 09xxxxxxxxx).');
+                if (!digits.startsWith('9')) {
+                    setMobileError('Mobile number must start with 9 (example: +63 9XXXXXXXXX).');
+                    document.getElementById('userMobile').focus();
                     return;
                 }
-                identifier = '+63' + digits.substring(1);
+                clearMobileError();
+                identifier = '+63' + digits;
             }
 
             const submitBtn = document.getElementById('submitBtn');
