@@ -41,6 +41,15 @@ if (isLoggedIn()) {
             background: #ffffff;
         }
 
+        .login-stack {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
         .login-container::before {
             content: '';
             position: fixed;
@@ -57,6 +66,11 @@ if (isLoggedIn()) {
         .login-card {
             position: relative;
             z-index: 1;
+            background: rgba(255, 255, 255, 0.80);
+            border: 1px solid rgba(236, 240, 226, 0.9);
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
         }
 
         .login-brand-logo {
@@ -135,6 +149,38 @@ if (isLoggedIn()) {
             transform: translateY(-1px);
         }
 
+        .login-footer-note {
+            margin-top: 0.9rem;
+            font-size: 0.82rem;
+            color: rgba(15, 23, 42, 0.82);
+            text-align: center;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+        }
+
+        .register-resident-btn {
+            border-color: #cbd5e1;
+            color: #475569;
+            background: #ffffff;
+        }
+
+        .register-resident-btn:hover {
+            border-color: #cbd5e1;
+            color: #334155;
+            background: #f8fafc;
+        }
+
+        .register-resident-btn:focus,
+        .register-resident-btn:active,
+        .register-resident-btn.active,
+        .register-resident-btn.show,
+        .register-resident-btn:focus:active {
+            color: #334155;
+            background: #e2e8f0;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 0.22rem rgba(59, 130, 246, 0.32);
+        }
+
         @media (min-width: 992px) {
             .login-card {
                 max-width: 520px;
@@ -149,6 +195,7 @@ if (isLoggedIn()) {
     </a>
 
     <div class="login-container">
+        <div class="login-stack">
         <div class="login-card">
             <div class="text-center mb-4">
                 <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo" class="login-brand-logo">
@@ -166,13 +213,17 @@ if (isLoggedIn()) {
                 <div class="mb-2">
                     <label for="password" class="form-label">Password</label>
                     <div class="input-group">
-                        <input type="password" class="form-control" id="password" name="password" required>
+                        <input type="password" class="form-control" id="password" name="password" required placeholder="Enter your password">
                         <button class="btn btn-outline-secondary password-toggle-btn" type="button" id="togglePassword" aria-label="Show password" aria-pressed="false">
                             <i class="bi bi-eye" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
-                <div class="text-end mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="rememberMe" name="remember_me" value="1">
+                        <label class="form-check-label small" for="rememberMe">Remember Me</label>
+                    </div>
                     <a href="forgot-password.php" class="btn btn-link btn-sm p-0 link-no-container">Forgot Password?</a>
                 </div>
                 <button type="submit" class="btn btn-primary w-100">
@@ -180,8 +231,10 @@ if (isLoggedIn()) {
                 </button>
             </form>
             <div class="mt-3 text-center">
-                <a href="register.php" class="btn btn-outline-secondary w-100">Register as Resident</a>
+                <a href="register.php" class="btn btn-outline-secondary w-100 register-resident-btn">Register as Resident</a>
             </div>
+        </div>
+        <div class="login-footer-note">Barangay 219 e-Portal v1.0</div>
         </div>
     </div>
 
@@ -259,6 +312,35 @@ if (isLoggedIn()) {
                     icon.classList.toggle('bi-eye-slash', !showing);
                 }
             });
+        })();
+
+        (function () {
+            var storageKey = 'barangay219_remembered_username';
+            var usernameInput = document.getElementById('username');
+            var rememberCheckbox = document.getElementById('rememberMe');
+            var loginForm = document.getElementById('loginForm');
+
+            if (!usernameInput || !rememberCheckbox || !loginForm) {
+                return;
+            }
+
+            try {
+                var savedUsername = localStorage.getItem(storageKey);
+                if (savedUsername) {
+                    usernameInput.value = savedUsername;
+                    rememberCheckbox.checked = true;
+                }
+
+                loginForm.addEventListener('submit', function () {
+                    if (rememberCheckbox.checked) {
+                        localStorage.setItem(storageKey, usernameInput.value.trim());
+                    } else {
+                        localStorage.removeItem(storageKey);
+                    }
+                });
+            } catch (e) {
+                // Ignore storage errors in restricted browser modes.
+            }
         })();
     </script>
     <script src="<?php echo ASSETS_URL; ?>css/js/auth.js?v=<?php echo time(); ?>"></script>
