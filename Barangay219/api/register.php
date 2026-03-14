@@ -229,6 +229,7 @@ $suffix = sanitize($_POST['suffix'] ?? '');
 $place_of_birth = sanitize($_POST['place_of_birth'] ?? '');
 $family_code = sanitize($_POST['family_code'] ?? '');
 $household_role = sanitize($_POST['household_role'] ?? '');
+$household_type = sanitize($_POST['household_type'] ?? '');
 $relationship_to_head = sanitize($_POST['relationship_to_head'] ?? ($household_role ?? ''));
 $household_members = isset($_POST['household_members']) ? (int)$_POST['household_members'] : null;
 $house_number = sanitize($_POST['house_number'] ?? '');
@@ -247,6 +248,24 @@ $solo_parent_id_number = $is_solo_parent ? sanitize($_POST['solo_parent_id_numbe
 $is_ip = isset($_POST['is_ip_member']) && $_POST['is_ip_member'] === '1';
 $ip_group = $is_ip ? sanitize($_POST['ip_group'] ?? '') : null;
 $is_4ps = isset($_POST['is_4ps_beneficiary']) && $_POST['is_4ps_beneficiary'] === '1';
+
+$allowed_household_types = [
+    'Nuclear Family',
+    'Extended Family',
+    'Single Parent Household',
+    'Couple Only',
+    'Single Person Household',
+    'Non-Relative Household',
+    'Other (Specify)'
+];
+
+if ($household_role === 'Head of Household') {
+    if ($household_type === '') {
+        $errors[] = 'Household type is required when household role is Head of Household.';
+    } elseif (!in_array($household_type, $allowed_household_types, true)) {
+        $errors[] = 'Invalid household type selected.';
+    }
+}
 
 // Senior citizen auto-validation (60+)
 $age = (int)date('Y') - (int)date('Y', strtotime($birth_date));
@@ -268,6 +287,7 @@ try {
     // Ensure newer columns exist for household role tracking (safe no-op if already present)
     addColumnIfMissing($db, 'resident_applications', 'relationship_to_head', "VARCHAR(50) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'household_role', "VARCHAR(80) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'household_type', "VARCHAR(80) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'household_members', "INT(11) DEFAULT NULL");
 
     $existingCols = array_flip(getTableColumns($db, 'resident_applications'));
@@ -286,6 +306,7 @@ try {
         'family_code' => $family_code ?: null,
         'relationship_to_head' => $relationship_to_head ?: null,
         'household_role' => ($household_role ?: $relationship_to_head) ?: null,
+        'household_type' => $household_type ?: null,
         'household_members' => ($household_members !== null && $household_members > 0) ? $household_members : null,
         'house_number' => $house_number ?: null,
         'street' => $street ?: null,
