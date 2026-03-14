@@ -50,6 +50,11 @@ if (isLoggedIn()) {
             position: relative;
             z-index: 1;
             max-width: 400px;
+            background: rgba(255, 255, 255, 0.80);
+            border: 1px solid rgba(236, 240, 226, 0.9);
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
         }
         .login-brand-logo {
             width: 72px;
