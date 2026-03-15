@@ -210,21 +210,33 @@ function rcGenerateReferenceNumber($conn) {
 }
 
 $certificateOptions = [
-    'Barangay Clearance',
-    'Certificate of Indigency',
-    'Certificate of Residency',
-    'Certificate of Good Moral Character',
-    'Certificate of Solo Parent',
-    'Business Clearance'
+  'Barangay Certificate',
+  'Barangay Indigency'
 ];
 
-$purposeOptions = [
-    'Employment',
-    'Scholarship',
-    'Financial Assistance',
-    'School Requirement',
-    'Legal Requirement',
+$purposeOptionsByType = [
+  'Barangay Certificate' => [
+    'Application for Employment',
+    'School Admission/Requirement',
+    'Hospital Purpose',
+    'Processing of Calamity',
+    'Medical Purpose',
+    'For Livelihood Loan',
+    'Bank Transaction',
+    'Indigent Family',
+    'Organized Vending Permit',
+    'DSWD Requirement',
+    'For Travel Abroad',
+    'Transfer of Residence',
     'Others'
+  ],
+  'Barangay Indigency' => [
+    'Financial Assistance',
+    'Medical Purpose',
+    'Hospital Purpose',
+    'DSWD Requirement',
+    'Others'
+  ]
 ];
 
 $residentData = [
@@ -409,21 +421,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Please select a valid certificate type.';
     }
 
-    if (!in_array($formData['purpose'], $purposeOptions, true)) {
+    $isIndigencyRequest = ($formData['certificate_type'] === 'Barangay Indigency');
+    if (!$isIndigencyRequest) {
+      $selectedPurposeOptions = $purposeOptionsByType[$formData['certificate_type']] ?? [];
+      if (!in_array($formData['purpose'], $selectedPurposeOptions, true)) {
         $errors[] = 'Please select a valid purpose category.';
-    }
+      }
 
-    if ($formData['purpose'] === 'Others' && $formData['purpose_other'] === '') {
+      if ($formData['purpose'] === 'Others' && $formData['purpose_other'] === '') {
         $errors[] = 'Please specify the purpose.';
-    }
-
-    if ($formData['certificate_type'] === 'Business Clearance') {
-        if ($formData['business_name'] === '') {
-            $errors[] = 'Business Name is required for Business Clearance.';
-        }
-        if ($formData['business_address'] === '') {
-            $errors[] = 'Business Address is required for Business Clearance.';
-        }
+      }
+    } else {
+      // Purpose is not required for Barangay Indigency requests.
+      $formData['purpose'] = '';
+      $formData['purpose_other'] = '';
     }
 
     if ($formData['declaration'] !== '1') {
@@ -530,7 +541,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors) && $mysqli) {
-        $finalPurpose = $formData['purpose'] === 'Others' ? $formData['purpose_other'] : $formData['purpose'];
+        $isIndigencyRequest = ($formData['certificate_type'] === 'Barangay Indigency');
+        $finalPurpose = $isIndigencyRequest
+          ? ''
+          : ($formData['purpose'] === 'Others' ? $formData['purpose_other'] : $formData['purpose']);
       $attachmentValue = $uploadedPaths[0] ?? null;
       $referenceNumber = rcGenerateReferenceNumber($mysqli);
 
@@ -581,6 +595,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($mysqli) {
     $mysqli->close();
 }
+
+$purposeOptions = $purposeOptionsByType[$formData['certificate_type']] ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -774,10 +790,10 @@ if ($mysqli) {
             <small class="error" id="certificateTypeError"></small>
           </label>
 
-          <label class="field">
-            <span>Purpose Category</span>
+          <label class="field" id="purposeFieldWrap">
+            <span>Purpose</span>
             <select id="purpose" name="purpose" required>
-              <option value="">Select purpose category</option>
+              <option value="">Select purpose</option>
               <?php foreach ($purposeOptions as $option): ?>
                 <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['purpose'] === $option ? 'selected' : ''; ?>>
                   <?php echo htmlspecialchars($option); ?>
