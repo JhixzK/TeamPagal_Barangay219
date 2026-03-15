@@ -304,7 +304,7 @@ if ($mysqli && $residentId > 0) {
     purpose TEXT DEFAULT NULL,
     attachment VARCHAR(255) DEFAULT NULL,
     reference_number VARCHAR(50) NOT NULL,
-    status ENUM('pending','under_review','approved','rejected','issued','cancelled') NOT NULL DEFAULT 'pending',
+    status ENUM('pending','approved','ready_for_pickup','rejected','released') NOT NULL DEFAULT 'pending',
     cert_name VARCHAR(255) DEFAULT NULL,
     cert_address TEXT DEFAULT NULL,
     cert_purpose TEXT DEFAULT NULL,
@@ -508,7 +508,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                          FROM certificate_requests
                          WHERE resident_id = ?
                            AND certificate_type = ?
-                           AND status IN ('pending', 'under_review', 'approved')
+                           AND status IN ('pending', 'approved', 'ready_for_pickup')
                          LIMIT 1";
         $duplicateRow = rcFetchOne($mysqli, $duplicateSql, 'is', [$residentId, $formData['certificate_type']]);
         if ($duplicateRow) {
@@ -903,13 +903,11 @@ $purposeOptions = $purposeOptionsByType[$formData['certificate_type']] ?? [];
         </div>
 
         <div class="status-legend">
-          <span class="state-badge submitted">Submitted</span>
-          <span class="state-badge under-review">Under Review</span>
+          <span class="state-badge submitted">Pending</span>
           <span class="state-badge approved">Approved</span>
           <span class="state-badge ready">Ready for Pickup</span>
           <span class="state-badge released">Released</span>
           <span class="state-badge rejected">Rejected</span>
-          <span class="state-badge cancelled">Cancelled</span>
         </div>
 
         <label class="declaration">
