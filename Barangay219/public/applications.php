@@ -345,8 +345,8 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Certificate Body <span class="text-danger">*</span></label>
-                    <textarea class="form-control" id="releaseCertBody" rows="4" required></textarea>
-                    <small class="text-muted">You may edit the certificate wording if necessary. Placeholders will automatically be replaced.</small>
+                    <textarea class="form-control" id="releaseCertBody" rows="10" required readonly style="resize: none;"></textarea>
+                    <small class="text-muted">Certificate body is auto-generated from the selected certificate details.</small>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Date Issued <span class="text-danger">*</span></label>
@@ -471,7 +471,7 @@ include __DIR__ . '/../includes/sidebar.php';
                               <td class="text-center">${formatDate(a.created_at)}</td>
                               <td class="text-center"><span class="badge bg-${getStatusColor(a.status)}">${getStatusLabel(a.status)}</span></td>
                               <td class="text-center">
-                                ${['ready_for_pickup', 'released'].includes(a.status) ? `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print / PDF" aria-label="Print / PDF"><i class="bi bi-printer"></i></a>` : ''}
+                                ${['ready_for_pickup', 'released'].includes(a.status) ? `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print / PDF" aria-label="Print / PDF">Print / PDF</a>` : ''}
                                 <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewApp(${a.id})"><i class="bi bi-eye"></i></button>
                                   ${APP_PERMS.canEdit && a.status === 'pending' ? `
                                       <button class="btn btn-sm btn-success" title="Approve" aria-label="Approve" onclick="updateStatus(${a.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
@@ -631,6 +631,37 @@ include __DIR__ . '/../includes/sidebar.php';
         return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
     }
 
+    function isPurposeOthers(value = '') {
+        const normalizedSelected = normalizePurposeText(value);
+        if (!normalizedSelected) return false;
+
+        const knownPurposes = [
+            'Application for Employment',
+            'School Admission/Requirement',
+            'Hospital Purpose',
+            'Processing of Calamity',
+            'Medical Purpose',
+            'For Livelihood Loan',
+            'Bank Transaction',
+            'Indigent Family',
+            'Organized Vending Permit',
+            'DSWD Requirement',
+            'For Travel Abroad',
+            'Transfer of Residence'
+        ];
+
+        const isKnownPurpose = knownPurposes
+            .some(item => normalizePurposeText(item) === normalizedSelected);
+        return !isKnownPurpose;
+    }
+
+    function formatPurposeDisplay(value = '') {
+        const rawValue = String(value || '').trim();
+        if (!rawValue) return '-';
+        if (isPurposeOthers(rawValue)) return `Others: ${toTitleCase(rawValue)}`;
+        return toTitleCase(rawValue);
+    }
+
     function buildBarangayPurposeChecklist(selectedPurpose = '') {
         const normalizedSelected = normalizePurposeText(selectedPurpose);
         const leftRightPairs = [
@@ -674,7 +705,7 @@ include __DIR__ . '/../includes/sidebar.php';
             return [
                 'TO WHOM IT MAY CONCERN:',
                 '',
-                'This is to certify that [NAME], [AGE] years old, [CIVIL_STATUS], is a bonafide resident of this Barangay 219, Zone 20, District II, Tondo, Manila with his/her postal address at [ADDRESS], Manila.',
+                'This is to certify that [NAME], [AGE] years old, [CIVIL_STATUS], is a bonafide resident of this Barangay 219, Zone 20, District II, Tondo, Manila with his/her postal address at [ADDRESS].',
                 '',
                 'This certification was issued upon the request of the above mentioned name for whatever legal purpose that may serve him/her best.',
                 '',
@@ -838,10 +869,10 @@ include __DIR__ . '/../includes/sidebar.php';
             footer += `<button class="btn btn-info" onclick="openRelease(${a.id}); ${closeAndRefresh}">Finalize for Pickup</button>`;
         } else if (a.status === 'ready_for_pickup') {
             footer += `<button class="btn btn-outline-secondary" onclick="notifyResident(${a.id}, 'Ready for pickup notification sent.')">Notify Resident</button>`;
-            footer += `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-outline-primary"><i class="bi bi-printer me-1"></i>Print / PDF</a>`;
+            footer += `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-outline-primary">Print / PDF</a>`;
             footer += `<button class="btn btn-success" onclick="updateStatus(${a.id}, 'released'); ${closeAndRefresh}">Mark as Released</button>`;
         } else if (a.status === 'released') {
-            footer += `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-primary"><i class="bi bi-printer me-1"></i>View Certificate Copy</a>`;
+            footer += `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-primary">View Certificate Copy</a>`;
         } else if (a.status === 'rejected') {
             footer += `<button class="btn btn-outline-secondary" onclick="notifyResident(${a.id}, 'Rejection notice sent to resident.')">Notify Resident</button>`;
         }
@@ -865,6 +896,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 const certAddress = a.cert_address || residentAddress || '';
                 const certPurpose = a.cert_purpose || a.purpose || '';
                 const isEditable = getEditableStatus(a.status);
+                const canEditCertPurpose = isEditable && isPurposeOthers(a.purpose || certPurpose);
                 const isReadOnly = a.status === 'pending';
                 const canEditNotes = canEditViewNotes(a.status);
                 currentViewStatus = a.status || '';
@@ -882,10 +914,9 @@ include __DIR__ . '/../includes/sidebar.php';
                         <section class="app-detail-card">
                             <h6><i class="bi bi-file-earmark-text me-1"></i> Certificate Info</h6>
                             <div class="detail-row"><span>Type</span><strong>${esc(toTitleCase((a.certificate_type || '').replace(/_/g, ' ')))}</strong></div>
-                            <div class="detail-row"><span>Purpose</span><strong>${esc(toTitleCase(a.purpose || '-'))}</strong></div>
                             <div class="detail-row"><span>Certificate Name</span><strong>${isEditable ? `<input class="form-control form-control-sm" id="editCertName" value="${esc(certName)}">` : esc(certName || '-')}</strong></div>
                             <div class="detail-row"><span>Certificate Address</span><strong>${isEditable ? `<textarea class="form-control form-control-sm" id="editCertAddress" rows="2">${esc(certAddress)}</textarea>` : esc(certAddress || '-')}</strong></div>
-                            <div class="detail-row"><span>Certificate Purpose</span><strong>${isEditable ? `<input class="form-control form-control-sm" id="editCertPurpose" value="${esc(certPurpose)}">` : esc(certPurpose || '-')}</strong></div>
+                            <div class="detail-row"><span>Certificate Purpose</span><strong>${canEditCertPurpose ? `<input class="form-control form-control-sm" id="editCertPurpose" value="${esc(certPurpose)}">` : esc(formatPurposeDisplay(certPurpose))}</strong></div>
                             ${isEditable ? `<div class="notes-actions"><button class="btn btn-sm btn-outline-primary" onclick="saveApplicationDraft(${a.id})">Save Draft Details</button></div>` : ''}
                         </section>
 
@@ -1064,7 +1095,10 @@ include __DIR__ . '/../includes/sidebar.php';
                 document.getElementById('releaseId').value = id;
                 document.getElementById('releaseCertName').value = a.cert_name || toTitleCase(a.resident_name || '');
                 document.getElementById('releaseCertAddress').value = a.cert_address || a.address || '';
-                document.getElementById('releaseCertPurpose').value = a.cert_purpose || a.purpose || '';
+                const releasePurposeValue = a.cert_purpose || a.purpose || '';
+                const releasePurposeInput = document.getElementById('releaseCertPurpose');
+                releasePurposeInput.value = releasePurposeValue;
+                releasePurposeInput.readOnly = !isPurposeOthers(releasePurposeValue);
                 document.getElementById('releaseDateIssued').value = (a.date_issued || new Date().toISOString().slice(0,10));
 
                 if (a.control_number) {
@@ -1092,7 +1126,9 @@ include __DIR__ . '/../includes/sidebar.php';
                         dateIssued: dateIssuedPretty,
                         controlNumber: (document.getElementById('releaseControlNumber').value || '').trim()
                     });
-                    document.getElementById('releaseCertBody').value = resolvedExisting;
+                    const normalizedExisting = (resolvedExisting || '')
+                        .replace(/(postal\s+address\s+at\s+[^.]*\bManila)\s*,\s*Manila(\.)/gi, '$1$2');
+                    document.getElementById('releaseCertBody').value = normalizedExisting;
                     releaseAutoBodyEnabled = false;
                     releaseLastAutoBody = '';
                 } else {
