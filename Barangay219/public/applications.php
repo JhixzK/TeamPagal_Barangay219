@@ -55,9 +55,9 @@ include __DIR__ . '/../includes/sidebar.php';
         <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
             <li class="nav-item"><a class="nav-link active" href="#" data-status="">All</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="pending">Pending</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" data-status="under_review">Under Review</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="approved">Approved</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" data-status="issued">Released</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="ready_for_pickup">Ready for Pickup</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-status="released">Released</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
         </ul>
 
@@ -149,6 +149,106 @@ include __DIR__ . '/../includes/sidebar.php';
     border-radius: 6px;
 }
 
+.app-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.app-detail-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.8rem;
+    background: #fff;
+}
+
+.app-detail-card h6 {
+    margin: 0 0 0.55rem;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.detail-row {
+    display: grid;
+    grid-template-columns: 145px 1fr;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    margin-bottom: 0.35rem;
+}
+
+.detail-row:last-child {
+    margin-bottom: 0;
+}
+
+.detail-row span {
+    color: #64748b;
+    font-weight: 600;
+}
+
+.attachment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0.6rem;
+}
+
+.attachment-item {
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    padding: 0.4rem;
+    background: #f8fbff;
+}
+
+.attachment-thumb {
+    width: 100%;
+    aspect-ratio: 1.4 / 1;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    margin-bottom: 0.4rem;
+}
+
+.status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+}
+
+.status-chip.pending { background: #fff7ed; color: #c2410c; }
+.status-chip.approved { background: #e0f2fe; color: #0369a1; }
+.status-chip.ready_for_pickup { background: #ede9fe; color: #6d28d9; }
+.status-chip.released { background: #dcfce7; color: #166534; }
+.status-chip.rejected { background: #fee2e2; color: #991b1b; }
+
+.notes-box {
+    width: 100%;
+    min-height: 110px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0.6rem;
+    resize: vertical;
+}
+
+.notes-actions {
+    display: flex;
+    gap: 0.45rem;
+    margin-top: 0.55rem;
+}
+
+@media (max-width: 992px) {
+    .app-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .detail-row {
+        grid-template-columns: 120px 1fr;
+    }
+}
+
 @media (max-width: 992px) {
     .apps-page .app-tabs {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -208,7 +308,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- View/Edit Modal -->
 <div class="modal fade" id="viewModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Application Details - <span id="viewAppRef"></span></h5>
@@ -220,17 +320,17 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </div>
 
-<!-- Release Modal -->
+<!-- Finalize Certificate Modal -->
 <div class="modal fade" id="releaseModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Release Certificate</h5>
+                <h5 class="modal-title">Finalize Certificate for Pickup</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="releaseId">
-                <div class="mb-2 small text-muted">Edit certificate content before issuing.</div>
+                <div class="mb-2 small text-muted">Finalize the certificate details before marking it ready for pickup.</div>
                 <div class="mb-3">
                     <label class="form-label">Name <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="releaseCertName" required>
@@ -259,7 +359,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="btnRelease"><i class="bi bi-box-arrow-up"></i> Release</button>
+                <button type="button" class="btn btn-success" id="btnRelease"><i class="bi bi-bag-check"></i> Mark Ready for Pickup</button>
             </div>
         </div>
     </div>
@@ -308,6 +408,7 @@ include __DIR__ . '/../includes/sidebar.php';
 <script>
 (function() {
     let currentStatus = '';
+    let currentViewStatus = '';
     let currentPage = 1;
     let applicationFilters = { q: '', type: '', from: '', to: '' };
     let releaseAutoBodyEnabled = true;
@@ -368,19 +469,21 @@ include __DIR__ . '/../includes/sidebar.php';
                               <td class="text-center">${esc(toTitleCase((a.certificate_type || '').replace(/_/g, ' ')))}</td>
                               <td class="text-center">${esc(toTitleCase((a.purpose || '').substring(0,30)))}${(a.purpose||'').length>30?'...':''}</td>
                               <td class="text-center">${formatDate(a.created_at)}</td>
-                              <td class="text-center"><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td>
+                              <td class="text-center"><span class="badge bg-${getStatusColor(a.status)}">${getStatusLabel(a.status)}</span></td>
                               <td class="text-center">
-                                ${a.status === 'issued' ? `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print / PDF" aria-label="Print / PDF"><i class="bi bi-printer"></i></a>` : ''}
+                                ${['ready_for_pickup', 'released'].includes(a.status) ? `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print / PDF" aria-label="Print / PDF"><i class="bi bi-printer"></i></a>` : ''}
                                 <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewApp(${a.id})"><i class="bi bi-eye"></i></button>
                                   ${APP_PERMS.canEdit && a.status === 'pending' ? `
-                                      <button class="btn btn-sm btn-secondary" title="Move to Under Review" aria-label="Move to Under Review" onclick="updateStatus(${a.id}, 'under_review')"><i class="bi bi-search"></i></button>
-                                  ` : ''}
-                                  ${APP_PERMS.canEdit && a.status === 'under_review' ? `
                                       <button class="btn btn-sm btn-success" title="Approve" aria-label="Approve" onclick="updateStatus(${a.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
                                       <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="rejectApp(${a.id})"><i class="bi bi-x-lg"></i></button>
                                   ` : ''}
-                                  ${APP_PERMS.canEdit && a.status === 'approved' ? `<button class="btn btn-sm btn-info" title="Release" aria-label="Release" onclick="openRelease(${a.id})"><i class="bi bi-box-arrow-up-right"></i></button>` : ''}
-                                  ${a.status === 'issued' ? (a.control_number ? `<small>${esc(a.control_number)}</small>` : '') : ''}
+                                  ${APP_PERMS.canEdit && a.status === 'approved' ? `
+                                      <button class="btn btn-sm btn-info" title="Finalize for Pickup" aria-label="Finalize for Pickup" onclick="openRelease(${a.id})"><i class="bi bi-bag-check"></i></button>
+                                  ` : ''}
+                                  ${APP_PERMS.canEdit && a.status === 'ready_for_pickup' ? `
+                                      <button class="btn btn-sm btn-success" title="Mark Released" aria-label="Mark Released" onclick="updateStatus(${a.id}, 'released')"><i class="bi bi-box-arrow-up-right"></i></button>
+                                  ` : ''}
+                                  ${['ready_for_pickup', 'released'].includes(a.status) ? (a.control_number ? `<small>${esc(a.control_number)}</small>` : '') : ''}
                               </td>
                           </tr>
                       `).join('');
@@ -460,9 +563,64 @@ include __DIR__ . '/../includes/sidebar.php';
       }
       function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
     function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
+    function formatDateTime(d) {
+        if (!d) return '-';
+        const dt = new Date(d);
+        if (Number.isNaN(dt.getTime())) return String(d);
+        return dt.toLocaleString();
+    }
+
     function getStatusColor(s) {
-        const c = { 'pending':'warning','under_review':'secondary','approved':'info','issued':'success','rejected':'danger','released':'success' };
+        const c = {
+            'pending':'warning',
+            'approved':'info',
+            'ready_for_pickup':'primary',
+            'released':'success',
+            'rejected':'danger',
+            'issued':'success'
+        };
         return c[s] || 'secondary';
+    }
+
+    function getStatusLabel(status) {
+        const map = {
+            pending: 'Pending',
+            approved: 'Approved',
+            ready_for_pickup: 'Ready for Pickup',
+            released: 'Released',
+            issued: 'Released',
+            rejected: 'Rejected'
+        };
+        return map[status] || toTitleCase(String(status || 'Unknown').replace(/_/g, ' '));
+    }
+
+    function getStatusChip(status) {
+        return `<span class="status-chip ${esc(status)}">${esc(getStatusLabel(status))}</span>`;
+    }
+
+    function calculateAgeFromDateString(dateValue) {
+        if (!dateValue) return '-';
+        const birthDate = new Date(dateValue + 'T00:00:00');
+        if (Number.isNaN(birthDate.getTime())) return '-';
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        const dayDiff = today.getDate() - birthDate.getDate();
+        if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age -= 1;
+        return age > 0 ? String(age) : '-';
+    }
+
+    function parseAttachmentPaths(raw) {
+        const text = String(raw || '').trim();
+        if (!text) return [];
+        return text
+            .split(/\r?\n|,|\|/)
+            .map(v => v.trim())
+            .filter(Boolean);
+    }
+
+    function isImagePath(path) {
+        return /\.(png|jpe?g|gif|webp)$/i.test(path || '');
     }
 
     function normalizeCertificateType(certificateType = '') {
@@ -642,6 +800,56 @@ include __DIR__ . '/../includes/sidebar.php';
         });
     }
 
+    function buildAttachmentSection(a) {
+        const paths = parseAttachmentPaths(a.attachment);
+        if (!paths.length) {
+            return '<p class="mb-0 text-muted">No uploaded attachments.</p>';
+        }
+        return `<div class="attachment-grid">${paths.map((path, idx) => {
+            const safePath = esc(path);
+            const fileUrl = `<?php echo BASE_URL; ?>${safePath}`;
+            const thumb = isImagePath(path)
+                ? `<img class="attachment-thumb" src="${fileUrl}" alt="Attachment ${idx + 1}">`
+                : `<div class="attachment-thumb d-flex align-items-center justify-content-center bg-light"><i class="bi bi-file-earmark-text fs-4"></i></div>`;
+            return `<div class="attachment-item">${thumb}<a class="btn btn-sm btn-outline-primary w-100" href="${fileUrl}" target="_blank" download>Download</a></div>`;
+        }).join('')}</div>`;
+    }
+
+    function getEditableStatus(status) {
+        return status === 'approved';
+    }
+
+    function canEditViewNotes(status) {
+        return APP_PERMS.canEdit && status !== 'pending';
+    }
+
+    function buildActionFooter(a) {
+        let footer = '';
+        const closeAndRefresh = "bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();";
+
+        if (!APP_PERMS.canEdit || a.status === 'pending') {
+            return '<button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>';
+        }
+
+        if (a.status === 'pending') {
+            footer += `<button class="btn btn-success" onclick="updateStatus(${a.id}, 'approved'); ${closeAndRefresh}">Approve</button>`;
+            footer += `<button class="btn btn-outline-danger" onclick="rejectApp(${a.id}); ${closeAndRefresh}">Reject</button>`;
+        } else if (a.status === 'approved') {
+            footer += `<button class="btn btn-info" onclick="openRelease(${a.id}); ${closeAndRefresh}">Finalize for Pickup</button>`;
+        } else if (a.status === 'ready_for_pickup') {
+            footer += `<button class="btn btn-outline-secondary" onclick="notifyResident(${a.id}, 'Ready for pickup notification sent.')">Notify Resident</button>`;
+            footer += `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-outline-primary"><i class="bi bi-printer me-1"></i>Print / PDF</a>`;
+            footer += `<button class="btn btn-success" onclick="updateStatus(${a.id}, 'released'); ${closeAndRefresh}">Mark as Released</button>`;
+        } else if (a.status === 'released') {
+            footer += `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-primary"><i class="bi bi-printer me-1"></i>View Certificate Copy</a>`;
+        } else if (a.status === 'rejected') {
+            footer += `<button class="btn btn-outline-secondary" onclick="notifyResident(${a.id}, 'Rejection notice sent to resident.')">Notify Resident</button>`;
+        }
+
+        footer += '<button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>';
+        return footer;
+    }
+
     window.viewApp = function(id) {
         fetch(API_URL + 'certificates.php?action=get&id=' + id)
             .then(r => r.json())
@@ -649,37 +857,175 @@ include __DIR__ . '/../includes/sidebar.php';
                 if (!data.success) return alert(data.message);
                 const a = data.data;
                 document.getElementById('viewAppRef').textContent = a.application_ref || 'APP-' + a.id;
+
+                const age = calculateAgeFromDateString(a.birth_date);
+                const relationshipStatus = toTitleCase(a.civil_status || '-');
+                const residentAddress = a.address || a.resident_address || a.cert_address || '-';
+                const certName = a.cert_name || a.resident_name || '';
+                const certAddress = a.cert_address || residentAddress || '';
+                const certPurpose = a.cert_purpose || a.purpose || '';
+                const isEditable = getEditableStatus(a.status);
+                const isReadOnly = a.status === 'pending';
+                const canEditNotes = canEditViewNotes(a.status);
+                currentViewStatus = a.status || '';
+
                 const html = `
-                    <table class="table table-sm">
-                        <tr><td><strong>Resident</strong></td><td>${esc(toTitleCase(a.resident_name || '-'))}</td></tr>
-                        <tr><td><strong>Certificate Type</strong></td><td>${esc(toTitleCase((a.certificate_type||'').replace(/_/g,' ')))}</td></tr>
-                        <tr><td><strong>Purpose</strong></td><td>${esc(toTitleCase(a.purpose || '-'))}</td></tr>
-                        <tr><td><strong>Status</strong></td><td><span class="badge bg-${getStatusColor(a.status)}">${a.status}</span></td></tr>
-                        <tr><td><strong>Certificate Name</strong></td><td>${esc(a.cert_name) || '-'}</td></tr>
-                        <tr><td><strong>Certificate Address</strong></td><td>${esc(a.cert_address) || '-'}</td></tr>
-                        <tr><td><strong>Certificate Purpose</strong></td><td>${esc(a.cert_purpose) || '-'}</td></tr>
-                        <tr><td><strong>Date Issued</strong></td><td>${formatDate(a.date_issued || a.issued_date) || '-'}</td></tr>
-                        <tr><td><strong>Control Number</strong></td><td>${esc(a.control_number) || '-'}</td></tr>
-                        <tr><td><strong>Created</strong></td><td>${formatDate(a.created_at)}</td></tr>
-                        <tr><td><strong>Approved At</strong></td><td>${formatDate(a.approved_at) || '-'}</td></tr>
-                    </table>
+                    <div class="app-detail-grid">
+                        <section class="app-detail-card">
+                            <h6><i class="bi bi-person-vcard me-1"></i> Resident Info</h6>
+                            <div class="detail-row"><span>Name</span><strong>${esc(toTitleCase(a.resident_name || '-'))}</strong></div>
+                            <div class="detail-row"><span>Age / Year</span><strong>${esc(age)}</strong></div>
+                            <div class="detail-row"><span>Relationship Status</span><strong>${esc(relationshipStatus)}</strong></div>
+                            <div class="detail-row"><span>Address</span><strong>${esc(residentAddress)}</strong></div>
+                        </section>
+
+                        <section class="app-detail-card">
+                            <h6><i class="bi bi-file-earmark-text me-1"></i> Certificate Info</h6>
+                            <div class="detail-row"><span>Type</span><strong>${esc(toTitleCase((a.certificate_type || '').replace(/_/g, ' ')))}</strong></div>
+                            <div class="detail-row"><span>Purpose</span><strong>${esc(toTitleCase(a.purpose || '-'))}</strong></div>
+                            <div class="detail-row"><span>Certificate Name</span><strong>${isEditable ? `<input class="form-control form-control-sm" id="editCertName" value="${esc(certName)}">` : esc(certName || '-')}</strong></div>
+                            <div class="detail-row"><span>Certificate Address</span><strong>${isEditable ? `<textarea class="form-control form-control-sm" id="editCertAddress" rows="2">${esc(certAddress)}</textarea>` : esc(certAddress || '-')}</strong></div>
+                            <div class="detail-row"><span>Certificate Purpose</span><strong>${isEditable ? `<input class="form-control form-control-sm" id="editCertPurpose" value="${esc(certPurpose)}">` : esc(certPurpose || '-')}</strong></div>
+                            ${isEditable ? `<div class="notes-actions"><button class="btn btn-sm btn-outline-primary" onclick="saveApplicationDraft(${a.id})">Save Draft Details</button></div>` : ''}
+                        </section>
+
+                        <section class="app-detail-card">
+                            <h6><i class="bi bi-paperclip me-1"></i> Uploaded Files</h6>
+                            ${buildAttachmentSection(a)}
+                        </section>
+
+                        <section class="app-detail-card">
+                            <h6><i class="bi bi-clock-history me-1"></i> Status & Timestamps</h6>
+                            <div class="detail-row"><span>Current Status</span><strong>${getStatusChip(a.status)}</strong></div>
+                            <div class="detail-row"><span>Created</span><strong>${formatDateTime(a.created_at)}</strong></div>
+                            <div class="detail-row"><span>Approved</span><strong>${formatDateTime(a.approved_at)}</strong></div>
+                            <div class="detail-row"><span>Ready for Pickup</span><strong>${formatDateTime(a.ready_for_pickup_at)}</strong></div>
+                            <div class="detail-row"><span>Released</span><strong>${formatDateTime(a.released_at || a.issued_date || a.date_issued)}</strong></div>
+                            <div class="detail-row"><span>Rejected</span><strong>${formatDateTime(a.rejected_at)}</strong></div>
+                            <div class="detail-row"><span>Control Number</span><strong>${esc(a.control_number || '-')}</strong></div>
+                        </section>
+                    </div>
+
+                    <section class="app-detail-card mt-3">
+                        <h6><i class="bi bi-journal-text me-1"></i> Admin Notes</h6>
+                        <textarea class="notes-box" id="adminNotesInput" placeholder="${canEditNotes ? 'Add notes with timestamps...' : 'Notes are locked while the application is still submitted.'}" ${isReadOnly ? 'readonly' : ''}>${esc(a.remarks || '')}</textarea>
+                        ${isReadOnly ? '<small class="text-muted">Notes can be added once the application is under review.</small>' : `<div class="notes-actions">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="addTimestampedNote(${a.id})">Add Timestamped Note</button>
+                            <button class="btn btn-sm btn-primary" onclick="saveAdminNotes(${a.id})">Save Notes</button>
+                        </div>`}
+                    </section>
                 `;
+
                 document.getElementById('viewModalBody').innerHTML = html;
-                let footer = '';
-                if (APP_PERMS.canEdit && a.status === 'pending') {
-                    footer = '<button class="btn btn-secondary" onclick="updateStatus('+a.id+',\'under_review\'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Mark Under Review</button>';
-                } else if (APP_PERMS.canEdit && a.status === 'under_review') {
-                    footer = '<button class="btn btn-success" onclick="updateStatus('+a.id+',\'approved\'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Approve</button>' +
-                        '<button class="btn btn-danger" onclick="rejectApp('+a.id+'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Reject</button>';
-                } else if (APP_PERMS.canEdit && a.status === 'approved') {
-                    footer = '<button class="btn btn-info" onclick="openRelease('+a.id+'); bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide();">Release</button>';
-                }
-                if (a.status === 'issued') {
-                    footer += ' <a href="<?php echo BASE_URL; ?>certificate-print.php?id='+a.id+'" target="_blank" class="btn btn-primary"><i class="bi bi-printer me-1"></i>Print / PDF</a>';
-                }
-                document.getElementById('viewModalFooter').innerHTML = footer;
+                document.getElementById('viewModalFooter').innerHTML = buildActionFooter(a);
                 new bootstrap.Modal(document.getElementById('viewModal')).show();
             });
+    };
+
+    window.saveApplicationDraft = function(id) {
+        if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
+        if (currentViewStatus === 'pending') { alert('Submitted applications are read-only in the view window.'); return; }
+        const certName = (document.getElementById('editCertName')?.value || '').trim();
+        const certAddress = (document.getElementById('editCertAddress')?.value || '').trim();
+        const certPurpose = (document.getElementById('editCertPurpose')?.value || '').trim();
+        const fd = new FormData();
+        fd.append('action', 'update');
+        fd.append('id', id);
+        if (certName) fd.append('cert_name', certName);
+        if (certAddress) fd.append('cert_address', certAddress);
+        if (certPurpose) fd.append('cert_purpose', certPurpose);
+        fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    alert('Draft details saved.');
+                    loadApplications();
+                } else {
+                    alert(d.message || 'Unable to save details.');
+                }
+            });
+    };
+
+    window.saveAdminNotes = function(id) {
+        if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
+        if (!canEditViewNotes(currentViewStatus)) { alert('Submitted applications are read-only in the view window.'); return; }
+        const notes = (document.getElementById('adminNotesInput')?.value || '').trim();
+        if (!notes) {
+            alert('No notes to save.');
+            return;
+        }
+        const fd = new FormData();
+        fd.append('action', 'update');
+        fd.append('id', id);
+        fd.append('remarks', notes);
+        fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    alert('Admin notes saved.');
+                    loadApplications();
+                } else {
+                    alert(d.message || 'Unable to save notes.');
+                }
+            });
+    };
+
+    window.addTimestampedNote = function(id) {
+        if (!canEditViewNotes(currentViewStatus)) {
+            alert('Submitted applications are read-only in the view window.');
+            return;
+        }
+        const box = document.getElementById('adminNotesInput');
+        if (!box) return;
+        const stamp = new Date().toLocaleString();
+        const next = box.value.trim();
+        box.value = `${next ? next + '\n' : ''}[${stamp}] `;
+        box.focus();
+    };
+
+    window.requestMoreInfo = function(id) {
+        if (!canEditViewNotes(currentViewStatus)) {
+            alert('Submitted applications are read-only in the view window.');
+            return;
+        }
+        const note = prompt('Enter the information needed from the resident:');
+        if (!note) return;
+        const box = document.getElementById('adminNotesInput');
+        const stamp = new Date().toLocaleString();
+        if (box) {
+            box.value = `${box.value.trim()}${box.value.trim() ? '\n' : ''}[${stamp}] Requested more information: ${note}`;
+            saveAdminNotes(id);
+        }
+    };
+
+    window.notifyResident = function(id, messageText) {
+        if (!canEditViewNotes(currentViewStatus)) {
+            alert('Submitted applications are read-only in the view window.');
+            return;
+        }
+        const box = document.getElementById('adminNotesInput');
+        const stamp = new Date().toLocaleString();
+        if (box) {
+            box.value = `${box.value.trim()}${box.value.trim() ? '\n' : ''}[${stamp}] ${messageText}`;
+            saveAdminNotes(id);
+        } else {
+            alert('Notification logged: ' + messageText);
+        }
+    };
+
+    window.logDeliveryConfirmation = function(id) {
+        if (!canEditViewNotes(currentViewStatus)) {
+            alert('Submitted applications are read-only in the view window.');
+            return;
+        }
+        const receiver = prompt('Enter receiver name for delivery confirmation:');
+        if (!receiver) return;
+        const box = document.getElementById('adminNotesInput');
+        const stamp = new Date().toLocaleString();
+        if (box) {
+            box.value = `${box.value.trim()}${box.value.trim() ? '\n' : ''}[${stamp}] Delivery confirmed to: ${receiver}`;
+            saveAdminNotes(id);
+        }
     };
 
     window.updateStatus = function(id, status) {
@@ -788,14 +1134,10 @@ include __DIR__ . '/../includes/sidebar.php';
         const certBody = document.getElementById('releaseCertBody').value.trim();
         const dateIssued = document.getElementById('releaseDateIssued').value;
 
-        if (!certName || !certAddress || !certPurpose || !certBody || !dateIssued) {
-            alert('Name, address, purpose, certificate body, and date issued are required before issuing.');
-            return;
-        }
-
         const fd = new FormData();
-        fd.append('action', 'release');
+        fd.append('action', 'update');
         fd.append('id', id);
+        fd.append('status', 'ready_for_pickup');
         fd.append('cert_name', certName);
         fd.append('cert_address', certAddress);
         fd.append('cert_purpose', certPurpose);
@@ -806,7 +1148,7 @@ include __DIR__ . '/../includes/sidebar.php';
             .then(d => {
                 bootstrap.Modal.getInstance(document.getElementById('releaseModal')).hide();
                 if (d.success) {
-                    alert('Released. Control #: ' + (d.data?.control_number || ''));
+                    alert('Marked ready for pickup. Control #: ' + (d.data?.control_number || ''));
                     loadApplications();
                 } else alert(d.message || 'Error');
             });
