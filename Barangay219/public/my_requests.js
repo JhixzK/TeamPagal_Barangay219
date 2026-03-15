@@ -151,8 +151,7 @@ function renderTableRows() {
       "<td>" + item.certificateType + "</td>" +
       "<td>" + item.purpose + "</td>" +
       "<td>" + item.dateRequested + "</td>" +
-      "<td><span class='badge " + slugStatus(item.status) + "'>" + item.status + "</span></td>" +
-      "<td><span class='badge unpaid'>Unpaid</span></td>";
+      "<td><span class='badge " + slugStatus(item.status) + "'>" + item.status + "</span></td>";
 
     const actionsCell = document.createElement("td");
     actionsCell.appendChild(buildActionButtons(item));
@@ -221,7 +220,6 @@ function openDetailsModal(request) {
   detailsHtml += "<div class='modal-row'><span>Purpose</span><strong>" + request.purpose + "</strong></div>";
   detailsHtml += "<div class='modal-row'><span>Date Requested</span><strong>" + request.dateRequested + "</strong></div>";
   detailsHtml += "<div class='modal-row'><span>Status</span><strong><span class='badge " + slugStatus(request.status) + "'>" + request.status + "</span></strong></div>";
-  detailsHtml += "<div class='modal-row'><span>Payment Status</span><strong><span class='badge unpaid'>Unpaid</span></strong></div>";
   detailsHtml += "<div class='modal-row'><span>Uploaded Documents</span><strong>" + uploadedDocs + "</strong></div>";
 
   modalContent.innerHTML = detailsHtml;
