@@ -359,6 +359,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-outline-primary" id="btnPreviewRelease">Preview PDF</button>
                 <button type="button" class="btn btn-success" id="btnRelease"><i class="bi bi-bag-check"></i> Mark Ready for Pickup</button>
             </div>
         </div>
@@ -1158,6 +1159,54 @@ include __DIR__ . '/../includes/sidebar.php';
             if (releaseBodyInput.value !== releaseLastAutoBody) {
                 releaseAutoBodyEnabled = false;
             }
+        });
+    }
+
+    const previewReleaseBtn = document.getElementById('btnPreviewRelease');
+    if (previewReleaseBtn) {
+        previewReleaseBtn.addEventListener('click', function() {
+            if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
+
+            const id = document.getElementById('releaseId').value;
+            const certName = (document.getElementById('releaseCertName').value || '').trim();
+            const certAddress = (document.getElementById('releaseCertAddress').value || '').trim();
+            const certPurpose = (document.getElementById('releaseCertPurpose').value || '').trim();
+            const certBody = (document.getElementById('releaseCertBody').value || '').trim();
+            const dateIssued = (document.getElementById('releaseDateIssued').value || '').trim();
+            const controlNumber = (document.getElementById('releaseControlNumber').value || '').trim();
+
+            if (!id) {
+                alert('Missing request ID for preview.');
+                return;
+            }
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '<?php echo BASE_URL; ?>certificate-print.php';
+            form.target = '_blank';
+
+            const fields = {
+                preview: '1',
+                id,
+                cert_name: certName,
+                cert_address: certAddress,
+                cert_purpose: certPurpose,
+                cert_body: certBody,
+                date_issued: dateIssued,
+                control_number: controlNumber
+            };
+
+            Object.entries(fields).forEach(([name, value]) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                form.appendChild(input);
+            });
+
+            document.body.appendChild(form);
+            form.submit();
+            form.remove();
         });
     }
 
