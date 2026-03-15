@@ -199,6 +199,29 @@ if (isLoggedIn()) {
             text-decoration: underline;
         }
 
+        .field-error {
+            display: none;
+            margin-top: 0.5rem;
+            color: #b91c1c;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .field-error.is-visible {
+            display: block;
+        }
+
+        .input-group.password-invalid .form-control,
+        .input-group.password-invalid .btn {
+            border-color: #dc2626;
+        }
+
+        .input-group.password-invalid .form-control:focus,
+        .input-group.password-invalid .btn:focus {
+            border-color: #dc2626;
+            box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.18);
+        }
+
         @media (min-width: 992px) {
             .login-card {
                 max-width: 520px;
@@ -236,6 +259,7 @@ if (isLoggedIn()) {
                             <i class="bi bi-eye" aria-hidden="true"></i>
                         </button>
                     </div>
+                    <div id="passwordError" class="field-error" aria-live="polite"></div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="form-check mb-0">
