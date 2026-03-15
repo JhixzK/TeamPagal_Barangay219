@@ -52,7 +52,7 @@ function loadCertificates() {
                         <td>${formatDate(c.created_at)}</td>
                         <td>${c.control_number ? escapeHtml(c.control_number) : '-'}</td>
                         <td>
-                            ${c.status === 'issued' ? `
+                            ${['ready_for_pickup', 'released', 'issued'].includes(c.status) ? `
                                 <a href="${BASE_URL}certificate-print.php?id=${c.id}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print / PDF" aria-label="Print / PDF">
                                     <i class="bi bi-printer"></i>
                                 </a>
@@ -62,7 +62,10 @@ function loadCertificates() {
                                 <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="rejectCert(${c.id})"><i class="bi bi-x-lg"></i></button>
                             ` : ''}
                             ${CERT_PERMS.canEdit && c.status === 'approved' ? `
-                                <button class="btn btn-sm btn-info" title="Release" aria-label="Release" onclick="releaseCert(${c.id})"><i class="bi bi-box-arrow-up-right"></i></button>
+                                <button class="btn btn-sm btn-info" title="Mark Ready for Pickup" aria-label="Mark Ready for Pickup" onclick="updateStatus(${c.id}, 'ready_for_pickup')"><i class="bi bi-bag-check"></i></button>
+                            ` : ''}
+                            ${CERT_PERMS.canEdit && c.status === 'ready_for_pickup' ? `
+                                <button class="btn btn-sm btn-success" title="Mark Released" aria-label="Mark Released" onclick="releaseCert(${c.id})"><i class="bi bi-box-arrow-up-right"></i></button>
                             ` : ''}
                             <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewCert(${c.id})"><i class="bi bi-eye"></i></button>
                         </td>
@@ -175,7 +178,7 @@ function viewCert(id) {
 }
 
 function getStatusColor(status) {
-    const colors = { 'pending': 'warning', 'approved': 'info', 'rejected': 'danger', 'issued': 'success' };
+    const colors = { 'pending': 'warning', 'approved': 'info', 'ready_for_pickup': 'primary', 'rejected': 'danger', 'released': 'success', 'issued': 'success' };
     return colors[status] || 'secondary';
 }
 
