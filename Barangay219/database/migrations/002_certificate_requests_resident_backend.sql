@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS `certificate_requests` (
   `certificate_type` VARCHAR(120) NOT NULL,
   `purpose` TEXT DEFAULT NULL,
   `reference_number` VARCHAR(50) NOT NULL,
-  `status` ENUM('pending','under_review','approved','rejected','issued','cancelled') NOT NULL DEFAULT 'pending',
+  `status` ENUM('pending','approved','ready_for_pickup','rejected','released') NOT NULL DEFAULT 'pending',
   `attachment` VARCHAR(255) DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
