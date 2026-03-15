@@ -51,7 +51,7 @@ function ensureCertificateRequestSchema() {
             certificate_type VARCHAR(120) NOT NULL,
             purpose TEXT DEFAULT NULL,
             reference_number VARCHAR(50) NOT NULL,
-            status ENUM('pending','under_review','approved','rejected','issued','cancelled') NOT NULL DEFAULT 'pending',
+            status ENUM('pending','approved','ready_for_pickup','rejected','released') NOT NULL DEFAULT 'pending',
             attachment VARCHAR(255) DEFAULT NULL,
             cert_name VARCHAR(255) DEFAULT NULL,
             cert_address TEXT DEFAULT NULL,
@@ -102,7 +102,15 @@ function ensureCertificateRequestSchema() {
         $db->query("ALTER TABLE certificate_requests MODIFY COLUMN certificate_type VARCHAR(120) NOT NULL");
     }
 
-    $db->query("ALTER TABLE certificate_requests MODIFY COLUMN status ENUM('pending','under_review','approved','rejected','issued','cancelled') NOT NULL DEFAULT 'pending'");
+    $db->query("UPDATE certificate_requests
+                SET status = 'approved',
+                    approved_at = COALESCE(approved_at, updated_at, created_at)
+                WHERE status = 'under_review'");
+    $db->query("UPDATE certificate_requests SET status = 'ready_for_pickup' WHERE status = 'approved' AND control_number IS NOT NULL AND control_number <> ''");
+    $db->query("UPDATE certificate_requests SET status = 'released' WHERE status = 'issued'");
+    $db->query("UPDATE certificate_requests SET status = 'rejected' WHERE status = 'cancelled'");
+
+    $db->query("ALTER TABLE certificate_requests MODIFY COLUMN status ENUM('pending','approved','ready_for_pickup','rejected','released') NOT NULL DEFAULT 'pending'");
 
     // Backfill reference_number for existing records before enforcing uniqueness.
     $missingRefs = $db->fetchAll("SELECT id, created_at FROM certificate_requests WHERE reference_number IS NULL OR reference_number = '' ORDER BY id ASC");
