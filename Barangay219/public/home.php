@@ -736,7 +736,7 @@ $heroSlides = [
                         <a class="nav-link" href="#services">Services</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#news">News</a>
+                        <a class="nav-link" href="#news">Announcements</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#contact">Contact</a>
@@ -774,7 +774,7 @@ $heroSlides = [
                 <div class="hero-text">
                     <h1>Barangay 219 e-Portal</h1>
                     <p>
-                        Access barangay services, announcements, and community updates in one official and easy-to-use platform designed for every resident.
+                        Access barangay services, announcements, at community updates sa isang official at madaling gamitin na platform para sa bawat residente.
                     </p>
                     <div class="hero-actions">
                         <?php if ($isLoggedIn): ?>
@@ -796,18 +796,21 @@ $heroSlides = [
     <section id="about" class="section-padding">
         <div class="container-lg">
             <div class="section-header">
-                <h2>About <?php echo htmlspecialchars($barangayName . ', ' . $city); ?></h2>
-                <p>Welcome to the E-Barangay Portal</p>
+                <h2>About Barangay 219, Tondo, Manila</h2>
+                <p>Maligayang pagdating sa e-Barangay Portal</p>
             </div>
 
             <div class="row">
                 <div class="col-lg-6 mb-4">
                     <div class="about-panel">
                         <p>
-                            Welcome to the E-Barangay Portal, a modern solution built to bring essential barangay services right to your fingertips. Our mission is to empower our community by delivering fast and reliable barangay services through digital innovation.
+                            Maligayang pagdating sa e-Barangay Portal - isang modernong sistema na ginawa upang dalhin ang mga pangunahing serbisyo ng barangay direkta sa inyong mga kamay.
+                        </p>
+                        <p>
+                            Layunin ng platform na ito na gawing mas mabilis, maayos, at accessible ang mga barangay services sa pamamagitan ng digital technology.
                         </p>
                         <p class="mb-0">
-                            This platform serves as the central hub for all official barangay information, services, and community engagement. Whether you're a resident seeking services or looking for important announcements, the E-Barangay Portal provides a seamless, accessible experience.
+                            Dito ninyo makikita ang mga opisyal na impormasyon, serbisyo, at mga anunsyo ng barangay. Kung kayo ay residente na nangangailangan ng dokumento o nais lamang manatiling updated sa mga balita ng komunidad, ang e-Barangay Portal ay ginawa upang maging simple at convenient gamitin.
                         </p>
                     </div>
                 </div>
@@ -815,10 +818,10 @@ $heroSlides = [
                     <div class="about-panel">
                             <h4 class="mb-3" style="font-weight: 700; color: var(--gov-blue);">Getting Started</h4>
                         <ul class="steps-list">
-                            <li><i class="bi bi-check-circle-fill"></i><span><strong>Step 1:</strong> Click the Register button to create your account.</span></li>
-                            <li><i class="bi bi-check-circle-fill"></i><span><strong>Step 2:</strong> Complete the resident registration form.</span></li>
-                            <li><i class="bi bi-check-circle-fill"></i><span><strong>Step 3:</strong> Wait for barangay verification and approval.</span></li>
-                            <li class="mb-0"><i class="bi bi-check-circle-fill"></i><span><strong>Step 4:</strong> Access all barangay services and features.</span></li>
+                            <li><i class="bi bi-check-circle-fill"></i><span><strong>Step 1:</strong> I-click ang Register upang gumawa ng account.</span></li>
+                            <li><i class="bi bi-check-circle-fill"></i><span><strong>Step 2:</strong> Kumpletuhin ang Resident Registration Form.</span></li>
+                            <li><i class="bi bi-check-circle-fill"></i><span><strong>Step 3:</strong> Hintayin ang verification at approval ng barangay.</span></li>
+                            <li class="mb-0"><i class="bi bi-check-circle-fill"></i><span><strong>Step 4:</strong> Kapag approved na, maaari nang gamitin ang lahat ng barangay services.</span></li>
                         </ul>
                     </div>
                 </div>
@@ -831,7 +834,7 @@ $heroSlides = [
         <div class="container-lg">
             <div class="section-header">
                 <h2>Barangay Services</h2>
-                <p>Online services available to residents</p>
+                <p>Mga online na serbisyo na available para sa mga residente</p>
             </div>
 
             <div class="row g-4">
@@ -840,7 +843,7 @@ $heroSlides = [
                         <div class="service-card">
                             <div class="service-icon"><i class="bi bi-file-earmark-text"></i></div>
                             <h5>Barangay Clearance</h5>
-                            <p>Proof that a person has no bad record in the barangay, often needed for job or permit applications.</p>
+                            <p>Katibayan na ang isang residente ay walang kaso o bad record sa barangay, kadalasang kailangan para sa trabaho o permit.</p>
                         </div>
                     </a>
                 </div>
@@ -849,7 +852,7 @@ $heroSlides = [
                         <div class="service-card">
                             <div class="service-icon"><i class="bi bi-house-check"></i></div>
                             <h5>Barangay Residency</h5>
-                            <p>Confirms that a person is a resident of the barangay and provides official documentation.</p>
+                            <p>Dokumentong nagpapatunay na ang isang tao ay residente ng barangay.</p>
                         </div>
                     </a>
                 </div>
@@ -858,7 +861,7 @@ $heroSlides = [
                         <div class="service-card">
                             <div class="service-icon"><i class="bi bi-heart"></i></div>
                             <h5>Barangay Indigency</h5>
-                            <p>Issued to low-income individuals for aid, scholarships, or medical help.</p>
+                            <p>Ibinibigay sa mga low-income residents para sa tulong pinansyal, scholarship, o medical assistance.</p>
                         </div>
                     </a>
                 </div>
@@ -867,16 +870,16 @@ $heroSlides = [
                         <div class="service-card">
                             <div class="service-icon"><i class="bi bi-briefcase"></i></div>
                             <h5>Business Clearance</h5>
-                            <p>Required for starting or operating a business in the barangay jurisdiction.</p>
+                            <p>Kailangan upang makapagsimula o makapag-operate ng negosyo sa loob ng barangay.</p>
                         </div>
                     </a>
                 </div>
                 <div class="col-md-6 col-lg-3">
-                    <a href="<?php echo BASE_URL; ?>login.php" class="card-link" aria-label="Login to access Blotters Report">
+                    <a href="<?php echo BASE_URL; ?>login.php" class="card-link" aria-label="Login to access Blotter Reports">
                         <div class="service-card">
                             <div class="service-icon"><i class="bi bi-flag"></i></div>
-                            <h5>Blotters Report</h5>
-                            <p>Access incident and community safety reports from barangay records.</p>
+                            <h5>Blotter Reports</h5>
+                            <p>Makikita ang incident records at community safety reports mula sa barangay.</p>
                         </div>
                     </a>
                 </div>
@@ -885,7 +888,7 @@ $heroSlides = [
                         <div class="service-card">
                             <div class="service-icon"><i class="bi bi-hospital"></i></div>
                             <h5>Vaccination Records</h5>
-                            <p>Official vaccination certificates and health screening records.</p>
+                            <p>Opisyal na vaccination certificates at health screening records ng residente.</p>
                         </div>
                     </a>
                 </div>
@@ -894,7 +897,7 @@ $heroSlides = [
                         <div class="service-card">
                             <div class="service-icon"><i class="bi bi-megaphone"></i></div>
                             <h5>Announcements</h5>
-                            <p>Stay informed with latest barangay news, events, and community updates.</p>
+                            <p>Manatiling updated sa pinakabagong balita, events, at community updates ng barangay.</p>
                         </div>
                     </a>
                 </div>
@@ -902,8 +905,8 @@ $heroSlides = [
                     <a href="<?php echo BASE_URL; ?>login.php" class="card-link" aria-label="Login to access Resident Directory">
                         <div class="service-card">
                             <div class="service-icon"><i class="bi bi-people"></i></div>
-                            <h5>Resident Directory</h5>
-                            <p>Browse barangay resident information and connect with your community.</p>
+                            <h5>Community Records</h5>
+                            <p>Centralized resident and community records para sa mas maayos na serbisyo ng barangay.</p>
                         </div>
                     </a>
                 </div>
@@ -915,9 +918,11 @@ $heroSlides = [
     <section id="news" class="section-padding" style="background: #ffffff;">
         <div class="container-lg">
             <div class="section-header">
-                <h2>Latest Announcements</h2>
-                <p>Important updates and community notices from the barangay</p>
+                <h2>Announcements</h2>
+                <p>Manatiling updated sa pinakabagong balita, events, at community updates ng barangay.</p>
             </div>
+
+            <p class="text-center mb-4" style="color: var(--text-secondary); font-weight: 600;">Latest Announcements</p>
 
             <div class="row g-4">
                 <div class="col-md-6 col-lg-4">
@@ -926,7 +931,7 @@ $heroSlides = [
                             <div class="notice-badge"><i class="bi bi-exclamation-circle-fill"></i>Important Notice</div>
                             <div class="news-meta"><i class="bi bi-calendar3"></i><span>March 2026</span></div>
                             <h3 class="news-title">Barangay Assembly and Community Consultation</h3>
-                            <p>Residents are encouraged to attend the monthly assembly to discuss programs, safety priorities, and local initiatives.</p>
+                            <p>Inaanyayahan ang lahat ng residente na dumalo sa monthly barangay assembly upang pag-usapan ang mga programa, seguridad, at mga proyekto ng komunidad.</p>
                         </article>
                     </a>
                 </div>
@@ -935,7 +940,7 @@ $heroSlides = [
                         <article class="news-card">
                             <div class="news-meta"><i class="bi bi-calendar3"></i><span>March 2026</span></div>
                             <h3 class="news-title">Free Health Checkup Schedule</h3>
-                            <p>Barangay health workers will provide free basic consultation and blood pressure monitoring at the health center.</p>
+                            <p>Magkakaroon ng libreng basic consultation at blood pressure monitoring ang barangay health workers sa health center.</p>
                         </article>
                     </a>
                 </div>
@@ -944,7 +949,7 @@ $heroSlides = [
                         <article class="news-card">
                             <div class="news-meta"><i class="bi bi-calendar3"></i><span>March 2026</span></div>
                             <h3 class="news-title">Youth Skills and Employment Orientation</h3>
-                            <p>A capacity-building session for youth residents on employment readiness and community volunteer opportunities.</p>
+                            <p>Isang orientation para sa kabataan ng barangay tungkol sa employment readiness, skills development, at community volunteer opportunities.</p>
                         </article>
                     </a>
                 </div>
@@ -957,7 +962,7 @@ $heroSlides = [
         <div class="container-lg">
             <div class="section-header">
                 <h2>Barangay Officials</h2>
-                <p>Serving the community with transparency, responsibility, and care</p>
+                <p>Naglilingkod nang may transparency, responsibilidad, at malasakit sa komunidad.</p>
             </div>
 
             <div class="row g-4">
@@ -965,28 +970,28 @@ $heroSlides = [
                     <div class="official-card">
                         <div class="official-avatar">BC</div>
                         <p class="official-name">Barangay Captain</p>
-                        <p class="official-role">Chief Executive Officer</p>
+                        <p class="official-role">Punong tagapangasiwa ng barangay.</p>
                     </div>
                 </div>
                 <div class="col-sm-6 col-lg-3">
                     <div class="official-card">
                         <div class="official-avatar">SK</div>
                         <p class="official-name">Barangay Secretary</p>
-                        <p class="official-role">Records and Documentation</p>
+                        <p class="official-role">Namamahala sa mga records at dokumento ng barangay.</p>
                     </div>
                 </div>
                 <div class="col-sm-6 col-lg-3">
                     <div class="official-card">
                         <div class="official-avatar">TR</div>
                         <p class="official-name">Barangay Treasurer</p>
-                        <p class="official-role">Finance and Budget</p>
+                        <p class="official-role">Namamahala sa pondo at budget ng barangay.</p>
                     </div>
                 </div>
                 <div class="col-sm-6 col-lg-3">
                     <div class="official-card">
                         <div class="official-avatar">KG</div>
                         <p class="official-name">Barangay Kagawad</p>
-                        <p class="official-role">Committee Services</p>
+                        <p class="official-role">Tumutulong sa pagpapatupad ng mga programa at serbisyo ng barangay.</p>
                     </div>
                 </div>
             </div>
@@ -998,7 +1003,7 @@ $heroSlides = [
         <div class="container-lg">
             <div class="cta-panel">
                 <h2>Ready to Get Started?</h2>
-                <p>Register now as a resident and access barangay services through one secure digital portal.</p>
+                <p>Mag-register bilang residente at gamitin ang mga barangay services sa isang secure at digital na portal.</p>
                 <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
                     <a href="<?php echo BASE_URL; ?>register.php" class="btn-hero btn-hero-primary">Register Now</a>
                     <a href="<?php echo BASE_URL; ?>login.php" class="btn-hero btn-hero-outline">Login</a>
