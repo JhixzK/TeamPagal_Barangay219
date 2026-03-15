@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS `certificate_requests` (
   `requested_by` INT(11) DEFAULT NULL,
   `certificate_type` VARCHAR(120) NOT NULL,
   `purpose` TEXT DEFAULT NULL,
-  `status` ENUM('pending','under_review','approved','rejected','issued','cancelled') NOT NULL DEFAULT 'pending',
+  `status` ENUM('pending','approved','ready_for_pickup','rejected','released') NOT NULL DEFAULT 'pending',
   `attachment` VARCHAR(255) DEFAULT NULL,
   `reference_number` VARCHAR(50) DEFAULT NULL,
   `issued_date` DATE DEFAULT NULL,
@@ -32,7 +32,7 @@ ALTER TABLE `certificate_requests`
   ADD COLUMN IF NOT EXISTS `admin_id` INT(11) DEFAULT NULL AFTER `approved_at`;
 
 ALTER TABLE `certificate_requests`
-  MODIFY COLUMN `status` ENUM('pending','under_review','approved','rejected','issued','cancelled') NOT NULL DEFAULT 'pending';
+  MODIFY COLUMN `status` ENUM('pending','approved','ready_for_pickup','rejected','released') NOT NULL DEFAULT 'pending';
 
 UPDATE `certificate_requests`
 SET `reference_number` = CONCAT('REQ-BRGY219-', YEAR(COALESCE(`created_at`, NOW())), '-', LPAD(`id`, 5, '0'))
