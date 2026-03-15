@@ -7,6 +7,7 @@ const mainDateBadge = document.getElementById("mainDateBadge");
 
 const requestForm = document.getElementById("requestForm");
 const certificateType = document.getElementById("certificateType");
+const purposeFieldWrap = document.getElementById("purposeFieldWrap");
 const purpose = document.getElementById("purpose");
 const purposeOtherWrap = document.getElementById("purposeOtherWrap");
 const purposeOther = document.getElementById("purposeOther");
@@ -27,12 +28,33 @@ const summaryDocuments = document.getElementById("summaryDocuments");
 const requirementsList = document.getElementById("requirementsList");
 
 const requirementMap = {
-  "Barangay Clearance": ["Valid ID"],
-  "Certificate of Indigency": ["Valid ID", "Supporting proof (optional)"],
-  "Certificate of Residency": ["Valid ID"],
-  "Certificate of Good Moral Character": ["Valid ID", "Community endorsement (if requested)"],
-  "Certificate of Solo Parent": ["Valid ID", "Solo Parent ID or supporting proof"],
-  "Business Clearance": ["Business permit copy", "Valid ID"]
+  "Barangay Certificate": ["Valid ID"],
+  "Barangay Indigency": ["Valid ID", "Supporting proof (optional)"]
+};
+
+const purposeOptionsByType = {
+  "Barangay Certificate": [
+    "Application for Employment",
+    "School Admission/Requirement",
+    "Hospital Purpose",
+    "Processing of Calamity",
+    "Medical Purpose",
+    "For Livelihood Loan",
+    "Bank Transaction",
+    "Indigent Family",
+    "Organized Vending Permit",
+    "DSWD Requirement",
+    "For Travel Abroad",
+    "Transfer of Residence",
+    "Others"
+  ],
+  "Barangay Indigency": [
+    "Financial Assistance",
+    "Medical Purpose",
+    "Hospital Purpose",
+    "DSWD Requirement",
+    "Others"
+  ]
 };
 
 const allowedMimeTypes = ["image/jpeg", "image/png", "application/pdf"];
@@ -153,19 +175,59 @@ function updateRequirements() {
   });
 }
 
-function toggleConditionalFields() {
-  const isBusiness = certificateType.value === "Business Clearance";
-  businessNameWrap.classList.toggle("hidden", !isBusiness);
-  businessAddressWrap.classList.toggle("hidden", !isBusiness);
+function populatePurposeOptions() {
+  if (!purpose) return;
+  const selectedType = certificateType ? certificateType.value : "";
+  const isIndigency = selectedType === "Barangay Indigency";
 
-  if (!isBusiness) {
-    businessName.value = "";
-    businessAddress.value = "";
-    setError("businessNameError", "");
-    setError("businessAddressError", "");
+  if (purposeFieldWrap) {
+    purposeFieldWrap.classList.toggle("hidden", isIndigency);
   }
 
-  const isOthers = purpose.value === "Others";
+  if (isIndigency) {
+    purpose.value = "";
+    purpose.disabled = true;
+    if (purposeOtherWrap) purposeOtherWrap.classList.add("hidden");
+    if (purposeOther) purposeOther.value = "";
+    setError("purposeError", "");
+    setError("purposeOtherError", "");
+    return;
+  }
+
+  const options = purposeOptionsByType[selectedType] || [];
+  const previousValue = purpose.value;
+
+  purpose.innerHTML = "";
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = options.length ? "Select purpose" : "Select certificate type first";
+  purpose.appendChild(defaultOption);
+
+  options.forEach((optionText) => {
+    const option = document.createElement("option");
+    option.value = optionText;
+    option.textContent = optionText;
+    purpose.appendChild(option);
+  });
+
+  purpose.disabled = options.length === 0;
+  if (options.includes(previousValue)) {
+    purpose.value = previousValue;
+  } else {
+    purpose.value = "";
+  }
+}
+
+function toggleConditionalFields() {
+  if (businessNameWrap) businessNameWrap.classList.add("hidden");
+  if (businessAddressWrap) businessAddressWrap.classList.add("hidden");
+  if (businessName) businessName.value = "";
+  if (businessAddress) businessAddress.value = "";
+  setError("businessNameError", "");
+  setError("businessAddressError", "");
+
+  const isIndigency = certificateType && certificateType.value === "Barangay Indigency";
+  const isOthers = !isIndigency && purpose.value === "Others";
   purposeOtherWrap.classList.toggle("hidden", !isOthers);
 
   if (!isOthers) {
@@ -175,7 +237,10 @@ function toggleConditionalFields() {
 }
 
 function updateSummary() {
-  const selectedPurpose = purpose.value === "Others" ? (purposeOther.value.trim() || "Others") : (purpose.value || "-");
+  const isIndigency = certificateType && certificateType.value === "Barangay Indigency";
+  const selectedPurpose = isIndigency
+    ? "Not required"
+    : (purpose.value === "Others" ? (purposeOther.value.trim() || "Others") : (purpose.value || "-"));
   summaryCertificate.textContent = certificateType.value || "-";
   summaryPurpose.textContent = selectedPurpose;
   summaryDocuments.textContent = selectedFiles.length ? selectedFiles.map((file) => file.name).join(", ") : "None";
@@ -221,23 +286,15 @@ function validateFormClient() {
     valid = false;
   }
 
-  if (!purpose.value) {
-    setError("purposeError", "Please select a purpose category.");
-    valid = false;
-  }
-
-  if (purpose.value === "Others" && !purposeOther.value.trim()) {
-    setError("purposeOtherError", "Please specify the purpose.");
-    valid = false;
-  }
-
-  if (certificateType.value === "Business Clearance") {
-    if (!businessName.value.trim()) {
-      setError("businessNameError", "Business name is required.");
+  const isIndigency = certificateType.value === "Barangay Indigency";
+  if (!isIndigency) {
+    if (!purpose.value) {
+      setError("purposeError", "Please select a purpose category.");
       valid = false;
     }
-    if (!businessAddress.value.trim()) {
-      setError("businessAddressError", "Business address is required.");
+
+    if (purpose.value === "Others" && !purposeOther.value.trim()) {
+      setError("purposeOtherError", "Please specify the purpose.");
       valid = false;
     }
   }
@@ -284,6 +341,7 @@ if (uploadBox) {
 
 if (certificateType) {
   certificateType.addEventListener("change", () => {
+    populatePurposeOptions();
     toggleConditionalFields();
     updateRequirements();
     updateSummary();
@@ -339,6 +397,7 @@ window.addEventListener("resize", () => {
 });
 
 setDateBadges();
+populatePurposeOptions();
 toggleConditionalFields();
 updateRequirements();
 updateSummary();
