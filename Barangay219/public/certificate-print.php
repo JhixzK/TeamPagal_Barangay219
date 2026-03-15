@@ -17,10 +17,31 @@ $db = Database::getInstance();
 $cert = $db->fetchOne("SELECT * FROM certificate_requests WHERE id = ?", [$id]);
 if (!$cert) { header('Location: ' . BASE_URL . 'certificates.php'); exit; }
 
+$residentRow = null;
+$residentId = (int)($cert['resident_id'] ?? 0);
+if ($residentId > 0) {
+    $residentRow = $db->fetchOne(
+        "SELECT first_name, middle_name, last_name, address, birth_date, civil_status FROM residents WHERE id = ? LIMIT 1",
+        [$residentId]
+    );
+}
+
 $fullName = trim((string)($cert['cert_name'] ?? ''));
 $certAddress = trim((string)($cert['cert_address'] ?? ''));
 $purposeText = trim((string)($cert['cert_purpose'] ?? $cert['purpose'] ?? ''));
 $certBody = trim((string)($cert['cert_body'] ?? ''));
+
+if ($fullName === '' && $residentRow) {
+    $fullName = trim(
+        (string)($residentRow['first_name'] ?? '') . ' '
+        . ((string)($residentRow['middle_name'] ?? '') !== '' ? (string)$residentRow['middle_name'] . ' ' : '')
+        . (string)($residentRow['last_name'] ?? '')
+    );
+}
+
+if ($certAddress === '' && $residentRow) {
+    $certAddress = trim((string)($residentRow['address'] ?? ''));
+}
 
 if ($fullName === '') {
     $fullName = 'N/A';
@@ -99,13 +120,11 @@ $placeholderValues = [
     '[CONTROL_NUMBER]' => $controlNum
 ];
 
-$residentAge = '';
+$residentAge = trim((string)($cert['cert_age'] ?? ''));
 $residentCivilStatus = '';
-$residentId = (int)($cert['resident_id'] ?? 0);
-if ($residentId > 0) {
-    $residentRow = $db->fetchOne("SELECT birth_date, civil_status FROM residents WHERE id = ? LIMIT 1", [$residentId]);
-    if ($residentRow) {
-        $residentCivilStatus = trim((string)($residentRow['civil_status'] ?? ''));
+if ($residentRow) {
+    $residentCivilStatus = trim((string)($residentRow['civil_status'] ?? ''));
+    if ($residentAge === '') {
         $birthDateRaw = trim((string)($residentRow['birth_date'] ?? ''));
         if ($birthDateRaw !== '') {
             $birthTs = strtotime($birthDateRaw);
