@@ -1,13 +1,54 @@
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.getElementById('loginForm');
+    const passwordError = document.getElementById('passwordError');
+    const passwordInput = document.getElementById('password');
+    const passwordGroup = passwordInput ? passwordInput.closest('.input-group') : null;
     if (!loginForm) {
         console.error('Login form not found');
         return;
     }
+
+    function clearInlinePasswordError() {
+        if (!passwordError) {
+            return;
+        }
+        passwordError.textContent = '';
+        passwordError.classList.remove('is-visible');
+        if (passwordInput) {
+            passwordInput.classList.remove('is-invalid');
+            passwordInput.removeAttribute('aria-invalid');
+        }
+        if (passwordGroup) {
+            passwordGroup.classList.remove('password-invalid');
+        }
+    }
+
+    function showInlinePasswordError(message) {
+        if (!passwordError) {
+            return;
+        }
+        passwordError.textContent = message;
+        passwordError.classList.add('is-visible');
+        if (passwordInput) {
+            passwordInput.classList.add('is-invalid');
+            passwordInput.setAttribute('aria-invalid', 'true');
+            passwordInput.focus();
+            passwordInput.select();
+        }
+        if (passwordGroup) {
+            passwordGroup.classList.add('password-invalid');
+        }
+    }
+
+    if (passwordInput) {
+        passwordInput.addEventListener('input', clearInlinePasswordError);
+    }
     
     loginForm.addEventListener('submit', function(e) {
         e.preventDefault();
+        clearInlinePasswordError();
+        showAlert('', '');
         const formData = new FormData(this);
         formData.append('action', 'login');
         
@@ -62,12 +103,18 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(d => {
             console.log('Response data:', d);
             if (d.success) {
+                clearInlinePasswordError();
                 showAlert('success', 'Login successful! Redirecting...');
                 setTimeout(() => {
                     window.location.href = d.data.redirect;
                 }, 500);
             } else {
-                showAlert('danger', d.message || 'Login failed. Please check your credentials.');
+                const message = d.message || 'Login failed. Please check your credentials.';
+                if (message.toLowerCase().includes('invalid username or password') || message.toLowerCase().includes('wrong username/password')) {
+                    showInlinePasswordError('Wrong username/password. Please try again.');
+                } else {
+                    showAlert('danger', message);
+                }
                 submitButton.disabled = false;
                 submitButton.innerHTML = originalButtonText;
             }
@@ -90,8 +137,13 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 errorMessage += e.message || 'Please try again.';
             }
-            
-            showAlert('danger', errorMessage);
+
+            if (e.message.includes('HTTP error! status: 401')) {
+                showInlinePasswordError('Wrong username/password. Please try again.');
+                showAlert('', '');
+            } else {
+                showAlert('danger', errorMessage);
+            }
             submitButton.disabled = false;
             submitButton.innerHTML = originalButtonText;
         });
@@ -100,6 +152,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function showAlert(type, message) {
     const container = document.getElementById('alertContainer');
+    if (!container) {
+        return;
+    }
+    if (!type || !message) {
+        container.innerHTML = '';
+        return;
+    }
     container.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
