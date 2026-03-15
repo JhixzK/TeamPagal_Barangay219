@@ -713,7 +713,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 'AS PER REQUIREMENT IN SUPPORTING HIS/HER DOCUMENT',
                 '[PURPOSE_CHECKLIST]',
                 '',
-                'IN WITNESS WHEREOF, I have hereunto set my hand and affixed the official seal of this office. Done in the Barangay Hall Barangay 219, Zone 20, District II, City of Manila this [DATE_ISSUED].'
+                'IN WITNESS WHEREOF, I have hereunto set my hand and affixed the official seal of this office. Done in the Barangay Hall, Barangay 219, Zone 20, District II, City of Manila, this [DATE_ISSUED].'
             ].join('\n');
         }
 
@@ -744,11 +744,20 @@ include __DIR__ . '/../includes/sidebar.php';
         if (!dateValue) return '';
         const parsed = new Date(dateValue + 'T00:00:00');
         if (Number.isNaN(parsed.getTime())) return dateValue;
-        return parsed.toLocaleDateString('en-US', {
+        const day = parsed.getDate();
+        const mod100 = day % 100;
+        let suffix = 'th';
+        if (mod100 < 11 || mod100 > 13) {
+            const mod10 = day % 10;
+            if (mod10 === 1) suffix = 'st';
+            else if (mod10 === 2) suffix = 'nd';
+            else if (mod10 === 3) suffix = 'rd';
+        }
+        const monthYear = parsed.toLocaleDateString('en-US', {
             year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
+            month: 'long'
         });
+        return `${day}${suffix} day of ${monthYear}`;
     }
 
     function calculateAgeFromBirthDate(birthDateValue) {
