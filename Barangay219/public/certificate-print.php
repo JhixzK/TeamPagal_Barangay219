@@ -10,12 +10,41 @@ require_once __DIR__ . '/../includes/auth-check.php';
 requireLogin();
 requireModuleAccess('certificates');
 
-$id = (int)($_GET['id'] ?? 0);
+$previewMode = (($_POST['preview'] ?? $_GET['preview'] ?? '') === '1');
+$id = (int)($_POST['id'] ?? $_GET['id'] ?? 0);
 if (!$id) { header('Location: ' . BASE_URL . 'certificates.php'); exit; }
 
 $db = Database::getInstance();
 $cert = $db->fetchOne("SELECT * FROM certificate_requests WHERE id = ?", [$id]);
 if (!$cert) { header('Location: ' . BASE_URL . 'certificates.php'); exit; }
+
+if ($previewMode) {
+    $previewName = trim((string)($_POST['cert_name'] ?? $_GET['cert_name'] ?? ''));
+    $previewAddress = trim((string)($_POST['cert_address'] ?? $_GET['cert_address'] ?? ''));
+    $previewPurpose = trim((string)($_POST['cert_purpose'] ?? $_GET['cert_purpose'] ?? ''));
+    $previewBody = trim((string)($_POST['cert_body'] ?? $_GET['cert_body'] ?? ''));
+    $previewDateIssued = trim((string)($_POST['date_issued'] ?? $_GET['date_issued'] ?? ''));
+    $previewControl = trim((string)($_POST['control_number'] ?? $_GET['control_number'] ?? ''));
+
+    if ($previewName !== '') {
+        $cert['cert_name'] = $previewName;
+    }
+    if ($previewAddress !== '') {
+        $cert['cert_address'] = $previewAddress;
+    }
+    if ($previewPurpose !== '') {
+        $cert['cert_purpose'] = $previewPurpose;
+    }
+    if ($previewBody !== '') {
+        $cert['cert_body'] = $previewBody;
+    }
+    if ($previewDateIssued !== '') {
+        $cert['date_issued'] = $previewDateIssued;
+    }
+    if ($previewControl !== '' && stripos($previewControl, 'Auto-generated on issue') !== 0) {
+        $cert['control_number'] = $previewControl;
+    }
+}
 
 $residentRow = null;
 $residentId = (int)($cert['resident_id'] ?? 0);
@@ -53,6 +82,7 @@ if ($certAddress === '') {
 
 // Certificate format requirement: display postal address up to "Tondo, Manila" only.
 $certAddress = preg_replace('/\s+/', ' ', $certAddress) ?? $certAddress;
+$certAddress = preg_replace('/,\s*Metro\s+Manila\.?$/i', '', $certAddress) ?? $certAddress;
 if (preg_match('/^(.*?\bTondo),/i', $certAddress, $matches)) {
     $certAddress = trim($matches[1]) . ', Manila';
 }
@@ -265,6 +295,8 @@ if ($certBody !== '') {
     $resolvedBody = preg_replace('/\bTondo,\s*Manila,\s*Metro Manila,\s*Manila\b/i', 'Tondo, Manila', $resolvedBody) ?? $resolvedBody;
     // Remove duplicate trailing Manila in postal-address sentence after address edits.
     $resolvedBody = preg_replace('/(postal\s+address\s+at\s+[^.]*\bManila)\s*,\s*Manila(\.)/i', '$1$2', $resolvedBody) ?? $resolvedBody;
+    // Remove Metro Manila suffix in address phrases for cleaner output.
+    $resolvedBody = preg_replace('/,\s*Metro\s+Manila(\.)/i', '$1', $resolvedBody) ?? $resolvedBody;
     // Treat saved body as final snapshot text. Split by blank lines into printable paragraphs.
     $blocks = preg_split('/\R{2,}/', trim($resolvedBody));
     $paragraphs = [];
