@@ -51,7 +51,7 @@ function getStatistics() {
             'pending_applications' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'pending'")['count'],
             'pending_blotters' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM blotters WHERE status = 'pending'")['count'],
             'pending_complaints' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM complaints WHERE status IN ('pending', 'Pending Review', 'Under Investigation', 'Scheduled for Mediation')")['count'],
-            'issued_certificates' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'issued'")['count'],
+            'issued_certificates' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status IN ('released', 'issued')")['count'],
             'resolved_blotters' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM blotters WHERE status IN ('resolved', 'settled')")['count'],
             'resolved_complaints' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM complaints WHERE status IN ('resolved', 'Resolved')")['count'],
             'active_announcements' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM announcements WHERE status = 'active'")['count']
@@ -138,7 +138,7 @@ function getModuleStats($module) {
                     "COALESCE(SUM(status = 'pending'), 0) AS pending,\n" .
                     "COALESCE(SUM(status = 'approved'), 0) AS approved,\n" .
                     "COALESCE(SUM(status = 'rejected'), 0) AS rejected,\n" .
-                    "COALESCE(SUM(status = 'issued'), 0) AS issued\n" .
+                    "COALESCE(SUM(status IN ('released', 'issued')), 0) AS issued\n" .
                     "FROM certificate_requests"
                 );
                 $stats = [
@@ -217,7 +217,7 @@ function getModuleStats($module) {
                 $stats = [
                     'total_residents' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM residents WHERE status = 'active'")['count'],
                     'total_households' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM households")['count'],
-                    'issued_certificates' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'issued'")['count'],
+                    'issued_certificates' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status IN ('released', 'issued')")['count'],
                     'pending_applications' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'pending'")['count'],
                     'pending_complaints' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM complaints WHERE status IN ('pending', 'Pending Review', 'Under Investigation', 'Scheduled for Mediation')")['count'],
                     'active_announcements' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM announcements WHERE status = 'active'")['count']
@@ -255,7 +255,7 @@ function getModuleStats($module) {
                 if ($residentId) {
                     $certRow = $db->fetchOne(
                         "SELECT COUNT(*) AS total,\n" .
-                        "COALESCE(SUM(status = 'issued'), 0) AS issued,\n" .
+                        "COALESCE(SUM(status IN ('released', 'issued')), 0) AS issued,\n" .
                         "COALESCE(SUM(status = 'pending'), 0) AS pending\n" .
                         "FROM certificate_requests WHERE resident_id = ?",
                         [$residentId]
