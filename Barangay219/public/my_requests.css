@@ -507,11 +507,6 @@ body:has(.sidebar.expanded) .main-content {
   color: #a86500;
 }
 
-.badge.under-review {
-  background: #e4efff;
-  color: #2c5db8;
-}
-
 .badge.approved {
   background: #dcf7ec;
   color: #127852;
@@ -527,9 +522,9 @@ body:has(.sidebar.expanded) .main-content {
   color: #6f3fb0;
 }
 
-.badge.completed {
-  background: #ebedf0;
-  color: #5f6978;
+.badge.released {
+  background: #e3f7ef;
+  color: #187b52;
 }
 
 .badge.paid {
