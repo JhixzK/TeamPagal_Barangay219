@@ -104,6 +104,21 @@ $issuedDate = date('F d, Y', $issuedTs);
 $issuedDay = (int)date('j', $issuedTs);
 $issuedMonthYear = date('F Y', $issuedTs);
 
+function ordinalDay(int $day): string {
+    $mod100 = $day % 100;
+    if ($mod100 >= 11 && $mod100 <= 13) {
+        return $day . 'th';
+    }
+    switch ($day % 10) {
+        case 1: return $day . 'st';
+        case 2: return $day . 'nd';
+        case 3: return $day . 'rd';
+        default: return $day . 'th';
+    }
+}
+
+$issuedOrdinal = ordinalDay($issuedDay);
+
 $certificateBackgroundUrl = null;
 $backgroundCandidates = [
     __DIR__ . '/assets/img/cert-template/certificate-request-bg.jpg' => ASSETS_URL . 'img/cert-template/certificate-request-bg.jpg',
@@ -274,7 +289,7 @@ $defaultParagraphsBarangay = [
     'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, is a bonafide resident of this Barangay 219, Zone 20, District II, Tondo, Manila with his/her postal address at <strong>' . htmlspecialchars($certAddress) . '</strong>',
     'This certification was issued upon the request of the above mentioned name for whatever legal purpose that may serve him/her best.',
     '<strong>AS PER REQUIREMENT IN SUPPORTING HIS/HER DOCUMENT</strong>' . buildPurposeChecklistHtml($purposeText),
-    'IN WITNESS WHEREOF, I have hereunto set my hand and affixed the official seal of this office. Done in the Barangay Hall Barangay 219, Zone 20, District II, City of Manila this <strong>' . $issuedDay . '</strong> day of <strong>' . htmlspecialchars($issuedMonthYear) . '</strong>.'
+    'IN WITNESS WHEREOF, I have hereunto set my hand and affixed the official seal of this office. Done in the Barangay Hall, Barangay 219, Zone 20, District II, City of Manila, this <strong>' . htmlspecialchars($issuedOrdinal) . '</strong> day of <strong>' . htmlspecialchars($issuedMonthYear) . '</strong>.'
 ];
 
 $defaultParagraphsIndigency = [
