@@ -48,7 +48,15 @@ function normalizeIdentifier($value) {
     return strtolower(preg_replace('/[^a-z0-9]/i', '', (string)$value));
 }
 
-function findDuplicateApplication($db, $first_name, $last_name, $birth_date, $mobile_number, $valid_id_type, $valid_id_number) {
+function normalizePhoneNumber($value) {
+    return preg_replace('/\D/', '', (string)$value);
+}
+
+function normalizeEmailAddress($value) {
+    return strtolower(trim((string)$value));
+}
+
+function findDuplicateApplication($db, $first_name, $last_name, $birth_date, $mobile_number, $email, $valid_id_type, $valid_id_number) {
     $normalizedId = normalizeIdentifier($valid_id_number);
 
     if ($normalizedId !== '') {
@@ -63,6 +71,7 @@ function findDuplicateApplication($db, $first_name, $last_name, $birth_date, $mo
             [$valid_id_type, $normalizedId]
         );
         if (!empty($byId)) {
+            $byId['match_type'] = 'valid_id';
             return $byId;
         }
     }
@@ -73,14 +82,120 @@ function findDuplicateApplication($db, $first_name, $last_name, $birth_date, $mo
          WHERE LOWER(first_name) = LOWER(?)
            AND LOWER(last_name) = LOWER(?)
            AND birth_date = ?
-           AND mobile_number = ?
            AND record_status IN ('pending', 'approved')
          ORDER BY id DESC
          LIMIT 1",
-        [$first_name, $last_name, $birth_date, $mobile_number]
+        [$first_name, $last_name, $birth_date]
     );
+    if (!empty($byIdentity)) {
+        $byIdentity['match_type'] = 'name_birthdate';
+        return $byIdentity;
+    }
 
-    return $byIdentity ?: null;
+    if ($mobile_number !== '') {
+        $byPhone = $db->fetchOne(
+            "SELECT id, application_ref, record_status, created_at
+             FROM resident_applications
+             WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_number, ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') = ?
+               AND record_status IN ('pending', 'approved')
+             ORDER BY id DESC
+             LIMIT 1",
+            [$mobile_number]
+        );
+        if (!empty($byPhone)) {
+            $byPhone['match_type'] = 'phone_number';
+            return $byPhone;
+        }
+    }
+
+    if ($email !== '') {
+        $byEmail = $db->fetchOne(
+            "SELECT id, application_ref, record_status, created_at
+             FROM resident_applications
+             WHERE LOWER(email) = LOWER(?)
+               AND record_status IN ('pending', 'approved')
+             ORDER BY id DESC
+             LIMIT 1",
+            [$email]
+        );
+        if (!empty($byEmail)) {
+            $byEmail['match_type'] = 'email_address';
+            return $byEmail;
+        }
+    }
+
+    return null;
+}
+
+function findExistingResidentOrAccount($db, $resident_identifier, $first_name, $last_name, $birth_date, $mobile_number, $email) {
+    if (tableExists($db, 'residents')) {
+        if ($resident_identifier !== '') {
+            $byResidentCode = $db->fetchOne(
+                "SELECT id, resident_code, first_name, last_name, birth_date, contact_number, email
+                 FROM residents
+                 WHERE resident_code = ?
+                 LIMIT 1",
+                [$resident_identifier]
+            );
+            if (!empty($byResidentCode)) {
+                return ['match_type' => 'resident_id', 'record' => $byResidentCode];
+            }
+        }
+
+        $byIdentity = $db->fetchOne(
+            "SELECT id, resident_code, first_name, last_name, birth_date, contact_number, email
+             FROM residents
+             WHERE LOWER(first_name) = LOWER(?)
+               AND LOWER(last_name) = LOWER(?)
+               AND birth_date = ?
+             LIMIT 1",
+            [$first_name, $last_name, $birth_date]
+        );
+        if (!empty($byIdentity)) {
+            return ['match_type' => 'name_birthdate', 'record' => $byIdentity];
+        }
+
+        if ($mobile_number !== '') {
+            $byPhone = $db->fetchOne(
+                "SELECT id, resident_code, first_name, last_name, birth_date, contact_number, email
+                 FROM residents
+                 WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(contact_number, ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') = ?
+                 LIMIT 1",
+                [$mobile_number]
+            );
+            if (!empty($byPhone)) {
+                return ['match_type' => 'phone_number', 'record' => $byPhone];
+            }
+        }
+
+        if ($email !== '') {
+            $byResidentEmail = $db->fetchOne(
+                "SELECT id, resident_code, first_name, last_name, birth_date, contact_number, email
+                 FROM residents
+                 WHERE LOWER(email) = LOWER(?)
+                 LIMIT 1",
+                [$email]
+            );
+            if (!empty($byResidentEmail)) {
+                return ['match_type' => 'email_address', 'record' => $byResidentEmail];
+            }
+        }
+    }
+
+    if ($email !== '' && tableExists($db, 'users')) {
+        $byUserEmail = $db->fetchOne(
+            "SELECT id, username, resident_id, status
+             FROM users
+             WHERE LOWER(email) = LOWER(?)
+             LIMIT 1",
+            [$email]
+        );
+        if (!empty($byUserEmail)) {
+            return ['match_type' => 'email_address', 'record' => $byUserEmail];
+        }
+    }
+
+    return null;
 }
 
 function tableExists($db, $table) {
@@ -122,9 +237,11 @@ $sex = strtolower(sanitize($_POST['sex'] ?? ''));
 $birth_date = $_POST['birth_date'] ?? '';
 $civil_status = strtolower(sanitize($_POST['civil_status'] ?? ''));
 $citizenship = sanitize($_POST['citizenship'] ?? 'Filipino');
-$mobile_number = preg_replace('/\D/', '', sanitize($_POST['mobile_number'] ?? ''));
+$mobile_number = normalizePhoneNumber($_POST['mobile_number'] ?? '');
+$email = normalizeEmailAddress($_POST['email'] ?? '');
+$resident_identifier = sanitize($_POST['resident_id'] ?? ($_POST['resident_code'] ?? ''));
 $emergency_contact_name = sanitize($_POST['emergency_contact_name'] ?? '');
-$emergency_contact_number = preg_replace('/\D/', '', sanitize($_POST['emergency_contact_number'] ?? ''));
+$emergency_contact_number = normalizePhoneNumber($_POST['emergency_contact_number'] ?? '');
 $emergency_contact_relationship = sanitize($_POST['emergency_contact_relationship'] ?? '');
 $valid_id_type = sanitize($_POST['valid_id_type'] ?? '');
 $valid_id_number = sanitize($_POST['valid_id_number'] ?? '');
@@ -138,6 +255,7 @@ if (!in_array($sex, ['male', 'female', 'other'])) $errors[] = 'Valid sex is requ
 if (!$birth_date || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $birth_date)) $errors[] = 'Valid date of birth is required.';
 if (strtotime($birth_date) > time()) $errors[] = 'Date of birth cannot be in the future.';
 if (!strlen($mobile_number) || strlen($mobile_number) < 10) $errors[] = 'Valid mobile number is required.';
+if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Valid email address is required.';
 if (!$emergency_contact_name) $errors[] = 'Emergency contact name is required.';
 if (!$emergency_contact_number || strlen($emergency_contact_number) < 10) $errors[] = 'Emergency contact number is required.';
 if (!$emergency_contact_relationship) $errors[] = 'Emergency contact relationship is required.';
@@ -163,12 +281,40 @@ try {
         sendJson(false, 'A similar registration is currently being processed. Please wait a moment and try again.', null, 429);
     }
 
-    $duplicate = findDuplicateApplication($db, $first_name, $last_name, $birth_date, $mobile_number, $valid_id_type, $valid_id_number);
+    $duplicate = findDuplicateApplication($db, $first_name, $last_name, $birth_date, $mobile_number, $email, $valid_id_type, $valid_id_number);
     if (!empty($duplicate)) {
-        sendJson(false, 'Duplicate submission detected. An application with the same identity already exists.', [
+        $matchType = $duplicate['match_type'] ?? 'identity';
+        $matchLabels = [
+            'valid_id' => 'valid ID',
+            'name_birthdate' => 'full name and birthdate',
+            'phone_number' => 'phone number',
+            'email_address' => 'email address',
+            'identity' => 'identity details'
+        ];
+        $matchLabel = $matchLabels[$matchType] ?? $matchLabels['identity'];
+
+        sendJson(false, 'Registration not accepted. A pending/approved application with the same ' . $matchLabel . ' already exists.', [
+            'match_type' => $matchType,
             'existing_application_ref' => $duplicate['application_ref'] ?? null,
             'existing_status' => $duplicate['record_status'] ?? null,
             'existing_created_at' => $duplicate['created_at'] ?? null
+        ], 409);
+    }
+
+    $existingResident = findExistingResidentOrAccount($db, $resident_identifier, $first_name, $last_name, $birth_date, $mobile_number, $email);
+    if (!empty($existingResident)) {
+        $matchType = $existingResident['match_type'] ?? 'identity';
+        $matchLabels = [
+            'resident_id' => 'Resident ID',
+            'name_birthdate' => 'full name and birthdate',
+            'phone_number' => 'phone number',
+            'email_address' => 'email address',
+            'identity' => 'identity details'
+        ];
+        $matchLabel = $matchLabels[$matchType] ?? $matchLabels['identity'];
+
+        sendJson(false, 'Registration not accepted. This resident already has an account record (matched by ' . $matchLabel . ').', [
+            'match_type' => $matchType
         ], 409);
     }
 } catch (Exception $e) {
@@ -236,7 +382,6 @@ $house_number = sanitize($_POST['house_number'] ?? '');
 $street = sanitize($_POST['street'] ?? '');
 $purok_sitio = sanitize($_POST['purok_sitio'] ?? '');
 $length_of_residency_years = isset($_POST['length_of_residency_years']) ? (int)$_POST['length_of_residency_years'] : null;
-$email = sanitize($_POST['email'] ?? '');
 $educational_attainment = sanitize($_POST['educational_attainment'] ?? '');
 $employment_status = sanitize($_POST['employment_status'] ?? '');
 $occupation = sanitize($_POST['occupation'] ?? '');
