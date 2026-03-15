@@ -24,7 +24,6 @@ const closeModalBtn = document.getElementById("closeModalBtn");
 
 const PAGE_SIZE = 5;
 const LIST_API_URL = "../api/certificates/list.php";
-const CANCEL_API_URL = "../api/certificates/cancel.php";
 let currentPage = 1;
 let requests = [];
 
@@ -50,11 +49,11 @@ function slugStatus(status) {
 function displayStatus(status) {
   const labelMap = {
     pending: "Pending",
-    under_review: "Under Review",
     approved: "Approved",
+    ready_for_pickup: "Ready for Pickup",
     rejected: "Rejected",
-    issued: "Issued",
-    cancelled: "Cancelled"
+    released: "Released",
+    issued: "Released"
   };
   return labelMap[status] || status;
 }
@@ -62,13 +61,10 @@ function displayStatus(status) {
 function normalizeFilterStatus(label) {
   const map = {
     Pending: ["pending"],
-    "Under Review": ["under_review"],
     Approved: ["approved"],
+    "Ready for Pickup": ["ready_for_pickup"],
     Rejected: ["rejected"],
-    "Ready for Pickup": ["issued"],
-    Completed: ["issued"],
-    Issued: ["issued"],
-    Cancelled: ["cancelled"]
+    Released: ["released", "issued"]
   };
   return map[label] || [];
 }
@@ -118,16 +114,6 @@ function buildActionButtons(request) {
   viewBtn.dataset.action = "view";
   viewBtn.dataset.id = String(request.numericId);
   container.appendChild(viewBtn);
-
-  if (request.rawStatus === "pending") {
-    const cancelBtn = document.createElement("button");
-    cancelBtn.className = "btn-action cancel";
-    cancelBtn.textContent = "Cancel Request";
-    cancelBtn.type = "button";
-    cancelBtn.dataset.action = "cancel";
-    cancelBtn.dataset.id = String(request.numericId);
-    container.appendChild(cancelBtn);
-  }
 
   return container;
 }
@@ -225,16 +211,6 @@ function openDetailsModal(request) {
   modalContent.innerHTML = detailsHtml;
   modalActions.innerHTML = "";
 
-  if (request.rawStatus === "pending") {
-    const cancelBtn = document.createElement("button");
-    cancelBtn.type = "button";
-    cancelBtn.className = "btn-primary";
-    cancelBtn.textContent = "Cancel Request";
-    cancelBtn.dataset.action = "cancel";
-    cancelBtn.dataset.id = String(request.numericId);
-    modalActions.appendChild(cancelBtn);
-  }
-
   const closeBtn = document.createElement("button");
   closeBtn.type = "button";
   closeBtn.className = "btn-secondary";
@@ -247,22 +223,6 @@ function openDetailsModal(request) {
 
 function closeModal() {
   detailsModal.classList.add("hidden");
-}
-
-async function cancelRequest(requestId) {
-  const body = new FormData();
-  body.append("id", String(requestId));
-
-  const response = await fetch(CANCEL_API_URL, {
-    method: "POST",
-    body,
-    credentials: "same-origin"
-  });
-
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Unable to cancel request.");
-  }
 }
 
 async function handleTableAction(event) {
@@ -283,20 +243,6 @@ async function handleTableAction(event) {
     return;
   }
 
-  if (action === "cancel") {
-    const confirmCancel = window.confirm("Cancel this pending request?");
-    if (!confirmCancel) {
-      return;
-    }
-
-    try {
-      await cancelRequest(request.numericId);
-      closeModal();
-      await loadRequests();
-    } catch (error) {
-      window.alert(error.message || "Unable to cancel request.");
-    }
-  }
 }
 
 function mapApiRequest(row) {
@@ -355,14 +301,12 @@ function applyInitialStatusFilterFromUrl() {
   const map = {
     all: "All",
     pending: "Pending",
-    under_review: "Under Review",
-    "under review": "Under Review",
     approved: "Approved",
-    rejected: "Rejected",
-    issued: "Ready for Pickup",
+    ready_for_pickup: "Ready for Pickup",
     "ready for pickup": "Ready for Pickup",
-    completed: "Completed",
-    cancelled: "Cancelled"
+    rejected: "Rejected",
+    released: "Released",
+    issued: "Released"
   };
 
   const target = map[normalized];
