@@ -312,6 +312,9 @@ include __DIR__ . '/../includes/sidebar.php';
     let applicationFilters = { q: '', type: '', from: '', to: '' };
     let releaseAutoBodyEnabled = true;
     let releaseLastAutoBody = '';
+    let currentReleaseCertificateType = '';
+    let currentReleaseBirthDate = '';
+    let currentReleaseCivilStatus = '';
     const APP_PERMS = {
         canCreate: window.canModulePermission
             ? (window.canModulePermission('applications', 'can_create') || window.canModulePermission('certificates', 'can_create'))
@@ -462,7 +465,80 @@ include __DIR__ . '/../includes/sidebar.php';
         return c[s] || 'secondary';
     }
 
-    function buildDefaultCertificateTemplate() {
+    function normalizeCertificateType(certificateType = '') {
+        return String(certificateType || '').trim().toLowerCase().replace(/_/g, ' ');
+    }
+
+    function normalizePurposeText(text = '') {
+        return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    function buildBarangayPurposeChecklist(selectedPurpose = '') {
+        const normalizedSelected = normalizePurposeText(selectedPurpose);
+        const leftRightPairs = [
+            ['Application for Employment', 'School Admission/Requirement'],
+            ['Hospital Purpose', 'Processing of Calamity'],
+            ['Medical Purpose', 'For Livelihood Loan'],
+            ['Bank Transaction', 'Indigent Family'],
+            ['Organized Vending Permit', 'DSWD Requirement'],
+            ['For Travel Abroad', 'Transfer of Residence']
+        ];
+
+        const allKnownPurposes = leftRightPairs.flat();
+        const isKnownPurpose = allKnownPurposes.some(item => normalizePurposeText(item) === normalizedSelected);
+        const isOthersSelected = normalizedSelected !== '' && !isKnownPurpose;
+
+        const marked = (label) => {
+            const selected = normalizePurposeText(label) === normalizedSelected;
+            return `(${selected ? '✓' : ' '}) ${label}`;
+        };
+
+        const lines = leftRightPairs.map(([left, right]) => `${marked(left)}\t${marked(right)}`);
+        const otherValue = isOthersSelected ? selectedPurpose : '[PURPOSE]';
+        lines.push(`(${isOthersSelected ? '✓' : ' '}) Others: ${otherValue}`);
+        return lines.join('\n');
+    }
+
+    function buildDefaultCertificateTemplate(certificateType = '') {
+        const normalizedType = normalizeCertificateType(certificateType);
+        const isBarangayCertificate = (
+            normalizedType === 'barangay certificate'
+            || normalizedType === 'barangay clearance'
+            || normalizedType === 'barangay_clearance'
+        );
+        const isIndigencyCertificate = (
+            normalizedType === 'certificate of indigency'
+            || normalizedType === 'certificate indigency'
+            || normalizedType === 'certificate_indigency'
+        );
+
+        if (isBarangayCertificate) {
+            return [
+                'TO WHOM IT MAY CONCERN:',
+                '',
+                'This is to certify that [NAME], [AGE] years old, [CIVIL_STATUS], is a bonafide resident of this Barangay 219, Zone 20, District II, Tondo, Manila with his/her postal address at [ADDRESS], Manila.',
+                '',
+                'This certification was issued upon the request of the above mentioned name for whatever legal purpose that may serve him/her best.',
+                '',
+                'AS PER REQUIREMENT IN SUPPORTING HIS/HER DOCUMENT',
+                '[PURPOSE_CHECKLIST]',
+                '',
+                'IN WITNESS WHEREOF, I have hereunto set my hand and affixed the official seal of this office. Done in the Barangay Hall Barangay 219, Zone 20, District II, City of Manila this [DATE_ISSUED].'
+            ].join('\n');
+        }
+
+        if (isIndigencyCertificate) {
+            return [
+                'TO WHOM IT MAY CONCERN:',
+                '',
+                'This is to certify that [NAME], [AGE] years of age, [CIVIL_STATUS], is a bonafide resident of BARANGAY 219 Zone 20 with postal address at [ADDRESS].',
+                '',
+                'This is to further certify that the above mentioned name belongs to an indigent family of this barangay.',
+                '',
+                'Issued this [DATE_ISSUED] at Barangay 219 Zone 20 Manila.'
+            ].join('\n');
+        }
+
         return [
             'TO WHOM IT MAY CONCERN:',
             '',
@@ -470,9 +546,7 @@ include __DIR__ . '/../includes/sidebar.php';
             '',
             'This certification is issued upon request for [PURPOSE].',
             '',
-            'Issued this [DATE_ISSUED] at Barangay 219, Tondo, Manila.',
-            '',
-            'Control No: [CONTROL_NUMBER]'
+            'Issued this [DATE_ISSUED] at Barangay 219, Tondo, Manila.'
         ].join('\n');
     }
 
@@ -487,11 +561,28 @@ include __DIR__ . '/../includes/sidebar.php';
         });
     }
 
+    function calculateAgeFromBirthDate(birthDateValue) {
+        if (!birthDateValue) return '';
+        const birthDate = new Date(birthDateValue + 'T00:00:00');
+        if (Number.isNaN(birthDate.getTime())) return '';
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        const dayDiff = today.getDate() - birthDate.getDate();
+        if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+            age -= 1;
+        }
+        return age > 0 ? String(age) : '';
+    }
+
     function replaceBodyPlaceholders(template, values) {
         return String(template || '')
             .replace(/\[NAME\]/g, values.name)
+            .replace(/\[AGE\]/g, values.age)
+            .replace(/\[CIVIL_STATUS\]/g, values.civilStatus)
             .replace(/\[ADDRESS\]/g, values.address)
             .replace(/\[PURPOSE\]/g, values.purpose)
+                .replace(/\[PURPOSE_CHECKLIST\]/g, values.purposeChecklist)
             .replace(/\[DATE_ISSUED\]/g, values.dateIssued)
             .replace(/\[CONTROL_NUMBER\]/g, values.controlNumber);
     }
@@ -504,16 +595,21 @@ include __DIR__ . '/../includes/sidebar.php';
         const purpose = (document.getElementById('releaseCertPurpose')?.value || '').trim();
         const dateIssuedRaw = document.getElementById('releaseDateIssued')?.value || '';
         const controlRaw = (document.getElementById('releaseControlNumber')?.value || '').trim();
+        const age = calculateAgeFromBirthDate(currentReleaseBirthDate) || '[AGE]';
+        const civilStatus = toTitleCase((currentReleaseCivilStatus || '').trim()) || '[CIVIL_STATUS]';
 
         const values = {
             name: name || '[NAME]',
+            age,
+            civilStatus,
             address: address || '[ADDRESS]',
             purpose: purpose || '[PURPOSE]',
+            purposeChecklist: buildBarangayPurposeChecklist(purpose),
             dateIssued: formatIssueDateForBody(dateIssuedRaw) || '[DATE_ISSUED]',
             controlNumber: (controlRaw && !/^Auto-generated/i.test(controlRaw)) ? controlRaw : '[CONTROL_NUMBER]'
         };
 
-        const body = replaceBodyPlaceholders(buildDefaultCertificateTemplate(), values);
+        const body = replaceBodyPlaceholders(buildDefaultCertificateTemplate(currentReleaseCertificateType), values);
         const bodyInput = document.getElementById('releaseCertBody');
         if (bodyInput) {
             bodyInput.value = body;
@@ -616,6 +712,9 @@ include __DIR__ . '/../includes/sidebar.php';
             .then(async d => {
                 if (!d.success || !d.data) { alert(d.message || 'Unable to load application'); return; }
                 const a = d.data;
+                currentReleaseCertificateType = (a.certificate_type || '').trim();
+                currentReleaseBirthDate = (a.birth_date || '').trim();
+                currentReleaseCivilStatus = (a.civil_status || '').trim();
                 document.getElementById('releaseId').value = id;
                 document.getElementById('releaseCertName').value = a.cert_name || toTitleCase(a.resident_name || '');
                 document.getElementById('releaseCertAddress').value = a.cert_address || a.address || '';
@@ -639,8 +738,11 @@ include __DIR__ . '/../includes/sidebar.php';
                     const dateIssuedPretty = formatIssueDateForBody(document.getElementById('releaseDateIssued').value || '');
                     const resolvedExisting = replaceBodyPlaceholders(existingBody, {
                         name: (document.getElementById('releaseCertName').value || '').trim(),
+                        age: calculateAgeFromBirthDate(currentReleaseBirthDate) || '[AGE]',
+                        civilStatus: toTitleCase((currentReleaseCivilStatus || '').trim()) || '[CIVIL_STATUS]',
                         address: (document.getElementById('releaseCertAddress').value || '').trim(),
                         purpose: (document.getElementById('releaseCertPurpose').value || '').trim(),
+                        purposeChecklist: buildBarangayPurposeChecklist((document.getElementById('releaseCertPurpose').value || '').trim()),
                         dateIssued: dateIssuedPretty,
                         controlNumber: (document.getElementById('releaseControlNumber').value || '').trim()
                     });
