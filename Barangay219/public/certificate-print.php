@@ -263,6 +263,8 @@ if ($certBody !== '') {
     $resolvedBody = strtr($certBody, $placeholderValues);
     // Normalize legacy saved bodies that still include extended Manila suffix.
     $resolvedBody = preg_replace('/\bTondo,\s*Manila,\s*Metro Manila,\s*Manila\b/i', 'Tondo, Manila', $resolvedBody) ?? $resolvedBody;
+    // Remove duplicate trailing Manila in postal-address sentence after address edits.
+    $resolvedBody = preg_replace('/(postal\s+address\s+at\s+[^.]*\bManila)\s*,\s*Manila(\.)/i', '$1$2', $resolvedBody) ?? $resolvedBody;
     // Treat saved body as final snapshot text. Split by blank lines into printable paragraphs.
     $blocks = preg_split('/\R{2,}/', trim($resolvedBody));
     $paragraphs = [];
