@@ -228,7 +228,6 @@ if ($residentId) {
               <th>Purpose</th>
               <th>Date Requested</th>
               <th>Status</th>
-              <th>Payment Status</th>
               <th>Actions</th>
             </tr>
           </thead>
