@@ -11,7 +11,7 @@ try {
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        handleSelectRole($residentId, getRequestBodyData());
+        handleResidentHouseholdAction($residentId, getRequestBodyData());
     }
 
     householdJsonResponse(false, null, 'Method not allowed', 405);
@@ -26,8 +26,15 @@ function ensureResidentHouseholdContractColumns() {
     $houseCols = getColumnsMap('households');
     addColumnIfMissing('households', $houseCols, 'family_head_id', 'INT(11) NULL');
     addColumnIfMissing('households', $houseCols, 'family_code', 'VARCHAR(30) NULL');
-    $houseCols = getColumnsMap('households');
+    addColumnIfMissing('households', $houseCols, 'household_type', "VARCHAR(40) NULL DEFAULT 'nuclear'");
+    addColumnIfMissing('households', $houseCols, 'housing_status', "VARCHAR(40) NULL DEFAULT 'owned'");
+    addColumnIfMissing('households', $houseCols, 'years_of_residency', 'INT(11) NULL DEFAULT 0');
+    addColumnIfMissing('households', $houseCols, 'indigent_household', 'TINYINT(1) NOT NULL DEFAULT 0');
+    addColumnIfMissing('households', $houseCols, 'emergency_contact_name', 'VARCHAR(150) NULL');
+    addColumnIfMissing('households', $houseCols, 'emergency_contact_relationship', 'VARCHAR(80) NULL');
+    addColumnIfMissing('households', $houseCols, 'emergency_contact_number', 'VARCHAR(30) NULL');
 
+    $houseCols = getColumnsMap('households');
     if (isset($houseCols['head_id']) && isset($houseCols['family_head_id'])) {
         $db->query('UPDATE households SET family_head_id = head_id WHERE (family_head_id IS NULL OR family_head_id = 0) AND head_id IS NOT NULL');
         $db->query('UPDATE households SET head_id = family_head_id WHERE (head_id IS NULL OR head_id = 0) AND family_head_id IS NOT NULL');
@@ -41,10 +48,34 @@ function ensureResidentHouseholdContractColumns() {
     $memberCols = getColumnsMap('household_members');
     addColumnIfMissing('household_members', $memberCols, 'date_of_birth', 'DATE NULL');
     $memberCols = getColumnsMap('household_members');
-
     if (isset($memberCols['dob']) && isset($memberCols['date_of_birth'])) {
         $db->query("UPDATE household_members SET date_of_birth = dob WHERE (date_of_birth IS NULL OR date_of_birth = '0000-00-00') AND dob IS NOT NULL");
     }
+
+    $db->query(
+        "CREATE TABLE IF NOT EXISTS household_history_logs (
+            id INT(11) NOT NULL AUTO_INCREMENT,
+            household_id INT(11) NOT NULL,
+            action VARCHAR(80) NOT NULL,
+            performed_by INT(11) NULL,
+            target_resident_id INT(11) NULL,
+            details TEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_household_created (household_id, created_at),
+            KEY idx_performed_by (performed_by)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+function householdMemberDateColumn() {
+    $memberCols = getColumnsMap('household_members');
+    return isset($memberCols['date_of_birth']) ? 'date_of_birth' : 'dob';
+}
+
+function householdHeadColumn() {
+    $houseCols = getColumnsMap('households');
+    return isset($houseCols['family_head_id']) ? 'family_head_id' : 'head_id';
 }
 
 function buildResidentContext($residentId, $context) {
@@ -71,7 +102,7 @@ function generateFamilyCode() {
     $db = Database::getInstance();
     $year = date('Y');
 
-    for ($i = 0; $i < 20; $i++) {
+    for ($i = 0; $i < 30; $i++) {
         $suffix = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
         $familyCode = 'BR219-' . $year . '-' . $suffix;
         $exists = $db->fetchOne('SELECT id FROM households WHERE family_code = ? LIMIT 1', [$familyCode]);
@@ -83,16 +114,152 @@ function generateFamilyCode() {
     throw new Exception('Unable to generate unique family code');
 }
 
+function computeAge($dateOfBirth) {
+    if (!$dateOfBirth) {
+        return null;
+    }
+
+    $ts = strtotime((string)$dateOfBirth);
+    if (!$ts) {
+        return null;
+    }
+
+    $birth = new DateTime(date('Y-m-d', $ts));
+    $today = new DateTime('today');
+    return max(0, (int)$birth->diff($today)->y);
+}
+
+function normalizeMemberStatus($residentStatus, $verificationStatus) {
+    $residentStatus = strtolower(trim((string)$residentStatus));
+    $verificationStatus = strtolower(trim((string)$verificationStatus));
+
+    if (in_array($residentStatus, ['inactive', 'deceased', 'transferred', 'suspended'], true)) {
+        return 'Inactive';
+    }
+
+    if (in_array($verificationStatus, ['pending', 'rejected', 'declined', 'denied'], true)) {
+        return 'Pending Verification';
+    }
+
+    return 'Active';
+}
+
+function householdAddressLabel($household) {
+    $parts = array_filter([
+        $household['house_number'] ?? null,
+        $household['street'] ?? null,
+        $household['barangay'] ?? null,
+        $household['city'] ?? null,
+        $household['province'] ?? null
+    ]);
+
+    return implode(', ', $parts);
+}
+
+function logHouseholdHistory($householdId, $action, $details = null, $targetResidentId = null) {
+    if (!$householdId || !$action) {
+        return;
+    }
+
+    try {
+        $db = Database::getInstance();
+        $performedBy = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
+        $detailsText = null;
+        if ($details !== null) {
+            $detailsText = is_string($details) ? $details : json_encode($details);
+        }
+
+        $db->query(
+            'INSERT INTO household_history_logs (household_id, action, performed_by, target_resident_id, details) VALUES (?, ?, ?, ?, ?)',
+            [(int)$householdId, (string)$action, $performedBy, $targetResidentId ? (int)$targetResidentId : null, $detailsText]
+        );
+    } catch (Exception $e) {
+        error_log('Household history log error: ' . $e->getMessage());
+    }
+}
+
+function fetchHouseholdHistory($householdId) {
+    $db = Database::getInstance();
+    return $db->fetchAll(
+        "SELECT h.id, h.action, h.details, h.created_at, u.username AS performed_by
+         FROM household_history_logs h
+         LEFT JOIN users u ON u.id = h.performed_by
+         WHERE h.household_id = ?
+         ORDER BY h.created_at DESC, h.id DESC
+         LIMIT 20",
+        [(int)$householdId]
+    );
+}
+
+function buildProgramTags($household, $members) {
+    $tags = [];
+
+    $hasSenior = false;
+    $hasPwd = false;
+    $has4ps = false;
+    $hasSoloParent = false;
+
+    foreach ($members as $m) {
+        if (($m['age'] ?? 0) >= 60) {
+            $hasSenior = true;
+        }
+        if (!empty($m['is_pwd'])) {
+            $hasPwd = true;
+        }
+        if (!empty($m['is_4ps_beneficiary'])) {
+            $has4ps = true;
+        }
+        if (!empty($m['is_solo_parent'])) {
+            $hasSoloParent = true;
+        }
+    }
+
+    if ($hasSenior) {
+        $tags[] = ['key' => 'senior_household', 'label' => 'Senior Citizen Household', 'class' => 'tag-senior'];
+    }
+    if ($hasPwd) {
+        $tags[] = ['key' => 'pwd_household', 'label' => 'PWD Household', 'class' => 'tag-pwd'];
+    }
+    if ($has4ps) {
+        $tags[] = ['key' => '4ps_household', 'label' => '4Ps Beneficiary', 'class' => 'tag-4ps'];
+    }
+    if ($hasSoloParent || strtolower((string)($household['household_type'] ?? '')) === 'single_parent') {
+        $tags[] = ['key' => 'solo_parent_household', 'label' => 'Solo Parent Household', 'class' => 'tag-solo'];
+    }
+    if (!empty($household['indigent_household'])) {
+        $tags[] = ['key' => 'indigent_household', 'label' => 'Indigent Household', 'class' => 'tag-indigent'];
+    }
+
+    return $tags;
+}
+
+function fetchAvailableResidentsForHead($householdId) {
+    $db = Database::getInstance();
+
+    $resCols = getColumnsMap('residents');
+    $statusCol = isset($resCols['status']) ? 'status' : null;
+
+    $where = '(r.household_id IS NULL OR r.household_id = 0 OR r.household_id = ?)';
+    $params = [(int)$householdId];
+    if ($statusCol) {
+        $where .= " AND LOWER(COALESCE(r.status, 'active')) NOT IN ('deceased', 'transferred')";
+    }
+
+    return $db->fetchAll(
+        "SELECT r.id AS resident_id, r.resident_code, r.first_name, r.middle_name, r.last_name,
+                r.gender, r.birth_date
+         FROM residents r
+         WHERE {$where}
+         ORDER BY r.last_name ASC, r.first_name ASC
+         LIMIT 300",
+        $params
+    );
+}
+
 function handleGetHouseholdInfo($residentId) {
     $db = Database::getInstance();
     $context = getResidentHouseholdContext($residentId);
     $contextPayload = buildResidentContext($residentId, $context);
-
-    $houseCols = getColumnsMap('households');
-    $memberCols = getColumnsMap('household_members');
-
-    $headColumn = isset($houseCols['family_head_id']) ? 'family_head_id' : 'head_id';
-    $dateColumn = isset($memberCols['date_of_birth']) ? 'date_of_birth' : 'dob';
 
     $base = [
         'context' => $contextPayload,
@@ -101,7 +268,17 @@ function handleGetHouseholdInfo($residentId) {
         'can_manage_members' => false,
         'household' => null,
         'members' => [],
-        'available_households' => []
+        'member_stats' => [
+            'total' => 0,
+            'children' => 0,
+            'adults' => 0,
+            'seniors' => 0
+        ],
+        'program_tags' => [],
+        'emergency_contact' => null,
+        'history_logs' => [],
+        'available_households' => [],
+        'available_residents' => []
     ];
 
     if (!$context) {
@@ -110,8 +287,15 @@ function handleGetHouseholdInfo($residentId) {
     }
 
     $householdId = (int)$context['household_id'];
+    $headColumn = householdHeadColumn();
+    $dateColumn = householdMemberDateColumn();
+
     $household = $db->fetchOne(
-        "SELECT h.id, h.family_code, h.`{$headColumn}` AS family_head_id, h.house_number, h.street, h.barangay, h.city, h.province,
+        "SELECT h.id, h.family_code, h.`{$headColumn}` AS family_head_id,
+                h.house_number, h.street, h.barangay, h.city, h.province,
+                h.household_type, h.housing_status, h.years_of_residency,
+                h.indigent_household, h.emergency_contact_name,
+                h.emergency_contact_relationship, h.emergency_contact_number,
                 h.created_at, h.updated_at,
                 r.first_name, r.middle_name, r.last_name
          FROM households h
@@ -126,10 +310,19 @@ function handleGetHouseholdInfo($residentId) {
         householdJsonResponse(true, $base, 'Household link is invalid. Please select role again.');
     }
 
+    $residentCols = getColumnsMap('residents');
+    $memberStatusExpr = isset($residentCols['status']) ? 'COALESCE(r.status, "active") AS resident_status' : '"active" AS resident_status';
+    $verificationExpr = isset($residentCols['verification_status']) ? 'COALESCE(r.verification_status, "") AS verification_status' : '"" AS verification_status';
+    $pwdExpr = isset($residentCols['is_pwd']) ? 'COALESCE(r.is_pwd, 0) AS is_pwd' : '0 AS is_pwd';
+    $psExpr = isset($residentCols['is_4ps_beneficiary']) ? 'COALESCE(r.is_4ps_beneficiary, 0) AS is_4ps_beneficiary' : '0 AS is_4ps_beneficiary';
+    $soloExpr = isset($residentCols['is_solo_parent']) ? 'COALESCE(r.is_solo_parent, 0) AS is_solo_parent' : '0 AS is_solo_parent';
+
     $members = $db->fetchAll(
-        "SELECT hm.id, hm.household_id, hm.resident_id, hm.relationship_to_head, hm.`{$dateColumn}` AS date_of_birth,
-                hm.gender, hm.civil_status, hm.created_at, hm.updated_at,
-                r.first_name, r.middle_name, r.last_name
+        "SELECT hm.id, hm.household_id, hm.resident_id, hm.relationship_to_head,
+                hm.`{$dateColumn}` AS date_of_birth, hm.gender, hm.civil_status,
+                hm.created_at, hm.updated_at,
+                r.first_name, r.middle_name, r.last_name, r.resident_code,
+                {$memberStatusExpr}, {$verificationExpr}, {$pwdExpr}, {$psExpr}, {$soloExpr}
          FROM household_members hm
          INNER JOIN residents r ON r.id = hm.resident_id
          WHERE hm.household_id = ?
@@ -139,72 +332,83 @@ function handleGetHouseholdInfo($residentId) {
 
     $mappedMembers = [];
     foreach ($members as $member) {
+        $age = computeAge($member['date_of_birth'] ?? null);
         $memberName = formatResidentName($member);
         $mappedMembers[] = [
             'id' => (int)$member['id'],
             'resident_id' => (int)$member['resident_id'],
+            'resident_code' => (string)($member['resident_code'] ?? ''),
             'name' => $memberName,
-            'resident_name' => $memberName,
-            'relationship_to_head' => $member['relationship_to_head'],
+            'relationship_to_head' => (string)($member['relationship_to_head'] ?? 'Member'),
+            'sex' => ucfirst(strtolower((string)($member['gender'] ?? ''))),
             'date_of_birth' => $member['date_of_birth'],
-            'dob' => $member['date_of_birth'],
-            'gender' => $member['gender'],
-            'civil_status' => $member['civil_status'],
-            'status' => 'Active',
-            'is_self' => (int)$member['resident_id'] === (int)$residentId
+            'age' => $age,
+            'status' => normalizeMemberStatus($member['resident_status'] ?? '', $member['verification_status'] ?? ''),
+            'is_self' => (int)$member['resident_id'] === (int)$residentId,
+            'is_pwd' => (int)($member['is_pwd'] ?? 0),
+            'is_4ps_beneficiary' => (int)($member['is_4ps_beneficiary'] ?? 0),
+            'is_solo_parent' => (int)($member['is_solo_parent'] ?? 0)
         ];
     }
 
-    // Backward-compatible fallback: if membership rows are missing, derive members
-    // from residents linked by household_id so totals and list stay accurate.
     if (count($mappedMembers) === 0) {
-        $linkedResidents = $db->fetchAll(
-            "SELECT id AS resident_id, first_name, middle_name, last_name, birth_date, gender, civil_status
-             FROM residents
-             WHERE household_id = ?
-             ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END, id ASC",
+        $linked = $db->fetchAll(
+            "SELECT r.id AS resident_id, r.resident_code, r.first_name, r.middle_name, r.last_name,
+                    r.birth_date AS date_of_birth, r.gender, {$memberStatusExpr}, {$verificationExpr},
+                    {$pwdExpr}, {$psExpr}, {$soloExpr}
+             FROM residents r
+             WHERE r.household_id = ?
+             ORDER BY CASE WHEN r.id = ? THEN 0 ELSE 1 END, r.id ASC",
             [$householdId, $household['family_head_id']]
         );
 
-        foreach ($linkedResidents as $residentRow) {
-            $memberName = formatResidentName($residentRow);
-            $isHeadResident = (int)$residentRow['resident_id'] === (int)$household['family_head_id'];
+        foreach ($linked as $residentRow) {
+            $age = computeAge($residentRow['date_of_birth'] ?? null);
+            $isHead = (int)$residentRow['resident_id'] === (int)$household['family_head_id'];
             $mappedMembers[] = [
                 'id' => 0,
                 'resident_id' => (int)$residentRow['resident_id'],
-                'name' => $memberName,
-                'resident_name' => $memberName,
-                'relationship_to_head' => $isHeadResident ? 'Head' : 'Member',
-                'date_of_birth' => $residentRow['birth_date'] ?? null,
-                'dob' => $residentRow['birth_date'] ?? null,
-                'gender' => $residentRow['gender'] ?? '',
-                'civil_status' => $residentRow['civil_status'] ?? '',
-                'status' => 'Active',
+                'resident_code' => (string)($residentRow['resident_code'] ?? ''),
+                'name' => formatResidentName($residentRow),
+                'relationship_to_head' => $isHead ? 'Head' : 'Member',
+                'sex' => ucfirst(strtolower((string)($residentRow['gender'] ?? ''))),
+                'date_of_birth' => $residentRow['date_of_birth'] ?? null,
+                'age' => $age,
+                'status' => normalizeMemberStatus($residentRow['resident_status'] ?? '', $residentRow['verification_status'] ?? ''),
                 'is_self' => (int)$residentRow['resident_id'] === (int)$residentId,
+                'is_pwd' => (int)($residentRow['is_pwd'] ?? 0),
+                'is_4ps_beneficiary' => (int)($residentRow['is_4ps_beneficiary'] ?? 0),
+                'is_solo_parent' => (int)($residentRow['is_solo_parent'] ?? 0),
                 'readonly' => true
             ];
         }
     }
 
-    if (count($mappedMembers) === 0) {
-        $headName = formatResidentName($household);
-        $mappedMembers[] = [
-            'id' => 0,
-            'resident_id' => (int)$household['family_head_id'],
-            'name' => $headName,
-            'resident_name' => $headName,
-            'relationship_to_head' => 'Head',
-            'date_of_birth' => null,
-            'dob' => null,
-            'gender' => '',
-            'civil_status' => '',
-            'status' => 'Active',
-            'is_self' => (int)$household['family_head_id'] === (int)$residentId,
-            'readonly' => true
-        ];
+    $stats = ['total' => 0, 'children' => 0, 'adults' => 0, 'seniors' => 0];
+    foreach ($mappedMembers as $m) {
+        $stats['total']++;
+        $age = (int)($m['age'] ?? 0);
+        if ($age >= 60) {
+            $stats['seniors']++;
+            $stats['adults']++;
+        } elseif ($age >= 18) {
+            $stats['adults']++;
+        } else {
+            $stats['children']++;
+        }
     }
 
-    $computedTotalMembers = count($mappedMembers);
+    $historyRows = fetchHouseholdHistory($householdId);
+    $historyLogs = [];
+    foreach ($historyRows as $row) {
+        $historyLogs[] = [
+            'id' => (int)$row['id'],
+            'action' => (string)$row['action'],
+            'details' => (string)($row['details'] ?? ''),
+            'performed_by' => (string)($row['performed_by'] ?: 'System'),
+            'created_at' => (string)$row['created_at']
+        ];
+    }
 
     $payload = [
         'context' => $contextPayload,
@@ -213,83 +417,121 @@ function handleGetHouseholdInfo($residentId) {
         'can_manage_members' => (bool)$context['is_head'],
         'household' => [
             'id' => (int)$household['id'],
-            'family_head_id' => (int)$household['family_head_id'],
-            'head_id' => (int)$household['family_head_id'],
+            'household_code' => (string)($household['family_code'] ?? ''),
             'family_code' => (string)($household['family_code'] ?? ''),
+            'family_head_id' => (int)$household['family_head_id'],
             'head_name' => formatResidentName($household),
+            'address' => householdAddressLabel($household),
             'house_number' => $household['house_number'],
             'street' => $household['street'],
             'barangay' => $household['barangay'],
             'city' => $household['city'],
             'province' => $household['province'],
-            'total_members' => $computedTotalMembers,
+            'household_type' => (string)($household['household_type'] ?? 'nuclear'),
+            'housing_status' => (string)($household['housing_status'] ?? 'owned'),
+            'years_of_residency' => (int)($household['years_of_residency'] ?? 0),
+            'total_members' => $stats['total'],
             'created_at' => $household['created_at'],
-            'updated_at' => $household['updated_at']
+            'updated_at' => $household['updated_at'],
+            'indigent_household' => (int)($household['indigent_household'] ?? 0)
         ],
+        'member_stats' => $stats,
         'members' => $mappedMembers,
-        'available_households' => []
+        'program_tags' => buildProgramTags($household, $mappedMembers),
+        'emergency_contact' => [
+            'name' => (string)($household['emergency_contact_name'] ?? ''),
+            'relationship' => (string)($household['emergency_contact_relationship'] ?? ''),
+            'contact_number' => (string)($household['emergency_contact_number'] ?? '')
+        ],
+        'history_logs' => $historyLogs,
+        'available_households' => [],
+        'available_residents' => $context['is_head'] ? fetchAvailableResidentsForHead($householdId) : []
     ];
 
     householdJsonResponse(true, $payload, 'Household information fetched');
 }
 
-function handleSelectRole($residentId, $data) {
+function handleResidentHouseholdAction($residentId, $data) {
     $action = strtolower(sanitizeInput((string)($data['action'] ?? '')));
+
     if ($action === 'create_household') {
         createHeadHousehold($residentId, $data);
         return;
     }
+
     if ($action === 'join_household') {
         joinAsMember($residentId, $data);
         return;
     }
 
-    $role = strtolower(sanitizeInput((string)($data['role'] ?? '')));
-
-    if (!in_array($role, ['head', 'member'], true)) {
-        householdJsonResponse(false, null, 'Action must be create_household or join_household', 400);
+    if ($action === 'leave_household') {
+        leaveHousehold($residentId);
+        return;
     }
 
+    if ($action === 'update_household_meta') {
+        updateHouseholdMeta($residentId, $data);
+        return;
+    }
+
+    $role = strtolower(sanitizeInput((string)($data['role'] ?? '')));
     if ($role === 'head') {
         createHeadHousehold($residentId, $data);
         return;
     }
+    if ($role === 'member') {
+        joinAsMember($residentId, $data);
+        return;
+    }
 
-    joinAsMember($residentId, $data);
+    householdJsonResponse(false, null, 'Invalid household action', 400);
 }
 
 function createHeadHousehold($residentId, $data) {
-    $houseNumber = sanitizeInput((string)($data['house_number'] ?? ''));
-    $address = sanitizeInput((string)($data['address'] ?? ''));
+    $houseNumber = sanitizeInput((string)($data['house_number'] ?? $data['address'] ?? ''));
     $street = sanitizeInput((string)($data['street'] ?? ''));
     $barangay = sanitizeInput((string)($data['barangay'] ?? 'Barangay 219'));
     $city = sanitizeInput((string)($data['city'] ?? 'Manila'));
     $province = sanitizeInput((string)($data['province'] ?? 'Metro Manila'));
+    $householdType = strtolower(sanitizeInput((string)($data['household_type'] ?? 'nuclear')));
+    $housingStatus = strtolower(sanitizeInput((string)($data['housing_status'] ?? 'owned')));
+    $yearsResidency = max(0, (int)($data['years_of_residency'] ?? 0));
 
-    if ($street === '' && $address !== '') {
-        $street = $address;
+    if ($street === '' && $houseNumber !== '') {
+        $street = $houseNumber;
     }
-
     if ($street === '' || $barangay === '' || $city === '' || $province === '') {
         householdJsonResponse(false, null, 'Address fields are required for head of household', 400);
     }
 
+    $allowedHouseholdType = ['nuclear', 'extended', 'single_parent', 'others'];
+    if (!in_array($householdType, $allowedHouseholdType, true)) {
+        $householdType = 'nuclear';
+    }
+
+    $allowedHousing = ['owned', 'renting', 'informal_settler', 'government_housing'];
+    if (!in_array($housingStatus, $allowedHousing, true)) {
+        $housingStatus = 'owned';
+    }
+
     $db = Database::getInstance();
-    $houseCols = getColumnsMap('households');
-    $headColumn = isset($houseCols['family_head_id']) ? 'family_head_id' : 'head_id';
-    $familyCode = generateFamilyCode();
     $resident = getResidentProfileForHousehold($residentId);
     if (!$resident) {
         householdJsonResponse(false, null, 'Resident not found', 404);
     }
 
+    $headColumn = householdHeadColumn();
+    $dateColumn = householdMemberDateColumn();
+    $familyCode = generateFamilyCode();
+
     $db->beginTransaction();
     try {
-        // Detach from any prior household membership before creating a new one.
-        $db->query("DELETE FROM household_members WHERE resident_id = ?", [$residentId]);
+        $db->query('DELETE FROM household_members WHERE resident_id = ?', [$residentId]);
 
-        $insertCols = [$headColumn, 'family_code', 'house_number', 'street', 'barangay', 'city', 'province'];
-        $insertVals = [$residentId, $familyCode, $houseNumber ?: null, $street, $barangay, $city, $province];
+        $houseCols = getColumnsMap('households');
+        $insertCols = [$headColumn, 'family_code', 'house_number', 'street', 'barangay', 'city', 'province', 'household_type', 'housing_status', 'years_of_residency'];
+        $insertVals = [$residentId, $familyCode, $houseNumber ?: null, $street, $barangay, $city, $province, $householdType, $housingStatus, $yearsResidency];
+
         if (isset($houseCols['head_id']) && $headColumn !== 'head_id') {
             $insertCols[] = 'head_id';
             $insertVals[] = $residentId;
@@ -304,22 +546,20 @@ function createHeadHousehold($residentId, $data) {
         $db->query("INSERT INTO households ({$colSql}) VALUES ({$placeholders})", $insertVals);
         $householdId = (int)$db->lastInsertId();
 
-        $memberCols = getColumnsMap('household_members');
-        $memberDateColumn = isset($memberCols['date_of_birth']) ? 'date_of_birth' : 'dob';
-
         $db->query(
-            "INSERT INTO household_members (household_id, resident_id, relationship_to_head, {$memberDateColumn}, gender, civil_status)
+            "INSERT INTO household_members (household_id, resident_id, relationship_to_head, {$dateColumn}, gender, civil_status)
              VALUES (?, ?, 'Head', ?, ?, ?)",
             [
                 $householdId,
                 $residentId,
                 $resident['birth_date'] ?: '1990-01-01',
-                $resident['gender'] ?: 'other',
-                $resident['civil_status'] ?: 'single'
+                strtolower((string)($resident['gender'] ?: 'other')),
+                strtolower((string)($resident['civil_status'] ?: 'single'))
             ]
         );
 
-        $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $residentId]);
+        $db->query('UPDATE residents SET household_id = ? WHERE id = ?', [$householdId, $residentId]);
+        logHouseholdHistory($householdId, 'Head Changed', 'Household created with resident as head', $residentId);
 
         $db->commit();
         householdJsonResponse(true, ['household_id' => $householdId, 'family_code' => $familyCode], 'Household created successfully');
@@ -337,18 +577,35 @@ function joinAsMember($residentId, $data) {
         householdJsonResponse(false, null, 'Family code and relationship are required', 400);
     }
 
+    $allowedRelationships = ['Head', 'Spouse', 'Son', 'Daughter', 'Parent', 'Sibling', 'Relative', 'Boarder'];
+    if (!in_array($relationship, $allowedRelationships, true) || $relationship === 'Head') {
+        householdJsonResponse(false, null, 'Please select a valid relationship', 400);
+    }
+
     $db = Database::getInstance();
-    $houseCols = getColumnsMap('households');
-    $headColumn = isset($houseCols['family_head_id']) ? 'family_head_id' : 'head_id';
-    $household = $db->fetchOne("SELECT id, family_code, `{$headColumn}` AS family_head_id FROM households WHERE family_code = ? LIMIT 1", [$familyCode]);
+    $headColumn = householdHeadColumn();
+    $dateColumn = householdMemberDateColumn();
+
+    $household = $db->fetchOne(
+        "SELECT id, family_code, `{$headColumn}` AS family_head_id
+         FROM households
+         WHERE family_code = ?
+         LIMIT 1",
+        [$familyCode]
+    );
+
     if (!$household) {
         householdJsonResponse(false, null, 'Invalid family code', 404);
     }
 
     $householdId = (int)$household['id'];
-
     if ((int)$household['family_head_id'] === (int)$residentId) {
-        householdJsonResponse(false, null, 'You are the household head of this household', 400);
+        householdJsonResponse(false, null, 'You are already the head of this household', 400);
+    }
+
+    $existingMembership = $db->fetchOne('SELECT id, household_id FROM household_members WHERE resident_id = ? LIMIT 1', [$residentId]);
+    if ($existingMembership && (int)$existingMembership['household_id'] !== $householdId) {
+        householdJsonResponse(false, null, 'Resident already belongs to another household', 409);
     }
 
     $resident = getResidentProfileForHousehold($residentId);
@@ -356,44 +613,41 @@ function joinAsMember($residentId, $data) {
         householdJsonResponse(false, null, 'Resident not found', 404);
     }
 
-    $existing = $db->fetchOne("SELECT id FROM household_members WHERE resident_id = ? LIMIT 1", [$residentId]);
-    $memberCols = getColumnsMap('household_members');
-    $memberDateColumn = isset($memberCols['date_of_birth']) ? 'date_of_birth' : 'dob';
-
     $db->beginTransaction();
     try {
-        if ($existing) {
+        if ($existingMembership) {
             $db->query(
                 "UPDATE household_members
-                 SET household_id = ?, relationship_to_head = ?, {$memberDateColumn} = ?, gender = ?, civil_status = ?, updated_at = CURRENT_TIMESTAMP
+                 SET household_id = ?, relationship_to_head = ?, {$dateColumn} = ?, gender = ?, civil_status = ?, updated_at = CURRENT_TIMESTAMP
                  WHERE resident_id = ?",
                 [
                     $householdId,
                     $relationship,
                     $resident['birth_date'] ?: '1990-01-01',
-                    $resident['gender'] ?: 'other',
-                    $resident['civil_status'] ?: 'single',
+                    strtolower((string)($resident['gender'] ?: 'other')),
+                    strtolower((string)($resident['civil_status'] ?: 'single')),
                     $residentId
                 ]
             );
         } else {
             $db->query(
-                "INSERT INTO household_members (household_id, resident_id, relationship_to_head, {$memberDateColumn}, gender, civil_status)
+                "INSERT INTO household_members (household_id, resident_id, relationship_to_head, {$dateColumn}, gender, civil_status)
                  VALUES (?, ?, ?, ?, ?, ?)",
                 [
                     $householdId,
                     $residentId,
                     $relationship,
                     $resident['birth_date'] ?: '1990-01-01',
-                    $resident['gender'] ?: 'other',
-                    $resident['civil_status'] ?: 'single'
+                    strtolower((string)($resident['gender'] ?: 'other')),
+                    strtolower((string)($resident['civil_status'] ?: 'single'))
                 ]
             );
         }
 
-        $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $residentId]);
-        $db->commit();
+        $db->query('UPDATE residents SET household_id = ? WHERE id = ?', [$householdId, $residentId]);
+        logHouseholdHistory($householdId, 'Member Added', 'Resident joined household via family code', $residentId);
 
+        $db->commit();
         householdJsonResponse(true, ['household_id' => $householdId, 'family_code' => $familyCode], 'Joined household successfully');
     } catch (Exception $e) {
         $db->rollback();
@@ -401,10 +655,98 @@ function joinAsMember($residentId, $data) {
     }
 }
 
+function leaveHousehold($residentId) {
+    $context = getResidentHouseholdContext($residentId);
+    if (!$context) {
+        householdJsonResponse(false, null, 'No household assignment found', 400);
+    }
+    if (!empty($context['is_head'])) {
+        householdJsonResponse(false, null, 'Head of household cannot leave without assigning a new head', 400);
+    }
+
+    $householdId = (int)$context['household_id'];
+    $db = Database::getInstance();
+
+    $db->beginTransaction();
+    try {
+        $db->query('DELETE FROM household_members WHERE resident_id = ?', [$residentId]);
+        $db->query('UPDATE residents SET household_id = NULL WHERE id = ?', [$residentId]);
+        logHouseholdHistory($householdId, 'Member Removed', 'Resident left household', $residentId);
+        $db->commit();
+        householdJsonResponse(true, null, 'You have left the household successfully');
+    } catch (Exception $e) {
+        $db->rollback();
+        throw $e;
+    }
+}
+
+function updateHouseholdMeta($residentId, $data) {
+    $context = getResidentHouseholdContext($residentId);
+    if (!$context || !$context['is_head']) {
+        householdJsonResponse(false, null, 'Only household heads can update household details', 403);
+    }
+
+    $householdId = (int)$context['household_id'];
+    $householdType = strtolower(sanitizeInput((string)($data['household_type'] ?? '')));
+    $housingStatus = strtolower(sanitizeInput((string)($data['housing_status'] ?? '')));
+    $yearsResidency = $data['years_of_residency'] ?? null;
+    $emergencyName = sanitizeInput((string)($data['emergency_contact_name'] ?? ''));
+    $emergencyRelationship = sanitizeInput((string)($data['emergency_contact_relationship'] ?? ''));
+    $emergencyNumber = sanitizeInput((string)($data['emergency_contact_number'] ?? ''));
+
+    $allowedType = ['nuclear', 'extended', 'single_parent', 'others'];
+    $allowedHousing = ['owned', 'renting', 'informal_settler', 'government_housing'];
+
+    $updates = [];
+    $params = [];
+
+    if ($householdType !== '' && in_array($householdType, $allowedType, true)) {
+        $updates[] = 'household_type = ?';
+        $params[] = $householdType;
+    }
+
+    if ($housingStatus !== '' && in_array($housingStatus, $allowedHousing, true)) {
+        $updates[] = 'housing_status = ?';
+        $params[] = $housingStatus;
+    }
+
+    if ($yearsResidency !== null && $yearsResidency !== '') {
+        $updates[] = 'years_of_residency = ?';
+        $params[] = max(0, (int)$yearsResidency);
+    }
+
+    if (array_key_exists('emergency_contact_name', $data)) {
+        $updates[] = 'emergency_contact_name = ?';
+        $params[] = $emergencyName !== '' ? $emergencyName : null;
+    }
+
+    if (array_key_exists('emergency_contact_relationship', $data)) {
+        $updates[] = 'emergency_contact_relationship = ?';
+        $params[] = $emergencyRelationship !== '' ? $emergencyRelationship : null;
+    }
+
+    if (array_key_exists('emergency_contact_number', $data)) {
+        $updates[] = 'emergency_contact_number = ?';
+        $params[] = $emergencyNumber !== '' ? $emergencyNumber : null;
+    }
+
+    if (empty($updates)) {
+        householdJsonResponse(false, null, 'No valid fields provided for update', 400);
+    }
+
+    $params[] = $householdId;
+
+    $db = Database::getInstance();
+    $db->query('UPDATE households SET ' . implode(', ', $updates) . ' WHERE id = ?', $params);
+    logHouseholdHistory($householdId, 'Address Updated', 'Household overview fields updated', null);
+
+    householdJsonResponse(true, null, 'Household information updated');
+}
+
 function getAvailableHouseholdsForJoin() {
     $db = Database::getInstance();
-    $houseCols = getColumnsMap('households');
-    $headColumn = isset($houseCols['family_head_id']) ? 'family_head_id' : 'head_id';
+    $headColumn = householdHeadColumn();
+
     $rows = $db->fetchAll(
         "SELECT h.id, h.family_code, h.house_number, h.street, h.barangay, h.city, h.province,
                 r.first_name, r.middle_name, r.last_name
