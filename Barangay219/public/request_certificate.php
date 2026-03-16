@@ -262,6 +262,18 @@ $formData = [
     'declaration' => ''
 ];
 
+  $certificatePresetMap = [
+    'barangay_certificate' => 'Barangay Certificate',
+    'barangay_clearance' => 'Barangay Certificate',
+    'certificate_indigency' => 'Barangay Indigency',
+    'barangay_indigency' => 'Barangay Indigency'
+  ];
+
+  $presetKey = strtolower(trim((string)($_GET['certificate'] ?? '')));
+  if ($presetKey !== '' && isset($certificatePresetMap[$presetKey])) {
+    $formData['certificate_type'] = $certificatePresetMap[$presetKey];
+  }
+
 $errors = [];
 $warningMessage = '';
 
