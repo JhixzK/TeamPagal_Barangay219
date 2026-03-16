@@ -4,6 +4,7 @@ require_once __DIR__ . '/_common.php';
 try {
     $residentId = requireResidentHouseholdSession();
     ensureResidentHouseholdSchema();
+    ensureResidentMemberContractColumns();
 
     $method = $_SERVER['REQUEST_METHOD'];
     if ($method === 'POST') {
@@ -22,6 +23,21 @@ try {
     householdJsonResponse(false, null, 'Unable to process household member request', 500);
 }
 
+function ensureResidentMemberContractColumns() {
+    $db = Database::getInstance();
+    $memberCols = getColumnsMap('household_members');
+    addColumnIfMissing('household_members', $memberCols, 'date_of_birth', 'DATE NULL');
+    $memberCols = getColumnsMap('household_members');
+    if (isset($memberCols['dob']) && isset($memberCols['date_of_birth'])) {
+        $db->query("UPDATE household_members SET date_of_birth = dob WHERE (date_of_birth IS NULL OR date_of_birth = '0000-00-00') AND dob IS NOT NULL");
+    }
+}
+
+function householdMemberDateColumn() {
+    $memberCols = getColumnsMap('household_members');
+    return isset($memberCols['date_of_birth']) ? 'date_of_birth' : 'dob';
+}
+
 function addHouseholdMember($residentId) {
     $data = getRequestBodyData();
 
@@ -32,10 +48,14 @@ function addHouseholdMember($residentId) {
 
     $householdId = (int)$context['household_id'];
     $targetResidentId = (int)($data['resident_id'] ?? 0);
+    if ($targetResidentId <= 0) {
+        $targetResidentId = (int)$residentId;
+    }
     $relationship = sanitizeInput((string)($data['relationship_to_head'] ?? ''));
-    $dob = sanitizeInput((string)($data['dob'] ?? ''));
+    $dob = sanitizeInput((string)(($data['date_of_birth'] ?? '') ?: ($data['dob'] ?? '')));
     $gender = strtolower(sanitizeInput((string)($data['gender'] ?? '')));
-    $civilStatus = strtolower(sanitizeInput((string)($data['civil_status'] ?? '')));
+    $civilStatus = strtolower(sanitizeInput((string)($data['civil_status'] ?? 'single')));
+    $dateColumn = householdMemberDateColumn();
 
     validateMemberFields($targetResidentId, $relationship, $dob, $gender, $civilStatus);
 
@@ -60,13 +80,13 @@ function addHouseholdMember($residentId) {
         if ($existing) {
             $db->query(
                 "UPDATE household_members
-                 SET relationship_to_head = ?, dob = ?, gender = ?, civil_status = ?, updated_at = CURRENT_TIMESTAMP
+                 SET relationship_to_head = ?, {$dateColumn} = ?, gender = ?, civil_status = ?, updated_at = CURRENT_TIMESTAMP
                  WHERE id = ?",
                 [$relationship, $dob, $gender, $civilStatus, (int)$existing['id']]
             );
         } else {
             $db->query(
-                "INSERT INTO household_members (household_id, resident_id, relationship_to_head, dob, gender, civil_status)
+                "INSERT INTO household_members (household_id, resident_id, relationship_to_head, {$dateColumn}, gender, civil_status)
                  VALUES (?, ?, ?, ?, ?, ?)",
                 [$householdId, $targetResidentId, $relationship, $dob, $gender, $civilStatus]
             );
@@ -84,7 +104,7 @@ function addHouseholdMember($residentId) {
 
 function updateHouseholdMember($residentId) {
     $data = getRequestBodyData();
-    $memberId = (int)($data['member_id'] ?? 0);
+    $memberId = (int)(($data['member_id'] ?? 0) ?: ($data['id'] ?? 0));
 
     if ($memberId <= 0) {
         householdJsonResponse(false, null, 'Member id is required', 400);
@@ -118,9 +138,10 @@ function updateHouseholdMember($residentId) {
     }
 
     $relationship = sanitizeInput((string)($data['relationship_to_head'] ?? ''));
-    $dob = sanitizeInput((string)($data['dob'] ?? ''));
+    $dob = sanitizeInput((string)(($data['date_of_birth'] ?? '') ?: ($data['dob'] ?? '')));
     $gender = strtolower(sanitizeInput((string)($data['gender'] ?? '')));
-    $civilStatus = strtolower(sanitizeInput((string)($data['civil_status'] ?? '')));
+    $civilStatus = strtolower(sanitizeInput((string)($data['civil_status'] ?? 'single')));
+    $dateColumn = householdMemberDateColumn();
 
     if (!$isHead) {
         // Members cannot change relationship; preserve existing hierarchy.
@@ -132,7 +153,7 @@ function updateHouseholdMember($residentId) {
 
     $db->query(
         "UPDATE household_members
-         SET relationship_to_head = ?, dob = ?, gender = ?, civil_status = ?, updated_at = CURRENT_TIMESTAMP
+         SET relationship_to_head = ?, {$dateColumn} = ?, gender = ?, civil_status = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?",
         [$relationship, $dob, $gender, $civilStatus, $memberId]
     );
@@ -142,7 +163,7 @@ function updateHouseholdMember($residentId) {
 
 function deleteHouseholdMember($residentId) {
     $data = getRequestBodyData();
-    $memberId = (int)($data['member_id'] ?? 0);
+    $memberId = (int)(($data['member_id'] ?? 0) ?: ($data['id'] ?? 0));
     if ($memberId <= 0) {
         householdJsonResponse(false, null, 'Member id is required', 400);
     }
@@ -153,8 +174,10 @@ function deleteHouseholdMember($residentId) {
     }
 
     $db = Database::getInstance();
+    $houseCols = getColumnsMap('households');
+    $headColumn = isset($houseCols['family_head_id']) ? 'family_head_id' : 'head_id';
     $row = $db->fetchOne(
-        "SELECT hm.id, hm.household_id, hm.resident_id, h.head_id
+        "SELECT hm.id, hm.household_id, hm.resident_id, h.`{$headColumn}` AS family_head_id
          FROM household_members hm
          INNER JOIN households h ON h.id = hm.household_id
          WHERE hm.id = ? LIMIT 1",
@@ -169,7 +192,7 @@ function deleteHouseholdMember($residentId) {
         householdJsonResponse(false, null, 'Access denied', 403);
     }
 
-    if ((int)$row['resident_id'] === (int)$row['head_id']) {
+    if ((int)$row['resident_id'] === (int)$row['family_head_id']) {
         householdJsonResponse(false, null, 'Household head cannot be removed', 400);
     }
 
