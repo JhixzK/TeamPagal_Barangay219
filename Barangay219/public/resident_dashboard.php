@@ -67,6 +67,14 @@ function residentDashboardTableColumns($conn, $tableName) {
   return $columns;
 }
 
+function residentDashboardColumnExists($conn, $tableName, $columnName) {
+  if (!residentDashboardTableExists($conn, $tableName)) {
+    return false;
+  }
+  $columns = residentDashboardTableColumns($conn, $tableName);
+  return in_array($columnName, $columns, true);
+}
+
 function residentDashboardFetchOne($conn, $sql, $types = '', $params = []) {
   $stmt = $conn->prepare($sql);
   if (!$stmt) {
@@ -113,6 +121,53 @@ function residentDashboardFetchAll($conn, $sql, $types = '', $params = []) {
 
   $stmt->close();
   return $rows;
+}
+
+function residentDashboardResolveResidentId($conn, $userId, $username, $sessionResidentId, $email = '') {
+  $resolvedId = (int)$sessionResidentId;
+
+  if ($resolvedId <= 0 && $userId > 0 && residentDashboardColumnExists($conn, 'users', 'resident_id')) {
+    $userRow = residentDashboardFetchOne($conn, 'SELECT resident_id FROM users WHERE id = ? LIMIT 1', 'i', [(int)$userId]);
+    if (!empty($userRow['resident_id'])) {
+      $resolvedId = (int)$userRow['resident_id'];
+    }
+  }
+
+  if ($resolvedId <= 0 && $username !== '' && residentDashboardColumnExists($conn, 'residents', 'resident_code')) {
+    $residentRow = residentDashboardFetchOne($conn, 'SELECT id FROM residents WHERE resident_code = ? LIMIT 1', 's', [(string)$username]);
+    if (!empty($residentRow['id'])) {
+      $resolvedId = (int)$residentRow['id'];
+
+      if ($userId > 0 && residentDashboardColumnExists($conn, 'users', 'resident_id')) {
+        $sql = 'UPDATE users SET resident_id = ? WHERE id = ? AND (resident_id IS NULL OR resident_id = 0)';
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+          $stmt->bind_param('ii', $resolvedId, $userId);
+          $stmt->execute();
+          $stmt->close();
+        }
+      }
+    }
+  }
+
+  if ($resolvedId <= 0 && $email !== '' && residentDashboardColumnExists($conn, 'residents', 'email')) {
+    $residentRow = residentDashboardFetchOne($conn, 'SELECT id FROM residents WHERE email = ? LIMIT 1', 's', [(string)$email]);
+    if (!empty($residentRow['id'])) {
+      $resolvedId = (int)$residentRow['id'];
+
+      if ($userId > 0 && residentDashboardColumnExists($conn, 'users', 'resident_id')) {
+        $sql = 'UPDATE users SET resident_id = ? WHERE id = ? AND (resident_id IS NULL OR resident_id = 0)';
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+          $stmt->bind_param('ii', $resolvedId, $userId);
+          $stmt->execute();
+          $stmt->close();
+        }
+      }
+    }
+  }
+
+  return $resolvedId;
 }
 
 function residentDashboardStatusClass($status) {
@@ -190,7 +245,14 @@ $requestDateColumn = null;
 $requestIdColumn = 'id';
 
 $conn = residentDashboardConnectMysqli();
-if ($conn && $residentId) {
+if ($conn) {
+  $residentId = residentDashboardResolveResidentId($conn, (int)$userId, (string)$username, (int)$residentId, (string)$email);
+  if ($residentId > 0) {
+    $_SESSION['resident_id'] = $residentId;
+  }
+}
+
+if ($conn && (int)$residentId > 0) {
   if (residentDashboardTableExists($conn, 'residents')) {
     $residentCols = residentDashboardTableColumns($conn, 'residents');
     $selectResidentParts = ['id', 'first_name', 'middle_name', 'last_name', 'address', 'contact_number'];
@@ -234,8 +296,8 @@ if ($conn && $residentId) {
 
       $residentStatusRaw = strtolower(trim((string)(
         ($residentRow['verification_status'] ?? '')
-        ?: ($residentRow['status'] ?? '')
         ?: ($residentRow['record_status'] ?? '')
+        ?: ($residentRow['status'] ?? '')
       )));
       $isProfileIncomplete = empty($residentRow['first_name']) || empty($residentRow['last_name']) || empty($residentRow['address']) || empty($residentRow['contact_number']);
       if ($isProfileIncomplete) {
@@ -618,10 +680,6 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
         </div>
       </div>
       <div class="profile-status">
-        <span class="pill <?php echo $residentStatusBadgeClass; ?>">
-          <i class="fa-solid fa-id-card"></i>
-          Resident Status: <?php echo htmlspecialchars($residentProfile['resident_status']); ?>
-        </span>
         <span class="pill <?php echo $householdStatusBadgeClass; ?>">
           <i class="fa-solid fa-house-user"></i>
           Household Status: <?php echo htmlspecialchars($residentProfile['household_status']); ?>
