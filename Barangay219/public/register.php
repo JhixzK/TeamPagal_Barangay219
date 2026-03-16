@@ -38,7 +38,10 @@ $barangay219_street_options = [
     'Road 14',
     'Road 15',
     'R-10 (Radial Road 10)',
-    'Vitas Road',
+    'Vitas Road'
+];
+
+$barangay219_purok_options = [
     'Purok 1',
     'Purok 2',
     'Purok 3',
@@ -628,16 +631,25 @@ $barangay219_street_options = [
                                     <hr>
                                     <h6 class="text-secondary mb-3">Residency Details</h6>
                                     <div class="row">
-                                        <div class="col-md-6 mb-3">
+                                        <div class="col-md-4 mb-3">
                                             <label>House No. <span class="text-danger">*</span></label>
                                             <input type="text" name="house_number" class="form-control" maxlength="30" required>
                                         </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label>Street / Purok / Sitio <span class="text-danger">*</span></label>
+                                        <div class="col-md-4 mb-3">
+                                            <label>Street <span class="text-danger">*</span></label>
                                             <select name="street" class="form-select" required>
-                                                <option value="">Select Street / Purok / Sitio</option>
+                                                <option value="">Select Street</option>
                                                 <?php foreach ($barangay219_street_options as $street_option): ?>
                                                 <option value="<?php echo htmlspecialchars($street_option); ?>"><?php echo htmlspecialchars($street_option); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label>Purok / Sitio <span class="text-danger">*</span></label>
+                                            <select name="purok_sitio" class="form-select" required>
+                                                <option value="">Select Purok / Sitio</option>
+                                                <?php foreach ($barangay219_purok_options as $purok_option): ?>
+                                                <option value="<?php echo htmlspecialchars($purok_option); ?>"><?php echo htmlspecialchars($purok_option); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
                                         </div>
@@ -1380,7 +1392,8 @@ function populateReview() {
                 { name: 'mobile_number', label: 'Mobile Number' },
                 { name: 'email', label: 'Email Address' },
                 { name: 'house_number', label: 'House No.' },
-                { name: 'street', label: 'Street / Purok / Sitio' },
+                { name: 'street', label: 'Street' },
+                { name: 'purok_sitio', label: 'Purok / Sitio' },
                 { name: 'residency_years', label: 'Residency (Years)' },
                 { name: 'residency_months', label: 'Residency (Months)' },
                 { name: 'emergency_contact_name', label: 'Emergency Contact Name' },
