@@ -452,63 +452,7 @@ if ($conn && empty($pageErrors) && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($section === 'verification_upload') {
-        if (!isset($_FILES['verification_id']) || ($_FILES['verification_id']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            $pageErrors[] = 'Please select a valid ID file to upload.';
-        } else {
-            $file = $_FILES['verification_id'];
-            if ((int)$file['size'] > 5 * 1024 * 1024) {
-                $pageErrors[] = 'File must not exceed 5MB.';
-            }
-
-            $allowedExt = ['jpg', 'jpeg', 'png', 'pdf'];
-            $ext = strtolower(pathinfo((string)$file['name'], PATHINFO_EXTENSION));
-            if (!in_array($ext, $allowedExt, true)) {
-                $pageErrors[] = 'Only JPG, PNG, and PDF files are allowed.';
-            }
-
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime = $finfo ? finfo_file($finfo, (string)$file['tmp_name']) : '';
-            if ($finfo) {
-                finfo_close($finfo);
-            }
-            $allowedMime = ['image/jpeg', 'image/png', 'application/pdf'];
-            if ($mime && !in_array($mime, $allowedMime, true)) {
-                $pageErrors[] = 'Invalid file type detected.';
-            }
-
-            if (empty($pageErrors)) {
-                $uploadDir = __DIR__ . '/uploads/verification_ids';
-                if (!is_dir($uploadDir)) {
-                    @mkdir($uploadDir, 0775, true);
-                }
-
-                if (!is_dir($uploadDir)) {
-                    $pageErrors[] = 'Verification upload folder is not writable.';
-                } else {
-                    $newFileName = 'verification_' . $residentId . '_' . date('YmdHis') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-                    $target = $uploadDir . DIRECTORY_SEPARATOR . $newFileName;
-                    if (!move_uploaded_file((string)$file['tmp_name'], $target)) {
-                        $pageErrors[] = 'Failed to save uploaded file.';
-                    } else {
-                        $relativePath = 'uploads/verification_ids/' . $newFileName;
-                        $fields = [
-                            'id_document_path' => $relativePath,
-                            'verification_status' => 'pending',
-                            'record_status' => 'pending',
-                            'remarks' => null,
-                            'rejection_reason' => null
-                        ];
-
-                        if (rpUpdateResidents($conn, $residentId, $fields, $residentCols, $userId)) {
-                            rpTouchSection($conn, $residentId, 'verification');
-                            $successMessage = 'Government ID uploaded. Verification status is now Pending.';
-                        } else {
-                            $pageErrors[] = 'Failed to update verification status.';
-                        }
-                    }
-                }
-            }
-        }
+      $pageErrors[] = 'ID verification now uses the document submitted during registration. Profile ID upload is disabled.';
     }
 }
 
@@ -1022,16 +966,9 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
           <div class="info-row"><span>Current ID File</span><strong><?php echo h($pick($resident, ['id_document_path'], 'No ID uploaded')); ?></strong></div>
           <div class="info-row"><span>Verification Status</span><strong><span class="status-badge <?php echo h($verification['class']); ?>"><?php echo h($verification['label']); ?></span></strong></div>
           <div class="info-row"><span>Certificate Requests</span><strong><?php echo strtolower($verification['class']) === 'verified' ? 'Enabled' : 'Disabled until verified'; ?></strong></div>
+          <div class="info-row"><span>Verification Source</span><strong>Registration submission</strong></div>
         </div>
-
-        <form method="POST" enctype="multipart/form-data" class="edit-form visible" id="form-verification">
-          <input type="hidden" name="section" value="verification_upload">
-          <div class="form-grid two-col">
-            <label><span>Upload Government ID (JPG, PNG, PDF up to 5MB)</span><input type="file" id="verificationIdInput" name="verification_id" accept=".jpg,.jpeg,.png,.pdf" required></label>
-            <div class="preview-box" id="verificationPreview">No file selected</div>
-          </div>
-          <div class="form-actions"><button class="btn-primary" type="submit"><?php echo $isRejected ? 'Replace and Re-submit ID' : 'Upload ID for Verification'; ?></button></div>
-        </form>
+        <div class="info-row"><span>Note</span><strong>ID re-upload in resident profile is disabled. Any ID for verification must come from registration.</strong></div>
       </article>
     </section>
   </main>
