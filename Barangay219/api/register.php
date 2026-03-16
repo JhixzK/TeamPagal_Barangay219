@@ -218,6 +218,16 @@ function getTableColumns($db, $table) {
     return array_map(static function($r) { return $r['column_name']; }, $rows);
 }
 
+function columnExists($db, $table, $column) {
+    $row = $db->fetchOne(
+        "SELECT COUNT(*) AS cnt
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?",
+        [$table, $column]
+    );
+    return !empty($row) && (int)$row['cnt'] > 0;
+}
+
 function addColumnIfMissing($db, $table, $column, $definition) {
     $row = $db->fetchOne(
         "SELECT COUNT(*) AS cnt
@@ -228,6 +238,62 @@ function addColumnIfMissing($db, $table, $column, $definition) {
     if (empty($row) || (int)$row['cnt'] === 0) {
         $db->query("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
     }
+}
+
+function buildResidencyString($yearsRaw, $monthsRaw) {
+    $years = ($yearsRaw === '' || $yearsRaw === null) ? 0 : (int)$yearsRaw;
+    $months = ($monthsRaw === '' || $monthsRaw === null) ? 0 : (int)$monthsRaw;
+    if ($years <= 0 && $months <= 0) {
+        return '';
+    }
+    return $years . ' year' . ($years === 1 ? '' : 's') . ' ' . $months . ' month' . ($months === 1 ? '' : 's');
+}
+
+function generateFamilyCode($db) {
+    $year = date('Y');
+    $prefix = 'BR219-' . $year . '-';
+    $maxSeq = 0;
+
+    $sources = [
+        ['resident_applications', 'family_code'],
+        ['households', 'family_code'],
+        ['residents', 'family_code']
+    ];
+
+    foreach ($sources as $source) {
+        [$table, $column] = $source;
+        if (!tableExists($db, $table) || !columnExists($db, $table, $column)) {
+            continue;
+        }
+
+        $sql = "SELECT `$column` AS code FROM `$table` WHERE `$column` LIKE ? ORDER BY id DESC LIMIT 1";
+        $row = $db->fetchOne($sql, [$prefix . '%']);
+        if (!empty($row['code']) && preg_match('/-(\d{4,})$/', (string)$row['code'], $m)) {
+            $maxSeq = max($maxSeq, (int)$m[1]);
+        }
+    }
+
+    $next = $maxSeq + 1;
+    return $prefix . str_pad((string)$next, 4, '0', STR_PAD_LEFT);
+}
+
+function resolveHouseholdByFamilyCode($db, $familyCode) {
+    $familyCode = trim((string)$familyCode);
+    if ($familyCode === '' || !tableExists($db, 'households') || !tableExists($db, 'residents')) {
+        return null;
+    }
+    if (!columnExists($db, 'households', 'family_code') || !columnExists($db, 'households', 'family_head_id')) {
+        return null;
+    }
+
+    return $db->fetchOne(
+        "SELECT h.id AS household_id, h.family_head_id AS head_id, r.resident_code AS head_resident_code
+         FROM households h
+         INNER JOIN residents r ON r.id = h.family_head_id
+         WHERE h.family_code = ?
+         LIMIT 1",
+        [$familyCode]
+    );
 }
 
 // Validate required fields
@@ -381,7 +447,10 @@ $household_members = isset($_POST['household_members']) ? (int)$_POST['household
 $house_number = sanitize($_POST['house_number'] ?? '');
 $street = sanitize($_POST['street'] ?? '');
 $purok_sitio = sanitize($_POST['purok_sitio'] ?? '');
-$length_of_residency_years = isset($_POST['length_of_residency_years']) ? (int)$_POST['length_of_residency_years'] : null;
+$residency_years_raw = trim((string)($_POST['residency_years'] ?? ''));
+$residency_months_raw = trim((string)($_POST['residency_months'] ?? ''));
+$length_of_residency = trim((string)($_POST['length_of_residency'] ?? ''));
+$length_of_residency_years = isset($_POST['length_of_residency_years']) && $_POST['length_of_residency_years'] !== '' ? (float)$_POST['length_of_residency_years'] : null;
 $educational_attainment = sanitize($_POST['educational_attainment'] ?? '');
 $employment_status = sanitize($_POST['employment_status'] ?? '');
 $occupation = sanitize($_POST['occupation'] ?? '');
@@ -405,11 +474,35 @@ $allowed_household_types = [
 ];
 
 if ($household_role === 'Head of Household') {
+    $family_code = generateFamilyCode($db);
+    $relationship_to_head = 'Head';
+
     if ($household_type === '') {
         $errors[] = 'Household type is required when household role is Head of Household.';
     } elseif (!in_array($household_type, $allowed_household_types, true)) {
         $errors[] = 'Invalid household type selected.';
     }
+} elseif ($household_role === 'Member of Household') {
+    if ($family_code === '') {
+        $errors[] = 'Family Code is required for Member of Household.';
+    } elseif (!preg_match('/^BR219-\d{4}-\d{4}$/i', $family_code)) {
+        $errors[] = 'Invalid Family Code format. Use BR219-YYYY-XXXX.';
+    }
+
+    if ($relationship_to_head === '' || strtolower($relationship_to_head) === 'head') {
+        $errors[] = 'Relationship to Head is required for household members.';
+    }
+
+    $matchedHousehold = resolveHouseholdByFamilyCode($db, $family_code);
+    if (!$matchedHousehold) {
+        $errors[] = 'Family Code was not found or is not linked to a valid household head.';
+    }
+} else {
+    $errors[] = 'Please select a valid household role.';
+}
+
+if ($length_of_residency === '') {
+    $length_of_residency = buildResidencyString($residency_years_raw, $residency_months_raw);
 }
 
 // Senior citizen auto-validation (60+)
@@ -432,6 +525,8 @@ try {
     addColumnIfMissing($db, 'resident_applications', 'household_role', "VARCHAR(80) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'household_type', "VARCHAR(80) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'household_members', "INT(11) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'length_of_residency', "VARCHAR(40) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'verification_status', "VARCHAR(30) NOT NULL DEFAULT 'pending'");
 
     $existingCols = array_flip(getTableColumns($db, 'resident_applications'));
 
@@ -459,6 +554,7 @@ try {
         'barangay' => $barangay,
         'city' => $city,
         'province' => $province,
+        'length_of_residency' => $length_of_residency ?: null,
         'length_of_residency_years' => $length_of_residency_years ?: null,
         'mobile_number' => $mobile_number,
         'email' => $email ?: null,
@@ -480,6 +576,7 @@ try {
         'valid_id_number' => $valid_id_number,
         'id_document_path' => $id_document_path,
         'proof_of_residency_path' => $proof_of_residency_path,
+        'verification_status' => 'pending',
         'data_privacy_consent' => 1,
         'record_status' => 'pending'
     ];
