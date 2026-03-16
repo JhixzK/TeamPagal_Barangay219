@@ -634,9 +634,8 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
         <h3>Quick Actions</h3>
       </div>
       <div class="quick-actions-grid">
-        <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=barangay_clearance"><i class="fa-regular fa-file-lines"></i><span>Request Barangay Clearance</span></a>
+        <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=barangay_certificate"><i class="fa-regular fa-file-lines"></i><span>Request Barangay Certificate</span></a>
         <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=certificate_indigency"><i class="fa-solid fa-hand-holding-heart"></i><span>Request Certificate of Indigency</span></a>
-        <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=certificate_residency"><i class="fa-solid fa-location-dot"></i><span>Request Residency Certificate</span></a>
         <a class="quick-btn" href="<?php echo BASE_URL; ?>my_requests.php"><i class="fa-solid fa-list-check"></i><span>View My Requests</span></a>
         <a class="quick-btn" href="<?php echo BASE_URL; ?>resident_profile.php"><i class="fa-regular fa-user"></i><span>Update Profile</span></a>
         <a class="quick-btn" href="<?php echo BASE_URL; ?>resident_household.php"><i class="fa-solid fa-house"></i><span>Household Information</span></a>
