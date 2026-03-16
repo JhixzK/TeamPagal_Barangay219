@@ -178,7 +178,16 @@ async function loadHouseholdInfo() {
     }
 
     if (result.success && result.data) {
-      currentHouseholdContext = result.data.context;
+      currentHouseholdContext = result.data.context || null;
+      if (!currentHouseholdContext) {
+        const isHeadFromRole = (result.data.role || '') === 'head';
+        currentHouseholdContext = {
+          household_id: result.data.household?.id || null,
+          is_head: !!isHeadFromRole,
+          member_row_id: null,
+          relationship_to_head: isHeadFromRole ? 'Head' : 'Member'
+        };
+      }
       currentHouseholdData = result.data.household;
       currentMembers = result.data.members || [];
       availableHouseholds = result.data.available_households || [];
@@ -225,10 +234,11 @@ function displayHouseholdPanel() {
   const isHead = currentHouseholdContext?.is_head || false;
   const household = currentHouseholdData;
   const members = currentMembers;
+  const memberCount = parseInt(household?.total_members ?? members.length, 10) || 0;
 
   // Update stats
   const totalMembers = document.getElementById('totalMembers');
-  if (totalMembers) totalMembers.textContent = members.length;
+  if (totalMembers) totalMembers.textContent = memberCount;
   
   const householdAddress = document.getElementById('householdAddress');
   if (householdAddress) householdAddress.textContent = household?.address || household?.street || '--';
@@ -244,7 +254,10 @@ function displayHouseholdPanel() {
   if (displayHead) displayHead.textContent = household?.head_name || '--';
   
   const displayMembers = document.getElementById('displayMembers');
-  if (displayMembers) displayMembers.textContent = members.length;
+  if (displayMembers) displayMembers.textContent = memberCount;
+
+  const displayFamilyCode = document.getElementById('displayFamilyCode');
+  if (displayFamilyCode) displayFamilyCode.textContent = household?.family_code || '--';
   
   const displayCreated = document.getElementById('displayCreated');
   if (displayCreated) {
@@ -274,16 +287,18 @@ function renderMembersTable(members, isHead) {
   }
 
   members.forEach(member => {
+    const canEditMember = Number(member.id || 0) > 0 && !member.readonly;
+    const canRemoveMember = canEditMember && isHead && member.id !== currentHouseholdContext.member_row_id;
     const row = document.createElement('tr');
     row.innerHTML = `
-      <td>${member.resident_name || 'Unknown'}</td>
+      <td>${member.name || member.resident_name || 'Unknown'}</td>
       <td>${member.relationship_to_head || '-'}</td>
       <td><span class="status-badge">${member.status || 'Active'}</span></td>
       <td>
-        <button class="btn-action btn-sm" onclick="editMember(${member.id})" title="Edit">
+        ${canEditMember ? `<button class="btn-action btn-sm" onclick="editMember(${member.id})" title="Edit">
           <i class="fa-solid fa-edit"></i>
-        </button>
-        ${isHead && member.id !== currentHouseholdContext.member_row_id ? `
+        </button>` : ''}
+        ${canRemoveMember ? `
         <button class="btn-action btn-sm btn-danger" onclick="removeMember(${member.id})" title="Remove">
           <i class="fa-solid fa-trash"></i>
         </button>
@@ -344,8 +359,9 @@ async function submitHeadForm(e) {
       credentials: 'include',
       body: JSON.stringify({
         action: 'create_household',
-        address: address,
+        house_number: address,
         street: street,
+        barangay: 'Barangay 219',
         city: city,
         province: province
       })
@@ -354,7 +370,8 @@ async function submitHeadForm(e) {
     const result = await response.json();
 
     if (result.success) {
-      showSuccessMessage('Household created successfully!');
+      const code = result.data?.family_code ? ` Family Code: ${result.data.family_code}` : '';
+      showSuccessMessage('Household created successfully!' + code);
       closeHeadFormModal();
       // Reload household info
       await new Promise(r => setTimeout(r, 500));
@@ -393,10 +410,12 @@ function closeHeadFormModal() {
 async function submitMemberJoin(e) {
   e?.preventDefault();
 
-  const householdId = document.getElementById('householdSelect')?.value;
+  const householdSelect = document.getElementById('householdSelect');
+  const householdId = householdSelect?.value;
+  const familyCode = householdSelect?.selectedOptions?.[0]?.dataset?.familyCode || '';
   const relationship = document.getElementById('relationshipToHead')?.value;
 
-  if (!householdId || !relationship) {
+  if (!householdId || !relationship || !familyCode) {
     showErrorMessage('Please select a household and relationship');
     return;
   }
@@ -408,7 +427,8 @@ async function submitMemberJoin(e) {
       credentials: 'include',
       body: JSON.stringify({
         action: 'join_household',
-        household_id: parseInt(householdId),
+        household_id: parseInt(householdId, 10),
+        family_code: familyCode,
         relationship_to_head: relationship
       })
     });
@@ -437,7 +457,8 @@ function openMemberJoinModal() {
     availableHouseholds.forEach(h => {
       const option = document.createElement('option');
       option.value = h.id;
-      option.textContent = `${h.street}, ${h.city} (Head: ${h.head_name})`;
+      option.dataset.familyCode = h.family_code || '';
+      option.textContent = `${h.family_code || 'No Code'} | ${h.address || ''} (Head: ${h.head_name})`;
       householdSelect.appendChild(option);
     });
   }
@@ -497,7 +518,7 @@ async function submitAddMember(e) {
 
   const name = document.getElementById('newMemberName')?.value;
   const dob = document.getElementById('newMemberDOB')?.value;
-  const gender = document.getElementById('newMemberGender')?.value;
+  const gender = (document.getElementById('newMemberGender')?.value || '').toLowerCase();
   const relationship = document.getElementById('newMemberRelationship')?.value;
 
   if (!name || !dob || !gender || !relationship) {
@@ -512,8 +533,8 @@ async function submitAddMember(e) {
       credentials: 'include',
       body: JSON.stringify({
         household_id: currentHouseholdData?.id,
-        resident_name: name,
-        dob: dob,
+        resident_id: parseInt(RESIDENT_SESSION_ID || 0, 10),
+        date_of_birth: dob,
         gender: gender,
         relationship_to_head: relationship
       })
@@ -547,10 +568,10 @@ function editMember(memberId) {
   if (editMemberId) editMemberId.value = memberId;
   
   const editMemberName = document.getElementById('editMemberName');
-  if (editMemberName) editMemberName.value = member.resident_name || '';
+  if (editMemberName) editMemberName.value = member.name || member.resident_name || '';
   
   const editMemberDOB = document.getElementById('editMemberDOB');
-  if (editMemberDOB) editMemberDOB.value = member.dob || '';
+  if (editMemberDOB) editMemberDOB.value = member.date_of_birth || member.dob || '';
   
   const editMemberGender = document.getElementById('editMemberGender');
   if (editMemberGender) editMemberGender.value = member.gender || '';
@@ -584,7 +605,7 @@ async function submitEditMember(e) {
 
   const memberId = document.getElementById('editMemberId')?.value;
   const dob = document.getElementById('editMemberDOB')?.value;
-  const gender = document.getElementById('editMemberGender')?.value;
+  const gender = (document.getElementById('editMemberGender')?.value || '').toLowerCase();
   const relationship = document.getElementById('editMemberRelationship')?.value;
 
   if (!memberId || !dob || !gender) {
@@ -598,8 +619,8 @@ async function submitEditMember(e) {
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        id: parseInt(memberId),
-        dob: dob,
+        member_id: parseInt(memberId, 10),
+        date_of_birth: dob,
         gender: gender,
         relationship_to_head: relationship
       })
@@ -632,7 +653,7 @@ async function removeMember(memberId) {
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        id: parseInt(memberId)
+        member_id: parseInt(memberId, 10)
       })
     });
 
