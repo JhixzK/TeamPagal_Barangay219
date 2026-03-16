@@ -335,7 +335,17 @@ if ($conn && empty($pageErrors) && $_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
 
         if ($fields['address'] === '') {
-            $fields['address'] = trim($fields['house_number'] . ' ' . $fields['street'] . ', ' . $fields['purok_sitio'] . ', ' . $fields['barangay'] . ', ' . $fields['city'] . ', ' . $fields['province']);
+            $line1 = trim($fields['house_number'] . ' ' . $fields['street']);
+            $parts = array_filter([
+              $line1,
+              $fields['purok_sitio'],
+              $fields['barangay'],
+              $fields['city'],
+              $fields['province']
+            ], static function ($v) {
+              return trim((string)$v) !== '';
+            });
+            $fields['address'] = implode(', ', $parts);
         }
 
         if (rpUpdateResidents($conn, $residentId, $fields, $residentCols, $userId)) {
@@ -548,6 +558,26 @@ $verificationStatus = $pick($resident, ['verification_status', 'record_status'],
 $verification = rpVerificationBadge($verificationStatus);
 $createdAt = $pick($resident, ['created_at'], $pick($user, ['created_at']));
 $createdAtLabel = $createdAt ? date('F d, Y', strtotime($createdAt)) : 'N/A';
+
+$displayHouseNumber = trim((string)$pick($resident, ['house_number', 'house_no']));
+$displayStreet = trim((string)$pick($resident, ['street']));
+$displayPurokSitio = trim((string)$pick($resident, ['purok_sitio']));
+
+if ($displayPurokSitio === '' && $displayStreet !== '') {
+  if (preg_match('/\b(purok\s*\d+|sitio\s*\d+)\b/i', $displayStreet, $m)) {
+    $displayPurokSitio = trim((string)$m[1]);
+    $displayStreet = trim((string)preg_replace('/\b(purok\s*\d+|sitio\s*\d+)\b/i', '', $displayStreet));
+    $displayStreet = trim($displayStreet, " ,-");
+  }
+}
+
+if ($displayPurokSitio === '' && $displayHouseNumber !== '') {
+  if (preg_match('/\b(purok\s*\d+|sitio\s*\d+)\b/i', $displayHouseNumber, $m)) {
+    $displayPurokSitio = trim((string)$m[1]);
+    $displayHouseNumber = trim((string)preg_replace('/\b(purok\s*\d+|sitio\s*\d+)\b/i', '', $displayHouseNumber));
+    $displayHouseNumber = trim($displayHouseNumber, " ,-");
+  }
+}
 
 $avatarPath = $pick($resident, ['id_document_path']);
 $avatarUrl = 'https://i.pravatar.cc/140?img=12';
@@ -845,8 +875,8 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
           <button class="btn-link toggle-btn" data-target="form-address"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
         </div>
         <div class="info-list">
-          <div class="info-row"><span>House Number / Street</span><strong><?php echo h(trim($pick($resident, ['house_number', 'house_no']) . ' ' . $pick($resident, ['street'])) ?: 'N/A'); ?></strong></div>
-          <div class="info-row"><span>Purok / Sitio</span><strong><?php echo h($pick($resident, ['purok_sitio'], 'N/A')); ?></strong></div>
+          <div class="info-row"><span>House Number / Street</span><strong><?php echo h(trim($displayHouseNumber . ' ' . $displayStreet) ?: 'N/A'); ?></strong></div>
+          <div class="info-row"><span>Purok / Sitio</span><strong><?php echo h($displayPurokSitio !== '' ? $displayPurokSitio : 'N/A'); ?></strong></div>
           <div class="info-row"><span>Barangay</span><strong><?php echo h($pick($resident, ['barangay'], 'Barangay 219')); ?></strong></div>
           <div class="info-row"><span>City / Municipality</span><strong><?php echo h($pick($resident, ['city'], 'Manila')); ?></strong></div>
           <div class="info-row"><span>Province</span><strong><?php echo h($pick($resident, ['province'], 'Metro Manila')); ?></strong></div>
@@ -856,9 +886,9 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
         <form method="POST" class="edit-form hidden" id="form-address">
           <input type="hidden" name="section" value="address">
           <div class="form-grid two-col">
-            <label><span>House Number</span><input type="text" name="house_number" value="<?php echo h($pick($resident, ['house_number', 'house_no'])); ?>"></label>
-            <label><span>Street</span><input type="text" name="street" value="<?php echo h($pick($resident, ['street'])); ?>"></label>
-            <label><span>Purok / Sitio</span><input type="text" name="purok_sitio" value="<?php echo h($pick($resident, ['purok_sitio'])); ?>"></label>
+            <label><span>House Number</span><input type="text" name="house_number" value="<?php echo h($displayHouseNumber); ?>"></label>
+            <label><span>Street</span><input type="text" name="street" value="<?php echo h($displayStreet); ?>"></label>
+            <label><span>Purok / Sitio</span><input type="text" name="purok_sitio" value="<?php echo h($displayPurokSitio); ?>"></label>
             <label><span>Barangay</span><input type="text" name="barangay" value="<?php echo h($pick($resident, ['barangay'], 'Barangay 219')); ?>"></label>
             <label><span>City</span><input type="text" name="city" value="<?php echo h($pick($resident, ['city'], 'Manila')); ?>"></label>
             <label><span>Province</span><input type="text" name="province" value="<?php echo h($pick($resident, ['province'], 'Metro Manila')); ?>"></label>
