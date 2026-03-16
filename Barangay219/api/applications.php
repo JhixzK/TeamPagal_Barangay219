@@ -265,8 +265,11 @@ function approveApplication() {
             'house_number' => $app['house_number'] ?? null,
             'street' => $app['street'] ?? null,
             'purok_sitio' => $app['purok_sitio'] ?? null,
+            'family_code' => $app['family_code'] ?? null,
+            'relationship_to_head' => $app['relationship_to_head'] ?? null,
             'contact_number' => $app['mobile_number'] ?? null,
             'email' => $app['email'] ?? null,
+            'length_of_residency' => $app['length_of_residency'] ?? null,
             'length_of_residency_years' => $app['length_of_residency_years'] ?? null,
             'emergency_contact_name' => $app['emergency_contact_name'] ?? null,
             'emergency_contact_number' => $app['emergency_contact_number'] ?? null,
@@ -282,6 +285,7 @@ function approveApplication() {
             'ip_group' => $app['ip_group'] ?? null,
             'is_4ps_beneficiary' => $app['is_4ps_beneficiary'] ?? 0,
             'record_status' => 'active',
+            'verification_status' => 'pending',
             'remarks' => $remarks ?: null,
             'last_updated_by' => $userId,
             'last_updated_at' => date('Y-m-d H:i:s'),
@@ -308,9 +312,11 @@ function approveApplication() {
 
         $residentId = $db->lastInsertId();
 
-        // Auto-create household when applicant is Head of Household
+        // Auto-create/link household by Family Code
         $roleRaw = strtolower(trim((string)($app['relationship_to_head'] ?? $app['household_role'] ?? '')));
         $isHead = $roleRaw !== '' && (strpos($roleRaw, 'head') !== false || strpos($roleRaw, 'single') !== false);
+        $familyCode = trim((string)($app['family_code'] ?? ''));
+
         if ($isHead && tableExists($db, 'households')) {
             $householdCols = array_flip(getTableColumns($db, 'households'));
             if (isset($householdCols['family_head_id']) && isset($householdCols['address'])) {
@@ -318,8 +324,8 @@ function approveApplication() {
                 $householdMembers = isset($app['household_members']) ? (int)$app['household_members'] : 1;
                 $householdMembers = max(1, $householdMembers);
 
-                $hhCols = ['family_head_id', 'address', 'total_members', 'registration_date'];
-                $hhValues = [$residentId, $householdAddress, $householdMembers, date('Y-m-d')];
+                $hhCols = ['family_head_id', 'address', 'total_members', 'registration_date', 'family_code'];
+                $hhValues = [$residentId, $householdAddress, $householdMembers, date('Y-m-d'), $familyCode ?: null];
                 // Keep only columns that exist
                 $finalCols = [];
                 $finalVals = [];
@@ -336,6 +342,30 @@ function approveApplication() {
                     $householdId = $db->lastInsertId();
                     $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $residentId]);
                 }
+            }
+        } elseif (!$isHead && tableExists($db, 'households')) {
+            if ($familyCode === '') {
+                throw new Exception('Member application is missing family code.');
+            }
+
+            $householdCols = array_flip(getTableColumns($db, 'households'));
+            if (!isset($householdCols['family_code'])) {
+                throw new Exception('Households table does not support family code linking.');
+            }
+
+            $linkedHousehold = $db->fetchOne(
+                "SELECT id, total_members FROM households WHERE family_code = ? LIMIT 1",
+                [$familyCode]
+            );
+            if (!$linkedHousehold) {
+                throw new Exception('Entered family code was not found for any head household.');
+            }
+
+            $linkedHouseholdId = (int)$linkedHousehold['id'];
+            $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$linkedHouseholdId, $residentId]);
+
+            if (isset($householdCols['total_members'])) {
+                $db->query("UPDATE households SET total_members = GREATEST(1, COALESCE(total_members,0) + 1) WHERE id = ?", [$linkedHouseholdId]);
             }
         }
 
