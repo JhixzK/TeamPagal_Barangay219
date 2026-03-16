@@ -233,6 +233,10 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
                 <span class="detail-value" id="displayMembers">0</span>
               </div>
               <div class="detail-item">
+                <span class="detail-label">Family Code:</span>
+                <span class="detail-value" id="displayFamilyCode">--</span>
+              </div>
+              <div class="detail-item">
                 <span class="detail-label">Created:</span>
                 <span class="detail-value" id="displayCreated">--</span>
               </div>
@@ -505,8 +509,9 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
     </main>
 
   <script>
-    // API base URL
-    const HOUSEHOLD_API = 'http://<?php echo $_SERVER['HTTP_HOST']; ?>/TeamPagal_Barangay219/Barangay219/api/households';
+    // Keep API URL deployment-safe by using relative paths.
+    const HOUSEHOLD_API = '../api/households';
+    const RESIDENT_SESSION_ID = <?php echo (int)$residentId; ?>;
   </script>
   <script src="resident_household.js?v=<?php echo $jsVersion; ?>"></script>
   <script src="<?php echo ASSETS_URL; ?>css/js/view-mode-switch.js?v=<?php echo time(); ?>"></script>
