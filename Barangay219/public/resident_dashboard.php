@@ -236,7 +236,22 @@ $householdSnapshot = [
   'household_id' => null,
   'head_name' => '-',
   'member_count' => 0,
-  'address' => '-'
+  'address' => '-',
+  'emergency_contact_name' => '',
+  'emergency_contact_number' => ''
+];
+
+$residentEmergencyContact = [
+  'name' => '',
+  'number' => '',
+  'relationship' => ''
+];
+
+$dashboardEmergencyContacts = [
+  ['label' => 'Barangay Office', 'number' => '(02) 8242-2190'],
+  ['label' => 'Police Station', 'number' => '911 / (02) 8527-0000'],
+  ['label' => 'Fire Department', 'number' => '911 / (02) 8426-0219'],
+  ['label' => 'Health Center', 'number' => '(02) 8731-1122']
 ];
 
 $requestTable = null;
@@ -275,6 +290,15 @@ if ($conn && (int)$residentId > 0) {
     if (in_array('profile_image', $residentCols, true)) {
       $selectResidentParts[] = 'profile_image';
     }
+    if (in_array('emergency_contact_name', $residentCols, true)) {
+      $selectResidentParts[] = 'emergency_contact_name';
+    }
+    if (in_array('emergency_contact_number', $residentCols, true)) {
+      $selectResidentParts[] = 'emergency_contact_number';
+    }
+    if (in_array('emergency_contact_relationship', $residentCols, true)) {
+      $selectResidentParts[] = 'emergency_contact_relationship';
+    }
 
     $residentSql = 'SELECT ' . implode(', ', $selectResidentParts) . ' FROM residents WHERE id = ? LIMIT 1';
     $residentRow = residentDashboardFetchOne($conn, $residentSql, 'i', [(int)$residentId]);
@@ -293,6 +317,10 @@ if ($conn && (int)$residentId > 0) {
       if (!empty($residentRow['profile_image'])) {
         $residentProfile['avatar'] = htmlspecialchars((string)$residentRow['profile_image']);
       }
+
+      $residentEmergencyContact['name'] = (string)($residentRow['emergency_contact_name'] ?? '');
+      $residentEmergencyContact['number'] = (string)($residentRow['emergency_contact_number'] ?? '');
+      $residentEmergencyContact['relationship'] = (string)($residentRow['emergency_contact_relationship'] ?? '');
 
       $residentStatusRaw = strtolower(trim((string)(
         ($residentRow['verification_status'] ?? '')
@@ -374,7 +402,7 @@ if ($conn && (int)$residentId > 0) {
   if ($householdSnapshot['linked'] && residentDashboardTableExists($conn, 'households')) {
     $householdId = (int)$householdSnapshot['household_id'];
     $householdColumns = residentDashboardTableColumns($conn, 'households');
-    $allowedHouseholdFields = ['id', 'family_head_id', 'total_members', 'address', 'house_number', 'street', 'purok_sitio', 'barangay', 'city', 'province'];
+    $allowedHouseholdFields = ['id', 'family_head_id', 'total_members', 'address', 'house_number', 'street', 'purok_sitio', 'barangay', 'city', 'province', 'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_number'];
     $availableHouseholdFields = [];
     foreach ($allowedHouseholdFields as $field) {
       if (in_array($field, $householdColumns, true)) {
@@ -410,6 +438,11 @@ if ($conn && (int)$residentId > 0) {
       $householdSnapshot['address'] = !empty($householdRow['address'])
         ? (string)$householdRow['address']
         : (!empty($addressParts) ? implode(', ', $addressParts) : '-');
+      $householdSnapshot['emergency_contact_name'] = (string)($householdRow['emergency_contact_name'] ?? '');
+      $householdSnapshot['emergency_contact_number'] = (string)(
+        $householdRow['emergency_contact_number']
+        ?? ($householdRow['emergency_contact_phone'] ?? '')
+      );
 
       if (residentDashboardTableExists($conn, 'household_members')) {
         $memberRow = residentDashboardFetchOne(
@@ -476,6 +509,65 @@ if ($conn && (int)$residentId > 0) {
 
       $notificationSql .= " ORDER BY {$dateColumn} DESC LIMIT 5";
       $dashboardNotifications = residentDashboardFetchAll($conn, $notificationSql, $bindTypes, $bindValues);
+    }
+  }
+
+  $contactTableCandidates = ['emergency_contacts', 'contact_numbers', 'hotlines'];
+  foreach ($contactTableCandidates as $contactTable) {
+    if (!residentDashboardTableExists($conn, $contactTable)) {
+      continue;
+    }
+
+    $contactCols = residentDashboardTableColumns($conn, $contactTable);
+    $labelCol = in_array('label', $contactCols, true)
+      ? 'label'
+      : (in_array('name', $contactCols, true)
+        ? 'name'
+        : (in_array('contact_name', $contactCols, true) ? 'contact_name' : null));
+    $numberCol = in_array('number', $contactCols, true)
+      ? 'number'
+      : (in_array('phone', $contactCols, true)
+        ? 'phone'
+        : (in_array('contact_number', $contactCols, true)
+          ? 'contact_number'
+          : (in_array('mobile_number', $contactCols, true) ? 'mobile_number' : null)));
+
+    if (!$labelCol || !$numberCol) {
+      continue;
+    }
+
+    $where = [];
+    if (in_array('is_active', $contactCols, true)) {
+      $where[] = 'is_active = 1';
+    } elseif (in_array('status', $contactCols, true)) {
+      $where[] = "LOWER(status) IN ('active', 'published', 'enabled')";
+    }
+
+    $orderBy = in_array('priority', $contactCols, true)
+      ? 'priority ASC'
+      : (in_array('sort_order', $contactCols, true)
+        ? 'sort_order ASC'
+        : (in_array('id', $contactCols, true) ? 'id ASC' : $labelCol . ' ASC'));
+
+    $sql = "SELECT {$labelCol} AS label, {$numberCol} AS number FROM {$contactTable}";
+    if (!empty($where)) {
+      $sql .= ' WHERE ' . implode(' AND ', $where);
+    }
+    $sql .= " ORDER BY {$orderBy} LIMIT 6";
+
+    $liveContacts = residentDashboardFetchAll($conn, $sql);
+    if (!empty($liveContacts)) {
+      $dashboardEmergencyContacts = [];
+      foreach ($liveContacts as $item) {
+        $label = trim((string)($item['label'] ?? ''));
+        $number = trim((string)($item['number'] ?? ''));
+        if ($label !== '' && $number !== '') {
+          $dashboardEmergencyContacts[] = ['label' => $label, 'number' => $number];
+        }
+      }
+      if (!empty($dashboardEmergencyContacts)) {
+        break;
+      }
     }
   }
 
@@ -566,7 +658,7 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
       </button>
       <div class="profile-dropdown" id="profileDropdown">
         <button class="profile-trigger" id="profileTrigger" aria-haspopup="true" aria-expanded="false">
-          <img src="https://i.pravatar.cc/100?img=12" alt="Resident avatar">
+          <img src="<?php echo htmlspecialchars($residentProfile['avatar']); ?>" alt="Resident avatar">
           <i class="fa-solid fa-chevron-down"></i>
         </button>
         <div class="dropdown-menu" id="dropdownMenu" role="menu">
@@ -580,7 +672,7 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
 
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-profile">
-      <img src="https://i.pravatar.cc/120?img=12" alt="Resident profile image">
+      <img src="<?php echo htmlspecialchars($residentProfile['avatar']); ?>" alt="Resident profile image">
       <div class="profile-meta label">
         <h3><?php echo htmlspecialchars($residentName); ?></h3>
         <p>Resident</p>
@@ -833,22 +925,28 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
         <h3>Emergency Contacts</h3>
       </div>
       <div class="emergency-grid">
-        <div class="contact-item">
-          <h4>Barangay Office</h4>
-          <p>(02) 8242-2190</p>
-        </div>
-        <div class="contact-item">
-          <h4>Police Station</h4>
-          <p>911 / (02) 8527-0000</p>
-        </div>
-        <div class="contact-item">
-          <h4>Fire Department</h4>
-          <p>911 / (02) 8426-0219</p>
-        </div>
-        <div class="contact-item">
-          <h4>Health Center</h4>
-          <p>(02) 8731-1122</p>
-        </div>
+        <?php if (!empty($residentEmergencyContact['name']) || !empty($residentEmergencyContact['number'])): ?>
+          <div class="contact-item">
+            <h4>My Emergency Contact<?php echo !empty($residentEmergencyContact['relationship']) ? ' (' . htmlspecialchars($residentEmergencyContact['relationship']) . ')' : ''; ?></h4>
+            <p><?php echo htmlspecialchars($residentEmergencyContact['name'] ?: 'Not specified'); ?></p>
+            <p><?php echo htmlspecialchars($residentEmergencyContact['number'] ?: 'No number on file'); ?></p>
+          </div>
+        <?php endif; ?>
+
+        <?php if (!empty($householdSnapshot['emergency_contact_name']) || !empty($householdSnapshot['emergency_contact_number'])): ?>
+          <div class="contact-item">
+            <h4>Household Emergency Contact</h4>
+            <p><?php echo htmlspecialchars($householdSnapshot['emergency_contact_name'] ?: 'Not specified'); ?></p>
+            <p><?php echo htmlspecialchars($householdSnapshot['emergency_contact_number'] ?: 'No number on file'); ?></p>
+          </div>
+        <?php endif; ?>
+
+        <?php foreach ($dashboardEmergencyContacts as $contact): ?>
+          <div class="contact-item">
+            <h4><?php echo htmlspecialchars((string)($contact['label'] ?? 'Emergency Contact')); ?></h4>
+            <p><?php echo htmlspecialchars((string)($contact['number'] ?? '-')); ?></p>
+          </div>
+        <?php endforeach; ?>
       </div>
     </section>
   </main>
