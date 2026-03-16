@@ -34,6 +34,20 @@ switch ($action) {
         }
         updateResident();
         break;
+
+    case 'verify_id':
+        if (!canPerformModulePermission('residents', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        updateVerificationStatus('verified');
+        break;
+
+    case 'reject_id':
+        if (!canPerformModulePermission('residents', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        updateVerificationStatus('rejected');
+        break;
     
     case 'delete':
         if (!canPerformModulePermission('residents', 'can_delete')) {
@@ -379,6 +393,144 @@ function searchResidents() {
     } catch (Exception $e) {
         error_log("Search residents error: " . $e->getMessage());
         sendResponse(false, 'Error searching residents', null, 500);
+    }
+}
+
+function getTableColumns($db, $table) {
+    $rows = $db->fetchAll(
+        "SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE() AND table_name = ?",
+        [$table]
+    );
+    return array_map(static function ($row) {
+        return $row['column_name'];
+    }, $rows);
+}
+
+function columnExists($db, $table, $column) {
+    $row = $db->fetchOne(
+        "SELECT COUNT(*) AS cnt
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?",
+        [$table, $column]
+    );
+    return !empty($row) && (int)$row['cnt'] > 0;
+}
+
+function addColumnIfMissing($db, $table, $column, $definition) {
+    if (!columnExists($db, $table, $column)) {
+        $db->query("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
+    }
+}
+
+function ensureResidentVerificationColumns($db) {
+    addColumnIfMissing($db, 'residents', 'id_document_path', "VARCHAR(255) NULL AFTER email");
+    addColumnIfMissing($db, 'residents', 'verification_status', "ENUM('pending','verified','rejected') DEFAULT 'pending' AFTER record_status");
+    addColumnIfMissing($db, 'residents', 'rejection_reason', "TEXT NULL AFTER remarks");
+}
+
+function updateVerificationStatus($targetStatus) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'Invalid request method', null, 405);
+        return;
+    }
+
+    $id = intval($_POST['id'] ?? 0);
+    $remarks = sanitizeInput($_POST['remarks'] ?? '');
+
+    if (!$id) {
+        sendResponse(false, 'Resident ID is required', null, 400);
+        return;
+    }
+
+    try {
+        $db = Database::getInstance();
+        ensureResidentVerificationColumns($db);
+
+        $cols = array_flip(getTableColumns($db, 'residents'));
+        if (!isset($cols['verification_status'])) {
+            sendResponse(false, 'Verification status column is not available. Run latest migrations first.', null, 500);
+            return;
+        }
+
+        $selectCols = ['id', 'resident_code'];
+        if (isset($cols['id_document_path'])) $selectCols[] = 'id_document_path';
+        if (isset($cols['verification_status'])) $selectCols[] = 'verification_status';
+        if (isset($cols['status'])) $selectCols[] = 'status';
+        if (isset($cols['record_status'])) $selectCols[] = 'record_status';
+        $selectSql = '`' . implode('`,`', $selectCols) . '`';
+
+        $resident = $db->fetchOne(
+            "SELECT $selectSql
+             FROM residents
+             WHERE id = ?
+             LIMIT 1",
+            [$id]
+        );
+
+        if (!$resident) {
+            sendResponse(false, 'Resident not found', null, 404);
+            return;
+        }
+
+        if (empty($resident['id_document_path'])) {
+            sendResponse(false, 'Resident has no uploaded ID document to verify.', null, 400);
+            return;
+        }
+
+        $setParts = ["verification_status = ?"];
+        $params = [$targetStatus];
+
+        if (isset($cols['record_status'])) {
+            $setParts[] = "record_status = ?";
+            $params[] = $targetStatus === 'verified' ? 'active' : 'rejected';
+        }
+
+        if (isset($cols['status']) && $targetStatus === 'verified') {
+            $setParts[] = "status = ?";
+            $params[] = 'active';
+        }
+
+        if (isset($cols['remarks'])) {
+            if ($targetStatus === 'verified') {
+                $setParts[] = "remarks = ?";
+                $params[] = $remarks !== '' ? $remarks : 'ID verified by barangay staff.';
+            } else {
+                $setParts[] = "remarks = ?";
+                $params[] = $remarks !== '' ? $remarks : 'ID verification rejected by barangay staff.';
+            }
+        }
+
+        if (isset($cols['rejection_reason'])) {
+            $setParts[] = "rejection_reason = ?";
+            $params[] = $targetStatus === 'rejected'
+                ? ($remarks !== '' ? $remarks : 'ID verification was rejected. Please upload a clearer or valid ID document.')
+                : null;
+        }
+
+        if (isset($cols['last_updated_at'])) {
+            $setParts[] = "last_updated_at = NOW()";
+        }
+
+        if (isset($cols['last_updated_by']) && function_exists('getCurrentUserId')) {
+            $setParts[] = "last_updated_by = ?";
+            $params[] = (int)getCurrentUserId();
+        }
+
+        $params[] = $id;
+
+        $sql = "UPDATE residents SET " . implode(', ', $setParts) . " WHERE id = ?";
+        $db->query($sql, $params);
+
+        sendResponse(true, $targetStatus === 'verified' ? 'Resident ID verified successfully.' : 'Resident ID rejected successfully.', [
+            'id' => $id,
+            'resident_code' => $resident['resident_code'] ?? null,
+            'verification_status' => $targetStatus
+        ]);
+    } catch (Exception $e) {
+        error_log('Update verification status error: ' . $e->getMessage());
+        sendResponse(false, 'Error updating verification status', null, 500);
     }
 }
 
