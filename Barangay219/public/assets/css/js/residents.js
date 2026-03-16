@@ -181,7 +181,7 @@ function displayResidents(residents) {
     const tbody = document.getElementById('residentsTableBody');
     
     if (residents.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center">No residents found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center">No residents found</td></tr>';
         return;
     }
 
@@ -207,6 +207,10 @@ function displayResidents(residents) {
         const fullName = escapeHtml(toTitleCase(rawFullName));
         const age = calculateAge(resident.birth_date);
         const residentCode = resident.resident_code ? escapeHtml(resident.resident_code) : '<span class="text-muted">N/A</span>';
+        const verificationStatus = normalizeVerificationStatus(resident);
+        const hasIdUpload = !!(resident.id_document_path && String(resident.id_document_path).trim() !== '');
+        const canVerifyNow = RESIDENT_PERMS.canEdit && hasIdUpload && verificationStatus !== 'verified';
+        const canRejectNow = RESIDENT_PERMS.canEdit && hasIdUpload && verificationStatus === 'pending';
         
         const isHead = String(resident.is_household_head) === '1';
         const householdRole = resident.household_id
@@ -221,10 +225,13 @@ function displayResidents(residents) {
                 <td class="text-center">${escapeHtml(formatTitleCaseTruncate(resident.address || '', 40))}${(resident.address||'').length>40?'...':''}</td>
                 <td class="text-center">${escapeHtml(formatPhoneNumber(resident.contact_number) || '-')}</td>
                 <td class="text-center">${householdRole}</td>
+                <td class="text-center">${getVerificationBadge(verificationStatus)}</td>
                 <td class="text-center"><span class="badge ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
                 <td class="text-center">
                     ${RESIDENT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editResident(${resident.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
                     <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewResident(${resident.id})"><i class="bi bi-eye"></i></button>
+                    ${canVerifyNow ? `<button class="btn btn-sm btn-success" title="Verify ID" aria-label="Verify ID" onclick="verifyResidentId(${resident.id}, 'verified')"><i class="bi bi-patch-check"></i></button>` : ''}
+                    ${canRejectNow ? `<button class="btn btn-sm btn-warning" title="Reject ID" aria-label="Reject ID" onclick="verifyResidentId(${resident.id}, 'rejected')"><i class="bi bi-patch-exclamation"></i></button>` : ''}
                     ${RESIDENT_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteResident(${resident.id})"><i class="bi bi-trash"></i></button>` : ''}
                 </td>
             </tr>
@@ -379,6 +386,8 @@ function viewResident(id) {
             const fullName = `${r.first_name || ''} ${r.middle_name || ''} ${r.last_name || ''} ${r.suffix || ''}`.trim();
             const age = calculateAge(r.birth_date);
             const residentCode = r.resident_code ? escapeHtml(r.resident_code) : '-';
+            const verificationStatus = normalizeVerificationStatus(r);
+            const idDocLink = buildResidentFileLink(r.id_document_path, 'View Uploaded ID');
             document.getElementById('viewResidentBody').innerHTML = `
                 <table class="table table-sm">
                     <tr><td><strong>Resident ID</strong></td><td>${residentCode}</td></tr>
@@ -392,9 +401,17 @@ function viewResident(id) {
                     <tr><td><strong>Citizenship</strong></td><td>${escapeHtml(toTitleCase(r.citizenship || '-'))}</td></tr>
                     <tr><td><strong>Household</strong></td><td>${r.household_address ? 'Household #'+r.household_id+' ('+r.total_members+' members)' : 'None'}</td></tr>
                     <tr><td><strong>Household Role</strong></td><td>${r.household_id ? (String(r.is_household_head)==='1' ? 'Head of Household' : 'Member') : '-'}</td></tr>
+                    <tr><td><strong>Verification</strong></td><td>${getVerificationBadge(verificationStatus)}</td></tr>
+                    <tr><td><strong>Uploaded ID</strong></td><td>${idDocLink}</td></tr>
                     <tr><td><strong>Certificates</strong></td><td>${r.certificates_count || 0} issued</td></tr>
                     <tr><td><strong>Status</strong></td><td><span class="badge ${getStatusClass(r.status)}">${formatStatus(r.status)}</span></td></tr>
                 </table>
+                ${RESIDENT_PERMS.canEdit && r.id_document_path ? `
+                    <div class="d-flex gap-2 justify-content-end">
+                        ${verificationStatus !== 'verified' ? `<button class="btn btn-success btn-sm" onclick="verifyResidentId(${r.id}, 'verified')"><i class="bi bi-patch-check"></i> Verify Uploaded ID</button>` : ''}
+                        ${verificationStatus === 'pending' ? `<button class="btn btn-warning btn-sm" onclick="verifyResidentId(${r.id}, 'rejected')"><i class="bi bi-patch-exclamation"></i> Reject ID</button>` : ''}
+                    </div>
+                ` : ''}
             `;
             document.getElementById('btnEditFromView').dataset.residentId = id;
             document.getElementById('linkCertificates').href = (window.BASE_URL || '') + 'certificates.php';
@@ -541,6 +558,84 @@ function getStatusClass(status) {
         'transferred': 'bg-info'
     };
     return classes[status] || 'bg-secondary';
+}
+
+function normalizeVerificationStatus(row) {
+    const raw = String(row?.verification_status || row?.record_status || '').toLowerCase().trim();
+    if (raw === 'verified' || raw === 'approved' || raw === 'active') return 'verified';
+    if (raw === 'rejected') return 'rejected';
+    return 'pending';
+}
+
+function getVerificationBadge(status) {
+    if (status === 'verified') {
+        return '<span class="badge bg-success">Verified</span>';
+    }
+    if (status === 'rejected') {
+        return '<span class="badge bg-danger">Rejected</span>';
+    }
+    return '<span class="badge bg-warning text-dark">Pending</span>';
+}
+
+function buildResidentFileLink(path, label) {
+    if (!path) return '<span class="text-muted">No ID uploaded</span>';
+    const trimmed = String(path).trim();
+    if (!trimmed) return '<span class="text-muted">No ID uploaded</span>';
+    const base = window.BASE_URL || '';
+    const normalized = trimmed.replace(/^\/+/, '');
+    const url = trimmed.startsWith('http') ? trimmed : (base + normalized);
+    return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label || 'View file')}</a>`;
+}
+
+function verifyResidentId(id, nextStatus) {
+    if (!RESIDENT_PERMS.canEdit) {
+        showAlert('error', 'Access denied');
+        return;
+    }
+
+    const isVerify = nextStatus === 'verified';
+    let remarks = '';
+    if (isVerify) {
+        if (!confirm('Mark this resident ID as verified?')) return;
+    } else {
+        remarks = prompt('Enter rejection reason (required):', 'ID photo is unclear or invalid. Please upload a clearer, valid government ID.') || '';
+        remarks = remarks.trim();
+        if (!remarks) {
+            showAlert('error', 'Rejection reason is required.');
+            return;
+        }
+        if (!confirm('Reject this resident ID upload?')) return;
+    }
+
+    const formData = new FormData();
+    formData.append('action', isVerify ? 'verify_id' : 'reject_id');
+    formData.append('id', String(id));
+    if (remarks) formData.append('remarks', remarks);
+
+    fetch((window.API_URL || '') + 'resident.php', {
+        method: 'POST',
+        body: formData
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                showAlert('error', data.message || 'Failed to update verification status.');
+                return;
+            }
+            showAlert('success', data.message || 'Verification status updated.');
+
+            const viewModalEl = document.getElementById('viewResidentModal');
+            const viewModal = viewModalEl ? bootstrap.Modal.getInstance(viewModalEl) : null;
+            if (viewModal) {
+                viewModal.hide();
+            }
+
+            loadResidents(currentPage);
+        })
+        .catch(error => {
+            console.error('Verification update error:', error);
+            showAlert('error', 'Failed to update verification status.');
+        });
 }
 
 function formatDate(dateString) {
