@@ -31,6 +31,21 @@ function ensureResidentMemberContractColumns() {
     if (isset($memberCols['dob']) && isset($memberCols['date_of_birth'])) {
         $db->query("UPDATE household_members SET date_of_birth = dob WHERE (date_of_birth IS NULL OR date_of_birth = '0000-00-00') AND dob IS NOT NULL");
     }
+
+    $db->query(
+        "CREATE TABLE IF NOT EXISTS household_history_logs (
+            id INT(11) NOT NULL AUTO_INCREMENT,
+            household_id INT(11) NOT NULL,
+            action VARCHAR(80) NOT NULL,
+            performed_by INT(11) NULL,
+            target_resident_id INT(11) NULL,
+            details TEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_household_created (household_id, created_at),
+            KEY idx_performed_by (performed_by)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
 }
 
 function householdMemberDateColumn() {
@@ -93,6 +108,7 @@ function addHouseholdMember($residentId) {
         }
 
         $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $targetResidentId]);
+        logMemberHistory($householdId, 'Member Added', 'Member linked to household', $targetResidentId);
         $db->commit();
 
         householdJsonResponse(true, null, 'Household member saved');
@@ -104,6 +120,13 @@ function addHouseholdMember($residentId) {
 
 function updateHouseholdMember($residentId) {
     $data = getRequestBodyData();
+    $action = strtolower(sanitizeInput((string)($data['action'] ?? '')));
+
+    if ($action === 'assign_head') {
+        assignHouseholdHead($residentId, $data);
+        return;
+    }
+
     $memberId = (int)(($data['member_id'] ?? 0) ?: ($data['id'] ?? 0));
 
     if ($memberId <= 0) {
@@ -158,6 +181,8 @@ function updateHouseholdMember($residentId) {
         [$relationship, $dob, $gender, $civilStatus, $memberId]
     );
 
+    logMemberHistory((int)$row['household_id'], 'Member Updated', 'Member profile updated', (int)$row['resident_id']);
+
     householdJsonResponse(true, null, 'Household member updated');
 }
 
@@ -200,6 +225,7 @@ function deleteHouseholdMember($residentId) {
     try {
         $db->query("DELETE FROM household_members WHERE id = ?", [$memberId]);
         $db->query("UPDATE residents SET household_id = NULL WHERE id = ?", [(int)$row['resident_id']]);
+        logMemberHistory((int)$row['household_id'], 'Member Removed', 'Member removed from household', (int)$row['resident_id']);
         $db->commit();
 
         householdJsonResponse(true, null, 'Household member removed');
@@ -218,6 +244,11 @@ function validateMemberFields($residentId, $relationship, $dob, $gender, $civilS
         householdJsonResponse(false, null, 'Relationship to head is required', 400);
     }
 
+    $allowedRelationship = ['Head', 'Member', 'Spouse', 'Son', 'Daughter', 'Parent', 'Sibling', 'Relative', 'Boarder'];
+    if (!in_array($relationship, $allowedRelationship, true)) {
+        householdJsonResponse(false, null, 'Invalid relationship value', 400);
+    }
+
     if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $dob) || strtotime($dob) === false) {
         householdJsonResponse(false, null, 'Valid DOB is required', 400);
     }
@@ -234,5 +265,76 @@ function validateMemberFields($residentId, $relationship, $dob, $gender, $civilS
     $allowedCivil = ['single', 'married', 'widowed', 'divorced', 'separated'];
     if (!in_array($civilStatus, $allowedCivil, true)) {
         householdJsonResponse(false, null, 'Invalid civil status', 400);
+    }
+}
+
+function assignHouseholdHead($residentId, $data) {
+    $memberId = (int)(($data['member_id'] ?? 0) ?: ($data['id'] ?? 0));
+    if ($memberId <= 0) {
+        householdJsonResponse(false, null, 'Member id is required', 400);
+    }
+
+    $context = getResidentHouseholdContext($residentId);
+    if (!$context || !$context['is_head']) {
+        householdJsonResponse(false, null, 'Only current household head can assign new head', 403);
+    }
+
+    $db = Database::getInstance();
+    $houseCols = getColumnsMap('households');
+    $headColumn = isset($houseCols['family_head_id']) ? 'family_head_id' : 'head_id';
+
+    $target = $db->fetchOne(
+        'SELECT id, household_id, resident_id, relationship_to_head FROM household_members WHERE id = ? LIMIT 1',
+        [$memberId]
+    );
+
+    if (!$target) {
+        householdJsonResponse(false, null, 'Member not found', 404);
+    }
+
+    if ((int)$target['household_id'] !== (int)$context['household_id']) {
+        householdJsonResponse(false, null, 'Access denied', 403);
+    }
+
+    $householdId = (int)$target['household_id'];
+    $newHeadResidentId = (int)$target['resident_id'];
+
+    $db->beginTransaction();
+    try {
+        $db->query("UPDATE households SET {$headColumn} = ? WHERE id = ?", [$newHeadResidentId, $householdId]);
+        if (isset($houseCols['family_head_id']) && $headColumn !== 'family_head_id') {
+            $db->query('UPDATE households SET family_head_id = ? WHERE id = ?', [$newHeadResidentId, $householdId]);
+        }
+        if (isset($houseCols['head_id']) && $headColumn !== 'head_id') {
+            $db->query('UPDATE households SET head_id = ? WHERE id = ?', [$newHeadResidentId, $householdId]);
+        }
+
+        $db->query('UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?', ['Head', $newHeadResidentId, $householdId]);
+        $db->query('UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?', ['Member', $residentId, $householdId]);
+
+        logMemberHistory($householdId, 'Head Changed', 'Household head reassigned', $newHeadResidentId);
+
+        $db->commit();
+        householdJsonResponse(true, ['new_head_resident_id' => $newHeadResidentId], 'Household head updated');
+    } catch (Exception $e) {
+        $db->rollback();
+        throw $e;
+    }
+}
+
+function logMemberHistory($householdId, $action, $details = null, $targetResidentId = null) {
+    if (!$householdId || !$action) {
+        return;
+    }
+
+    try {
+        $db = Database::getInstance();
+        $performedBy = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
+        $db->query(
+            'INSERT INTO household_history_logs (household_id, action, performed_by, target_resident_id, details) VALUES (?, ?, ?, ?, ?)',
+            [(int)$householdId, (string)$action, $performedBy, $targetResidentId ? (int)$targetResidentId : null, $details]
+        );
+    } catch (Exception $e) {
+        error_log('Member history log error: ' . $e->getMessage());
     }
 }
