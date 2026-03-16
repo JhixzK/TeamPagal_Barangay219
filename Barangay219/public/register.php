@@ -443,7 +443,11 @@ $barangay219_street_options = [
                         </div>
                         <div class="step" data-step="4">
                             <div class="step-circle">4</div>
-                            <div class="step-label">Step 4: Review & Submit</div>
+                            <div class="step-label">Step 4: Employment & Background</div>
+                        </div>
+                        <div class="step" data-step="5">
+                            <div class="step-circle">5</div>
+                            <div class="step-label">Step 5: Review & Submit</div>
                         </div>
                     </div>
 
@@ -457,7 +461,7 @@ $barangay219_street_options = [
                         <div class="step-content active" data-step="1">
                             <div class="step-header">
                                 <div class="step-title">Phase 1: Personal Information</div>
-                                <div class="step-counter">Step 1 of 4</div>
+                                <div class="step-counter">Step 1 of 5</div>
                             </div>
                             <div class="card section-card mb-4">
                                 <div class="card-body">
@@ -535,7 +539,7 @@ $barangay219_street_options = [
                         <div class="step-content" data-step="2">
                             <div class="step-header">
                                 <div class="step-title">Phase 2: Family Background</div>
-                                <div class="step-counter">Step 2 of 4</div>
+                                <div class="step-counter">Step 2 of 5</div>
                             </div>
                             <div class="card section-card mb-4">
                                 <div class="card-body">
@@ -605,7 +609,7 @@ $barangay219_street_options = [
                         <div class="step-content" data-step="3">
                             <div class="step-header">
                                 <div class="step-title">Phase 3: Contact & Residency</div>
-                                <div class="step-counter">Step 3 of 4</div>
+                                <div class="step-counter">Step 3 of 5</div>
                             </div>
                             <div class="card section-card mb-4">
                                 <div class="card-body">
@@ -700,18 +704,11 @@ $barangay219_street_options = [
                             </div>
                         </div>
 
-                        <!-- Step 4: Review & Submit -->
+                        <!-- Step 4: Employment & Background -->
                         <div class="step-content" data-step="4">
                             <div class="step-header">
-                                <div class="step-title">Phase 4: Review &amp; Edit</div>
-                                <div class="step-counter">Step 4 of 4</div>
-                            </div>
-                            <div class="note-box mb-3" style="border-left:4px solid #1d4ed8;">
-                                <i class="bi bi-pencil-square me-1 text-primary"></i>
-                                <strong>Review your information below.</strong> You may edit any field to correct mistakes before submitting.
-                            </div>
-                            <div id="reviewContent">
-                                <!-- Review content will be populated by JavaScript -->
+                                <div class="step-title">Phase 4: Employment &amp; Background</div>
+                                <div class="step-counter">Step 4 of 5</div>
                             </div>
                             <div class="card section-card mb-4">
                                 <div class="card-body">
@@ -785,6 +782,25 @@ $barangay219_street_options = [
                                         </div>
                                     </div>
                                     <hr>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 5: Review & Submit -->
+                        <div class="step-content" data-step="5">
+                            <div class="step-header">
+                                <div class="step-title">Phase 5: Review &amp; Submit</div>
+                                <div class="step-counter">Step 5 of 5</div>
+                            </div>
+                            <div class="note-box mb-3" style="border-left:4px solid #1d4ed8;">
+                                <i class="bi bi-pencil-square me-1 text-primary"></i>
+                                <strong>Review your information below.</strong> You may edit any field to correct mistakes before submitting.
+                            </div>
+                            <div id="reviewContent">
+                                <!-- Review content will be populated by JavaScript -->
+                            </div>
+                            <div class="card section-card mb-4">
+                                <div class="card-body">
                                     <h6 class="text-secondary mb-3">Identification & Verification</h6>
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
@@ -884,7 +900,7 @@ window.addEventListener('DOMContentLoaded', function () {
 window.API_URL = '<?php echo addslashes(API_URL); ?>';
 
 let currentStep = 1;
-const totalSteps = 4;
+const totalSteps = 5;
 let isRegisterSubmitting = false;
 
 // Phase 1 name validation - letters, hyphens, apostrophes, periods only (no spaces)
@@ -1203,7 +1219,7 @@ function showStep(step) {
         nextBtn.style.display = 'inline-block';
         submitBtn.style.display = 'none';
     } else if (step === totalSteps) {
-        prevBtn.style.display = 'none';
+        prevBtn.style.display = 'inline-block';
         nextBtn.style.display = 'none';
         submitBtn.style.display = 'inline-block';
         populateReview();
@@ -1463,7 +1479,7 @@ document.getElementById('registerForm').addEventListener('submit', async functio
         return;
     }
     applyTitleCaseToRegisterForm();
-    if (!validateStep(4)) {
+    if (!validateStep(5)) {
         alert('Please complete all required fields and confirm the information.');
         return;
     }
@@ -1481,10 +1497,10 @@ document.getElementById('registerForm').addEventListener('submit', async functio
             btn.style.display = 'none';
             document.getElementById('nextBtn').style.display = 'none';
             document.getElementById('prevBtn').style.display = 'none';
-            const phase4Content = document.querySelector('.step-content[data-step="4"]');
-            const phase4Indicator = document.querySelector('.step[data-step="4"]');
-            if (phase4Content) phase4Content.style.display = 'none';
-            if (phase4Indicator) phase4Indicator.style.display = 'none';
+            const finalStepContent = document.querySelector('.step-content[data-step="5"]');
+            const finalStepIndicator = document.querySelector('.step[data-step="5"]');
+            if (finalStepContent) finalStepContent.style.display = 'none';
+            if (finalStepIndicator) finalStepIndicator.style.display = 'none';
         } else {
             alc.innerHTML = '<div class="alert alert-danger"> ' + data.message + '</div>';
         }
