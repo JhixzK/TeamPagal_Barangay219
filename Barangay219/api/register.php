@@ -427,8 +427,6 @@ try {
     }
     $application_ref = $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
 
-    $db->beginTransaction();
-
     // Ensure newer columns exist for household role tracking (safe no-op if already present)
     addColumnIfMissing($db, 'resident_applications', 'relationship_to_head', "VARCHAR(50) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'household_role', "VARCHAR(80) DEFAULT NULL");
@@ -436,6 +434,8 @@ try {
     addColumnIfMissing($db, 'resident_applications', 'household_members', "INT(11) DEFAULT NULL");
 
     $existingCols = array_flip(getTableColumns($db, 'resident_applications'));
+
+    $db->beginTransaction();
 
     $insertData = [
         'application_ref' => $application_ref,
