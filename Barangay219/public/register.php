@@ -587,21 +587,26 @@ $barangay219_purok_options = [
                                     </div>
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
-                                            <label>Family Code / Head of Family ID</label>
-                                            <input type="text" name="family_code" class="form-control" maxlength="30" placeholder="ID only, no names">
-                                            <small class="text-muted">If applicable</small>
+                                            <label>Family Code / Head of Family ID <span class="text-danger" id="familyCodeRequiredMark" style="display:none;">*</span></label>
+                                            <input type="text" id="family_code" name="family_code" class="form-control" maxlength="30" placeholder="Enter Head Family Code (e.g., BR219-2026-0001)">
+                                            <small class="text-muted" id="familyCodeHelpText">Heads will get an auto-generated Family Code. Members must enter the Head's Family Code.</small>
                                         </div>
                                         <div class="col-md-6 mb-3">
-                                            <label>Relationship to Head of Family</label>
-                                            <select name="relationship_to_head" class="form-select">
+                                            <label>Relationship to Head of Family <span class="text-danger" id="relationshipRequiredMark" style="display:none;">*</span></label>
+                                            <select id="relationship_to_head" name="relationship_to_head" class="form-select">
                                                 <option value="">Select</option>
                                                 <option value="Head">Head</option>
                                                 <option value="Spouse">Spouse</option>
                                                 <option value="Child">Child</option>
+                                                <option value="Grandchild">Grandchild</option>
                                                 <option value="Parent">Parent</option>
+                                                <option value="Grandparent">Grandparent</option>
                                                 <option value="Sibling">Sibling</option>
+                                                <option value="Relative">Relative</option>
+                                                <option value="Boarder">Boarder</option>
                                                 <option value="Other">Other</option>
                                             </select>
+                                            <small class="text-muted" id="relationshipHelpText">Required for members.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -681,6 +686,7 @@ $barangay219_purok_options = [
                                         </div>
                                     </div>
                                     <input type="hidden" name="length_of_residency_years" id="length_of_residency_years" value="">
+                                    <input type="hidden" name="length_of_residency" id="length_of_residency" value="">
                                     <hr>
                                     <h6 class="text-secondary mb-3">Emergency Contact</h6>
                                     <div class="row">
@@ -1137,7 +1143,8 @@ function syncResidencyYearsValue() {
     const yearsSelect = document.getElementById('residency_years');
     const monthsSelect = document.getElementById('residency_months');
     const hiddenYears = document.getElementById('length_of_residency_years');
-    if (!yearsSelect || !monthsSelect || !hiddenYears) return;
+    const hiddenResidency = document.getElementById('length_of_residency');
+    if (!yearsSelect || !monthsSelect || !hiddenYears || !hiddenResidency) return;
 
     const yearsRaw = yearsSelect.value.trim();
     const monthsRaw = monthsSelect.value.trim();
@@ -1146,15 +1153,20 @@ function syncResidencyYearsValue() {
 
     if (yearsRaw === '' && monthsRaw === '') {
         hiddenYears.value = '';
+        hiddenResidency.value = '';
         return;
     }
 
     if (!Number.isFinite(years) || !Number.isFinite(months)) {
         hiddenYears.value = '';
+        hiddenResidency.value = '';
         return;
     }
 
     hiddenYears.value = (years + (months / 12)).toFixed(2);
+    const yLabel = `${years} year${years === 1 ? '' : 's'}`;
+    const mLabel = `${months} month${months === 1 ? '' : 's'}`;
+    hiddenResidency.value = `${yLabel} ${mLabel}`;
 }
 
 initializeResidencySelectors();
@@ -1180,18 +1192,73 @@ function toggleHouseholdTypeField() {
     const householdRoleField = document.querySelector('select[name="household_role"]');
     const householdTypeRow = document.getElementById('householdTypeRow');
     const householdTypeField = document.getElementById('household_type');
+    const familyCodeField = document.getElementById('family_code');
+    const relationshipField = document.getElementById('relationship_to_head');
+    const familyCodeRequiredMark = document.getElementById('familyCodeRequiredMark');
+    const relationshipRequiredMark = document.getElementById('relationshipRequiredMark');
+    const familyCodeHelpText = document.getElementById('familyCodeHelpText');
+    const relationshipHelpText = document.getElementById('relationshipHelpText');
 
-    if (!householdRoleField || !householdTypeRow || !householdTypeField) {
+    if (!householdRoleField || !householdTypeRow || !householdTypeField || !familyCodeField || !relationshipField) {
         return;
     }
 
+    const buildFamilyCodePreview = () => {
+        const year = new Date().getFullYear();
+        const token = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+        return `BR219-${year}-${token}`;
+    };
+
     const isHeadOfHousehold = householdRoleField.value === 'Head of Household';
+    const isMemberOfHousehold = householdRoleField.value === 'Member of Household';
     householdTypeRow.style.display = isHeadOfHousehold ? 'flex' : 'none';
     householdTypeField.required = isHeadOfHousehold;
 
     if (!isHeadOfHousehold) {
         householdTypeField.value = '';
         householdTypeField.classList.remove('is-invalid');
+    }
+
+    familyCodeField.required = isMemberOfHousehold;
+    relationshipField.required = isMemberOfHousehold;
+
+    if (familyCodeRequiredMark) familyCodeRequiredMark.style.display = isMemberOfHousehold ? 'inline' : 'none';
+    if (relationshipRequiredMark) relationshipRequiredMark.style.display = isMemberOfHousehold ? 'inline' : 'none';
+
+    if (isHeadOfHousehold) {
+        familyCodeField.readOnly = true;
+        familyCodeField.value = buildFamilyCodePreview();
+        familyCodeField.dataset.autogenerated = '1';
+        familyCodeField.classList.remove('is-invalid');
+        if (familyCodeHelpText) familyCodeHelpText.textContent = 'Auto-generated for Head of Household. Final code is assigned during registration.';
+
+        relationshipField.value = 'Head';
+        relationshipField.disabled = true;
+        relationshipField.classList.remove('is-invalid');
+        if (relationshipHelpText) relationshipHelpText.textContent = 'Automatically set to Head for household heads.';
+    } else if (isMemberOfHousehold) {
+        relationshipField.disabled = false;
+        if (relationshipField.value === 'Head') {
+            relationshipField.value = '';
+        }
+        if (familyCodeField.dataset.autogenerated === '1') {
+            familyCodeField.value = '';
+            delete familyCodeField.dataset.autogenerated;
+        }
+        familyCodeField.readOnly = false;
+        familyCodeField.placeholder = 'Enter Head Family Code (e.g., BR219-2026-0001)';
+        if (familyCodeHelpText) familyCodeHelpText.textContent = 'Enter the Head of Household Family Code to link your registration.';
+        if (relationshipHelpText) relationshipHelpText.textContent = 'Choose your relationship to the Head. This is required.';
+    } else {
+        relationshipField.disabled = false;
+        if (familyCodeField.dataset.autogenerated === '1') {
+            delete familyCodeField.dataset.autogenerated;
+        }
+        familyCodeField.readOnly = false;
+        familyCodeField.value = '';
+        relationshipField.value = '';
+        if (familyCodeHelpText) familyCodeHelpText.textContent = 'Select a household role first.';
+        if (relationshipHelpText) relationshipHelpText.textContent = 'Select a household role first.';
     }
 }
 
@@ -1343,12 +1410,40 @@ function validateStep(step) {
 
     const roleField = document.querySelector('select[name="household_role"]');
     const householdTypeField = document.getElementById('household_type');
+    const familyCodeField = document.getElementById('family_code');
+    const relationshipField = document.getElementById('relationship_to_head');
     if (roleField && householdTypeField && roleField.value === 'Head of Household') {
         if (!householdTypeField.value.trim()) {
             householdTypeField.classList.add('is-invalid');
             isValid = false;
         } else {
             householdTypeField.classList.remove('is-invalid');
+        }
+
+        if (familyCodeField && !/^BR219-\d{4}-\d{4}$/i.test((familyCodeField.value || '').trim())) {
+            familyCodeField.classList.add('is-invalid');
+            isValid = false;
+        } else if (familyCodeField) {
+            familyCodeField.classList.remove('is-invalid');
+        }
+    }
+
+    if (roleField && roleField.value === 'Member of Household') {
+        if (familyCodeField && !/^BR219-\d{4}-\d{4}$/i.test((familyCodeField.value || '').trim())) {
+            familyCodeField.classList.add('is-invalid');
+            isValid = false;
+        } else if (familyCodeField) {
+            familyCodeField.classList.remove('is-invalid');
+        }
+
+        if (relationshipField) {
+            const rel = (relationshipField.value || '').trim();
+            if (rel === '' || rel.toLowerCase() === 'head') {
+                relationshipField.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                relationshipField.classList.remove('is-invalid');
+            }
         }
     }
 
