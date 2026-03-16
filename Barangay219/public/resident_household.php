@@ -187,84 +187,114 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
 
       <!-- Main Content Container -->
       <div id="contentContainer" style="display: none;">
-        
-        <!-- Household Stats Section -->
         <section class="stats-grid" aria-label="Household statistics">
           <article class="stat-card card-1">
             <i class="fa-solid fa-users stat-icon"></i>
             <h3>Total Members</h3>
             <p class="stat-value" id="totalMembers">0</p>
-            <p class="stat-note">Living in this household</p>
+            <p class="stat-note">Registered in this household</p>
           </article>
           <article class="stat-card card-2">
-            <i class="fa-solid fa-map-marker-alt stat-icon"></i>
-            <h3>Address</h3>
-            <p class="stat-value" id="householdAddress">--</p>
-            <p class="stat-note">Current household address</p>
+            <i class="fa-solid fa-child-reaching stat-icon"></i>
+            <h3>Children</h3>
+            <p class="stat-value" id="childrenCount">0</p>
+            <p class="stat-note">Below 18 years old</p>
           </article>
           <article class="stat-card card-3">
-            <i class="fa-solid fa-user stat-icon"></i>
-            <h3>Head</h3>
-            <p class="stat-value" id="headName">--</p>
-            <p class="stat-note">Household head</p>
+            <i class="fa-solid fa-user-group stat-icon"></i>
+            <h3>Adults</h3>
+            <p class="stat-value" id="adultsCount">0</p>
+            <p class="stat-note">18 to 59 years old</p>
+          </article>
+          <article class="stat-card card-4">
+            <i class="fa-solid fa-person-cane stat-icon"></i>
+            <h3>Seniors</h3>
+            <p class="stat-value" id="seniorsCount">0</p>
+            <p class="stat-note">60 years old and above</p>
           </article>
         </section>
 
-        <!-- Household Details Panel -->
         <section class="panel panel-primary" id="householdDetailsPanel" style="display: none;">
           <div class="panel-header">
-            <h2>Household Information</h2>
-            <button class="btn-primary btn-small" id="editHouseholdBtn" data-action="editHousehold">
-              <i class="fa-solid fa-edit"></i> Edit
-            </button>
+            <div>
+              <h2>Household Overview</h2>
+              <p class="panel-subtitle">Core household profile and identification details</p>
+            </div>
+            <div class="action-row">
+              <button class="btn-secondary btn-small" id="leaveHouseholdBtn" data-action="leaveHousehold" style="display:none;">
+                <i class="fa-solid fa-right-from-bracket"></i> Leave Household
+              </button>
+              <button class="btn-primary btn-small" id="editHouseholdBtn" data-action="editHousehold" style="display:none;">
+                <i class="fa-solid fa-pen-to-square"></i> Update Overview
+              </button>
+            </div>
           </div>
           <div class="panel-body">
             <div class="details-grid">
-              <div class="detail-item">
-                <span class="detail-label">Address:</span>
-                <span class="detail-value" id="displayAddress">--</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Head of Household:</span>
-                <span class="detail-value" id="displayHead">--</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Total Members:</span>
-                <span class="detail-value" id="displayMembers">0</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Family Code:</span>
-                <span class="detail-value" id="displayFamilyCode">--</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Created:</span>
-                <span class="detail-value" id="displayCreated">--</span>
-              </div>
+              <div class="detail-item"><span class="detail-label">Family Code</span><span class="detail-value" id="displayFamilyCode">--</span></div>
+              <div class="detail-item"><span class="detail-label">Head of Household</span><span class="detail-value" id="displayHead">--</span></div>
+              <div class="detail-item"><span class="detail-label">Complete Address</span><span class="detail-value" id="displayAddress">--</span></div>
+              <div class="detail-item"><span class="detail-label">Household Type</span><span class="detail-value" id="displayHouseholdType">--</span></div>
+              <div class="detail-item"><span class="detail-label">Housing Status</span><span class="detail-value" id="displayHousingStatus">--</span></div>
+              <div class="detail-item"><span class="detail-label">Years of Residency</span><span class="detail-value" id="displayYearsResidency">--</span></div>
+              <div class="detail-item"><span class="detail-label">Total Members</span><span class="detail-value" id="displayMembers">0</span></div>
+              <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value" id="displayCreated">--</span></div>
+            </div>
+
+            <div class="tag-section" id="programTagSection">
+              <h3>Program Tags</h3>
+              <div id="programTags" class="tag-list"></div>
             </div>
           </div>
         </section>
 
-        <!-- Members Section -->
+        <section class="panel panel-primary" id="contactsPanel" style="display: none;">
+          <div class="panel-header">
+            <h2>Emergency Contact</h2>
+          </div>
+          <div class="panel-body">
+            <div class="details-grid details-grid-compact">
+              <div class="detail-item"><span class="detail-label">Contact Name</span><span class="detail-value" id="displayEmergencyName">--</span></div>
+              <div class="detail-item"><span class="detail-label">Relationship</span><span class="detail-value" id="displayEmergencyRelationship">--</span></div>
+              <div class="detail-item"><span class="detail-label">Contact Number</span><span class="detail-value" id="displayEmergencyNumber">--</span></div>
+            </div>
+          </div>
+        </section>
+
         <section class="panel panel-primary" id="membersPanel" style="display: none;">
           <div class="panel-header">
-            <h2>Household Members</h2>
-            <button class="btn-primary btn-small" id="addMemberBtn" data-action="addMember">
+            <div>
+              <h2>Household Members</h2>
+              <p class="panel-subtitle">Status, profile details, and role-based member actions</p>
+            </div>
+            <button class="btn-primary btn-small" id="addMemberBtn" data-action="addMember" style="display:none;">
               <i class="fa-solid fa-plus"></i> Add Member
             </button>
           </div>
-          <div class="panel-body">
+          <div class="panel-body table-responsive">
             <table class="members-table">
               <thead>
                 <tr>
                   <th>Name</th>
                   <th>Relationship</th>
+                  <th>Sex</th>
+                  <th>Age</th>
                   <th>Status</th>
+                  <th>Programs</th>
                   <th>Actions</th>
                 </tr>
               </thead>
-              <tbody id="membersTableBody">
-              </tbody>
+              <tbody id="membersTableBody"></tbody>
             </table>
+          </div>
+        </section>
+
+        <section class="panel panel-primary" id="historyPanel" style="display: none;">
+          <div class="panel-header">
+            <h2>Household History Log</h2>
+          </div>
+          <div class="panel-body">
+            <div id="historyList" class="history-list"></div>
           </div>
         </section>
 
@@ -335,6 +365,66 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
         </div>
       </div>
 
+      <!-- Update Household Overview Modal -->
+      <div id="overviewUpdateModal" class="modal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Update Household Overview</h3>
+            <button class="modal-close" data-action="closeOverviewModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="overviewFormContainer">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="overviewHouseholdType">Household Type *</label>
+                  <select id="overviewHouseholdType" required>
+                    <option value="nuclear">Nuclear</option>
+                    <option value="extended">Extended</option>
+                    <option value="single_parent">Single Parent</option>
+                    <option value="others">Others</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="overviewHousingStatus">Housing Status *</label>
+                  <select id="overviewHousingStatus" required>
+                    <option value="owned">Owned</option>
+                    <option value="renting">Renting</option>
+                    <option value="informal_settler">Informal Settler</option>
+                    <option value="government_housing">Government Housing</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="overviewYearsResidency">Years of Residency *</label>
+                <input type="number" id="overviewYearsResidency" min="0" max="120" required>
+              </div>
+
+              <div class="form-group">
+                <label for="overviewEmergencyName">Emergency Contact Name</label>
+                <input type="text" id="overviewEmergencyName" maxlength="150" placeholder="Full name">
+              </div>
+
+              <div class="form-group">
+                <label for="overviewEmergencyRelationship">Emergency Contact Relationship</label>
+                <input type="text" id="overviewEmergencyRelationship" maxlength="80" placeholder="e.g., Sister, Parent">
+              </div>
+
+              <div class="form-group">
+                <label for="overviewEmergencyNumber">Emergency Contact Number</label>
+                <input type="text" id="overviewEmergencyNumber" maxlength="30" placeholder="e.g., 09171234567">
+                <p class="form-hint">Use digits, spaces, plus sign, or dashes only.</p>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" data-action="closeOverviewModal">Cancel</button>
+            <button class="btn-primary" id="submitOverviewUpdateBtn" data-action="submitOverviewUpdate">Save Overview</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Member Join Modal -->
       <div id="memberJoinModal" class="modal" style="display: none;">
         <div class="modal-backdrop"></div>
@@ -394,8 +484,11 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
           <div class="modal-body">
             <form id="addMemberForm">
               <div class="form-group">
-                <label for="newMemberName">Member Name *</label>
-                <input type="text" id="newMemberName" placeholder="Full name" required>
+                <label for="newMemberResident">Select Resident *</label>
+                <select id="newMemberResident" required>
+                  <option value="">-- Select resident --</option>
+                </select>
+                <p class="form-hint" id="newMemberResidentHint">Only residents with valid records are listed.</p>
               </div>
               <div class="form-row">
                 <div class="form-group">
