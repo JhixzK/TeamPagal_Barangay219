@@ -9,10 +9,6 @@ if (!isLoggedIn()) {
 }
 
 $current_page = basename($_SERVER['PHP_SELF']);
-
-// Profile page differs per view mode
-$profile_page = isResidentView() ? 'resident_profile.php' : 'profile.php';
-$profile_url = BASE_URL . $profile_page;
 // Define menu items with permission keys
 $menu_items = [
     [
@@ -117,7 +113,7 @@ if (empty($avatar_path)) {
     $avatar_path = ASSETS_URL . 'img/default-avatar.svg';
 }
 ?>
-<div class="<?php echo isResidentView() ? 'app-sidebar' : 'sidebar'; ?>" id="appSidebar" data-view-mode="<?php echo isResidentView() ? 'resident' : 'official'; ?>">
+<div class="sidebar" id="appSidebar">
     <div class="sidebar-content">
         <div class="sidebar-toggle-wrap">
             <button class="btn btn-sm btn-outline-primary sidebar-toggle-btn" type="button" id="sidebarToggleBtn" aria-label="Toggle sidebar" aria-controls="appSidebar" aria-expanded="false">
@@ -125,7 +121,7 @@ if (empty($avatar_path)) {
             </button>
         </div>
         <div class="sidebar-profile text-center mb-3" style="padding:0.5rem 1rem;">
-            <a href="<?php echo $profile_url; ?>" class="d-flex align-items-center gap-2 text-decoration-none">
+            <a href="<?php echo BASE_URL; ?>profile.php" class="d-flex align-items-center gap-2 text-decoration-none">
                 <img src="<?php echo $avatar_path; ?>" alt="Avatar" class="rounded-circle" style="width:48px;height:48px;object-fit:cover;border:2px solid #fff;box-shadow:0 0 0 2px rgba(13,110,253,0.08);">
                 <div class="profile-meta text-start">
                     <div style="font-weight:600;color:#212529;">
@@ -150,72 +146,26 @@ if (empty($avatar_path)) {
         <ul class="nav flex-column">
             <li class="nav-section-title">Account</li>
             <li class="nav-item">
-                <a class="nav-link <?php echo ($current_page === $profile_page) ? 'active' : ''; ?>" href="<?php echo $profile_url; ?>">
+                <a class="nav-link <?php echo ($current_page === 'profile.php') ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>profile.php">
                     <i class="bi bi-person-circle"></i>
                     <span>My Profile</span>
                 </a>
             </li>
             <li class="nav-divider" role="separator" aria-hidden="true"></li>
-            <?php if (isResidentView()): ?>
-                <?php
-                $resident_menu = [
-                    [
-                        'section' => 'Main',
-                        'items' => [
-                            ['title' => 'Dashboard', 'icon' => 'bi-speedometer2', 'url' => 'resident_dashboard.php'],
-                        ],
-                    ],
-                    [
-                        'section' => 'Services',
-                        'items' => [
-                            ['title' => 'Request Certificate', 'icon' => 'bi-file-earmark-text', 'url' => 'request_certificate.php'],
-                            ['title' => 'My Requests', 'icon' => 'bi-list-check', 'url' => 'my_requests.php'],
-                        ],
-                    ],
-                    [
-                        'section' => 'Household',
-                        'items' => [
-                            ['title' => 'Household Information', 'icon' => 'bi-house-door', 'url' => 'resident_household.php'],
-                        ],
-                    ],
-                    [
-                        'section' => 'Community',
-                        'items' => [
-                            ['title' => 'Announcements', 'icon' => 'bi-megaphone', 'url' => 'resident_announcements.php'],
-                            ['title' => 'Complaints / Reports', 'icon' => 'bi-chat-left-text', 'url' => 'complaints/my_complaints.php'],
-                        ],
-                    ],
-                ];
-                ?>
-                <?php foreach ($resident_menu as $group): ?>
-                    <li class="nav-section-title"><?php echo htmlspecialchars($group['section']); ?></li>
-                    <?php foreach ($group['items'] as $item): ?>
-                        <?php $item_page = basename((string)$item['url']); ?>
-                        <li class="nav-item">
-                            <a class="nav-link <?php echo ($current_page === $item_page) ? 'active' : ''; ?>"
-                               href="<?php echo BASE_URL . $item['url']; ?>">
-                                <i class="<?php echo $item['icon']; ?>"></i>
-                                <span><?php echo htmlspecialchars($item['title']); ?></span>
-                            </a>
-                        </li>
-                    <?php endforeach; ?>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <?php $lastSection = ''; ?>
-                <?php foreach ($filtered_menu as $item): ?>
-                <?php if (($item['section'] ?? '') !== $lastSection): ?>
-                <li class="nav-section-title"><?php echo htmlspecialchars($item['section'] ?? 'Menu'); ?></li>
-                <?php $lastSection = $item['section'] ?? ''; ?>
-                <?php endif; ?>
-                <li class="nav-item">
-                    <a class="nav-link <?php echo ($current_page === $item['url']) ? 'active' : ''; ?>"
-                       href="<?php echo BASE_URL . $item['url']; ?>">
-                        <i class="<?php echo $item['icon']; ?>"></i>
-                        <span><?php echo $item['title']; ?></span>
-                    </a>
-                </li>
-                <?php endforeach; ?>
+            <?php $lastSection = ''; ?>
+            <?php foreach ($filtered_menu as $item): ?>
+            <?php if (($item['section'] ?? '') !== $lastSection): ?>
+            <li class="nav-section-title"><?php echo htmlspecialchars($item['section'] ?? 'Menu'); ?></li>
+            <?php $lastSection = $item['section'] ?? ''; ?>
             <?php endif; ?>
+            <li class="nav-item">
+                <a class="nav-link <?php echo ($current_page === $item['url']) ? 'active' : ''; ?>" 
+                   href="<?php echo BASE_URL . $item['url']; ?>">
+                    <i class="<?php echo $item['icon']; ?>"></i>
+                    <span><?php echo $item['title']; ?></span>
+                </a>
+            </li>
+            <?php endforeach; ?>
             <li class="nav-divider" role="separator" aria-hidden="true"></li>
             <li class="nav-item">
                 <a class="nav-link" href="#" onclick="logout(); return false;">
@@ -228,7 +178,7 @@ if (empty($avatar_path)) {
 </div>
 
 <style>
-#appSidebar {
+.sidebar {
     width: 78px;
     height: calc(100vh - 56px);
     background-color: #f8f9fa;
@@ -242,17 +192,12 @@ if (empty($avatar_path)) {
     scrollbar-width: none;
 }
 
-/* Resident view: smooth expand/collapse animation on toggle */
-#appSidebar[data-view-mode="resident"] {
-    transition: width 0.25s ease, left 0.25s ease !important;
-}
-
-#appSidebar::-webkit-scrollbar {
+.sidebar::-webkit-scrollbar {
     width: 0;
     height: 0;
 }
 
-body.sidebar-expanded #appSidebar {
+body.sidebar-expanded .sidebar {
     width: 250px;
 }
 
@@ -260,13 +205,13 @@ body.sidebar-expanded #appSidebar {
     padding: 1rem 0;
 }
 
-#appSidebar .sidebar-toggle-wrap {
+.sidebar .sidebar-toggle-wrap {
     display: flex;
     justify-content: center;
     padding: 0 0.75rem 0.65rem;
 }
 
-#appSidebar .sidebar-toggle-btn {
+.sidebar .sidebar-toggle-btn {
     width: 38px;
     height: 38px;
     border-radius: 10px;
@@ -276,21 +221,21 @@ body.sidebar-expanded #appSidebar {
     padding: 0;
 }
 
-body.sidebar-expanded #appSidebar .sidebar-toggle-wrap {
+body.sidebar-expanded .sidebar .sidebar-toggle-wrap {
     justify-content: flex-end;
     padding: 0 1rem 0.65rem;
 }
 
-#appSidebar .sidebar-profile {
+.sidebar .sidebar-profile {
     padding-left: 0.8rem !important;
     padding-right: 0.8rem !important;
 }
 
-#appSidebar .sidebar-profile a {
+.sidebar .sidebar-profile a {
     justify-content: center;
 }
 
-#appSidebar .sidebar-profile .profile-meta {
+.sidebar .sidebar-profile .profile-meta {
     opacity: 0;
     max-width: 0;
     overflow: hidden;
@@ -299,17 +244,17 @@ body.sidebar-expanded #appSidebar .sidebar-toggle-wrap {
     transition: opacity 0.2s ease, max-width 0.2s ease, transform 0.2s ease;
 }
 
-body.sidebar-expanded #appSidebar .sidebar-profile a {
+body.sidebar-expanded .sidebar .sidebar-profile a {
     justify-content: flex-start;
 }
 
-body.sidebar-expanded #appSidebar .sidebar-profile .profile-meta {
+body.sidebar-expanded .sidebar .sidebar-profile .profile-meta {
     opacity: 1;
     max-width: 180px;
     transform: translateX(0);
 }
 
-#appSidebar .nav-link {
+.sidebar .nav-link {
     color: #495057;
     padding: 0.75rem 1.5rem;
     display: flex;
@@ -319,12 +264,7 @@ body.sidebar-expanded #appSidebar .sidebar-profile .profile-meta {
     border-left: 3px solid transparent;
 }
 
-/* Resident view: remove animated "cursor-following" effects */
-#appSidebar[data-view-mode="resident"] .nav-link {
-    transition: none !important;
-}
-
-#appSidebar .nav-link span {
+.sidebar .nav-link span {
     opacity: 0;
     max-width: 0;
     overflow: hidden;
@@ -332,57 +272,31 @@ body.sidebar-expanded #appSidebar .sidebar-profile .profile-meta {
     transition: opacity 0.2s ease, max-width 0.2s ease;
 }
 
-body.sidebar-expanded #appSidebar .nav-link span {
+body.sidebar-expanded .sidebar .nav-link span {
     opacity: 1;
     max-width: 160px;
 }
 
-#appSidebar .nav-link:hover {
+.sidebar .nav-link:hover {
     background-color: #e9ecef;
     color: #0d6efd;
     border-left-color: #0d6efd;
 }
 
-/* Resident view: remove hover styling on links */
-#appSidebar[data-view-mode="resident"] .nav-link:hover {
-    background-color: transparent;
-    color: inherit;
-    border-left-color: transparent;
-}
-
-/* Resident view: remove ALL hover/focus visual effects inside sidebar */
-#appSidebar[data-view-mode="resident"] a:hover,
-#appSidebar[data-view-mode="resident"] a:focus,
-#appSidebar[data-view-mode="resident"] a:focus-visible {
-    background-color: transparent !important;
-    color: inherit !important;
-    border-left-color: transparent !important;
-    box-shadow: none !important;
-    text-decoration: none !important;
-}
-
-/* Resident view: sidebar width is controlled ONLY by toggle (body.sidebar-expanded). */
-body.resident-view #appSidebar {
-    width: 78px !important;
-}
-body.resident-view.sidebar-expanded #appSidebar {
-    width: 250px !important;
-}
-
-#appSidebar .nav-link.active {
+.sidebar .nav-link.active {
     background-color: #e7f1ff;
     color: #0d6efd;
     border-left-color: #0d6efd;
     font-weight: 600;
 }
 
-#appSidebar .nav-link i {
+.sidebar .nav-link i {
     font-size: 1.1rem;
     width: 20px;
     flex: 0 0 20px;
 }
 
-#appSidebar .nav-section-title {
+.sidebar .nav-section-title {
     font-size: 0.72rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -391,8 +305,8 @@ body.resident-view.sidebar-expanded #appSidebar {
     font-weight: 700;
 }
 
-#appSidebar .nav-section-title,
-#appSidebar .nav-divider {
+.sidebar .nav-section-title,
+.sidebar .nav-divider {
     opacity: 0;
     max-height: 0;
     overflow: hidden;
@@ -401,17 +315,17 @@ body.resident-view.sidebar-expanded #appSidebar {
     transition: opacity 0.2s ease, max-height 0.2s ease, margin 0.2s ease;
 }
 
-body.sidebar-expanded #appSidebar .nav-section-title,
-body.sidebar-expanded #appSidebar .nav-divider {
+body.sidebar-expanded .sidebar .nav-section-title,
+body.sidebar-expanded .sidebar .nav-divider {
     opacity: 1;
     max-height: 40px;
 }
 
-body.sidebar-expanded #appSidebar .nav-divider {
+body.sidebar-expanded .sidebar .nav-divider {
     margin: 0.45rem 1rem;
 }
 
-#appSidebar .nav-divider {
+.sidebar .nav-divider {
     margin: 0.45rem 1rem;
     border-top: 1px solid #dee2e6;
     list-style: none;
@@ -425,17 +339,12 @@ body.sidebar-expanded #appSidebar .nav-divider {
     transition: margin-left 0.25s ease;
 }
 
-/* Resident view: smooth content shift on toggle */
-body.resident-view .main-content {
-    transition: margin-left 0.25s ease !important;
-}
-
 body.sidebar-expanded .main-content {
     margin-left: 250px;
 }
 
 @media (max-width: 768px) {
-    #appSidebar {
+    .sidebar {
         left: -250px;
         width: 250px;
         height: calc(100vh - 56px);
@@ -446,23 +355,23 @@ body.sidebar-expanded .main-content {
         overflow-y: auto;
     }
 
-    body.sidebar-expanded #appSidebar {
+    body.sidebar-expanded .sidebar {
         left: 0;
     }
 
-    #appSidebar .sidebar-profile a {
+    .sidebar .sidebar-profile a {
         justify-content: flex-start;
     }
 
-    #appSidebar .sidebar-toggle-wrap {
+    .sidebar .sidebar-toggle-wrap {
         justify-content: flex-end;
         padding: 0 1rem 0.65rem;
     }
 
-    #appSidebar .sidebar-profile .profile-meta,
-    #appSidebar .nav-link span,
-    #appSidebar .nav-section-title,
-    #appSidebar .nav-divider {
+    .sidebar .sidebar-profile .profile-meta,
+    .sidebar .nav-link span,
+    .sidebar .nav-section-title,
+    .sidebar .nav-divider {
         opacity: 1;
         max-width: none;
         max-height: none;
