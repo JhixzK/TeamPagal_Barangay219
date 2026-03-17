@@ -245,7 +245,8 @@ function canPerformModulePermission($module, $permission) {
         return true;
     }
 
-    return !empty($modulePerms[$permission]);
+    // Access-only mode: create/edit/delete follow module access.
+    return true;
 }
 
 /**
@@ -306,11 +307,13 @@ function getRolePermissions($role) {
 
     $permissions = [];
     foreach ($rows as $row) {
+        $access = (bool)$row['can_access'];
         $permissions[$row['module']] = [
-            'can_access' => (bool)$row['can_access'],
-            'can_create' => (bool)$row['can_create'],
-            'can_edit' => (bool)$row['can_edit'],
-            'can_delete' => (bool)$row['can_delete']
+            'can_access' => $access,
+            // Access-only mode: keep keys for backward compatibility.
+            'can_create' => $access,
+            'can_edit' => $access,
+            'can_delete' => $access
         ];
     }
 
