@@ -96,10 +96,10 @@ class AnnouncementManager {
     const hasMore = (announcement.content || '').length > preview.length;
 
     const urgentBadge = announcement.priority === 'urgent'
-      ? '<span class="announcement-pill urgent"><i class="fa-solid fa-triangle-exclamation"></i>Urgent</span>'
+      ? '<span class="badge text-bg-danger me-1"><i class="bi bi-exclamation-triangle me-1"></i>Urgent</span>'
       : '';
     const pinnedBadge = announcement.is_pinned
-      ? '<span class="announcement-pill pinned"><i class="fa-solid fa-thumbtack"></i>Pinned</span>'
+      ? '<span class="badge text-bg-warning me-1"><i class="bi bi-pin-angle me-1"></i>Pinned</span>'
       : '';
 
     return `
@@ -115,7 +115,7 @@ class AnnouncementManager {
         </div>
         <div class="announcement-card-body">
           <div class="announcement-card-header">
-            <span class="badge badge-category ${categoryClass}">${this.escapeHtml(announcement.category || 'General')}</span>
+            <span class="badge ${this.getCategoryBadgeClass(announcement.category)}">${this.escapeHtml(announcement.category || 'General')}</span>
             <span class="announcement-date">${dateLabel}</span>
           </div>
           <div class="announcement-chip-row">${urgentBadge}${pinnedBadge}</div>
@@ -169,7 +169,7 @@ class AnnouncementManager {
   showEmptyState(container) {
     container.innerHTML = `
       <div class="announcement-empty">
-        <i class="fa-regular fa-newspaper"></i>
+        <i class="bi bi-newspaper"></i>
         <p>No announcements available at the moment.</p>
       </div>
     `;
@@ -178,7 +178,7 @@ class AnnouncementManager {
   showErrorState(container, message) {
     container.innerHTML = `
       <div class="announcement-error">
-        <i class="fa-solid fa-circle-exclamation"></i>
+        <i class="bi bi-exclamation-circle"></i>
         <p>Unable to load announcements.</p>
         <small>${this.escapeHtml(message || 'Unexpected error')}</small>
       </div>
@@ -197,6 +197,14 @@ class AnnouncementManager {
     if (normalized === 'advisory') return 'category-advisory';
     if (normalized === 'emergency') return 'category-emergency';
     return 'category-general';
+  }
+
+  getCategoryBadgeClass(category) {
+    const normalized = String(category || '').toLowerCase();
+    if (normalized === 'event') return 'text-bg-success';
+    if (normalized === 'advisory') return 'text-bg-primary';
+    if (normalized === 'emergency') return 'text-bg-danger';
+    return 'text-bg-secondary';
   }
 
   formatAnnouncementDate(rawValue, options) {
