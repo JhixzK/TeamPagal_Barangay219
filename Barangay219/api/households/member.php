@@ -189,8 +189,9 @@ function updateHouseholdMember($residentId) {
 function deleteHouseholdMember($residentId) {
     $data = getRequestBodyData();
     $memberId = (int)(($data['member_id'] ?? 0) ?: ($data['id'] ?? 0));
-    if ($memberId <= 0) {
-        householdJsonResponse(false, null, 'Member id is required', 400);
+    $targetResidentId = (int)($data['resident_id'] ?? 0);
+    if ($memberId <= 0 && $targetResidentId <= 0) {
+        householdJsonResponse(false, null, 'member_id or resident_id is required', 400);
     }
 
     $context = getResidentHouseholdContext($residentId);
@@ -201,13 +202,39 @@ function deleteHouseholdMember($residentId) {
     $db = Database::getInstance();
     $houseCols = getColumnsMap('households');
     $headColumn = isset($houseCols['family_head_id']) ? 'family_head_id' : 'head_id';
-    $row = $db->fetchOne(
-        "SELECT hm.id, hm.household_id, hm.resident_id, h.`{$headColumn}` AS family_head_id
-         FROM household_members hm
-         INNER JOIN households h ON h.id = hm.household_id
-         WHERE hm.id = ? LIMIT 1",
-        [$memberId]
-    );
+    $row = null;
+    if ($memberId > 0) {
+        $row = $db->fetchOne(
+            "SELECT hm.id, hm.household_id, hm.resident_id, h.`{$headColumn}` AS family_head_id
+             FROM household_members hm
+             INNER JOIN households h ON h.id = hm.household_id
+             WHERE hm.id = ? LIMIT 1",
+            [$memberId]
+        );
+    } else {
+        $row = $db->fetchOne(
+            "SELECT hm.id, hm.household_id, hm.resident_id, h.`{$headColumn}` AS family_head_id
+             FROM household_members hm
+             INNER JOIN households h ON h.id = hm.household_id
+             WHERE hm.resident_id = ? AND hm.household_id = ?
+             ORDER BY hm.id DESC
+             LIMIT 1",
+            [$targetResidentId, (int)$context['household_id']]
+        );
+        if (!$row) {
+            $residentRow = $db->fetchOne("SELECT id, household_id FROM residents WHERE id = ? LIMIT 1", [$targetResidentId]);
+            if (!$residentRow || (int)$residentRow['household_id'] !== (int)$context['household_id']) {
+                householdJsonResponse(false, null, 'Household member not found', 404);
+            }
+            $hidRow = $db->fetchOne("SELECT `{$headColumn}` AS hid FROM households WHERE id = ? LIMIT 1", [(int)$residentRow['household_id']]);
+            $row = [
+                'id' => 0,
+                'household_id' => (int)$residentRow['household_id'],
+                'resident_id' => (int)$residentRow['id'],
+                'family_head_id' => (int)($hidRow['hid'] ?? 0)
+            ];
+        }
+    }
 
     if (!$row) {
         householdJsonResponse(false, null, 'Household member not found', 404);
@@ -223,7 +250,9 @@ function deleteHouseholdMember($residentId) {
 
     $db->beginTransaction();
     try {
-        $db->query("DELETE FROM household_members WHERE id = ?", [$memberId]);
+        if ((int)$row['id'] > 0) {
+            $db->query("DELETE FROM household_members WHERE id = ?", [(int)$row['id']]);
+        }
         $db->query("UPDATE residents SET household_id = NULL WHERE id = ?", [(int)$row['resident_id']]);
         logMemberHistory((int)$row['household_id'], 'Member Removed', 'Member removed from household', (int)$row['resident_id']);
         $db->commit();
@@ -270,8 +299,17 @@ function validateMemberFields($residentId, $relationship, $dob, $gender, $civilS
 
 function assignHouseholdHead($residentId, $data) {
     $memberId = (int)(($data['member_id'] ?? 0) ?: ($data['id'] ?? 0));
-    if ($memberId <= 0) {
-        householdJsonResponse(false, null, 'Member id is required', 400);
+    $targetResidentId = (int)($data['resident_id'] ?? 0);
+    if ($memberId <= 0 && $targetResidentId <= 0) {
+        householdJsonResponse(false, null, 'member_id or resident_id is required', 400);
+    }
+
+    $reason = sanitizeInput((string)($data['reason'] ?? ''));
+    if (trim($reason) === '') {
+        householdJsonResponse(false, null, 'Reason is required to transfer head role', 400);
+    }
+    if (strlen($reason) > 200) {
+        householdJsonResponse(false, null, 'Reason is too long', 400);
     }
 
     $context = getResidentHouseholdContext($residentId);
@@ -283,10 +321,40 @@ function assignHouseholdHead($residentId, $data) {
     $houseCols = getColumnsMap('households');
     $headColumn = isset($houseCols['family_head_id']) ? 'family_head_id' : 'head_id';
 
-    $target = $db->fetchOne(
-        'SELECT id, household_id, resident_id, relationship_to_head FROM household_members WHERE id = ? LIMIT 1',
-        [$memberId]
-    );
+    $target = null;
+    if ($memberId > 0) {
+        $target = $db->fetchOne(
+            'SELECT id, household_id, resident_id, relationship_to_head FROM household_members WHERE id = ? LIMIT 1',
+            [$memberId]
+        );
+    } else {
+        $target = $db->fetchOne(
+            'SELECT id, household_id, resident_id, relationship_to_head FROM household_members WHERE resident_id = ? AND household_id = ? ORDER BY id DESC LIMIT 1',
+            [$targetResidentId, (int)$context['household_id']]
+        );
+        if (!$target) {
+            $dateColumn = householdMemberDateColumn();
+            $profile = getResidentProfileForHousehold($targetResidentId);
+            if (!$profile) {
+                householdJsonResponse(false, null, 'Selected resident does not exist', 404);
+            }
+            $db->query(
+                "INSERT INTO household_members (household_id, resident_id, relationship_to_head, {$dateColumn}, gender, civil_status)
+                 VALUES (?, ?, 'Member', ?, ?, ?)",
+                [
+                    (int)$context['household_id'],
+                    $targetResidentId,
+                    $profile['birth_date'] ?: '1990-01-01',
+                    strtolower((string)($profile['gender'] ?: 'other')),
+                    strtolower((string)($profile['civil_status'] ?: 'single'))
+                ]
+            );
+            $target = $db->fetchOne(
+                'SELECT id, household_id, resident_id, relationship_to_head FROM household_members WHERE id = ? LIMIT 1',
+                [(int)$db->lastInsertId()]
+            );
+        }
+    }
 
     if (!$target) {
         householdJsonResponse(false, null, 'Member not found', 404);
@@ -312,7 +380,7 @@ function assignHouseholdHead($residentId, $data) {
         $db->query('UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?', ['Head', $newHeadResidentId, $householdId]);
         $db->query('UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?', ['Member', $residentId, $householdId]);
 
-        logMemberHistory($householdId, 'Head Changed', 'Household head reassigned', $newHeadResidentId);
+        logMemberHistory($householdId, 'Head Changed', 'Household head reassigned. Reason: ' . $reason, $newHeadResidentId);
 
         $db->commit();
         householdJsonResponse(true, ['new_head_resident_id' => $newHeadResidentId], 'Household head updated');
