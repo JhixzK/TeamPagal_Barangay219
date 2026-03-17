@@ -228,157 +228,9 @@ body:not(.resident-view) {
   background: #f2f6fc;
 }
 
-.sidebar {
-  position: fixed;
-  top: var(--header-height);
-  left: 0;
-  width: var(--sidebar-collapsed);
-  height: calc(100vh - var(--header-height));
-  background: #f3f5f9;
-  color: #475a75;
-  border-right: 1px solid #d8e0ec;
-  padding: 18px 10px 12px;
-  display: flex;
-  flex-direction: column;
-  transition: all 0.3s ease;
-  overflow: hidden;
-  z-index: 990;
-}
-
-.sidebar:hover,
-.sidebar.expanded {
-  width: var(--sidebar-expanded);
-}
-
-.sidebar-profile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 8px;
-  margin-bottom: 12px;
-}
-
-.sidebar-profile img {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 2px solid #d2dde9;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.profile-meta h3 {
-  margin: 0;
-  color: #1f2f4d;
-  font-size: 14px;
-  line-height: 1.2;
-}
-
-.profile-meta p {
-  margin: 2px 0 0;
-  color: #60748f;
-  font-size: 12px;
-}
-
-.sidebar-nav {
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 2px;
-}
-
-.nav-group {
-  margin-bottom: 14px;
-}
-
-.group-title {
-  margin: 0 0 8px;
-  padding: 0 12px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  font-weight: 600;
-  color: #6f8098;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 42px;
-  border-radius: 10px;
-  text-decoration: none;
-  color: #415672;
-  padding: 0 12px;
-  transition: background 0.22s ease, transform 0.22s ease;
-}
-
-.nav-item i {
-  width: 24px;
-  text-align: center;
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-.nav-item:hover {
-  background: #e5edf8;
-}
-
-.nav-item.active {
-  background: #dce9ff;
-  color: #2757ad;
-  box-shadow: inset 0 0 0 1px #bfd2f2;
-}
-
-.sidebar-bottom {
-  padding-top: 8px;
-  border-top: 1px solid #d8e0ec;
-}
-
-.nav-item.logout {
-  color: #9f3344;
-}
-
-.sidebar .label {
-  opacity: 0;
-  visibility: hidden;
-  white-space: nowrap;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
-}
-
-.sidebar:not(:hover):not(.expanded) .label {
-  max-width: 0;
-  overflow: hidden;
-}
-
-.sidebar:not(:hover):not(.expanded) .nav-item {
-  justify-content: center;
-  padding: 0;
-  gap: 0;
-}
-
-.sidebar:not(:hover):not(.expanded) .group-title {
-  display: none;
-}
-
-.sidebar:hover .label,
-.sidebar.expanded .label {
-  max-width: 220px;
-  opacity: 1;
-  visibility: visible;
-}
-
-.main-content {
-  margin-top: var(--header-height);
-  margin-left: var(--sidebar-collapsed);
-  min-height: calc(100vh - var(--header-height));
-  padding: 18px 22px 22px;
-  transition: margin-left 0.3s ease;
-}
-
-body:has(.sidebar:hover) .main-content,
-body:has(.sidebar.expanded) .main-content {
-  margin-left: var(--sidebar-expanded);
-}
+/* Note:
+   The resident dashboard now uses the shared layout (`includes/header.php` + `includes/sidebar.php`),
+   so sidebar + main-content sizing is handled there. Avoid overriding `.sidebar` / `.main-content` here. */
 
 .dashboard-head {
   display: flex;
@@ -682,9 +534,7 @@ body:has(.sidebar.expanded) .main-content {
     visibility: visible;
   }
 
-  .main-content,
-  body:has(.sidebar.expanded) .main-content,
-  body:has(.sidebar:hover) .main-content {
+  .main-content {
     margin-left: 0;
   }
 
