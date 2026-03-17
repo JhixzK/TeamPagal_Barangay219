@@ -1,4 +1,4 @@
-﻿/* Resident Household Module */
+/* Resident Household Module */
 
 :root {
   --hh-surface: #ffffff;
@@ -299,7 +299,7 @@
   font-size: 12px;
 }
 
-.modal {
+.custom-modal {
   position: fixed;
   inset: 0;
   display: flex;
@@ -308,14 +308,14 @@
   z-index: 1000;
 }
 
-.modal-backdrop {
+.custom-modal .modal-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: -1;
 }
 
-.modal-content {
+.custom-modal .modal-content {
   position: relative;
   width: 92%;
   max-width: 560px;
@@ -326,11 +326,11 @@
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
 }
 
-.modal-lg {
+.custom-modal .modal-lg {
   max-width: 700px;
 }
 
-.modal-header {
+.custom-modal .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -338,12 +338,12 @@
   border-bottom: 1px solid #e4eaf4;
 }
 
-.modal-header h3 {
+.custom-modal .modal-header h3 {
   margin: 0;
   color: #1f2b45;
 }
 
-.modal-close {
+.custom-modal .modal-close {
   border: 0;
   background: #f0f4fb;
   width: 30px;
@@ -354,11 +354,11 @@
   line-height: 1;
 }
 
-.modal-body {
+.custom-modal .modal-body {
   padding: 14px 16px;
 }
 
-.modal-footer {
+.custom-modal .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -366,6 +366,8 @@
   border-top: 1px solid #e4eaf4;
   background: #f8fbff;
 }
+
+/* Manage Members is now a custom modal (no Bootstrap overrides needed). */
 
 .form-group {
   margin-bottom: 12px;
@@ -393,7 +395,7 @@
   border: 1px solid #ced8ea;
   border-radius: 8px;
   font-size: 13px;
-  font-family: "Poppins", sans-serif;
+  font-family: inherit;
 }
 
 .form-group input:focus,
