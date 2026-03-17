@@ -112,7 +112,7 @@ function previewVerificationFile() {
   const fileLabel = `${file.name} (${bytesToReadable(file.size)})`;
 
   if (!isImage) {
-    verificationPreview.innerHTML = `<div><i class="fa-regular fa-file-pdf"></i><br>${fileLabel}</div>`;
+    verificationPreview.innerHTML = `<div><i class="bi bi-file-earmark-pdf"></i><br>${fileLabel}</div>`;
     return;
   }
 
