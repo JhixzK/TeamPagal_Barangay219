@@ -1,8 +1,3 @@
-const profileTrigger = document.getElementById("profileTrigger");
-const dropdownMenu = document.getElementById("dropdownMenu");
-const sidebar = document.getElementById("sidebar");
-const menuToggle = document.getElementById("menuToggle");
-const topDateBadge = document.getElementById("topDateBadge");
 const mainDateBadge = document.getElementById("mainDateBadge");
 
 const requestForm = document.getElementById("requestForm");
@@ -92,32 +87,9 @@ function formatToday() {
 
 function setDateBadges() {
   const text = formatToday();
-  if (topDateBadge) {
-    topDateBadge.textContent = text;
-  }
   if (mainDateBadge) {
     mainDateBadge.textContent = text;
   }
-}
-
-function toggleDropdown() {
-  if (!profileTrigger || !dropdownMenu) return;
-  const expanded = profileTrigger.getAttribute("aria-expanded") === "true";
-  profileTrigger.setAttribute("aria-expanded", String(!expanded));
-  dropdownMenu.classList.toggle("open", !expanded);
-}
-
-function closeDropdownIfOutside(event) {
-  if (!profileTrigger || !dropdownMenu) return;
-  if (!event.target.closest("#profileDropdown")) {
-    profileTrigger.setAttribute("aria-expanded", "false");
-    dropdownMenu.classList.remove("open");
-  }
-}
-
-function toggleSidebarOnMobile() {
-  if (!sidebar) return;
-  sidebar.classList.toggle("expanded");
 }
 
 function syncInputFiles() {
@@ -379,22 +351,6 @@ if (requestForm) {
     }, 0);
   });
 }
-
-if (profileTrigger) {
-  profileTrigger.addEventListener("click", toggleDropdown);
-}
-
-document.addEventListener("click", closeDropdownIfOutside);
-
-if (menuToggle) {
-  menuToggle.addEventListener("click", toggleSidebarOnMobile);
-}
-
-window.addEventListener("resize", () => {
-  if (window.innerWidth > 991 && sidebar) {
-    sidebar.classList.remove("expanded");
-  }
-});
 
 setDateBadges();
 populatePurposeOptions();
