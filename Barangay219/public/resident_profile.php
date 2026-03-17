@@ -505,6 +505,21 @@ $residentCode = (string)($resident['resident_code'] ?? '');
 $residentDisplayId = $residentCode !== '' ? $residentCode : ('RES-219-' . date('Y') . '-' . str_pad((string)$residentId, 6, '0', STR_PAD_LEFT));
 $verificationStatus = $pick($resident, ['verification_status', 'record_status'], 'pending');
 $verification = rpVerificationBadge($verificationStatus);
+$verificationBadgeClass = 'text-bg-secondary';
+switch (strtolower((string)($verification['class'] ?? ''))) {
+    case 'verified':
+        $verificationBadgeClass = 'text-bg-success';
+        break;
+    case 'rejected':
+        $verificationBadgeClass = 'text-bg-danger';
+        break;
+    case 'pending':
+        $verificationBadgeClass = 'text-bg-warning';
+        break;
+    default:
+        $verificationBadgeClass = 'text-bg-secondary';
+        break;
+}
 $createdAt = $pick($resident, ['created_at'], $pick($user, ['created_at']));
 $createdAtLabel = $createdAt ? date('F d, Y', strtotime($createdAt)) : 'N/A';
 
@@ -619,7 +634,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
           <h3><?php echo h($fullName); ?></h3>
           <p class="resident-id">Resident ID: <?php echo h($residentDisplayId); ?></p>
           <p class="resident-address">Created: <?php echo h($createdAtLabel); ?></p>
-          <span class="status-badge <?php echo h($verification['class']); ?>"><?php echo h($verification['label']); ?></span>
+          <span class="badge <?php echo h($verificationBadgeClass); ?>"><?php echo h($verification['label']); ?></span>
         </div>
       </div>
       <div class="completion-box">
@@ -655,7 +670,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
             <h3>Personal Information</h3>
             <small>Last Updated: <?php echo h(formatSectionUpdated($sectionUpdated, 'personal')); ?></small>
           </div>
-          <button class="btn-link toggle-btn" data-target="form-personal"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+          <button class="btn-link toggle-btn" data-target="form-personal"><i class="bi bi-pencil-square me-1"></i> Edit</button>
         </div>
         <div class="info-list">
           <div class="info-row"><span>First Name</span><strong><?php echo h($pick($resident, ['first_name'], 'N/A')); ?></strong></div>
@@ -696,7 +711,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
             <h3>Contact Information</h3>
             <small>Last Updated: <?php echo h(formatSectionUpdated($sectionUpdated, 'contact')); ?></small>
           </div>
-          <button class="btn-link toggle-btn" data-target="form-contact"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+          <button class="btn-link toggle-btn" data-target="form-contact"><i class="bi bi-pencil-square me-1"></i> Edit</button>
         </div>
         <div class="info-list">
           <div class="info-row"><span>Mobile Number</span><strong><?php echo h(rpFormatPhone($pick($resident, ['contact_number', 'mobile_number'], 'N/A'))); ?></strong></div>
@@ -725,7 +740,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
             <h3>Address Information</h3>
             <small>Last Updated: <?php echo h(formatSectionUpdated($sectionUpdated, 'address')); ?></small>
           </div>
-          <button class="btn-link toggle-btn" data-target="form-address"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+          <button class="btn-link toggle-btn" data-target="form-address"><i class="bi bi-pencil-square me-1"></i> Edit</button>
         </div>
         <div class="info-list">
           <div class="info-row"><span>House Number / Street</span><strong><?php echo h(trim($displayHouseNumber . ' ' . $displayStreet) ?: 'N/A'); ?></strong></div>
@@ -758,7 +773,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
             <h3>Household Information</h3>
             <small>Last Updated: <?php echo h(formatSectionUpdated($sectionUpdated, 'household')); ?></small>
           </div>
-          <button class="btn-link toggle-btn" data-target="form-household"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+          <button class="btn-link toggle-btn" data-target="form-household"><i class="bi bi-pencil-square me-1"></i> Edit</button>
         </div>
         <div class="info-list">
           <div class="info-row"><span>Household ID</span><strong><?php echo h($pick($resident, ['household_id'], 'Not Linked')); ?></strong></div>
@@ -783,7 +798,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
             <h3>Employment / Education</h3>
             <small>Last Updated: <?php echo h(formatSectionUpdated($sectionUpdated, 'employment')); ?></small>
           </div>
-          <button class="btn-link toggle-btn" data-target="form-employment"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+          <button class="btn-link toggle-btn" data-target="form-employment"><i class="bi bi-pencil-square me-1"></i> Edit</button>
         </div>
         <div class="info-list">
           <div class="info-row"><span>Educational Attainment</span><strong><?php echo h($pick($resident, ['educational_attainment'], 'N/A')); ?></strong></div>
@@ -810,7 +825,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
             <h3>Special Status</h3>
             <small>Last Updated: <?php echo h(formatSectionUpdated($sectionUpdated, 'special')); ?></small>
           </div>
-          <button class="btn-link toggle-btn" data-target="form-special"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+          <button class="btn-link toggle-btn" data-target="form-special"><i class="bi bi-pencil-square me-1"></i> Edit</button>
         </div>
         <div class="info-list">
           <div class="info-row"><span>Senior Citizen</span><strong><?php echo ((int)$pick($resident, ['is_senior_citizen'], 0) === 1) ? 'Yes' : 'No'; ?></strong></div>
@@ -845,7 +860,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
             <h3>Account Information</h3>
             <small>Last Updated: <?php echo h(formatSectionUpdated($sectionUpdated, 'account')); ?></small>
           </div>
-          <button class="btn-link toggle-btn" data-target="form-account"><i class="fa-solid fa-key"></i> Change Password</button>
+          <button class="btn-link toggle-btn" data-target="form-account"><i class="bi bi-key me-1"></i> Change Password</button>
         </div>
         <div class="info-list">
           <div class="info-row"><span>Username</span><strong><?php echo h($pick($user, ['username'], $username)); ?></strong></div>
@@ -873,7 +888,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
         </div>
         <div class="info-list">
           <div class="info-row"><span>Current ID File</span><strong><?php echo h($pick($resident, ['id_document_path'], 'No ID uploaded')); ?></strong></div>
-          <div class="info-row"><span>Verification Status</span><strong><span class="status-badge <?php echo h($verification['class']); ?>"><?php echo h($verification['label']); ?></span></strong></div>
+          <div class="info-row"><span>Verification Status</span><strong><span class="badge <?php echo h($verificationBadgeClass); ?>"><?php echo h($verification['label']); ?></span></strong></div>
           <div class="info-row"><span>Certificate Requests</span><strong><?php echo strtolower($verification['class']) === 'verified' ? 'Enabled' : 'Disabled until verified'; ?></strong></div>
           <div class="info-row"><span>Verification Source</span><strong>Registration submission</strong></div>
         </div>
