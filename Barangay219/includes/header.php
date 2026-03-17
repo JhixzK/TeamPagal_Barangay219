@@ -35,7 +35,7 @@ $userInfo = getUserInfo();
         window.API_URL = '<?php echo addslashes(API_URL); ?>';
         <?php if (isLoggedIn()): ?>
         window.CURRENT_ROLE = <?php echo json_encode(getEffectiveUserRole()); ?>;
-        window.IS_ADMIN = <?php echo isAdmin() ? 'true' : 'false'; ?>;
+        window.IS_ADMIN = <?php echo isSystemAdmin() ? 'true' : 'false'; ?>;
         window.ROLE_PERMISSIONS = <?php echo json_encode(getRolePermissions(getEffectiveUserRole())); ?>;
         window.canModulePermission = function(module, perm) {
             if (window.IS_ADMIN) return true;
