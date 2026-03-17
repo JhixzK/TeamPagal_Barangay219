@@ -143,7 +143,7 @@ if ($residentId) {
     <section class="announcements-container">
       <div class="announcements-filters">
         <div class="search-box">
-          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <i class="bi bi-search" aria-hidden="true"></i>
           <input type="text" id="searchInput" placeholder="Search announcements..." aria-label="Search announcements by title">
         </div>
       </div>
