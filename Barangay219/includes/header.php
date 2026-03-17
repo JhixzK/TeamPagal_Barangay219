@@ -43,7 +43,8 @@ $userInfo = getUserInfo();
             var mod = perms[module] || {};
             if (!mod.can_access) return false;
             if (perm === 'can_access' || perm === 'access') return !!mod.can_access;
-            return !!mod[perm];
+            // Access-only mode: any non-access permission follows module access.
+            return !!mod.can_access;
         };
         <?php else: ?>
         window.CURRENT_ROLE = null;
