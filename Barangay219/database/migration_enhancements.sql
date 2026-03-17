@@ -49,6 +49,25 @@ CREATE TABLE IF NOT EXISTS `activity_logs` (
   KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 6. Create officials table for core officials listing
+CREATE TABLE IF NOT EXISTS `officials` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `position` ENUM('barangay_captain', 'kagawad', 'sk_chairperson', 'secretary', 'treasurer') NOT NULL,
+  `full_name` VARCHAR(255) NOT NULL,
+  `user_id` INT(11) DEFAULT NULL,
+  `resident_id` INT(11) DEFAULT NULL,
+  `term_start` DATE DEFAULT NULL,
+  `term_end` DATE DEFAULT NULL,
+  `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_position` (`position`),
+  KEY `idx_status` (`status`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_resident_id` (`resident_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 7. Create certificates_issued table for issuance history (control numbers)
 CREATE TABLE IF NOT EXISTS `certificates_issued` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -65,7 +84,7 @@ CREATE TABLE IF NOT EXISTS `certificates_issued` (
 -- 8. Create role_permissions table for module access control
 CREATE TABLE IF NOT EXISTS `role_permissions` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `role` ENUM('barangay_captain', 'secretary', 'treasurer', 'kagawad', 'sk_chairman', 'resident') NOT NULL,
+  `role` ENUM('super_admin', 'barangay_captain', 'secretary', 'treasurer', 'kagawad', 'sk_chairman', 'resident') NOT NULL,
   `module` VARCHAR(50) NOT NULL,
   `can_access` TINYINT(1) NOT NULL DEFAULT 0,
   `can_create` TINYINT(1) NOT NULL DEFAULT 0,
