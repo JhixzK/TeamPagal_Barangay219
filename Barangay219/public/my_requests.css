@@ -14,7 +14,7 @@
   box-sizing: border-box;
 }
 
-body {
+body:not(.resident-view) {
   margin: 0;
   font-family: "Poppins", sans-serif;
   color: var(--text-main);
