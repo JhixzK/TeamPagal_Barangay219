@@ -25,7 +25,10 @@ switch ($action) {
         break;
     
     case 'create':
-        sendResponse(false, 'Creating new household groups is disabled. Add members to an existing household instead.', null, 403);
+        if (!canPerformModulePermission('households', 'can_create')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        createHousehold();
         break;
     
     case 'update':
@@ -169,33 +172,44 @@ function createHousehold() {
     $family_head_id = intval($_POST['family_head_id'] ?? 0);
     $address = sanitizeInput($_POST['address'] ?? '');
     $registration_date = $_POST['registration_date'] ?? date('Y-m-d');
-    $total_members = max(1, intval($_POST['total_members'] ?? 1));
-    
-    // Validation
-    if (!$family_head_id || empty($address)) {
-        sendResponse(false, 'Family head ID and address are required', null, 400);
-        return;
-    }
+    $total_members_raw = $_POST['total_members'] ?? null;
+    $total_members = is_null($total_members_raw) || $total_members_raw === '' ? null : intval($total_members_raw);
     
     try {
         $db = Database::getInstance();
         
-        // Check if family head exists
-        $familyHead = $db->fetchOne("SELECT id FROM residents WHERE id = ?", [$family_head_id]);
-        if (!$familyHead) {
-            sendResponse(false, 'Family head not found', null, 404);
-            return;
+        $family_head_db_val = null;
+        if ($family_head_id > 0) {
+            // Check if family head exists
+            $familyHead = $db->fetchOne("SELECT id, household_id FROM residents WHERE id = ?", [$family_head_id]);
+            if (!$familyHead) {
+                sendResponse(false, 'Family head not found', null, 404);
+                return;
+            }
+            if (!empty($familyHead['household_id'])) {
+                sendResponse(false, 'Selected resident is already assigned to a household', null, 400);
+                return;
+            }
+            $family_head_db_val = $family_head_id;
         }
         
-        // Insert household (allow provided total_members)
+        // Allow creating an empty household (no head yet, no address yet).
+        $address_db_val = $address !== '' ? $address : null;
+        $total_members_db_val = is_null($total_members) ? ($family_head_db_val ? 1 : 0) : max(0, $total_members);
+
+        // Insert household
         $sql = "INSERT INTO households (family_head_id, address, total_members, registration_date) 
                 VALUES (?, ?, ?, ?)";
         
-        $db->query($sql, [$family_head_id, $address, $total_members, $registration_date]);
+        $db->query($sql, [$family_head_db_val, $address_db_val, $total_members_db_val, $registration_date]);
         $householdId = $db->lastInsertId();
         
-        // Update resident's household_id
-        $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $family_head_id]);
+        // If head was selected during creation, link them into the household and recompute member count.
+        if ($family_head_db_val) {
+            $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $family_head_db_val]);
+            $count = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$householdId])['c'];
+            $db->query("UPDATE households SET total_members = ? WHERE id = ?", [(int)$count, $householdId]);
+        }
         
         // Get created household
         $household = $db->fetchOne("SELECT * FROM households WHERE id = ?", [$householdId]);
@@ -204,7 +218,11 @@ function createHousehold() {
         
     } catch (Exception $e) {
         error_log("Create household error: " . $e->getMessage());
-        sendResponse(false, 'Error creating household', null, 500);
+        $msg = 'Error creating household';
+        if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            $msg .= ': ' . $e->getMessage();
+        }
+        sendResponse(false, $msg, null, 500);
     }
 }
 
@@ -218,8 +236,10 @@ function updateHousehold() {
     }
     
     $id = intval($_POST['id'] ?? 0);
-    $family_head_id = intval($_POST['family_head_id'] ?? 0);
-    $address = sanitizeInput($_POST['address'] ?? '');
+    $family_head_raw = $_POST['family_head_id'] ?? null;
+    $family_head_id = is_null($family_head_raw) || $family_head_raw === '' ? null : intval($family_head_raw);
+    $address_raw = $_POST['address'] ?? null;
+    $address = is_null($address_raw) ? null : sanitizeInput($address_raw);
     $total_members = intval($_POST['total_members'] ?? 0);
     
     if (!$id) {
@@ -240,19 +260,35 @@ function updateHousehold() {
         $updates = [];
         $params = [];
         
-        if ($family_head_id > 0) {
-            $updates[] = "family_head_id = ?";
-            $params[] = $family_head_id;
+        if (!is_null($family_head_id)) {
+            if ($family_head_id > 0) {
+                $head = $db->fetchOne("SELECT id, household_id FROM residents WHERE id = ?", [$family_head_id]);
+                if (!$head) {
+                    sendResponse(false, 'Family head not found', null, 404);
+                    return;
+                }
+                if (!empty($head['household_id']) && intval($head['household_id']) !== $id) {
+                    sendResponse(false, 'Selected resident is already assigned to a different household', null, 400);
+                    return;
+                }
+                // Link resident into this household when assigning as head.
+                $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$id, $family_head_id]);
+                $updates[] = "family_head_id = ?";
+                $params[] = $family_head_id;
+            } else {
+                // Explicitly unassign head when 0 is provided.
+                $updates[] = "family_head_id = NULL";
+            }
         }
         
-        if (!empty($address)) {
+        if (!is_null($address)) {
             $updates[] = "address = ?";
-            $params[] = $address;
+            $params[] = ($address === '' ? null : $address);
         }
         
-        if ($total_members > 0) {
+        if ($total_members >= 0 && isset($_POST['total_members'])) {
             $updates[] = "total_members = ?";
-            $params[] = $total_members;
+            $params[] = max(0, $total_members);
         }
         
         if (empty($updates)) {
@@ -264,6 +300,12 @@ function updateHousehold() {
         $sql = "UPDATE households SET " . implode(', ', $updates) . " WHERE id = ?";
         
         $db->query($sql, $params);
+
+        // Keep total_members aligned with actual linked residents when possible.
+        $countRow = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$id]);
+        if ($countRow && isset($countRow['c'])) {
+            $db->query("UPDATE households SET total_members = ? WHERE id = ?", [(int)$countRow['c'], $id]);
+        }
         
         // Get updated household
         $household = $db->fetchOne("SELECT * FROM households WHERE id = ?", [$id]);
@@ -655,6 +697,13 @@ function addHouseholdMember() {
         if (!$household) { sendResponse(false, 'Household not found', null, 404); return; }
         $resident = $db->fetchOne("SELECT id FROM residents WHERE id = ?", [$resident_id]);
         if (!$resident) { sendResponse(false, 'Resident not found', null, 404); return; }
+        // Do not allow adding a resident already assigned elsewhere.
+        $existingHousehold = $db->fetchOne("SELECT household_id FROM residents WHERE id = ?", [$resident_id]);
+        if ($existingHousehold && !empty($existingHousehold['household_id']) && intval($existingHousehold['household_id']) !== $household_id) {
+            sendResponse(false, 'Resident is already assigned to a different household', null, 400);
+            return;
+        }
+
         $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$household_id, $resident_id]);
         $count = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$household_id])['c'];
         $db->query("UPDATE households SET total_members = ? WHERE id = ?", [$count, $household_id]);
@@ -686,9 +735,14 @@ function removeHouseholdMember() {
             return;
         }
         $household_id = $resident['household_id'];
+        $headRow = $db->fetchOne("SELECT family_head_id FROM households WHERE id = ?", [$household_id]);
+        if ($headRow && !empty($headRow['family_head_id']) && intval($headRow['family_head_id']) === $resident_id) {
+            sendResponse(false, 'Cannot remove the family head. Assign a new head first.', null, 400);
+            return;
+        }
         $db->query("UPDATE residents SET household_id = NULL WHERE id = ?", [$resident_id]);
         $count = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$household_id])['c'];
-        $db->query("UPDATE households SET total_members = ? WHERE id = ?", [$count ?: 1, $household_id]);
+        $db->query("UPDATE households SET total_members = ? WHERE id = ?", [(int)$count, $household_id]);
         sendResponse(true, 'Member removed from household');
     } catch (Exception $e) {
         error_log("Remove member error: " . $e->getMessage());
