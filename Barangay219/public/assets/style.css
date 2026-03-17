@@ -21,6 +21,12 @@ body {
     color: #0f172a;
 }
 
+/* Resident view should mimic officials typography */
+body.resident-view {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    font-size: 1rem !important;
+}
+
 .navbar-brand {
     display: inline-flex;
     align-items: center;
