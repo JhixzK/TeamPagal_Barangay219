@@ -132,6 +132,14 @@ if ($isResidentSidebar) {
             'section' => 'Communication'
         ],
         [
+            'title' => 'Officials',
+            'icon' => 'bi-people-fill',
+            'url' => 'officials.php',
+            'module' => 'officials',
+            'section' => 'Administration',
+            'roles' => [ROLE_SUPER_ADMIN, ROLE_BARANGAY_CAPTAIN]
+        ],
+        [
             'title' => 'Users',
             'icon' => 'bi-person-gear',
             'url' => 'users.php',
@@ -142,6 +150,11 @@ if ($isResidentSidebar) {
 
     // Filter menu items based on permissions
     $filtered_menu = array_filter($menu_items, function($item) {
+        if (isset($item['roles']) && is_array($item['roles'])) {
+            if (!hasAnyRole($item['roles'])) {
+                return false;
+            }
+        }
         if (isset($item['modules']) && is_array($item['modules'])) {
             foreach ($item['modules'] as $mod) {
                 if (canAccessModule($mod)) {
