@@ -19,6 +19,11 @@ include __DIR__ . '/../includes/sidebar.php';
                     <h2 class="mb-1"><i class="bi bi-house-door me-2"></i>Households Management</h2>
                     <p class="module-subtitle mb-0">Manage household groups and let residents join selected households.</p>
                 </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary" id="btnCreateHousehold" onclick="newHousehold()">
+                        <i class="bi bi-plus-circle me-1"></i> New Household
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -47,23 +52,9 @@ include __DIR__ . '/../includes/sidebar.php';
             <li class="nav-item"><a class="nav-link" href="#" data-range="year">New This Year</a></li>
         </ul>
 
-        <div class="data-table">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th class="text-center">ID</th>
-                            <th class="text-center">Family Head</th>
-                            <th class="text-center">Address</th>
-                            <th class="text-center">Total Members</th>
-                            <th class="text-center">Registration Date</th>
-                            <th class="text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="householdsTableBody">
-                        <tr><td colspan="6" class="text-center"><div class="spinner-border text-primary"></div></td></tr>
-                    </tbody>
-                </table>
+        <div id="householdTiles" class="household-tiles">
+            <div class="household-tiles-loading text-center py-5">
+                <div class="spinner-border text-primary"></div>
             </div>
         </div>
     </div>
@@ -102,6 +93,117 @@ include __DIR__ . '/../includes/sidebar.php';
     .households-page .app-tabs {
         grid-template-columns: 1fr;
     }
+}
+
+.households-page .household-tiles {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+@media (max-width: 1200px) {
+    .households-page .household-tiles {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .households-page .household-tiles {
+        grid-template-columns: 1fr;
+    }
+}
+
+.households-page .household-tile.card {
+    border: 1px solid #e6edf7;
+    border-radius: 14px;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.households-page .household-tile .tile-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    background: linear-gradient(135deg, #f8fbff 0%, #ffffff 70%);
+    border-bottom: 1px solid #eef2f7;
+}
+
+.households-page .household-tile .tile-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.households-page .household-tile .tile-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: #e8f0ff;
+    color: #1d4ed8;
+    flex: 0 0 auto;
+}
+
+.households-page .household-tile .tile-name {
+    font-weight: 800;
+    margin: 0;
+    line-height: 1.1;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.households-page .household-tile .tile-sub {
+    margin: 0.2rem 0 0;
+    font-size: 0.85rem;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.households-page .household-tile .tile-body {
+    padding: 0.9rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex: 1 1 auto;
+}
+
+.households-page .household-tile .tile-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem 0.75rem;
+    margin: 0;
+}
+
+.households-page .household-tile .tile-meta dt {
+    font-size: 0.75rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin: 0;
+}
+
+.households-page .household-tile .tile-meta dd {
+    margin: 0.1rem 0 0;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.households-page .household-tile .tile-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-top: auto;
 }
 </style>
 
@@ -142,33 +244,35 @@ include __DIR__ . '/../includes/sidebar.php';
                 <div class="modal-body">
                     <input type="hidden" id="householdId" name="id">
                     <div class="mb-3">
-                        <label for="family_head_id" class="form-label">Family Head <span class="text-danger">*</span></label>
-                        <select class="form-select" id="family_head_id" name="family_head_id" required>
+                        <label for="family_head_id" class="form-label">Family Head</label>
+                        <select class="form-select" id="family_head_id" name="family_head_id">
                             <option value="">-- Select Resident --</option>
                         </select>
-                        <small class="text-muted">Select the head from existing residents in this group.</small>
+                        <small class="text-muted">Optional for now. You can create an empty household first, then assign the head later.</small>
                     </div>
                     <div class="mb-3">
-                        <label for="address" class="form-label">Address <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="address" name="address" rows="2" required></textarea>
+                        <label for="address" class="form-label">Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="2" placeholder="(optional)"></textarea>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-6 mb-3" id="totalMembersGroup">
                             <label for="total_members" class="form-label">Total Members</label>
-                            <input type="number" min="1" class="form-control" id="total_members" name="total_members" value="1">
+                            <input type="number" min="0" class="form-control" id="total_members" name="total_members" value="0">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="registration_date" class="form-label">Registration Date</label>
                             <input type="date" class="form-control" id="registration_date" name="registration_date">
                         </div>
                     </div>
-                    <hr>
-                    <h6>Join Selected Household</h6>
-                    <div class="input-group mb-2">
-                        <select class="form-select" id="addMemberResidentEdit">
-                            <option value="">-- Select resident to add --</option>
-                        </select>
-                        <button class="btn btn-primary" type="button" id="btnAddMemberEdit">Add</button>
+                    <div id="joinHouseholdSection">
+                        <hr>
+                        <h6>Join Selected Household</h6>
+                        <div class="input-group mb-2">
+                            <select class="form-select" id="addMemberResidentEdit">
+                                <option value="">-- Select resident to add --</option>
+                            </select>
+                            <button class="btn btn-primary" type="button" id="btnAddMemberEdit">Add</button>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
