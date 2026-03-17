@@ -61,12 +61,12 @@ function ensureResidentHouseholdSchema() {
     $db->query(
         "CREATE TABLE IF NOT EXISTS households (
             id INT(11) NOT NULL AUTO_INCREMENT,
-            head_id INT(11) NOT NULL,
+            head_id INT(11) NULL,
             house_number VARCHAR(120) DEFAULT NULL,
             street VARCHAR(200) DEFAULT NULL,
-            barangay VARCHAR(150) NOT NULL,
-            city VARCHAR(150) NOT NULL,
-            province VARCHAR(150) NOT NULL,
+            barangay VARCHAR(150) NULL,
+            city VARCHAR(150) NULL,
+            province VARCHAR(150) NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -99,7 +99,8 @@ function ensureResidentHouseholdSchema() {
         $db->query("UPDATE households SET street = address WHERE (street IS NULL OR street = '') AND address IS NOT NULL");
     }
 
-    $db->query("ALTER TABLE households MODIFY COLUMN head_id INT(11) NOT NULL");
+    // Allow empty households (head can be assigned later by officials).
+    $db->query("ALTER TABLE households MODIFY COLUMN head_id INT(11) NULL");
 
     $headIndex = $db->fetchOne("SHOW INDEX FROM households WHERE Key_name = 'idx_head_id'");
     if (!$headIndex) {
