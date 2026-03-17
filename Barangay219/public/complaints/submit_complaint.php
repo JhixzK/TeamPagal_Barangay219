@@ -84,54 +84,147 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $referenceNumber = null;
             $inserted = false;
 
+            $supportsReferenceNumber = residentComplaintsHasComplaintColumn($db, 'reference_number');
+            $supportsResidentId = residentComplaintsHasComplaintColumn($db, 'resident_id');
+
             for ($attempt = 0; $attempt < 3 && !$inserted; $attempt++) {
                 $db->beginTransaction();
 
                 try {
-                    $referenceNumber = residentComplaintsGenerateReference($db);
-                    $db->query(
-                        "INSERT INTO complaints (
-                            reference_number, resident_id, complaint_title, complainant_name,
-                            respondent_name, complaint_type, narrative, filing_date,
-                            category, title, description, incident_date, incident_time,
-                            incident_house_street, incident_purok, incident_landmark, incident_barangay,
-                            respondent_address, respondent_barangay, respondent_city, respondent_residency,
-                            evidence_file, jurisdiction_status, status, assigned_officer,
-                            resolution_notes, referral_notes, date_submitted
-                        ) VALUES (
-                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                        )",
-                        [
-                            $referenceNumber,
-                            $residentId,
-                            $formData['title'],
-                            $residentName,
-                            $formData['respondent_name'] !== '' ? $formData['respondent_name'] : null,
-                            $formData['category'],
-                            $formData['description'],
-                            $filingDate,
-                            $formData['category'],
-                            $formData['title'],
-                            $formData['description'],
-                            $formData['incident_date'],
-                            $formData['incident_time'],
-                            $formData['incident_house_street'],
-                            $formData['incident_purok'],
-                            $formData['incident_landmark'] !== '' ? $formData['incident_landmark'] : null,
-                            $formData['incident_barangay'],
-                            $formData['respondent_address'],
-                            $formData['respondent_barangay'],
-                            $formData['respondent_city'],
-                            $formData['respondent_residency'],
-                            $evidencePath,
-                            $jurisdiction['jurisdiction_status'],
-                            $jurisdiction['status'],
-                            null,
-                            null,
-                            $jurisdiction['jurisdiction_status'] === 'Outside Jurisdiction' ? 'This incident was reported outside the covered barangay jurisdiction.' : null,
-                            $submittedAt
-                        ]
-                    );
+                    $referenceNumber = $supportsReferenceNumber ? residentComplaintsGenerateReference($db) : null;
+
+                    if ($supportsReferenceNumber && $supportsResidentId) {
+                        $db->query(
+                            "INSERT INTO complaints (
+                                reference_number, resident_id, complaint_title, complainant_name,
+                                respondent_name, complaint_type, narrative, filing_date,
+                                category, title, description, incident_date, incident_time,
+                                incident_house_street, incident_purok, incident_landmark, incident_barangay,
+                                respondent_address, respondent_barangay, respondent_city, respondent_residency,
+                                evidence_file, jurisdiction_status, status, assigned_officer,
+                                resolution_notes, referral_notes, date_submitted
+                            ) VALUES (
+                                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                            )",
+                            [
+                                $referenceNumber,
+                                $residentId,
+                                $formData['title'],
+                                $residentName,
+                                $formData['respondent_name'] !== '' ? $formData['respondent_name'] : null,
+                                $formData['category'],
+                                $formData['description'],
+                                $filingDate,
+                                $formData['category'],
+                                $formData['title'],
+                                $formData['description'],
+                                $formData['incident_date'],
+                                $formData['incident_time'],
+                                $formData['incident_house_street'],
+                                $formData['incident_purok'],
+                                $formData['incident_landmark'] !== '' ? $formData['incident_landmark'] : null,
+                                $formData['incident_barangay'],
+                                $formData['respondent_address'],
+                                $formData['respondent_barangay'],
+                                $formData['respondent_city'],
+                                $formData['respondent_residency'],
+                                $evidencePath,
+                                $jurisdiction['jurisdiction_status'],
+                                $jurisdiction['status'],
+                                null,
+                                null,
+                                $jurisdiction['jurisdiction_status'] === 'Outside Jurisdiction' ? 'This incident was reported outside the covered barangay jurisdiction.' : null,
+                                $submittedAt
+                            ]
+                        );
+                    } elseif ($supportsResidentId) {
+                        $db->query(
+                            "INSERT INTO complaints (
+                                resident_id, complaint_title, complainant_name,
+                                respondent_name, complaint_type, narrative, filing_date,
+                                category, title, description, incident_date, incident_time,
+                                incident_house_street, incident_purok, incident_landmark, incident_barangay,
+                                respondent_address, respondent_barangay, respondent_city, respondent_residency,
+                                evidence_file, jurisdiction_status, status, assigned_officer,
+                                resolution_notes, referral_notes, date_submitted
+                            ) VALUES (
+                                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                            )",
+                            [
+                                $residentId,
+                                $formData['title'],
+                                $residentName,
+                                $formData['respondent_name'] !== '' ? $formData['respondent_name'] : null,
+                                $formData['category'],
+                                $formData['description'],
+                                $filingDate,
+                                $formData['category'],
+                                $formData['title'],
+                                $formData['description'],
+                                $formData['incident_date'],
+                                $formData['incident_time'],
+                                $formData['incident_house_street'],
+                                $formData['incident_purok'],
+                                $formData['incident_landmark'] !== '' ? $formData['incident_landmark'] : null,
+                                $formData['incident_barangay'],
+                                $formData['respondent_address'],
+                                $formData['respondent_barangay'],
+                                $formData['respondent_city'],
+                                $formData['respondent_residency'],
+                                $evidencePath,
+                                $jurisdiction['jurisdiction_status'],
+                                $jurisdiction['status'],
+                                null,
+                                null,
+                                $jurisdiction['jurisdiction_status'] === 'Outside Jurisdiction' ? 'This incident was reported outside the covered barangay jurisdiction.' : null,
+                                $submittedAt
+                            ]
+                        );
+                    } else {
+                        // Oldest schema fallback: no resident_id column.
+                        // Store only complainant_name so residents can still list their own records by name.
+                        $db->query(
+                            "INSERT INTO complaints (
+                                complaint_title, complainant_name,
+                                respondent_name, complaint_type, narrative, filing_date,
+                                category, title, description, incident_date, incident_time,
+                                incident_house_street, incident_purok, incident_landmark, incident_barangay,
+                                respondent_address, respondent_barangay, respondent_city, respondent_residency,
+                                evidence_file, jurisdiction_status, status, assigned_officer,
+                                resolution_notes, referral_notes, date_submitted
+                            ) VALUES (
+                                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                            )",
+                            [
+                                $formData['title'],
+                                $residentName,
+                                $formData['respondent_name'] !== '' ? $formData['respondent_name'] : null,
+                                $formData['category'],
+                                $formData['description'],
+                                $filingDate,
+                                $formData['category'],
+                                $formData['title'],
+                                $formData['description'],
+                                $formData['incident_date'],
+                                $formData['incident_time'],
+                                $formData['incident_house_street'],
+                                $formData['incident_purok'],
+                                $formData['incident_landmark'] !== '' ? $formData['incident_landmark'] : null,
+                                $formData['incident_barangay'],
+                                $formData['respondent_address'],
+                                $formData['respondent_barangay'],
+                                $formData['respondent_city'],
+                                $formData['respondent_residency'],
+                                $evidencePath,
+                                $jurisdiction['jurisdiction_status'],
+                                $jurisdiction['status'],
+                                null,
+                                null,
+                                $jurisdiction['jurisdiction_status'] === 'Outside Jurisdiction' ? 'This incident was reported outside the covered barangay jurisdiction.' : null,
+                                $submittedAt
+                            ]
+                        );
+                    }
 
                     $db->commit();
                     $inserted = true;
@@ -146,8 +239,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            if (!$inserted || $referenceNumber === null) {
-                throw new RuntimeException('Unable to generate a unique complaint reference number.');
+            if (!$inserted) {
+                throw new RuntimeException('Unable to submit your complaint right now. Please try again.');
+            }
+
+            if (!$supportsReferenceNumber || $referenceNumber === null) {
+                // Fallback for older schemas: show a computed reference based on inserted ID.
+                $lastId = (int)$db->lastInsertId();
+                $referenceNumber = $lastId > 0 ? ('CMP-' . date('Y') . '-' . str_pad((string)$lastId, 4, '0', STR_PAD_LEFT)) : 'Pending';
             }
 
             header('Location: ' . BASE_URL . 'complaints/submit_complaint.php?submitted=' . urlencode($referenceNumber));
@@ -163,56 +262,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $submittedReference = sanitizeInput($_GET['submitted'] ?? '');
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Submit Complaint | E-Barangay Information Management System</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="<?php echo BASE_URL; ?>resident_dashboard.css">
-</head>
-<body>
-  <header class="top-header">
-    <div class="header-left">
-      <button class="menu-toggle" id="menuToggle" aria-label="Toggle sidebar"><i class="fa-solid fa-bars"></i></button>
-      <div class="logo-wrap" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></div>
-      <div class="system-text"><h1>E-Barangay Information Management System</h1><p>Barangay 219, Tondo, Manila</p></div>
-    </div>
-    <div class="header-right">
-      <span class="date-badge" id="topDateBadge"><?php echo date('F d, Y'); ?></span>
-      <button class="icon-btn" aria-label="Notifications"><i class="fa-regular fa-bell"></i></button>
-      <div class="profile-dropdown" id="profileDropdown">
-        <button class="profile-trigger" id="profileTrigger" aria-haspopup="true" aria-expanded="false">
-          <img src="https://i.pravatar.cc/100?img=12" alt="Resident avatar"><i class="fa-solid fa-chevron-down"></i>
-        </button>
-        <div class="dropdown-menu" id="dropdownMenu" role="menu">
-          <a href="<?php echo BASE_URL; ?>resident_profile.php" role="menuitem">View Profile</a>
-          <a href="<?php echo BASE_URL; ?>../api/auth.php?action=logout" role="menuitem">Logout</a>
-        </div>
-      </div>
-    </div>
-  </header>
+<?php
+$page_title = 'Submit Complaint';
+require_once __DIR__ . '/../../includes/header.php';
+include __DIR__ . '/../../includes/sidebar.php';
+?>
 
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-profile"><img src="https://i.pravatar.cc/120?img=12" alt="Resident profile image"><div class="profile-meta label"><h3><?php echo htmlspecialchars($residentName); ?></h3><p>Resident</p></div></div>
-    <nav class="sidebar-nav">
-      <div class="nav-group"><p class="group-title label">ACCOUNT</p><a class="nav-item" href="<?php echo BASE_URL; ?>resident_profile.php"><i class="fa-regular fa-user"></i><span class="label">My Profile</span></a></div>
-      <div class="nav-group"><p class="group-title label">MAIN</p><a class="nav-item" href="<?php echo BASE_URL; ?>resident_dashboard.php"><i class="fa-solid fa-gauge-high"></i><span class="label">Dashboard</span></a></div>
-      <div class="nav-group"><p class="group-title label">SERVICES</p><a class="nav-item" href="<?php echo BASE_URL; ?>request_certificate.php"><i class="fa-regular fa-file-lines"></i><span class="label">Request Certificate</span></a><a class="nav-item" href="<?php echo BASE_URL; ?>my_requests.php"><i class="fa-solid fa-list-check"></i><span class="label">My Requests</span></a></div>
-      <div class="nav-group"><p class="group-title label">HOUSEHOLD</p><a class="nav-item" href="<?php echo BASE_URL; ?>resident_household.php"><i class="fa-solid fa-house-user"></i><span class="label">Household Information</span></a></div>
-      <div class="nav-group"><p class="group-title label">COMMUNITY</p><a class="nav-item" href="<?php echo BASE_URL; ?>resident_announcements.php"><i class="fa-regular fa-newspaper"></i><span class="label">Announcements</span></a><a class="nav-item active" href="<?php echo BASE_URL; ?>complaints/my_complaints.php"><i class="fa-regular fa-comment-dots"></i><span class="label">Complaints / Reports</span></a></div>
-      <div class="nav-group"><p class="group-title label">OTHER</p><a class="nav-item" href="#"><i class="fa-regular fa-bell"></i><span class="label">Notifications</span></a><a class="nav-item" href="#"><i class="fa-regular fa-circle-question"></i><span class="label">Help / Support</span></a></div>
-    </nav>
-    <div class="sidebar-bottom"><a class="nav-item logout" href="<?php echo BASE_URL; ?>../api/auth.php?action=logout"><i class="fa-solid fa-arrow-right-from-bracket"></i><span class="label">Logout</span></a></div>
-  </aside>
-
-  <main class="main-content resident-complaints-page">
+<div class="main-content module-page resident-complaints-page" id="mainContent">
+  <div class="container-fluid">
     <section class="dashboard-head mb-3">
       <div>
         <p class="portal-tag">RESIDENT PORTAL</p>
@@ -271,37 +328,7 @@ $submittedReference = sanitizeInput($_GET['submitted'] ?? '');
         </div>
       </div>
     </form>
-  </main>
+  </div>
+</div>
 
-<script>
-(function () {
-  const profileTrigger = document.getElementById('profileTrigger');
-  const dropdownMenu = document.getElementById('dropdownMenu');
-  const sidebar = document.getElementById('sidebar');
-  const menuToggle = document.getElementById('menuToggle');
-  const topDateBadge = document.getElementById('topDateBadge');
-  const mainDateBadge = document.getElementById('mainDateBadge');
-  function setDateBadges() {
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
-    if (topDateBadge) topDateBadge.textContent = today;
-    if (mainDateBadge) mainDateBadge.textContent = today;
-  }
-  if (profileTrigger && dropdownMenu) {
-    profileTrigger.addEventListener('click', function () {
-      const expanded = profileTrigger.getAttribute('aria-expanded') === 'true';
-      profileTrigger.setAttribute('aria-expanded', String(!expanded));
-      dropdownMenu.classList.toggle('open', !expanded);
-    });
-    document.addEventListener('click', function (event) {
-      if (!event.target.closest('#profileDropdown')) {
-        profileTrigger.setAttribute('aria-expanded', 'false');
-        dropdownMenu.classList.remove('open');
-      }
-    });
-  }
-  if (menuToggle && sidebar) menuToggle.addEventListener('click', function () { sidebar.classList.toggle('expanded'); });
-  setDateBadges();
-})();
-</script>
-</body>
-</html>
+<?php include __DIR__ . '/../../includes/footer.php'; ?>
