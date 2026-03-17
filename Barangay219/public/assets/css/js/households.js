@@ -109,6 +109,8 @@ function loadHouseholds() {
                     const address = toTitleCase(h.address || '');
                     const members = Number((h.total_members ?? 0));
                     const reg = formatDate(h.registration_date);
+                    const hhCode = (h.household_id_code || '').trim();
+                    const fhCode = (h.family_head_code || '').trim();
 
                     const editBtn = HOUSEHOLD_PERMS.canEdit
                         ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editHousehold(${id})"><i class="bi bi-pencil-square"></i></button>`
@@ -120,6 +122,10 @@ function loadHouseholds() {
 
                     const subtitle = head ? `Head: ${head}` : 'No head assigned yet';
                     const addrDisplay = address ? formatTitleCaseTruncate(address, 70) : '(no address)';
+                    const codeLineParts = [];
+                    if (hhCode) codeLineParts.push(`Household ID: ${hhCode}`);
+                    if (fhCode) codeLineParts.push(`Head Code: ${fhCode}`);
+                    const codeLine = codeLineParts.length ? codeLineParts.join(' • ') : 'Codes will generate after head approval';
 
                     return `
                         <div class="household-tile card shadow-sm">
@@ -134,6 +140,7 @@ function loadHouseholds() {
                                 <span class="badge bg-success">Members: ${members}</span>
                             </div>
                             <div class="tile-body">
+                                <div class="small text-muted">${escapeHtml(codeLine)}</div>
                                 <dl class="tile-meta">
                                     <div>
                                         <dt>Address</dt>
@@ -261,6 +268,8 @@ function viewHousehold(id) {
             if (!d.success) { alert(d.message || 'Error'); return; }
             const h = d.data;
             document.getElementById('viewHouseholdInfo').innerHTML = `
+                <p><strong>Household ID Code:</strong> ${escapeHtml((h.household_id_code || '-'))}</p>
+                <p><strong>Family Head Code:</strong> ${escapeHtml((h.family_head_code || '-'))}</p>
                 <p><strong>Family Head:</strong> ${escapeHtml(toTitleCase(h.family_head_name || '-'))}</p>
                 <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
                 <p><strong>Total Members:</strong> ${Number((h.total_members ?? 0))}</p>
