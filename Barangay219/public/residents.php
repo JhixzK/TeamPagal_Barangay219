@@ -71,7 +71,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <th class="text-center">Gender</th>
                             <th class="text-center">Address</th>
                             <th class="text-center">Contact</th>
-                            <th class="text-center">Household Role</th>
+                            <th class="text-center">Household Code</th>
                             <th class="text-center">Verification</th>
                             <th class="text-center">Status</th>
                             <th class="text-center">Actions</th>
