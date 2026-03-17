@@ -17,7 +17,11 @@ try {
     householdJsonResponse(false, null, 'Method not allowed', 405);
 } catch (Exception $e) {
     error_log('Household info endpoint error: ' . $e->getMessage());
-    householdJsonResponse(false, null, 'Unable to process household request', 500);
+    $msg = 'Unable to process household request';
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+        $msg .= ': ' . $e->getMessage();
+    }
+    householdJsonResponse(false, null, $msg, 500);
 }
 
 function ensureResidentHouseholdContractColumns() {
@@ -26,6 +30,8 @@ function ensureResidentHouseholdContractColumns() {
     $houseCols = getColumnsMap('households');
     addColumnIfMissing('households', $houseCols, 'family_head_id', 'INT(11) NULL');
     addColumnIfMissing('households', $houseCols, 'family_code', 'VARCHAR(30) NULL');
+    addColumnIfMissing('households', $houseCols, 'household_id_code', 'VARCHAR(10) NULL');
+    addColumnIfMissing('households', $houseCols, 'family_head_code', 'VARCHAR(9) NULL');
     addColumnIfMissing('households', $houseCols, 'household_type', "VARCHAR(40) NULL DEFAULT 'nuclear'");
     addColumnIfMissing('households', $houseCols, 'housing_status', "VARCHAR(40) NULL DEFAULT 'owned'");
     addColumnIfMissing('households', $houseCols, 'years_of_residency', 'INT(11) NULL DEFAULT 0');
@@ -36,8 +42,21 @@ function ensureResidentHouseholdContractColumns() {
 
     $houseCols = getColumnsMap('households');
     if (isset($houseCols['head_id']) && isset($houseCols['family_head_id'])) {
-        $db->query('UPDATE households SET family_head_id = head_id WHERE (family_head_id IS NULL OR family_head_id = 0) AND head_id IS NOT NULL');
-        $db->query('UPDATE households SET head_id = family_head_id WHERE (head_id IS NULL OR head_id = 0) AND family_head_id IS NOT NULL');
+        // Only sync values that actually exist in residents to avoid FK violations.
+        $db->query(
+            "UPDATE households h
+             JOIN residents r ON r.id = h.head_id
+             SET h.family_head_id = h.head_id
+             WHERE (h.family_head_id IS NULL OR h.family_head_id = 0)
+               AND h.head_id IS NOT NULL"
+        );
+        $db->query(
+            "UPDATE households h
+             JOIN residents r ON r.id = h.family_head_id
+             SET h.head_id = h.family_head_id
+             WHERE (h.head_id IS NULL OR h.head_id = 0)
+               AND h.family_head_id IS NOT NULL"
+        );
     }
 
     $familyCodeIdx = $db->fetchOne("SHOW INDEX FROM households WHERE Key_name = 'idx_households_family_code'");
@@ -291,7 +310,7 @@ function handleGetHouseholdInfo($residentId) {
     $dateColumn = householdMemberDateColumn();
 
     $household = $db->fetchOne(
-        "SELECT h.id, h.family_code, h.`{$headColumn}` AS family_head_id,
+        "SELECT h.id, h.family_code, h.household_id_code, h.family_head_code, h.`{$headColumn}` AS family_head_id,
                 h.house_number, h.street, h.barangay, h.city, h.province,
                 h.household_type, h.housing_status, h.years_of_residency,
                 h.indigent_household, h.emergency_contact_name,
@@ -299,7 +318,7 @@ function handleGetHouseholdInfo($residentId) {
                 h.created_at, h.updated_at,
                 r.first_name, r.middle_name, r.last_name
          FROM households h
-         INNER JOIN residents r ON r.id = h.`{$headColumn}`
+         LEFT JOIN residents r ON r.id = h.`{$headColumn}`
          WHERE h.id = ?
          LIMIT 1",
         [$householdId]
@@ -351,37 +370,50 @@ function handleGetHouseholdInfo($residentId) {
         ];
     }
 
-    if (count($mappedMembers) === 0) {
-        $linked = $db->fetchAll(
-            "SELECT r.id AS resident_id, r.resident_code, r.first_name, r.middle_name, r.last_name,
-                    r.birth_date AS date_of_birth, r.gender, {$memberStatusExpr}, {$verificationExpr},
-                    {$pwdExpr}, {$psExpr}, {$soloExpr}
-             FROM residents r
-             WHERE r.household_id = ?
-             ORDER BY CASE WHEN r.id = ? THEN 0 ELSE 1 END, r.id ASC",
-            [$householdId, $household['family_head_id']]
-        );
+    // Always include residents linked via residents.household_id even if household_members rows are missing.
+    // This keeps the resident view consistent with official assignments.
+    $existingResidentIds = [];
+    foreach ($mappedMembers as $m) {
+        $existingResidentIds[(int)$m['resident_id']] = true;
+    }
 
-        foreach ($linked as $residentRow) {
-            $age = computeAge($residentRow['date_of_birth'] ?? null);
-            $isHead = (int)$residentRow['resident_id'] === (int)$household['family_head_id'];
-            $mappedMembers[] = [
-                'id' => 0,
-                'resident_id' => (int)$residentRow['resident_id'],
-                'resident_code' => (string)($residentRow['resident_code'] ?? ''),
-                'name' => formatResidentName($residentRow),
-                'relationship_to_head' => $isHead ? 'Head' : 'Member',
-                'sex' => ucfirst(strtolower((string)($residentRow['gender'] ?? ''))),
-                'date_of_birth' => $residentRow['date_of_birth'] ?? null,
-                'age' => $age,
-                'status' => normalizeMemberStatus($residentRow['resident_status'] ?? '', $residentRow['verification_status'] ?? ''),
-                'is_self' => (int)$residentRow['resident_id'] === (int)$residentId,
-                'is_pwd' => (int)($residentRow['is_pwd'] ?? 0),
-                'is_4ps_beneficiary' => (int)($residentRow['is_4ps_beneficiary'] ?? 0),
-                'is_solo_parent' => (int)($residentRow['is_solo_parent'] ?? 0),
-                'readonly' => true
-            ];
-        }
+    $excludeClause = '';
+    $excludeParams = [];
+    if (!empty($existingResidentIds)) {
+        $placeholders = implode(',', array_fill(0, count($existingResidentIds), '?'));
+        $excludeClause = " AND r.id NOT IN ($placeholders)";
+        $excludeParams = array_keys($existingResidentIds);
+    }
+
+    $linked = $db->fetchAll(
+        "SELECT r.id AS resident_id, r.resident_code, r.first_name, r.middle_name, r.last_name,
+                r.birth_date AS date_of_birth, r.gender, {$memberStatusExpr}, {$verificationExpr},
+                {$pwdExpr}, {$psExpr}, {$soloExpr}
+         FROM residents r
+         WHERE r.household_id = ? {$excludeClause}
+         ORDER BY CASE WHEN r.id = ? THEN 0 ELSE 1 END, r.id ASC",
+        array_merge([(int)$householdId], $excludeParams, [(int)$household['family_head_id']])
+    );
+
+    foreach ($linked as $residentRow) {
+        $age = computeAge($residentRow['date_of_birth'] ?? null);
+        $isHead = (int)$residentRow['resident_id'] === (int)$household['family_head_id'];
+        $mappedMembers[] = [
+            'id' => 0,
+            'resident_id' => (int)$residentRow['resident_id'],
+            'resident_code' => (string)($residentRow['resident_code'] ?? ''),
+            'name' => formatResidentName($residentRow),
+            'relationship_to_head' => $isHead ? 'Head' : 'Member',
+            'sex' => ucfirst(strtolower((string)($residentRow['gender'] ?? ''))),
+            'date_of_birth' => $residentRow['date_of_birth'] ?? null,
+            'age' => $age,
+            'status' => normalizeMemberStatus($residentRow['resident_status'] ?? '', $residentRow['verification_status'] ?? ''),
+            'is_self' => (int)$residentRow['resident_id'] === (int)$residentId,
+            'is_pwd' => (int)($residentRow['is_pwd'] ?? 0),
+            'is_4ps_beneficiary' => (int)($residentRow['is_4ps_beneficiary'] ?? 0),
+            'is_solo_parent' => (int)($residentRow['is_solo_parent'] ?? 0),
+            'readonly' => true
+        ];
     }
 
     $stats = ['total' => 0, 'children' => 0, 'adults' => 0, 'seniors' => 0];
@@ -417,10 +449,12 @@ function handleGetHouseholdInfo($residentId) {
         'can_manage_members' => (bool)$context['is_head'],
         'household' => [
             'id' => (int)$household['id'],
-            'household_code' => (string)($household['family_code'] ?? ''),
+            'household_code' => (string)($household['household_id_code'] ?? ''),
+            'household_id_code' => (string)($household['household_id_code'] ?? ''),
+            'family_head_code' => (string)($household['family_head_code'] ?? ''),
             'family_code' => (string)($household['family_code'] ?? ''),
-            'family_head_id' => (int)$household['family_head_id'],
-            'head_name' => formatResidentName($household),
+            'family_head_id' => (int)($household['family_head_id'] ?? 0),
+            'head_name' => ($household['first_name'] ?? null) ? formatResidentName($household) : '',
             'address' => householdAddressLabel($household),
             'house_number' => $household['house_number'],
             'street' => $household['street'],
@@ -570,32 +604,41 @@ function createHeadHousehold($residentId, $data) {
 }
 
 function joinAsMember($residentId, $data) {
-    $familyCode = strtoupper(trim((string)($data['family_code'] ?? '')));
-    $relationship = sanitizeInput((string)($data['relationship_to_head'] ?? ''));
+    $familyHeadCode = strtoupper(trim((string)($data['family_head_code'] ?? '')));
+    $familyCode = strtoupper(trim((string)($data['family_code'] ?? ''))); // legacy fallback
+    $relationship = sanitizeInput((string)($data['relationship_to_head'] ?? 'Member'));
 
-    if ($familyCode === '' || $relationship === '') {
-        householdJsonResponse(false, null, 'Family code and relationship are required', 400);
-    }
-
-    $allowedRelationships = ['Head', 'Spouse', 'Son', 'Daughter', 'Parent', 'Sibling', 'Relative', 'Boarder'];
-    if (!in_array($relationship, $allowedRelationships, true) || $relationship === 'Head') {
-        householdJsonResponse(false, null, 'Please select a valid relationship', 400);
+    if ($familyHeadCode === '' && $familyCode === '') {
+        householdJsonResponse(false, null, 'Family head code is required', 400);
     }
 
     $db = Database::getInstance();
     $headColumn = householdHeadColumn();
     $dateColumn = householdMemberDateColumn();
 
-    $household = $db->fetchOne(
-        "SELECT id, family_code, `{$headColumn}` AS family_head_id
-         FROM households
-         WHERE family_code = ?
-         LIMIT 1",
-        [$familyCode]
-    );
+    // Prefer new sharing code (FH-XXXXX). Fall back to legacy family_code if provided.
+    $household = null;
+    if ($familyHeadCode !== '') {
+        $household = $db->fetchOne(
+            "SELECT id, family_code, family_head_code, `{$headColumn}` AS family_head_id
+             FROM households
+             WHERE UPPER(COALESCE(family_head_code,'')) = ?
+             LIMIT 1",
+            [$familyHeadCode]
+        );
+    }
+    if (!$household && $familyCode !== '') {
+        $household = $db->fetchOne(
+            "SELECT id, family_code, family_head_code, `{$headColumn}` AS family_head_id
+             FROM households
+             WHERE UPPER(COALESCE(family_code,'')) = ?
+             LIMIT 1",
+            [$familyCode]
+        );
+    }
 
     if (!$household) {
-        householdJsonResponse(false, null, 'Invalid family code', 404);
+        householdJsonResponse(false, null, 'Invalid family head code', 404);
     }
 
     $householdId = (int)$household['id'];
@@ -648,7 +691,11 @@ function joinAsMember($residentId, $data) {
         logHouseholdHistory($householdId, 'Member Added', 'Resident joined household via family code', $residentId);
 
         $db->commit();
-        householdJsonResponse(true, ['household_id' => $householdId, 'family_code' => $familyCode], 'Joined household successfully');
+        householdJsonResponse(true, [
+            'household_id' => $householdId,
+            'family_head_code' => (string)($household['family_head_code'] ?? ''),
+            'family_code' => (string)($household['family_code'] ?? '')
+        ], 'Joined household successfully');
     } catch (Exception $e) {
         $db->rollback();
         throw $e;
