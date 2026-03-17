@@ -64,6 +64,12 @@ function residentComplaintsResolveJurisdiction($incidentBarangay) {
 }
 
 function residentComplaintsGenerateReference($db) {
+    // Some installations may not yet have the `reference_number` column.
+    // In that case we cannot generate/store a unique complaint reference in the DB.
+    if (!residentComplaintsHasComplaintColumn($db, 'reference_number')) {
+        return null;
+    }
+
     $year = date('Y');
     $prefix = 'CMP-' . $year . '-';
     $row = $db->fetchOne(
@@ -77,6 +83,73 @@ function residentComplaintsGenerateReference($db) {
     }
 
     return $prefix . str_pad((string)$next, 4, '0', STR_PAD_LEFT);
+}
+
+function residentComplaintsGetComplaintColumns($db) {
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    try {
+        $rows = $db->fetchAll("SHOW COLUMNS FROM complaints");
+        $cols = [];
+        foreach ($rows as $row) {
+            if (!empty($row['Field'])) {
+                $cols[] = $row['Field'];
+            }
+        }
+        $cache = $cols;
+        return $cache;
+    } catch (Exception $e) {
+        $cache = [];
+        return $cache;
+    }
+}
+
+function residentComplaintsHasComplaintColumn($db, $column) {
+    $column = (string)$column;
+    if ($column === '') return false;
+    $cols = residentComplaintsGetComplaintColumns($db);
+    return in_array($column, $cols, true);
+}
+
+function residentComplaintsPickComplaintColumn($db, $candidates) {
+    if (!is_array($candidates)) {
+        return null;
+    }
+    foreach ($candidates as $col) {
+        $col = (string)$col;
+        if ($col !== '' && residentComplaintsHasComplaintColumn($db, $col)) {
+            return $col;
+        }
+    }
+    return null;
+}
+
+function residentComplaintsSelectExpr($db, $candidates, $alias, $fallbackSql = 'NULL') {
+    $alias = preg_replace('/[^a-zA-Z0-9_]+/', '', (string)$alias);
+    if ($alias === '') {
+        $alias = 'col';
+    }
+    $col = residentComplaintsPickComplaintColumn($db, (array)$candidates);
+    if ($col) {
+        // Column names come from a known allow-list and are not user input.
+        return $col . ' AS ' . $alias;
+    }
+    return $fallbackSql . ' AS ' . $alias;
+}
+
+function residentComplaintsDisplayReference($complaintRow) {
+    $id = (int)($complaintRow['id'] ?? 0);
+    $ref = (string)($complaintRow['reference_number'] ?? '');
+    if ($ref !== '') {
+        return $ref;
+    }
+    if ($id <= 0) {
+        return 'Pending';
+    }
+    // Fallback reference format for older schemas (not stored in DB).
+    return 'CMP-' . date('Y') . '-' . str_pad((string)$id, 4, '0', STR_PAD_LEFT);
 }
 
 function residentComplaintsHandleUpload($file) {
