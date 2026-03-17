@@ -53,6 +53,11 @@ function bindActions() {
     if (rejectBtn) {
         rejectBtn.addEventListener('click', submitReject);
     }
+
+    const assignBtn = document.getElementById('btnAssignHousehold');
+    if (assignBtn) {
+        assignBtn.addEventListener('click', submitAssignHousehold);
+    }
 }
 
 function searchApplications() {
@@ -189,10 +194,99 @@ function renderActions(app) {
             <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="openReject(${app.id})"><i class="bi bi-x-lg"></i></button>`;
     }
     if (app.record_status === 'approved') {
+        const canAssign = app.approved_resident_id && Number(app.approved_resident_id) > 0;
+        const roleInfo = getHouseholdRoleInfo(app);
+        const isHead = (roleInfo.label || '').toLowerCase() === 'head';
+        const assignBtn = canAssign
+            ? `<button class="btn btn-sm btn-outline-secondary" title="Assign Household" aria-label="Assign Household" onclick="openAssignHousehold(${app.id}, ${Number(app.approved_resident_id)}, ${isHead ? 1 : 0})"><i class="bi bi-house-check"></i></button>`
+            : '';
         return `${viewBtn}
+            ${assignBtn}
             <button class="btn btn-sm btn-outline-info" title="Get Activation Link" aria-label="Get Activation Link" onclick="fetchActivationLink(${app.id})"><i class="bi bi-link-45deg"></i></button>`;
     }
     return viewBtn;
+}
+
+function openAssignHousehold(applicationId, residentId, isHead) {
+    if (!RES_APP_PERMS.canEdit) {
+        showAlert('error', 'Access denied');
+        return;
+    }
+    document.getElementById('assignApplicationId').value = applicationId;
+    document.getElementById('assignResidentId').value = residentId;
+    const hint = document.getElementById('assignHouseholdRoleHint');
+    if (hint) {
+        hint.textContent = isHead ? 'Detected role: Head of Family (HH/FH codes will generate if missing)' : 'Detected role: Member';
+    }
+
+    const sel = document.getElementById('assignHouseholdId');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Loading households...</option>';
+
+    fetch(`${window.API_URL}households.php?action=list`)
+        .then(r => r.json())
+        .then(d => {
+            if (!d.success || !Array.isArray(d.data)) {
+                sel.innerHTML = '<option value="">Failed to load households</option>';
+                return;
+            }
+            const opts = ['<option value="">-- Select household --</option>']
+                .concat(d.data.map(h => {
+                    const id = Number(h.id);
+                    const head = toTitleCase(h.family_head_name || '');
+                    const label = head ? `Household ${id} • ${head}` : `Household ${id}`;
+                    return `<option value="${id}">${esc(label)}</option>`;
+                }));
+            sel.innerHTML = opts.join('');
+        })
+        .catch(() => {
+            sel.innerHTML = '<option value="">Failed to load households</option>';
+        });
+
+    const modal = new bootstrap.Modal(document.getElementById('assignHouseholdModal'));
+    modal.show();
+}
+
+function submitAssignHousehold() {
+    const applicationId = Number(document.getElementById('assignApplicationId')?.value || 0);
+    const residentId = Number(document.getElementById('assignResidentId')?.value || 0);
+    const householdId = Number(document.getElementById('assignHouseholdId')?.value || 0);
+
+    if (!applicationId || !residentId || !householdId) {
+        showAlert('error', 'Please select a household.');
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append('application_id', applicationId);
+    fd.append('resident_id', residentId);
+    fd.append('household_id', householdId);
+
+    fetch(`${window.API_URL}applications.php?action=assign_household`, { method: 'POST', body: fd })
+        .then(async r => {
+            const text = await r.text();
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('Assign household non-JSON response:', text);
+                return { success: false, message: 'Server returned an invalid response. Check PHP error output/logs.' };
+            }
+        })
+        .then(d => {
+            if (d && d.success) {
+                const modalEl = document.getElementById('assignHouseholdModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                showAlert('success', d.message || 'Household assigned');
+                loadApplications();
+            } else {
+                showAlert('error', (d && d.message) ? d.message : 'Failed to assign household');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showAlert('error', 'Failed to assign household');
+        });
 }
 
 function renderPagination(totalPages) {
@@ -550,7 +644,6 @@ function renderStoredActivationLinks() {
                 <input class="form-control form-control-sm" style="min-width:260px;max-width:560px" value="${safeLink}" readonly>
                 <a class="btn btn-sm btn-outline-primary" href="${safeLink}" target="_blank" rel="noopener">Open</a>
                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyActivationLinkFromInput(this)">Copy</button>
-                <button type="button" class="btn btn-sm btn-outline-success" onclick="sendActivationEmailFromItem(this)" data-app-id="${esc(item.applicationId || '')}" data-link="${safeLink}" data-code="${esc(item.residentCode || '')}">Send Email</button>
             </li>
         `;
     }).join('');
@@ -593,50 +686,6 @@ function copyActivationLink(value) {
 function copyActivationLinkFromInput(btn) {
     const input = btn ? btn.parentElement.querySelector('input') : null;
     copyActivationLink(input ? input.value : '');
-}
-
-function sendActivationEmailFromItem(btn) {
-    if (!btn) return;
-    const appId = btn.getAttribute('data-app-id') || '';
-    const link = btn.getAttribute('data-link') || '';
-    const residentCode = btn.getAttribute('data-code') || '';
-    if (!appId || !link) {
-        showAlert('error', 'Missing application data for email.');
-        return;
-    }
-    btn.disabled = true;
-    fetch(`${window.API_URL}applications.php?action=get&id=${encodeURIComponent(appId)}`)
-        .then(r => r.json())
-        .then(data => {
-            if (!data.success) {
-                throw new Error(data.message || 'Unable to load application email.');
-            }
-            const app = data.data || {};
-            const email = (app.email || '').toString().trim();
-            if (!email) {
-                throw new Error('Applicant email is missing.');
-            }
-            const subject = `Barangay 219 Account Activation${residentCode ? ' - ' + residentCode : ''}`;
-            const bodyLines = [
-                'Good day!',
-                '',
-                'Your resident account has been approved. Please activate your account using the link below:',
-                link,
-                '',
-                residentCode ? `Resident ID: ${residentCode}` : '',
-                '',
-                'Thank you.'
-            ].filter(Boolean);
-            const mailto = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines.join('\\n'))}`;
-            window.location.href = mailto;
-        })
-        .catch(err => {
-            console.error(err);
-            showAlert('error', err.message || 'Unable to prepare email.');
-        })
-        .finally(() => {
-            btn.disabled = false;
-        });
 }
 
 function fallbackCopyText(value) {
