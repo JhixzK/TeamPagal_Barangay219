@@ -610,14 +610,14 @@ if (count($dashboardNotifications) > 5) {
   $dashboardNotifications = array_slice($dashboardNotifications, 0, 5);
 }
 
-$residentStatusBadgeClass = 'badge-pending';
+$residentStatusBadgeClass = 'text-bg-warning';
 if ($residentProfile['resident_status'] === 'Verified') {
-  $residentStatusBadgeClass = 'badge-verified';
+  $residentStatusBadgeClass = 'text-bg-success';
 } elseif ($residentProfile['resident_status'] === 'Incomplete Profile') {
-  $residentStatusBadgeClass = 'badge-incomplete';
+  $residentStatusBadgeClass = 'text-bg-danger';
 }
 
-$householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ? 'badge-linked' : 'badge-not-linked';
+$householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ? 'text-bg-primary' : 'text-bg-secondary';
 ?>
 <link rel="stylesheet" href="<?php echo BASE_URL; ?>resident_dashboard.css?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_dashboard.css')); ?>">
 
@@ -645,8 +645,8 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
         </div>
       </div>
       <div class="profile-status">
-        <span class="pill <?php echo $householdStatusBadgeClass; ?>">
-          <i class="fa-solid fa-house-user"></i>
+        <span class="badge <?php echo $householdStatusBadgeClass; ?>">
+          <i class="bi bi-house-door"></i>
           Household Status: <?php echo htmlspecialchars($residentProfile['household_status']); ?>
         </span>
       </div>
@@ -657,38 +657,38 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
         <h3>Quick Actions</h3>
       </div>
       <div class="quick-actions-grid">
-        <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=barangay_certificate"><i class="fa-regular fa-file-lines"></i><span>Request Barangay Certificate</span></a>
-        <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=certificate_indigency"><i class="fa-solid fa-hand-holding-heart"></i><span>Request Certificate of Indigency</span></a>
-        <a class="quick-btn" href="<?php echo BASE_URL; ?>my_requests.php"><i class="fa-solid fa-list-check"></i><span>View My Requests</span></a>
-        <a class="quick-btn" href="<?php echo BASE_URL; ?>resident_profile.php"><i class="fa-regular fa-user"></i><span>Update Profile</span></a>
-        <a class="quick-btn" href="<?php echo BASE_URL; ?>resident_household.php"><i class="fa-solid fa-house"></i><span>Household Information</span></a>
+        <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=barangay_certificate"><i class="bi bi-file-earmark-text"></i><span>Request Barangay Certificate</span></a>
+        <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=certificate_indigency"><i class="bi bi-heart-pulse"></i><span>Request Certificate of Indigency</span></a>
+        <a class="quick-btn" href="<?php echo BASE_URL; ?>my_requests.php"><i class="bi bi-list-check"></i><span>View My Requests</span></a>
+        <a class="quick-btn" href="<?php echo BASE_URL; ?>resident_profile.php"><i class="bi bi-person-circle"></i><span>Update Profile</span></a>
+        <a class="quick-btn" href="<?php echo BASE_URL; ?>resident_household.php"><i class="bi bi-house-door"></i><span>Household Information</span></a>
       </div>
     </section>
 
     <section class="stats-grid" aria-label="Resident dashboard statistics">
       <article class="stat-card card-1" data-href="<?php echo BASE_URL; ?>my_requests.php" role="link" tabindex="0">
-        <i class="fa-regular fa-folder-open stat-icon"></i>
+        <i class="bi bi-folder2-open stat-icon"></i>
         <h3>My Requests</h3>
         <p class="stat-value"><?php echo (int)$stats['total_requests']; ?></p>
         <p class="stat-note">Total documents requested</p>
       </article>
 
       <article class="stat-card card-2" data-href="<?php echo BASE_URL; ?>my_requests.php?status=Pending" role="link" tabindex="0">
-        <i class="fa-regular fa-clock stat-icon"></i>
+        <i class="bi bi-clock stat-icon"></i>
         <h3>Pending Requests</h3>
         <p class="stat-value"><?php echo (int)$stats['pending_requests']; ?></p>
         <p class="stat-note">Pending or under review</p>
       </article>
 
       <article class="stat-card card-3" data-href="<?php echo BASE_URL; ?>my_requests.php?status=Approved" role="link" tabindex="0">
-        <i class="fa-regular fa-circle-check stat-icon"></i>
+        <i class="bi bi-check-circle stat-icon"></i>
         <h3>Approved Documents</h3>
         <p class="stat-value"><?php echo (int)$stats['approved_documents']; ?></p>
         <p class="stat-note">Approved and ready for pickup</p>
       </article>
 
       <article class="stat-card card-4" data-href="<?php echo BASE_URL; ?>resident_announcements.php" role="link" tabindex="0">
-        <i class="fa-regular fa-bullhorn stat-icon"></i>
+        <i class="bi bi-megaphone stat-icon"></i>
         <h3>Barangay Announcements</h3>
         <p class="stat-value"><?php echo (int)$stats['active_announcements']; ?></p>
         <p class="stat-note">Recent community updates</p>
@@ -698,12 +698,12 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
     <!-- Announcements Widget -->
     <section class="announcements-widget panel">
       <div class="panel-header">
-        <h3><i class="fa-regular fa-bullhorn"></i> Latest Announcements</h3>
+        <h3><i class="bi bi-megaphone"></i> Latest Announcements</h3>
         <a href="<?php echo BASE_URL; ?>resident_announcements.php" class="view-all-link">View All</a>
       </div>
       <div id="dashboardAnnouncementsContainer" class="announcements-list-dashboard">
         <div class="loading-placeholder">
-          <i class="fa-solid fa-spinner fa-spin"></i> Loading announcements...
+          <i class="bi bi-arrow-repeat"></i> Loading announcements...
         </div>
       </div>
     </section>
