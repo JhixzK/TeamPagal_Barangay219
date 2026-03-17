@@ -43,6 +43,7 @@ define('CONFIG_PATH', ROOT_PATH . '/config');
 define('INCLUDES_PATH', ROOT_PATH . '/includes');
 
 // User Roles
+define('ROLE_SUPER_ADMIN', 'super_admin');
 define('ROLE_BARANGAY_CAPTAIN', 'barangay_captain');
 define('ROLE_SECRETARY', 'secretary');
 define('ROLE_TREASURER', 'treasurer');
