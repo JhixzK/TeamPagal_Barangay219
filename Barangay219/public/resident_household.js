@@ -74,14 +74,14 @@ function setupEventListeners() {
     ["submitHeadForm", submitHeadForm],
     ["closeMemberModal", closeMemberJoinModal],
     ["submitMemberJoin", submitMemberJoin],
-    ["manageMembers", openManageMembersModal],
+    ["openManageMembers", openManageMembersModal],
     ["closeManageMembersModal", closeManageMembersModal],
     ["closeTransferHeadReasonModal", closeTransferHeadReasonModal],
     ["submitTransferHeadReason", submitTransferHeadReason],
     // Add Member removed on resident side
     ["closeEditMemberModal", closeEditMemberModal],
     ["submitEditMember", submitEditMember],
-    ["editHousehold", editHousehold],
+    ["openUpdateOverview", editHousehold],
     ["closeOverviewModal", closeOverviewUpdateModal],
     ["submitOverviewUpdate", submitOverviewUpdate],
     ["leaveHousehold", leaveHousehold]
@@ -182,12 +182,12 @@ function displayHouseholdPanel(data) {
   document.getElementById("displayMembers").textContent = household.total_members ?? stats.total ?? members.length;
   document.getElementById("displayCreated").textContent = formatDate(household.created_at);
 
-  const editBtn = document.getElementById("editHouseholdBtn");
   const leaveBtn = document.getElementById("leaveHouseholdBtn");
-  const manageBtn = document.getElementById("manageMembersBtn");
-  if (editBtn) editBtn.style.display = isHead ? "inline-flex" : "none";
+  const newUpdateOverviewBtn = document.getElementById("btnUpdateOverview");
+  const newManageBtn = document.getElementById("btnManageMembers");
+  if (newUpdateOverviewBtn) newUpdateOverviewBtn.style.display = isHead ? "inline-flex" : "none";
   if (leaveBtn) leaveBtn.style.display = isHead ? "none" : "inline-flex";
-  if (manageBtn) manageBtn.style.display = isHead ? "inline-flex" : "none";
+  if (newManageBtn) newManageBtn.style.display = isHead ? "inline-flex" : "none";
 
   renderMembersTable(members, isHead);
   renderHistory(data.history_logs || []);
@@ -220,7 +220,7 @@ function renderMembersTable(members, isHead) {
           <td>${escapeHtml(member.relationship_to_head || "-")}</td>
           <td>${escapeHtml(member.sex || "-")}</td>
           <td>${member.age ?? calculateAge(member.date_of_birth) ?? "-"}</td>
-          <td><span class="status-badge">${escapeHtml(member.status || "Active")}</span></td>
+          <td><span class="badge text-bg-light border">${escapeHtml(member.status || "Active")}</span></td>
         </tr>
       `;
     })
@@ -252,7 +252,7 @@ function renderManageMembersTable(members) {
   const tbody = document.getElementById("manageMembersTableBody");
   if (!tbody) return;
   if (!members.length) {
-    tbody.innerHTML = '<tr><td colspan="3" class="empty-row">No members found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-row">No members found.</td></tr>';
     return;
   }
 
@@ -264,20 +264,25 @@ function renderManageMembersTable(members) {
 
     const canAssignHead = !isSelf && !isMemberHead;
     const canRemove = !isSelf && !isMemberHead;
+    const age = member.age ?? calculateAge(member.date_of_birth || member.birth_date) ?? "-";
+    const birthDateLabel = formatDate(member.date_of_birth || member.birth_date);
+    const roleBadge = isMemberHead
+      ? '<span class="status-badge">Head</span>'
+      : '<span class="status-badge">Member</span>';
 
     const actions = [];
     if (canAssignHead) {
       if (memberId > 0) {
-        actions.push(`<button class="btn-action btn-sm" onclick="assignNewHead(${memberId})" title="Assign as Head"><i class="fa-solid fa-crown"></i></button>`);
+        actions.push(`<button class="btn-action btn-sm" onclick="assignNewHead(${memberId})" title="Assign as Head" aria-label="Assign as Head"><i class="bi bi-person-check"></i></button>`);
       } else {
-        actions.push(`<button class="btn-action btn-sm" onclick="assignNewHeadByResident(${Number(member.resident_id || 0)})" title="Assign as Head"><i class="fa-solid fa-crown"></i></button>`);
+        actions.push(`<button class="btn-action btn-sm" onclick="assignNewHeadByResident(${Number(member.resident_id || 0)})" title="Assign as Head" aria-label="Assign as Head"><i class="bi bi-person-check"></i></button>`);
       }
     }
     if (canRemove) {
       if (memberId > 0) {
-        actions.push(`<button class="btn-action btn-sm btn-danger" onclick="removeMember(${memberId})" title="Remove"><i class="fa-solid fa-trash"></i></button>`);
+        actions.push(`<button class="btn-action btn-sm btn-danger" onclick="removeMember(${memberId})" title="Remove" aria-label="Remove"><i class="bi bi-person-dash"></i></button>`);
       } else {
-        actions.push(`<button class="btn-action btn-sm btn-danger" onclick="removeMemberByResident(${Number(member.resident_id || 0)})" title="Remove"><i class="fa-solid fa-trash"></i></button>`);
+        actions.push(`<button class="btn-action btn-sm btn-danger" onclick="removeMemberByResident(${Number(member.resident_id || 0)})" title="Remove" aria-label="Remove"><i class="bi bi-person-dash"></i></button>`);
       }
     }
     if (!actions.length) {
@@ -287,7 +292,9 @@ function renderManageMembersTable(members) {
     return `
       <tr>
         <td>${escapeHtml(member.name || "Unknown")}${isSelf ? ' <span class="self-tag">(You)</span>' : ""}</td>
-        <td>${escapeHtml(member.relationship_to_head || "-")}</td>
+        <td>${roleBadge}</td>
+        <td>${escapeHtml(age)}</td>
+        <td>${escapeHtml(birthDateLabel)}</td>
         <td>${actions.join(" ")}</td>
       </tr>
     `;
@@ -705,7 +712,8 @@ async function submitOverviewUpdate(e) {
 }
 
 function closeAllModals() {
-  document.querySelectorAll(".modal").forEach((modal) => {
+  // Close only custom (non-Bootstrap) modals.
+  document.querySelectorAll(".modal:not(.fade)").forEach((modal) => {
     modal.style.display = "none";
   });
   document.body.style.overflow = "auto";
@@ -718,7 +726,7 @@ function showErrorMessage(message) {
   const msgDiv = document.createElement("div");
   msgDiv.className = "alert alert-danger";
   msgDiv.innerHTML = `
-    <i class="fa-solid fa-exclamation-circle"></i>
+    <i class="bi bi-exclamation-circle"></i>
     <div>
       <strong>Error</strong>
       <p>${escapeHtml(message)}</p>
@@ -739,7 +747,7 @@ function showSuccessMessage(message) {
   const msgDiv = document.createElement("div");
   msgDiv.className = "alert alert-success";
   msgDiv.innerHTML = `
-    <i class="fa-solid fa-check-circle"></i>
+    <i class="bi bi-check-circle"></i>
     <div>
       <strong>Success</strong>
       <p>${escapeHtml(message)}</p>
