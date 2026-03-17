@@ -9,6 +9,10 @@ if (!isLoggedIn()) {
 }
 
 $current_page = basename($_SERVER['PHP_SELF']);
+
+// Profile page differs per view mode
+$profile_page = isResidentView() ? 'resident_profile.php' : 'profile.php';
+$profile_url = BASE_URL . $profile_page;
 // Define menu items with permission keys
 $menu_items = [
     [
@@ -113,7 +117,7 @@ if (empty($avatar_path)) {
     $avatar_path = ASSETS_URL . 'img/default-avatar.svg';
 }
 ?>
-<div class="sidebar" id="appSidebar">
+<div class="sidebar" id="appSidebar" data-view-mode="<?php echo isResidentView() ? 'resident' : 'official'; ?>">
     <div class="sidebar-content">
         <div class="sidebar-toggle-wrap">
             <button class="btn btn-sm btn-outline-primary sidebar-toggle-btn" type="button" id="sidebarToggleBtn" aria-label="Toggle sidebar" aria-controls="appSidebar" aria-expanded="false">
@@ -121,7 +125,7 @@ if (empty($avatar_path)) {
             </button>
         </div>
         <div class="sidebar-profile text-center mb-3" style="padding:0.5rem 1rem;">
-            <a href="<?php echo BASE_URL; ?>profile.php" class="d-flex align-items-center gap-2 text-decoration-none">
+            <a href="<?php echo $profile_url; ?>" class="d-flex align-items-center gap-2 text-decoration-none">
                 <img src="<?php echo $avatar_path; ?>" alt="Avatar" class="rounded-circle" style="width:48px;height:48px;object-fit:cover;border:2px solid #fff;box-shadow:0 0 0 2px rgba(13,110,253,0.08);">
                 <div class="profile-meta text-start">
                     <div style="font-weight:600;color:#212529;">
@@ -146,26 +150,72 @@ if (empty($avatar_path)) {
         <ul class="nav flex-column">
             <li class="nav-section-title">Account</li>
             <li class="nav-item">
-                <a class="nav-link <?php echo ($current_page === 'profile.php') ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>profile.php">
+                <a class="nav-link <?php echo ($current_page === $profile_page) ? 'active' : ''; ?>" href="<?php echo $profile_url; ?>">
                     <i class="bi bi-person-circle"></i>
                     <span>My Profile</span>
                 </a>
             </li>
             <li class="nav-divider" role="separator" aria-hidden="true"></li>
-            <?php $lastSection = ''; ?>
-            <?php foreach ($filtered_menu as $item): ?>
-            <?php if (($item['section'] ?? '') !== $lastSection): ?>
-            <li class="nav-section-title"><?php echo htmlspecialchars($item['section'] ?? 'Menu'); ?></li>
-            <?php $lastSection = $item['section'] ?? ''; ?>
+            <?php if (isResidentView()): ?>
+                <?php
+                $resident_menu = [
+                    [
+                        'section' => 'Main',
+                        'items' => [
+                            ['title' => 'Dashboard', 'icon' => 'bi-speedometer2', 'url' => 'resident_dashboard.php'],
+                        ],
+                    ],
+                    [
+                        'section' => 'Services',
+                        'items' => [
+                            ['title' => 'Request Certificate', 'icon' => 'bi-file-earmark-text', 'url' => 'request_certificate.php'],
+                            ['title' => 'My Requests', 'icon' => 'bi-list-check', 'url' => 'my_requests.php'],
+                        ],
+                    ],
+                    [
+                        'section' => 'Household',
+                        'items' => [
+                            ['title' => 'Household Information', 'icon' => 'bi-house-door', 'url' => 'resident_household.php'],
+                        ],
+                    ],
+                    [
+                        'section' => 'Community',
+                        'items' => [
+                            ['title' => 'Announcements', 'icon' => 'bi-megaphone', 'url' => 'resident_announcements.php'],
+                            ['title' => 'Complaints / Reports', 'icon' => 'bi-chat-left-text', 'url' => 'complaints/my_complaints.php'],
+                        ],
+                    ],
+                ];
+                ?>
+                <?php foreach ($resident_menu as $group): ?>
+                    <li class="nav-section-title"><?php echo htmlspecialchars($group['section']); ?></li>
+                    <?php foreach ($group['items'] as $item): ?>
+                        <?php $item_page = basename((string)$item['url']); ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo ($current_page === $item_page) ? 'active' : ''; ?>"
+                               href="<?php echo BASE_URL . $item['url']; ?>">
+                                <i class="<?php echo $item['icon']; ?>"></i>
+                                <span><?php echo htmlspecialchars($item['title']); ?></span>
+                            </a>
+                        </li>
+                    <?php endforeach; ?>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <?php $lastSection = ''; ?>
+                <?php foreach ($filtered_menu as $item): ?>
+                <?php if (($item['section'] ?? '') !== $lastSection): ?>
+                <li class="nav-section-title"><?php echo htmlspecialchars($item['section'] ?? 'Menu'); ?></li>
+                <?php $lastSection = $item['section'] ?? ''; ?>
+                <?php endif; ?>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo ($current_page === $item['url']) ? 'active' : ''; ?>"
+                       href="<?php echo BASE_URL . $item['url']; ?>">
+                        <i class="<?php echo $item['icon']; ?>"></i>
+                        <span><?php echo $item['title']; ?></span>
+                    </a>
+                </li>
+                <?php endforeach; ?>
             <?php endif; ?>
-            <li class="nav-item">
-                <a class="nav-link <?php echo ($current_page === $item['url']) ? 'active' : ''; ?>" 
-                   href="<?php echo BASE_URL . $item['url']; ?>">
-                    <i class="<?php echo $item['icon']; ?>"></i>
-                    <span><?php echo $item['title']; ?></span>
-                </a>
-            </li>
-            <?php endforeach; ?>
             <li class="nav-divider" role="separator" aria-hidden="true"></li>
             <li class="nav-item">
                 <a class="nav-link" href="#" onclick="logout(); return false;">
@@ -281,6 +331,38 @@ body.sidebar-expanded .sidebar .nav-link span {
     background-color: #e9ecef;
     color: #0d6efd;
     border-left-color: #0d6efd;
+}
+
+/* Resident view: remove hover styling on links */
+.sidebar[data-view-mode="resident"] .nav-link:hover {
+    background-color: transparent;
+    color: inherit;
+    border-left-color: transparent;
+}
+
+/* Resident view: disable sidebar auto-expand-on-hover rules from legacy resident CSS */
+.sidebar[data-view-mode="resident"]:hover {
+    width: 78px !important;
+}
+body:has(.sidebar[data-view-mode="resident"]:hover) .main-content {
+    margin-left: 78px !important;
+}
+
+/* Global resident-view overrides (covers any legacy .sidebar:hover rules) */
+body.resident-view .sidebar {
+    width: 78px !important;
+}
+body.resident-view.sidebar-expanded .sidebar {
+    width: 250px !important;
+}
+body.resident-view .sidebar:hover {
+    width: 78px !important;
+}
+body.resident-view:has(.sidebar:hover) .main-content {
+    margin-left: 78px !important;
+}
+body.resident-view.sidebar-expanded:has(.sidebar:hover) .main-content {
+    margin-left: 250px !important;
 }
 
 .sidebar .nav-link.active {
