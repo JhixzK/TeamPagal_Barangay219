@@ -173,10 +173,24 @@ function isAdmin() {
 }
 
 /**
+ * Check if user is Super Admin (highest role)
+ */
+function isSuperAdmin() {
+    return hasRole(ROLE_SUPER_ADMIN);
+}
+
+/**
+ * Check if user is a system admin (Super Admin or Barangay Captain)
+ */
+function isSystemAdmin() {
+    return hasAnyRole([ROLE_SUPER_ADMIN, ROLE_BARANGAY_CAPTAIN]);
+}
+
+/**
  * Require admin access
  */
 function requireAdmin() {
-    requireRole(ROLE_BARANGAY_CAPTAIN);
+    requireAnyRole([ROLE_SUPER_ADMIN, ROLE_BARANGAY_CAPTAIN]);
 }
 
 /**
@@ -187,8 +201,13 @@ function canAccessModule($module) {
         return false;
     }
 
+    // Lock down sensitive modules to system admins only.
+    if ($module === 'officials') {
+        return isSystemAdmin();
+    }
+
     $role = normalizeRole(getEffectiveUserRole());
-    if ($role === ROLE_BARANGAY_CAPTAIN) {
+    if ($role === ROLE_SUPER_ADMIN || $role === ROLE_BARANGAY_CAPTAIN) {
         return true;
     }
 
@@ -229,8 +248,13 @@ function canPerformModulePermission($module, $permission) {
         return false;
     }
 
+    // Lock down sensitive modules to system admins only.
+    if ($module === 'officials') {
+        return isSystemAdmin();
+    }
+
     $role = normalizeRole(getEffectiveUserRole());
-    if ($role === ROLE_BARANGAY_CAPTAIN) {
+    if ($role === ROLE_SUPER_ADMIN || $role === ROLE_BARANGAY_CAPTAIN) {
         return true;
     }
 
@@ -336,22 +360,26 @@ function getDefaultRolePermissions() {
             'blotters' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'complaints' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'announcements' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
-            'reports' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
+            'reports' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'officials' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
         ],
         ROLE_TREASURER => [
             'dashboard' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'certificates' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
-            'reports' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
+            'reports' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'officials' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
         ],
         ROLE_KAGAWA => [
             'dashboard' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'blotters' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'complaints' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
-            'announcements' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
+            'announcements' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'officials' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
         ],
         ROLE_SK_CHAIRMAN => [
             'dashboard' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
-            'announcements' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
+            'announcements' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'officials' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
         ],
         ROLE_RESIDENT => [
             'dashboard' => ['can_access' => true, 'can_create' => false, 'can_edit' => false, 'can_delete' => false],
