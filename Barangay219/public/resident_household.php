@@ -269,7 +269,12 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
         <div class="modal-content modal-lg">
           <div class="modal-header">
             <h3><i class="bi bi-people me-2"></i>Manage Members</h3>
-            <button class="modal-close" data-action="closeManageMembersModal">&times;</button>
+            <div class="d-flex align-items-center gap-2">
+              <button class="btn-primary btn-small" id="btnAddDependent" data-action="openAddDependentModal" style="display:none;">
+                <i class="bi bi-person-plus"></i> Add Family Member
+              </button>
+              <button class="modal-close" data-action="closeManageMembersModal">&times;</button>
+            </div>
           </div>
           <div class="modal-body">
             <div class="text-muted small mb-2">Manage household member actions here. The household head cannot be removed.</div>
@@ -329,8 +334,76 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
         </div>
       </div>
 
-      <!-- Add Member Modal (Head Only) -->
-      <!-- Add Member Modal removed on resident side -->
+      <!-- Add Family Member Modal (Head Only) -->
+      <div id="addDependentModal" class="modal custom-modal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3><i class="bi bi-person-plus me-2"></i>Add Family Member</h3>
+            <button class="modal-close" data-action="closeAddDependentModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="addDependentForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="depFirstName">First Name *</label>
+                  <input type="text" id="depFirstName" maxlength="100" required>
+                </div>
+                <div class="form-group">
+                  <label for="depMiddleName">Middle Name</label>
+                  <input type="text" id="depMiddleName" maxlength="100">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="depLastName">Last Name *</label>
+                  <input type="text" id="depLastName" maxlength="100" required>
+                </div>
+                <div class="form-group">
+                  <label for="depSuffix">Suffix</label>
+                  <input type="text" id="depSuffix" maxlength="10" placeholder="Jr., Sr.">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="depBirthDate">Birth Date *</label>
+                  <input type="date" id="depBirthDate" required>
+                </div>
+                <div class="form-group">
+                  <label for="depGender">Gender *</label>
+                  <select id="depGender" required>
+                    <option value="">-- Select --</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="depRelationship">Relationship to Head *</label>
+                <select id="depRelationship" required>
+                  <option value="">-- Select --</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Son">Son</option>
+                  <option value="Daughter">Daughter</option>
+                  <option value="Father">Father</option>
+                  <option value="Mother">Mother</option>
+                  <option value="Brother">Brother</option>
+                  <option value="Sister">Sister</option>
+                  <option value="Relative">Relative</option>
+                  <option value="Boarder">Boarder</option>
+                  <option value="Member">Member</option>
+                </select>
+                <p class="form-hint">For babies/underage members, you can still add them here without creating an account.</p>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" data-action="closeAddDependentModal">Cancel</button>
+            <button class="btn-primary" id="submitAddDependentBtn" data-action="submitAddDependent">Add Member</button>
+          </div>
+        </div>
+      </div>
 
       <!-- Edit Member Modal -->
       <div id="editMemberModal" class="modal custom-modal" style="display: none;">
