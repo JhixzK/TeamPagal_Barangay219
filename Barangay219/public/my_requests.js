@@ -1,8 +1,3 @@
-const profileTrigger = document.getElementById("profileTrigger");
-const dropdownMenu = document.getElementById("dropdownMenu");
-const sidebar = document.getElementById("sidebar");
-const menuToggle = document.getElementById("menuToggle");
-const topDateBadge = document.getElementById("topDateBadge");
 const mainDateBadge = document.getElementById("mainDateBadge");
 
 const searchInput = document.getElementById("searchInput");
@@ -38,8 +33,9 @@ function formatToday() {
 
 function setDateBadges() {
   const today = formatToday();
-  topDateBadge.textContent = today;
-  mainDateBadge.textContent = today;
+  if (mainDateBadge) {
+    mainDateBadge.textContent = today;
+  }
 }
 
 function slugStatus(status) {
@@ -325,23 +321,6 @@ function handleFilterChange() {
   renderTableRows();
 }
 
-function toggleDropdown() {
-  const expanded = profileTrigger.getAttribute("aria-expanded") === "true";
-  profileTrigger.setAttribute("aria-expanded", String(!expanded));
-  dropdownMenu.classList.toggle("open", !expanded);
-}
-
-function closeDropdownIfOutside(event) {
-  if (!event.target.closest("#profileDropdown")) {
-    profileTrigger.setAttribute("aria-expanded", "false");
-    dropdownMenu.classList.remove("open");
-  }
-}
-
-function toggleSidebarOnMobile() {
-  sidebar.classList.toggle("expanded");
-}
-
 searchInput.addEventListener("input", handleFilterChange);
 statusFilter.addEventListener("change", handleFilterChange);
 tableBody.addEventListener("click", handleTableAction);
@@ -358,14 +337,6 @@ modalActions.addEventListener("click", (event) => {
 detailsModal.addEventListener("click", (event) => {
   if (event.target === detailsModal) {
     closeModal();
-  }
-});
-profileTrigger.addEventListener("click", toggleDropdown);
-document.addEventListener("click", closeDropdownIfOutside);
-menuToggle.addEventListener("click", toggleSidebarOnMobile);
-window.addEventListener("resize", () => {
-  if (window.innerWidth > 991) {
-    sidebar.classList.remove("expanded");
   }
 });
 
