@@ -35,37 +35,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="row g-3 mb-4 module-stats" data-module="users">
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-primary text-white" data-status="" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-people"></i></div>
-                    <div class="stat-value" data-stat="total">-</div>
-                    <div class="stat-label">Total Users</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-success text-white" data-status="active" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-person-check"></i></div>
-                    <div class="stat-value" data-stat="active">-</div>
-                    <div class="stat-label">Active</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-secondary text-white" data-status="inactive" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-person-dash"></i></div>
-                    <div class="stat-value" data-stat="inactive">-</div>
-                    <div class="stat-label">Inactive</div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="stat-card bg-danger text-white" data-status="suspended" role="button" tabindex="0">
-                    <div class="stat-icon"><i class="bi bi-person-x"></i></div>
-                    <div class="stat-value" data-stat="suspended">-</div>
-                    <div class="stat-label">Suspended</div>
-                </div>
-            </div>
-        </div>
-
         <div class="search-bar mb-3">
             <div class="row">
                 <div class="col-md-6">
