@@ -198,6 +198,37 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </div>
 
+<!-- Assign Household Modal (Approved applications) -->
+<div class="modal fade" id="assignHouseholdModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assign Household</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="assignApplicationId">
+                <input type="hidden" id="assignResidentId">
+
+                <div class="mb-3">
+                    <label class="form-label">Select Household</label>
+                    <select class="form-select" id="assignHouseholdId">
+                        <option value="">Loading households...</option>
+                    </select>
+                    <small class="text-muted">Choose the household this approved resident should belong to.</small>
+                </div>
+                <div class="small text-muted" id="assignHouseholdRoleHint">Role will be detected from the approved application.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnAssignHousehold">
+                    <i class="bi bi-house-check"></i> Assign
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1">
     <div class="modal-dialog">
