@@ -1,10 +1,5 @@
-const profileTrigger = document.getElementById("profileTrigger");
-const dropdownMenu = document.getElementById("dropdownMenu");
-const sidebar = document.getElementById("sidebar");
-const menuToggle = document.getElementById("menuToggle");
 const requestTable = document.getElementById("requestTable");
 const emptyState = document.getElementById("emptyState");
-const topDateBadge = document.getElementById("topDateBadge");
 const mainDateBadge = document.getElementById("mainDateBadge");
 const statCards = document.querySelectorAll(".stat-card[data-href]");
 
@@ -19,32 +14,9 @@ function formatToday() {
 
 function setDateBadges() {
   const today = formatToday();
-  if (topDateBadge) {
-    topDateBadge.textContent = today;
-  }
   if (mainDateBadge) {
     mainDateBadge.textContent = today;
   }
-}
-
-function toggleDropdown() {
-  if (!profileTrigger || !dropdownMenu) return;
-  const expanded = profileTrigger.getAttribute("aria-expanded") === "true";
-  profileTrigger.setAttribute("aria-expanded", String(!expanded));
-  dropdownMenu.classList.toggle("open", !expanded);
-}
-
-function closeDropdownIfOutside(event) {
-  if (!profileTrigger || !dropdownMenu) return;
-  if (!event.target.closest("#profileDropdown")) {
-    profileTrigger.setAttribute("aria-expanded", "false");
-    dropdownMenu.classList.remove("open");
-  }
-}
-
-function toggleSidebarOnMobile() {
-  if (!sidebar) return;
-  sidebar.classList.toggle("expanded");
 }
 
 function syncRecentRequestState() {
@@ -61,13 +33,6 @@ function navigateFromStatCard(card) {
   window.location.href = target;
 }
 
-if (profileTrigger) {
-  profileTrigger.addEventListener("click", toggleDropdown);
-}
-if (menuToggle) {
-  menuToggle.addEventListener("click", toggleSidebarOnMobile);
-}
-document.addEventListener("click", closeDropdownIfOutside);
 statCards.forEach((card) => {
   card.addEventListener("click", () => navigateFromStatCard(card));
   card.addEventListener("keydown", (event) => {
@@ -76,11 +41,6 @@ statCards.forEach((card) => {
       navigateFromStatCard(card);
     }
   });
-});
-window.addEventListener("resize", () => {
-  if (sidebar && window.innerWidth > 991) {
-    sidebar.classList.remove("expanded");
-  }
 });
 
 setDateBadges();
