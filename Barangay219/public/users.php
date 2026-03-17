@@ -103,7 +103,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <?php if (isAdmin()): ?>
+        <?php if (isSystemAdmin()): ?>
         <!-- Role Permissions Panel -->
         <div class="card mt-4 role-permissions-card" id="rolePermissionsPanel">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -142,6 +142,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <label class="form-label">Role</label>
                     <select class="form-select" id="filterRole">
                         <option value="">All</option>
+                        <option value="super_admin">Super Admin</option>
                         <option value="barangay_captain">Barangay Captain</option>
                         <option value="secretary">Secretary</option>
                         <option value="treasurer">Treasurer</option>
@@ -202,6 +203,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
                             <select class="form-select" id="role" name="role" required>
                                 <option value="">Select Role</option>
+                                <option value="super_admin">Super Admin</option>
                                 <option value="barangay_captain">Barangay Captain</option>
                                 <option value="secretary">Secretary</option>
                                 <option value="treasurer">Treasurer</option>
@@ -240,7 +242,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <script>
 window.CURRENT_USER_ID = <?php echo (int)getCurrentUserId(); ?>;
-window.IS_ADMIN = <?php echo isAdmin() ? 'true' : 'false'; ?>;
+window.IS_ADMIN = <?php echo isSystemAdmin() ? 'true' : 'false'; ?>;
 </script>
 <script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/users.js?v=<?php echo time(); ?>"></script>
