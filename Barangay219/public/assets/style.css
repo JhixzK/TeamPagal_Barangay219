@@ -21,6 +21,130 @@ body {
     color: #0f172a;
 }
 
+/* Officials module tiles */
+.officials-tiles {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.officials-group {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 16px;
+    padding: 1rem;
+    box-shadow: 0 16px 28px -26px rgba(15, 23, 42, 0.55);
+}
+
+.officials-group-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.25rem 0.25rem 0.85rem;
+}
+
+.officials-group-title {
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    color: #0f172a;
+}
+
+.officials-group-meta {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.officials-group-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1rem;
+}
+
+.official-tile .official-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 46px;
+    font-size: 1.25rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 10px 20px -18px rgba(15, 23, 42, 0.55);
+}
+
+.official-tile .official-name {
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.official-tile .official-sub {
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.official-tile .official-term {
+    white-space: nowrap;
+}
+
+.official-icon.is-captain {
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+}
+.official-icon.is-kagawad {
+    background: rgba(2, 132, 199, 0.12);
+    color: #0369a1;
+}
+.official-icon.is-sk {
+    background: rgba(180, 83, 9, 0.12);
+    color: #b45309;
+}
+.official-icon.is-secretary {
+    background: rgba(15, 118, 110, 0.12);
+    color: #0f766e;
+}
+.official-icon.is-treasurer {
+    background: rgba(190, 18, 60, 0.12);
+    color: #be123c;
+}
+.official-icon.is-default {
+    background: rgba(71, 85, 105, 0.12);
+    color: #475569;
+}
+
+.officials-empty .officials-empty-icon {
+    font-size: 2.25rem;
+    color: rgba(71, 85, 105, 0.6);
+}
+
+.official-tile-vacant {
+    border: 1px dashed rgba(71, 85, 105, 0.35) !important;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.officials-history summary {
+    cursor: pointer;
+    user-select: none;
+    font-weight: 700;
+}
+
+.officials-history-grid .official-tile {
+    opacity: 0.9;
+}
+
+.resident-search-results {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1080;
+    max-height: 280px;
+    overflow: auto;
+    border-radius: 12px;
+    box-shadow: 0 18px 36px -26px rgba(15, 23, 42, 0.7);
+}
+
 .navbar-brand {
     display: inline-flex;
     align-items: center;
