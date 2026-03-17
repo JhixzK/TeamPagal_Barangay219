@@ -9,92 +9,150 @@ if (!isLoggedIn()) {
 }
 
 $current_page = basename($_SERVER['PHP_SELF']);
-// Define menu items with permission keys
-$menu_items = [
-    [
-        'title' => 'Dashboard',
-        'icon' => 'bi-speedometer2',
-        'url' => 'dashboard.php',
-        'module' => 'dashboard',
-        'section' => 'Main'
-    ],
-    [
-        'title' => 'Certificates',
-        'icon' => 'bi-file-earmark-person',
-        'url' => 'applications.php',
-        'modules' => ['applications', 'certificates'],
-        'section' => 'Services'
-    ],
-    [
-        'title' => 'Resident Applications',
-        'icon' => 'bi-person-lines-fill',
-        'url' => 'resident-applications.php',
-        'module' => 'resident_applications',
-        'section' => 'Services'
-    ],
-    [
-        'title' => 'Residents',
-        'icon' => 'bi-people',
-        'url' => 'residents.php',
-        'module' => 'residents',
-        'section' => 'Records'
-    ],
-    [
-        'title' => 'Households',
-        'icon' => 'bi-house-door',
-        'url' => 'households.php',
-        'module' => 'households',
-        'section' => 'Records'
-    ],
-    [
-        'title' => 'Blotters',
-        'icon' => 'bi-journal-text',
-        'url' => 'blotter.php',
-        'module' => 'blotters',
-        'section' => 'Cases'
-    ],
-    [
-        'title' => 'Complaints',
-        'icon' => 'bi-exclamation-triangle',
-        'url' => 'complaints.php',
-        'module' => 'complaints',
-        'section' => 'Cases'
-    ],
-    [
-        'title' => 'Announcements',
-        'icon' => 'bi-megaphone',
-        'url' => 'announcement.php',
-        'module' => 'announcements',
-        'section' => 'Communication'
-    ],
-    [
-        'title' => 'Reports',
-        'icon' => 'bi-graph-up',
-        'url' => 'reports.php',
-        'module' => 'reports',
-        'section' => 'Communication'
-    ],
-    [
-        'title' => 'Users',
-        'icon' => 'bi-person-gear',
-        'url' => 'users.php',
-        'module' => 'users',
-        'section' => 'Administration'
-    ]
-];
+// Define menu items.
+// - Residents (resident view) get a portal navigation (same sidebar design, different links).
+// - Officials/staff get permission-gated modules.
+$isResidentSidebar = function_exists('isResidentView') && isResidentView();
 
-// Filter menu items based on permissions
-$filtered_menu = array_filter($menu_items, function($item) {
-    if (isset($item['modules']) && is_array($item['modules'])) {
-        foreach ($item['modules'] as $mod) {
-            if (canAccessModule($mod)) {
-                return true;
+if ($isResidentSidebar) {
+    $menu_items = [
+        [
+            'title' => 'My Profile',
+            'icon' => 'bi-person-circle',
+            'url' => 'resident_profile.php',
+            'section' => 'Account'
+        ],
+        [
+            'title' => 'Dashboard',
+            'icon' => 'bi-speedometer2',
+            'url' => 'resident_dashboard.php',
+            'section' => 'Main'
+        ],
+        [
+            'title' => 'Request Certificate',
+            'icon' => 'bi-file-earmark-text',
+            'url' => 'request_certificate.php',
+            'section' => 'Services'
+        ],
+        [
+            'title' => 'My Requests',
+            'icon' => 'bi-list-check',
+            'url' => 'my_requests.php',
+            'section' => 'Services'
+        ],
+        [
+            'title' => 'Household Information',
+            'icon' => 'bi-house-door',
+            'url' => 'resident_household.php',
+            'section' => 'Records'
+        ],
+        [
+            'title' => 'My Complaints',
+            'icon' => 'bi-exclamation-triangle',
+            'url' => 'complaints/my_complaints.php',
+            'section' => 'Cases'
+        ],
+        [
+            'title' => 'Submit Complaint',
+            'icon' => 'bi-pencil-square',
+            'url' => 'complaints/submit_complaint.php',
+            'section' => 'Cases'
+        ],
+        [
+            'title' => 'Announcements',
+            'icon' => 'bi-megaphone',
+            'url' => 'resident_announcements.php',
+            'section' => 'Communication'
+        ]
+    ];
+    $filtered_menu = $menu_items;
+} else {
+    $menu_items = [
+        [
+            'title' => 'Dashboard',
+            'icon' => 'bi-speedometer2',
+            'url' => 'dashboard.php',
+            'module' => 'dashboard',
+            'section' => 'Main'
+        ],
+        [
+            'title' => 'Certificates',
+            'icon' => 'bi-file-earmark-person',
+            'url' => 'applications.php',
+            'modules' => ['applications', 'certificates'],
+            'section' => 'Services'
+        ],
+        [
+            'title' => 'Resident Applications',
+            'icon' => 'bi-person-lines-fill',
+            'url' => 'resident-applications.php',
+            'module' => 'resident_applications',
+            'section' => 'Services'
+        ],
+        [
+            'title' => 'Residents',
+            'icon' => 'bi-people',
+            'url' => 'residents.php',
+            'module' => 'residents',
+            'section' => 'Records'
+        ],
+        [
+            'title' => 'Households',
+            'icon' => 'bi-house-door',
+            'url' => 'households.php',
+            'module' => 'households',
+            'section' => 'Records'
+        ],
+        [
+            'title' => 'Blotters',
+            'icon' => 'bi-journal-text',
+            'url' => 'blotter.php',
+            'module' => 'blotters',
+            'section' => 'Cases'
+        ],
+        [
+            'title' => 'Complaints',
+            'icon' => 'bi-exclamation-triangle',
+            'url' => 'complaints.php',
+            'module' => 'complaints',
+            'section' => 'Cases'
+        ],
+        [
+            'title' => 'Announcements',
+            'icon' => 'bi-megaphone',
+            'url' => 'announcement.php',
+            'module' => 'announcements',
+            'section' => 'Communication'
+        ],
+        [
+            'title' => 'Reports',
+            'icon' => 'bi-graph-up',
+            'url' => 'reports.php',
+            'module' => 'reports',
+            'section' => 'Communication'
+        ],
+        [
+            'title' => 'Users',
+            'icon' => 'bi-person-gear',
+            'url' => 'users.php',
+            'module' => 'users',
+            'section' => 'Administration'
+        ]
+    ];
+
+    // Filter menu items based on permissions
+    $filtered_menu = array_filter($menu_items, function($item) {
+        if (isset($item['modules']) && is_array($item['modules'])) {
+            foreach ($item['modules'] as $mod) {
+                if (canAccessModule($mod)) {
+                    return true;
+                }
             }
+            return false;
         }
-        return false;
-    }
-    return canAccessModule($item['module']);
-});
+        return canAccessModule($item['module']);
+    });
+}
 // Current user info and avatar
 $current_user = getUserInfo();
 $user_id = getCurrentUserId();
@@ -121,7 +179,7 @@ if (empty($avatar_path)) {
             </button>
         </div>
         <div class="sidebar-profile text-center mb-3" style="padding:0.5rem 1rem;">
-            <a href="<?php echo BASE_URL; ?>profile.php" class="d-flex align-items-center gap-2 text-decoration-none">
+            <a href="<?php echo BASE_URL; ?><?php echo $isResidentSidebar ? 'resident_profile.php' : 'profile.php'; ?>" class="d-flex align-items-center gap-2 text-decoration-none">
                 <img src="<?php echo $avatar_path; ?>" alt="Avatar" class="rounded-circle" style="width:48px;height:48px;object-fit:cover;border:2px solid #fff;box-shadow:0 0 0 2px rgba(13,110,253,0.08);">
                 <div class="profile-meta text-start">
                     <div style="font-weight:600;color:#212529;">
@@ -144,6 +202,7 @@ if (empty($avatar_path)) {
             </a>
         </div>
         <ul class="nav flex-column">
+            <?php if (!$isResidentSidebar): ?>
             <li class="nav-section-title">Account</li>
             <li class="nav-item">
                 <a class="nav-link <?php echo ($current_page === 'profile.php') ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>profile.php">
@@ -152,6 +211,7 @@ if (empty($avatar_path)) {
                 </a>
             </li>
             <li class="nav-divider" role="separator" aria-hidden="true"></li>
+            <?php endif; ?>
             <?php $lastSection = ''; ?>
             <?php foreach ($filtered_menu as $item): ?>
             <?php if (($item['section'] ?? '') !== $lastSection): ?>
