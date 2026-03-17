@@ -109,10 +109,25 @@ function listResidents() {
         // Get total count
         $countSql = "SELECT COUNT(*) as total FROM residents r WHERE $where";
         $total = $db->fetchOne($countSql, $params)['total'];
+
+        // Household code can be stored as households.household_id_code (preferred) or households.family_code (fallback).
+        $hasHouseholdIdCode = columnExists($db, 'households', 'household_id_code');
+        $hasFamilyCode = columnExists($db, 'households', 'family_code');
+        $hasFamilyHeadCode = columnExists($db, 'households', 'family_head_code');
+        if ($hasHouseholdIdCode) {
+            $householdCodeExpr = 'h.household_id_code AS household_code,';
+        } elseif ($hasFamilyCode) {
+            $householdCodeExpr = 'h.family_code AS household_code,';
+        } else {
+            $householdCodeExpr = 'NULL AS household_code,';
+        }
+        $familyHeadCodeExpr = $hasFamilyHeadCode ? 'h.family_head_code AS family_head_code,' : 'NULL AS family_head_code,';
         
         // Get residents - ordered by ID so new residents appear at the end
         $sql = "SELECT r.*, h.address as household_address, h.total_members, h.family_head_id,
                 CASE WHEN h.family_head_id = r.id THEN 1 ELSE 0 END as is_household_head,
+                $householdCodeExpr
+                $familyHeadCodeExpr
                 (SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count
                 FROM residents r
                 LEFT JOIN households h ON r.household_id = h.id
@@ -150,9 +165,23 @@ function getResident() {
     
     try {
         $db = Database::getInstance();
+
+        $hasHouseholdIdCode = columnExists($db, 'households', 'household_id_code');
+        $hasFamilyCode = columnExists($db, 'households', 'family_code');
+        $hasFamilyHeadCode = columnExists($db, 'households', 'family_head_code');
+        if ($hasHouseholdIdCode) {
+            $householdCodeExpr = 'h.household_id_code AS household_code,';
+        } elseif ($hasFamilyCode) {
+            $householdCodeExpr = 'h.family_code AS household_code,';
+        } else {
+            $householdCodeExpr = 'NULL AS household_code,';
+        }
+        $familyHeadCodeExpr = $hasFamilyHeadCode ? 'h.family_head_code AS family_head_code,' : 'NULL AS family_head_code,';
         
         $sql = "SELECT r.*, h.address as household_address, h.total_members, h.family_head_id,
                 CASE WHEN h.family_head_id = r.id THEN 1 ELSE 0 END as is_household_head,
+                $householdCodeExpr
+                $familyHeadCodeExpr
                 (SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count
                 FROM residents r
                 LEFT JOIN households h ON r.household_id = h.id
