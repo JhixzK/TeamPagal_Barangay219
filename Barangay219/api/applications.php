@@ -83,6 +83,20 @@ function generateUniqueFamilyHeadCode($db) {
     throw new Exception('Unable to generate unique family head code.');
 }
 
+function generateUniqueFamilyCode($db) {
+    // BR219-YYYY-XXXX (4 digits)
+    $year = date('Y');
+    for ($i = 0; $i < 30; $i++) {
+        $suffix = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        $code = 'BR219-' . $year . '-' . $suffix;
+        $exists = $db->fetchOne("SELECT id FROM households WHERE family_code = ? LIMIT 1", [$code]);
+        if (!$exists) {
+            return $code;
+        }
+    }
+    throw new Exception('Unable to generate unique family code.');
+}
+
 function tableExists($db, $table) {
     $row = $db->fetchOne(
         "SELECT COUNT(*) AS cnt
@@ -354,28 +368,23 @@ function approveApplication() {
         $familyCode = trim((string)($app['family_code'] ?? ''));
 
         if (!$isHead && tableExists($db, 'households')) {
-            if ($familyCode === '') {
-                throw new Exception('Member application is missing family code.');
-            }
-
-            $householdCols = array_flip(getTableColumns($db, 'households'));
-            if (!isset($householdCols['family_code'])) {
-                throw new Exception('Households table does not support family code linking.');
-            }
-
-            $linkedHousehold = $db->fetchOne(
-                "SELECT id, total_members FROM households WHERE family_code = ? LIMIT 1",
-                [$familyCode]
-            );
-            if (!$linkedHousehold) {
-                throw new Exception('Entered family code was not found for any head household.');
-            }
-
-            $linkedHouseholdId = (int)$linkedHousehold['id'];
-            $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$linkedHouseholdId, $residentId]);
-
-            if (isset($householdCols['total_members'])) {
-                $db->query("UPDATE households SET total_members = GREATEST(1, COALESCE(total_members,0) + 1) WHERE id = ?", [$linkedHouseholdId]);
+            // Household assignment for members is handled by officials after approval.
+            // Keep optional legacy linking by family_code, but never block approval when it's missing/invalid.
+            if ($familyCode !== '') {
+                $householdCols = array_flip(getTableColumns($db, 'households'));
+                if (isset($householdCols['family_code'])) {
+                    $linkedHousehold = $db->fetchOne(
+                        "SELECT id FROM households WHERE family_code = ? LIMIT 1",
+                        [$familyCode]
+                    );
+                    if ($linkedHousehold) {
+                        $linkedHouseholdId = (int)$linkedHousehold['id'];
+                        $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$linkedHouseholdId, $residentId]);
+                        if (isset($householdCols['total_members'])) {
+                            $db->query("UPDATE households SET total_members = GREATEST(0, COALESCE(total_members,0) + 1) WHERE id = ?", [$linkedHouseholdId]);
+                        }
+                    }
+                }
             }
         }
 
@@ -516,13 +525,16 @@ function assignHouseholdToApprovedResident() {
         if ($isHead) {
             $db->query("UPDATE households SET family_head_id = ? WHERE id = ?", [$residentId, $householdId]);
             // Generate head/household codes if missing (same rules as households module).
-            $hhRow = $db->fetchOne("SELECT household_id_code, family_head_code FROM households WHERE id = ?", [$householdId]);
+            $hhRow = $db->fetchOne("SELECT household_id_code, family_head_code, family_code FROM households WHERE id = ?", [$householdId]);
             if ($hhRow) {
                 if (empty($hhRow['household_id_code'])) {
                     $db->query("UPDATE households SET household_id_code = ? WHERE id = ? AND (household_id_code IS NULL OR household_id_code='')", [generateUniqueHouseholdCode($db), $householdId]);
                 }
                 if (empty($hhRow['family_head_code'])) {
                     $db->query("UPDATE households SET family_head_code = ? WHERE id = ? AND (family_head_code IS NULL OR family_head_code='')", [generateUniqueFamilyHeadCode($db), $householdId]);
+                }
+                if (array_key_exists('family_code', $hhRow) && empty($hhRow['family_code'])) {
+                    $db->query("UPDATE households SET family_code = ? WHERE id = ? AND (family_code IS NULL OR family_code='')", [generateUniqueFamilyCode($db), $householdId]);
                 }
             }
 
