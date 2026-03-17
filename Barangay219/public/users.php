@@ -91,7 +91,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
         <!-- Users Table -->
         <div class="data-table">
-            <div class="table-responsive">
+            <div class="table-responsive users-table-scroll">
                 <table class="table table-hover">
                     <thead>
                         <tr>
@@ -138,10 +138,12 @@ include __DIR__ . '/../includes/sidebar.php';
         <!-- Role Permissions Panel -->
         <div class="card mt-4 role-permissions-card" id="rolePermissionsPanel">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Role Permissions</h5>
-                <button class="btn btn-sm btn-primary" id="savePermissionsBtn" onclick="saveRolePermissions()">
-                    <i class="bi bi-save"></i> Save Permissions
-                </button>
+                <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Role Permissions (Access Only)</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-primary" id="savePermissionsBtn" onclick="saveRolePermissions()">
+                        <i class="bi bi-save"></i> Save
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="row g-3 align-items-end mb-3">
@@ -151,20 +153,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <div id="permissionsRoleIcons" class="permissions-role-icons" role="group" aria-label="Select role"></div>
                     </div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-bordered table-sm align-middle permissions-table">
-                        <thead>
-                            <tr>
-                                <th>Module</th>
-                                <th class="text-center">Access</th>
-                                <th class="text-center">Create</th>
-                                <th class="text-center">Edit</th>
-                                <th class="text-center">Delete</th>
-                            </tr>
-                        </thead>
-                        <tbody id="permissionsTableBody"></tbody>
-                    </table>
-                </div>
+                <div id="permissionsModuleTiles" class="permission-module-tiles access-only"></div>
             </div>
         </div>
         <?php endif; ?>
