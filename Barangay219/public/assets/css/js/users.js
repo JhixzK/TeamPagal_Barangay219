@@ -9,12 +9,13 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
     console.warn('API_URL invalid or missing; using fallback:', window.API_URL);
 }
 
+// Roles shown in the Role Permissions panel (exclude fixed roles like super_admin).
 const ROLE_OPTIONS = [
     { value: 'barangay_captain', label: 'Barangay Captain', icon: 'bi-shield-fill-check' },
     { value: 'secretary', label: 'Secretary', icon: 'bi-journal-text' },
     { value: 'treasurer', label: 'Treasurer', icon: 'bi-cash-coin' },
     { value: 'kagawad', label: 'Kagawad', icon: 'bi-people-fill' },
-    { value: 'sk_chairman', label: 'SK Chairman', icon: 'bi-stars' }
+    { value: 'sk_chairman', label: 'SK Chairman', icon: 'bi-award' }
 ];
 
 // Role permission modules shown in the UI.
@@ -144,14 +145,15 @@ function displayUsers(users) {
                     <button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editUser(${user.id})">
                         <i class="bi bi-pencil-square"></i>
                     </button>
-                    ${user.status === 'active' 
-                        ? `<button class="btn btn-sm btn-warning" title="Suspend" aria-label="Suspend" onclick="suspendUser(${user.id})">
-                            <i class="bi bi-pause-circle"></i>
-                           </button>`
-                        : `<button class="btn btn-sm btn-success" title="Activate" aria-label="Activate" onclick="activateUser(${user.id})">
-                            <i class="bi bi-play-circle"></i>
-                           </button>`
-                    }
+                    ${user.id !== (window.CURRENT_USER_ID || 0) ? (
+                        user.status === 'active'
+                            ? `<button class="btn btn-sm btn-warning" title="Suspend" aria-label="Suspend" onclick="suspendUser(${user.id})">
+                                <i class="bi bi-pause-circle"></i>
+                               </button>`
+                            : `<button class="btn btn-sm btn-success" title="Activate" aria-label="Activate" onclick="activateUser(${user.id})">
+                                <i class="bi bi-play-circle"></i>
+                               </button>`
+                    ) : ''}
                 ` : ''}
                 ${USER_MANAGEMENT_PERMS.canDelete && user.id !== (window.CURRENT_USER_ID || 0)
                     ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteUser(${user.id})">
@@ -200,7 +202,7 @@ function editUser(id) {
 
                 const roleSelect = document.getElementById('role');
                 if (roleSelect) {
-                    roleSelect.disabled = currentRole === 'barangay_captain';
+                    roleSelect.disabled = currentRole === 'barangay_captain' || currentRole === 'super_admin';
                 }
 
                 const form = document.getElementById('userForm');
@@ -244,7 +246,7 @@ function saveUser() {
         formData.delete('password');
     }
 
-    if (userId && form && form.dataset.currentRole === 'barangay_captain') {
+    if (userId && form && (form.dataset.currentRole === 'barangay_captain' || form.dataset.currentRole === 'super_admin')) {
         formData.delete('role');
     }
     
@@ -568,7 +570,12 @@ function saveRolePermissions() {
     }
 
     const role = roleSelect.value;
-    if (String(role || '').trim().toLowerCase() === 'barangay_captain') {
+    const normalizedRole = String(role || '').trim().toLowerCase();
+    if (normalizedRole === 'super_admin') {
+        showAlert('error', 'Super Admin permissions are fixed and cannot be edited');
+        return;
+    }
+    if (normalizedRole === 'barangay_captain') {
         showAlert('error', 'Barangay Captain permissions are fixed and cannot be edited');
         return;
     }
@@ -605,17 +612,19 @@ function saveRolePermissions() {
 function applyPermissionsLock(role) {
     const normalizedRole = String(role || '').trim().toLowerCase();
     const isCaptain = normalizedRole === 'barangay_captain';
+    const isSuperAdmin = normalizedRole === 'super_admin';
+    const isFixed = isSuperAdmin || isCaptain;
     const boxes = document.querySelectorAll('#permissionsModuleTiles .perm-checkbox');
     boxes.forEach(box => {
-        box.disabled = isCaptain;
-        if (isCaptain) {
+        box.disabled = isFixed;
+        if (isFixed) {
             box.checked = true;
         }
     });
 
     const saveBtn = document.getElementById('savePermissionsBtn');
     if (saveBtn) {
-        saveBtn.disabled = isCaptain;
+        saveBtn.disabled = isFixed;
     }
 }
 
