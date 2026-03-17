@@ -78,7 +78,9 @@ function setupEventListeners() {
     ["closeManageMembersModal", closeManageMembersModal],
     ["closeTransferHeadReasonModal", closeTransferHeadReasonModal],
     ["submitTransferHeadReason", submitTransferHeadReason],
-    // Add Member removed on resident side
+    ["openAddDependentModal", openAddDependentModal],
+    ["closeAddDependentModal", closeAddDependentModal],
+    ["submitAddDependent", submitAddDependent],
     ["closeEditMemberModal", closeEditMemberModal],
     ["submitEditMember", submitEditMember],
     ["openUpdateOverview", editHousehold],
@@ -90,6 +92,22 @@ function setupEventListeners() {
       btn.addEventListener("click", handler);
     });
   });
+
+  // Explicit bindings for dynamically shown buttons (safety net).
+  const addDepBtn = document.getElementById("btnAddDependent");
+  if (addDepBtn) {
+    addDepBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      openAddDependentModal();
+    });
+  }
+  const submitAddDepBtn = document.getElementById("submitAddDependentBtn");
+  if (submitAddDepBtn) {
+    submitAddDepBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      submitAddDependent(e);
+    });
+  }
 
   document.querySelectorAll(".modal-backdrop").forEach((backdrop) => {
     backdrop.addEventListener("click", (e) => {
@@ -188,6 +206,8 @@ function displayHouseholdPanel(data) {
   if (newUpdateOverviewBtn) newUpdateOverviewBtn.style.display = isHead ? "inline-flex" : "none";
   if (leaveBtn) leaveBtn.style.display = isHead ? "none" : "inline-flex";
   if (newManageBtn) newManageBtn.style.display = isHead ? "inline-flex" : "none";
+  const addDepBtn = document.getElementById("btnAddDependent");
+  if (addDepBtn) addDepBtn.style.display = isHead ? "inline-flex" : "none";
 
   renderMembersTable(members, isHead);
   renderHistory(data.history_logs || []);
@@ -225,6 +245,59 @@ function renderMembersTable(members, isHead) {
       `;
     })
     .join("");
+}
+
+function openAddDependentModal() {
+  if (!currentHouseholdContext?.is_head) {
+    showErrorMessage("Only household head can add members.");
+    return;
+  }
+  const modal = document.getElementById("addDependentModal");
+  if (!modal) return;
+  const form = document.getElementById("addDependentForm");
+  form?.reset();
+  modal.style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function closeAddDependentModal() {
+  const modal = document.getElementById("addDependentModal");
+  if (modal) {
+    modal.style.display = "none";
+    document.body.style.overflow = "auto";
+  }
+}
+
+async function submitAddDependent(e) {
+  e?.preventDefault();
+  if (!currentHouseholdContext?.is_head) {
+    showErrorMessage("Only household head can add members.");
+    return;
+  }
+
+  const payload = {
+    first_name: (document.getElementById("depFirstName")?.value || "").trim(),
+    middle_name: (document.getElementById("depMiddleName")?.value || "").trim(),
+    last_name: (document.getElementById("depLastName")?.value || "").trim(),
+    suffix: (document.getElementById("depSuffix")?.value || "").trim(),
+    birth_date: (document.getElementById("depBirthDate")?.value || "").trim(),
+    gender: (document.getElementById("depGender")?.value || "").trim(),
+    relationship_to_head: (document.getElementById("depRelationship")?.value || "").trim()
+  };
+
+  if (!payload.first_name || !payload.last_name || !payload.birth_date || !payload.gender || !payload.relationship_to_head) {
+    showErrorMessage("Please complete all required fields.");
+    return;
+  }
+
+  try {
+    await requestJson(`${HOUSEHOLD_API}/dependent.php`, { method: "POST", body: JSON.stringify(payload) });
+    closeAddDependentModal();
+    await loadHouseholdInfo();
+    showSuccessMessage("Family member added.");
+  } catch (error) {
+    showErrorMessage(error.message || "Failed to add family member.");
+  }
 }
 
 function openManageMembersModal() {
