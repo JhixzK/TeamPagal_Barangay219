@@ -21,12 +21,6 @@ body {
     color: #0f172a;
 }
 
-/* Resident view should mimic officials typography */
-body.resident-view {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-    font-size: 1rem !important;
-}
-
 .navbar-brand {
     display: inline-flex;
     align-items: center;
@@ -378,6 +372,41 @@ body.resident-view {
     box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
 }
 
+.users-page .users-table-scroll {
+    max-height: min(62vh, 640px);
+    overflow-y: auto;
+    overflow-x: auto;
+    scrollbar-width: thin;                 /* Firefox */
+    scrollbar-color: #94a3b8 #f1f5f9;      /* thumb track */
+}
+
+.users-page .users-table-scroll::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.users-page .users-table-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 999px;
+}
+
+.users-page .users-table-scroll::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 999px;
+    border: 2px solid #f1f5f9;
+}
+
+.users-page .users-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+.users-page .users-table-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background-color: #f8fafc;
+}
+
 .data-table .table {
     margin-bottom: 0;
 }
@@ -455,6 +484,136 @@ body.resident-view {
     margin-top: 0.25rem;
 }
 
+/* Role Permissions (Tile UI) */
+.permissions-role-tiles {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.permissions-role-tile {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
+    border-radius: 14px;
+    padding: 0.9rem 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    text-align: left;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.permissions-role-tile .tile-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    flex: 0 0 44px;
+}
+
+.permissions-role-tile .tile-icon i {
+    font-size: 1.2rem;
+    color: #475569;
+}
+
+.permissions-role-tile .tile-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    line-height: 1.1;
+}
+
+.permissions-role-tile .tile-subtitle {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+}
+
+.permissions-role-tile:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(16, 24, 40, 0.10);
+}
+
+.permissions-role-tile.active {
+    border-color: #0d6efd;
+    background: #eaf2ff;
+    box-shadow: 0 0 0 0.12rem rgba(13, 110, 253, 0.14);
+}
+
+.permissions-role-tile.active .tile-icon {
+    background: #ffffff;
+    border-color: rgba(13, 110, 253, 0.25);
+}
+
+.permissions-role-tile.active .tile-icon i {
+    color: #0d6efd;
+}
+
+.permissions-role-tile:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
+}
+
+.permission-module-tiles {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.permission-module-tile {
+    border: 1px solid rgba(15, 23, 42, 0.10);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.06);
+    overflow: hidden;
+}
+
+.permission-module-tile .module-tile-head {
+    padding: 0.8rem 0.9rem;
+    background: linear-gradient(135deg, #f7f9fc 0%, #ffffff 100%);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.permission-module-tile .module-tile-title {
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+}
+
+.permission-module-tile .module-tile-body {
+    padding: 0.75rem 0.9rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem 0.9rem;
+}
+
+.permission-module-tile .perm-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.permission-module-tile .perm-label {
+    font-size: 0.86rem;
+    color: #334155;
+    font-weight: 600;
+}
+
+.permission-module-tiles.access-only {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.permission-module-tile.access-only .module-tile-body,
+.permission-module-tile .module-tile-body.access-only {
+    grid-template-columns: 1fr;
+}
+
 .permissions-role-icon {
     border: 1px solid #cbd5e1;
     background: #ffffff;
@@ -499,16 +658,31 @@ body.resident-view {
     .permissions-role-icons {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
+    .permissions-role-tiles {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .permission-module-tiles {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 768px) {
     .permissions-role-icons {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+    .permissions-role-tiles {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .permission-module-tiles {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 576px) {
     .permissions-role-icons {
+        grid-template-columns: 1fr;
+    }
+    .permissions-role-tiles {
         grid-template-columns: 1fr;
     }
 }
@@ -546,7 +720,8 @@ body.resident-view {
     color: #1f2937;
 }
 
-.permissions-table .perm-toggle {
+/* Switch toggle (used in tables + tiles) */
+.perm-toggle {
     appearance: none;
     -webkit-appearance: none;
     width: 2.2rem;
@@ -559,7 +734,7 @@ body.resident-view {
     transition: background 0.2s ease, border-color 0.2s ease;
 }
 
-.permissions-table .perm-toggle::after {
+.perm-toggle::after {
     content: '';
     position: absolute;
     top: 1px;
@@ -572,16 +747,16 @@ body.resident-view {
     transition: transform 0.2s ease;
 }
 
-.permissions-table .perm-toggle:checked {
+.perm-toggle:checked {
     background: #0d6efd;
     border-color: #0d6efd;
 }
 
-.permissions-table .perm-toggle:checked::after {
+.perm-toggle:checked::after {
     transform: translateX(0.95rem);
 }
 
-.permissions-table .perm-toggle:focus {
+.perm-toggle:focus {
     outline: none;
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
 }
