@@ -533,6 +533,7 @@ function getRolePermissionsApi() {
         foreach ($modules as $module) {
             $permissions[$module] = [
                 'can_access' => true,
+                // Access-only mode: keep keys for backward compatibility.
                 'can_create' => true,
                 'can_edit' => true,
                 'can_delete' => true
@@ -593,10 +594,12 @@ function saveRolePermissionsApi() {
                 continue;
             }
 
+            // Access-only mode: accept payload with only can_access.
             $can_access = !empty($perms['can_access']) ? 1 : 0;
-            $can_create = !empty($perms['can_create']) ? 1 : 0;
-            $can_edit = !empty($perms['can_edit']) ? 1 : 0;
-            $can_delete = !empty($perms['can_delete']) ? 1 : 0;
+            // Mirror access into other columns so older checks/UI stay consistent.
+            $can_create = $can_access;
+            $can_edit = $can_access;
+            $can_delete = $can_access;
 
             $db->query(
                 "INSERT INTO role_permissions (role, module, can_access, can_create, can_edit, can_delete)
