@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS `blotter_hearings`;
 DROP TABLE IF EXISTS `blotters`;
 DROP TABLE IF EXISTS `certificate_requests`;
 DROP TABLE IF EXISTS `households`;
+DROP TABLE IF EXISTS `officials`;
 DROP TABLE IF EXISTS `residents`;
 DROP TABLE IF EXISTS `users`;
 SET FOREIGN_KEY_CHECKS = 1;
@@ -23,7 +24,7 @@ CREATE TABLE `users` (
   `username` VARCHAR(50) NOT NULL UNIQUE,
   `password` VARCHAR(255) NOT NULL,
   `email` VARCHAR(100) DEFAULT NULL,
-  `role` ENUM('barangay_captain', 'secretary', 'treasurer', 'kagawad', 'sk_chairman', 'resident') NOT NULL,
+  `role` ENUM('super_admin', 'barangay_captain', 'secretary', 'treasurer', 'kagawad', 'sk_chairman', 'resident') NOT NULL,
   `resident_id` INT(11) DEFAULT NULL,
   `status` ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
   `activation_token` VARCHAR(64) DEFAULT NULL,
@@ -34,6 +35,25 @@ CREATE TABLE `users` (
   KEY `idx_username` (`username`),
   KEY `idx_role` (`role`),
   KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Officials table - Barangay core officials listing
+CREATE TABLE `officials` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `position` ENUM('barangay_captain', 'kagawad', 'sk_chairperson', 'secretary', 'treasurer') NOT NULL,
+  `full_name` VARCHAR(255) NOT NULL,
+  `user_id` INT(11) DEFAULT NULL,
+  `resident_id` INT(11) DEFAULT NULL,
+  `term_start` DATE DEFAULT NULL,
+  `term_end` DATE DEFAULT NULL,
+  `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_position` (`position`),
+  KEY `idx_status` (`status`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_resident_id` (`resident_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Residents table - Central entity for all residents
@@ -288,7 +308,7 @@ CREATE TABLE `application_audit_log` (
 -- Role permissions table - Module access control
 CREATE TABLE `role_permissions` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `role` ENUM('barangay_captain', 'secretary', 'treasurer', 'kagawad', 'sk_chairman', 'resident') NOT NULL,
+  `role` ENUM('super_admin', 'barangay_captain', 'secretary', 'treasurer', 'kagawad', 'sk_chairman', 'resident') NOT NULL,
   `module` VARCHAR(50) NOT NULL,
   `can_access` TINYINT(1) NOT NULL DEFAULT 0,
   `can_create` TINYINT(1) NOT NULL DEFAULT 0,
