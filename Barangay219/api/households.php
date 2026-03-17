@@ -102,6 +102,20 @@ function generateUniqueFamilyHeadCode($db) {
     throw new Exception('Unable to generate unique family head code.');
 }
 
+function generateUniqueFamilyCode($db) {
+    // BR219-YYYY-XXXX (4 digits)
+    $year = date('Y');
+    for ($i = 0; $i < 30; $i++) {
+        $suffix = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        $code = 'BR219-' . $year . '-' . $suffix;
+        $exists = $db->fetchOne("SELECT id FROM households WHERE family_code = ? LIMIT 1", [$code]);
+        if (!$exists) {
+            return $code;
+        }
+    }
+    throw new Exception('Unable to generate unique family code.');
+}
+
 /**
  * List all households
  */
@@ -337,6 +351,14 @@ function updateHousehold() {
                 $db->query(
                     "UPDATE households SET household_id_code = COALESCE(household_id_code, ?), family_head_code = COALESCE(family_head_code, ?) WHERE id = ?",
                     [$newHouseholdCode, $newHeadCode, $id]
+                );
+            }
+
+            // Ensure legacy family_code exists for resident-side display/join (generate once).
+            if (array_key_exists('family_code', $existing) && empty($existing['family_code'])) {
+                $db->query(
+                    "UPDATE households SET family_code = COALESCE(family_code, ?) WHERE id = ?",
+                    [generateUniqueFamilyCode($db), $id]
                 );
             }
 
