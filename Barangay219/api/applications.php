@@ -30,6 +30,12 @@ switch ($action) {
         }
         approveApplication();
         break;
+    case 'assign_household':
+        if (!canPerformModulePermission('resident_applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        assignHouseholdToApprovedResident();
+        break;
     case 'reject':
         if (!canPerformModulePermission('resident_applications', 'can_edit')) {
             sendResponse(false, 'Access denied', null, 403);
@@ -51,6 +57,30 @@ function sendResponse($success, $message, $data = null, $code = 200) {
     http_response_code($code);
     echo json_encode(['success' => $success, 'message' => $message, 'data' => $data]);
     exit;
+}
+
+function generateUniqueHouseholdCode($db) {
+    // HH-XXXXXX (6 digits)
+    for ($i = 0; $i < 20; $i++) {
+        $code = 'HH-' . str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $exists = $db->fetchOne("SELECT id FROM households WHERE household_id_code = ? LIMIT 1", [$code]);
+        if (!$exists) {
+            return $code;
+        }
+    }
+    throw new Exception('Unable to generate unique household code.');
+}
+
+function generateUniqueFamilyHeadCode($db) {
+    // FH-XXXXX (5 digits)
+    for ($i = 0; $i < 20; $i++) {
+        $code = 'FH-' . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+        $exists = $db->fetchOne("SELECT id FROM households WHERE family_head_code = ? LIMIT 1", [$code]);
+        if (!$exists) {
+            return $code;
+        }
+    }
+    throw new Exception('Unable to generate unique family head code.');
 }
 
 function tableExists($db, $table) {
@@ -138,6 +168,7 @@ function listApplications() {
         $selectSex = $sexCol ? "`$sexCol` AS sex" : "NULL AS sex";
         $selectStatus = "`$statusCol` AS record_status";
         $selectReviewedAt = isset($cols['reviewed_at']) ? "reviewed_at" : "NULL AS reviewed_at";
+        $selectApprovedResidentId = isset($cols['approved_resident_id']) ? "approved_resident_id" : "NULL AS approved_resident_id";
         $relCol = isset($cols['relationship_to_head']) ? 'relationship_to_head' : null;
         $roleCol = isset($cols['household_role']) ? 'household_role' : null;
         if ($relCol && $roleCol) {
@@ -151,7 +182,7 @@ function listApplications() {
 
         $sql = "SELECT id, application_ref, first_name, middle_name, last_name, suffix, $selectSex, birth_date,
                        civil_status, mobile_number, email, barangay, city, $selectRelationship, $selectHouseholdRole, family_code, $selectStatus,
-                       created_at, $selectReviewedAt
+                       created_at, $selectReviewedAt, $selectApprovedResidentId
                 FROM resident_applications
                 WHERE $where
                 ORDER BY created_at DESC
@@ -315,38 +346,14 @@ function approveApplication() {
 
         $residentId = $db->lastInsertId();
 
-        // Auto-create/link household by Family Code
+        // Household assignment is handled by officials after approval (Assign Household action).
+        // Do NOT auto-create a new household when a "Head" application is approved.
+        // Non-head applications may still optionally link to an existing household via family_code.
         $roleRaw = strtolower(trim((string)($app['relationship_to_head'] ?? $app['household_role'] ?? '')));
         $isHead = $roleRaw !== '' && (strpos($roleRaw, 'head') !== false || strpos($roleRaw, 'single') !== false);
         $familyCode = trim((string)($app['family_code'] ?? ''));
 
-        if ($isHead && tableExists($db, 'households')) {
-            $householdCols = array_flip(getTableColumns($db, 'households'));
-            if (isset($householdCols['family_head_id']) && isset($householdCols['address'])) {
-                $householdAddress = $address ?: trim((string)($app['barangay'] ?? ''));
-                $householdMembers = isset($app['household_members']) ? (int)$app['household_members'] : 1;
-                $householdMembers = max(1, $householdMembers);
-
-                $hhCols = ['family_head_id', 'address', 'total_members', 'registration_date', 'family_code'];
-                $hhValues = [$residentId, $householdAddress, $householdMembers, date('Y-m-d'), $familyCode ?: null];
-                // Keep only columns that exist
-                $finalCols = [];
-                $finalVals = [];
-                foreach ($hhCols as $idx => $col) {
-                    if (isset($householdCols[$col])) {
-                        $finalCols[] = $col;
-                        $finalVals[] = $hhValues[$idx];
-                    }
-                }
-                if ($finalCols) {
-                    $hhColSql = '`' . implode('`,`', $finalCols) . '`';
-                    $hhPlaceholders = implode(',', array_fill(0, count($finalCols), '?'));
-                    $db->query("INSERT INTO households ($hhColSql) VALUES ($hhPlaceholders)", $finalVals);
-                    $householdId = $db->lastInsertId();
-                    $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $residentId]);
-                }
-            }
-        } elseif (!$isHead && tableExists($db, 'households')) {
+        if (!$isHead && tableExists($db, 'households')) {
             if ($familyCode === '') {
                 throw new Exception('Member application is missing family code.');
             }
@@ -416,6 +423,10 @@ function approveApplication() {
             $updates[] = "remarks=?";
             $updateParams[] = $remarks ?: null;
         }
+        if (isset($cols['approved_resident_id'])) {
+            $updates[] = "approved_resident_id=?";
+            $updateParams[] = (int)$residentId;
+        }
         $updateParams[] = $id;
         $db->query("UPDATE resident_applications SET " . implode(', ', $updates) . " WHERE id=?", $updateParams);
 
@@ -439,6 +450,132 @@ function approveApplication() {
         if (isset($db)) $db->rollback();
         error_log('Approve application: ' . $e->getMessage());
         sendResponse(false, 'Approval failed: ' . ($e->getMessage()), null, 500);
+    }
+}
+
+function assignHouseholdToApprovedResident() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'Method not allowed', null, 405);
+    }
+
+    $appId = (int)($_POST['application_id'] ?? 0);
+    $residentId = (int)($_POST['resident_id'] ?? 0);
+    $householdId = (int)($_POST['household_id'] ?? 0);
+
+    if (!$appId || !$residentId || !$householdId) {
+        sendResponse(false, 'application_id, resident_id, and household_id are required', null, 400);
+    }
+
+    try {
+        $db = Database::getInstance();
+        if (!tableExists($db, 'resident_applications')) {
+            sendResponse(false, 'Resident applications table is missing.', null, 500);
+        }
+        if (!tableExists($db, 'residents') || !tableExists($db, 'households')) {
+            sendResponse(false, 'Residents/households tables are missing.', null, 500);
+        }
+
+        $appCols = array_flip(getTableColumns($db, 'resident_applications'));
+        $statusCol = isset($appCols['record_status']) ? 'record_status' : (isset($appCols['status']) ? 'status' : null);
+        if (!$statusCol) {
+            sendResponse(false, 'Missing status column in resident_applications', null, 500);
+        }
+
+        $app = $db->fetchOne("SELECT * FROM resident_applications WHERE id = ?", [$appId]);
+        if (!$app) {
+            sendResponse(false, 'Application not found', null, 404);
+        }
+        if (($app[$statusCol] ?? '') !== 'approved') {
+            sendResponse(false, 'Only approved applications can be assigned to a household', null, 400);
+        }
+        if (isset($appCols['approved_resident_id']) && !empty($app['approved_resident_id']) && (int)$app['approved_resident_id'] !== $residentId) {
+            sendResponse(false, 'Resident does not match the approved resident for this application', null, 400);
+        }
+
+        $resident = $db->fetchOne("SELECT id, household_id FROM residents WHERE id = ? LIMIT 1", [$residentId]);
+        if (!$resident) {
+            sendResponse(false, 'Resident not found', null, 404);
+        }
+        if (!empty($resident['household_id']) && (int)$resident['household_id'] !== $householdId) {
+            sendResponse(false, 'Resident is already assigned to a different household', null, 400);
+        }
+
+        $household = $db->fetchOne("SELECT id FROM households WHERE id = ? LIMIT 1", [$householdId]);
+        if (!$household) {
+            sendResponse(false, 'Household not found', null, 404);
+        }
+
+        // Detect role from approved application (head vs member)
+        $roleRaw = strtolower(trim((string)($app['relationship_to_head'] ?? $app['household_role'] ?? '')));
+        $isHead = $roleRaw !== '' && (strpos($roleRaw, 'head') !== false || strpos($roleRaw, 'single') !== false);
+
+        // Link resident into household
+        $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $residentId]);
+
+        // If the approved application is for head of family, set as household head automatically.
+        if ($isHead) {
+            $db->query("UPDATE households SET family_head_id = ? WHERE id = ?", [$residentId, $householdId]);
+            // Generate head/household codes if missing (same rules as households module).
+            $hhRow = $db->fetchOne("SELECT household_id_code, family_head_code FROM households WHERE id = ?", [$householdId]);
+            if ($hhRow) {
+                if (empty($hhRow['household_id_code'])) {
+                    $db->query("UPDATE households SET household_id_code = ? WHERE id = ? AND (household_id_code IS NULL OR household_id_code='')", [generateUniqueHouseholdCode($db), $householdId]);
+                }
+                if (empty($hhRow['family_head_code'])) {
+                    $db->query("UPDATE households SET family_head_code = ? WHERE id = ? AND (family_head_code IS NULL OR family_head_code='')", [generateUniqueFamilyHeadCode($db), $householdId]);
+                }
+            }
+
+            // Auto-fill household address/registration when missing from head resident.
+            $current = $db->fetchOne("SELECT address, registration_date FROM households WHERE id = ?", [$householdId]);
+            $needsAddress = $current && empty(trim((string)($current['address'] ?? '')));
+            $needsRegDate = $current && empty($current['registration_date']);
+            if ($needsAddress || $needsRegDate) {
+                $headRow = $db->fetchOne(
+                    "SELECT address, house_number, street, purok_sitio FROM residents WHERE id = ? LIMIT 1",
+                    [$residentId]
+                );
+                $headAddress = '';
+                if ($headRow) {
+                    $parts = array_filter([
+                        $headRow['house_number'] ?? null,
+                        $headRow['street'] ?? null,
+                        $headRow['purok_sitio'] ?? null
+                    ], function($v) { return trim((string)$v) !== ''; });
+                    $headAddress = trim((string)($headRow['address'] ?? ''));
+                    if ($headAddress === '' && !empty($parts)) {
+                        $headAddress = implode(', ', $parts);
+                    }
+                }
+
+                $db->query(
+                    "UPDATE households
+                     SET address = CASE WHEN (address IS NULL OR address = '') THEN ? ELSE address END,
+                         registration_date = CASE WHEN registration_date IS NULL OR registration_date = '' THEN ? ELSE registration_date END
+                     WHERE id = ?",
+                    [
+                        $needsAddress ? ($headAddress !== '' ? $headAddress : null) : ($current['address'] ?? null),
+                        $needsRegDate ? date('Y-m-d') : ($current['registration_date'] ?? null),
+                        $householdId
+                    ]
+                );
+            }
+        }
+
+        // Keep household member count aligned
+        $countRow = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$householdId]);
+        if ($countRow && isset($countRow['c'])) {
+            $db->query("UPDATE households SET total_members = ? WHERE id = ?", [(int)$countRow['c'], $householdId]);
+        }
+
+        sendResponse(true, 'Household assigned successfully', [
+            'resident_id' => $residentId,
+            'household_id' => $householdId,
+            'is_head' => $isHead
+        ]);
+    } catch (Exception $e) {
+        error_log('Assign household: ' . $e->getMessage());
+        sendResponse(false, 'Assign household failed: ' . $e->getMessage(), null, 500);
     }
 }
 
