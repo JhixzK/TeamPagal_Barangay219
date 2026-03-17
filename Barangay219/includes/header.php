@@ -53,7 +53,7 @@ $userInfo = getUserInfo();
         <?php endif; ?>
     </script>
 </head>
-<body>
+<body class="<?php echo isResidentView() ? 'resident-view' : ''; ?>">
     <?php if (isLoggedIn()): ?>
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark app-topbar">
