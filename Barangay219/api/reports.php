@@ -83,13 +83,15 @@ function getRecentActivities() {
 }
 
 function getModuleStats($module) {
-    $allowed = ['residents', 'households', 'applications', 'certificates', 'complaints', 'blotters', 'announcements', 'users', 'reports', 'profile', 'resident_applications'];
+    $allowed = ['residents', 'households', 'applications', 'certificates', 'complaints', 'blotters', 'announcements', 'officials', 'users', 'reports', 'profile', 'resident_applications'];
     if (!in_array($module, $allowed, true)) {
         sendResponse(false, 'Invalid module', null, 400);
     }
 
     if ($module === 'users') {
         requireAdmin();
+    } elseif ($module === 'officials') {
+        requireModuleAccess('officials');
     } elseif ($module !== 'profile') {
         requireModuleAccess($module);
     }
@@ -211,6 +213,31 @@ function getModuleStats($module) {
                     'active' => (int)$row['active'],
                     'inactive' => (int)$row['inactive'],
                     'suspended' => (int)$row['suspended']
+                ];
+                break;
+            case 'officials':
+                $tableRow = $db->fetchOne("SHOW TABLES LIKE 'officials'");
+                if (empty($tableRow)) {
+                    $stats = [
+                        'total' => 0,
+                        'active' => 0,
+                        'inactive' => 0,
+                        'kagawad_active' => 0
+                    ];
+                    break;
+                }
+                $row = $db->fetchOne(
+                    "SELECT COUNT(*) AS total,\n" .
+                    "COALESCE(SUM(status = 'active'), 0) AS active,\n" .
+                    "COALESCE(SUM(status = 'inactive'), 0) AS inactive,\n" .
+                    "COALESCE(SUM(status = 'active' AND position = 'kagawad'), 0) AS kagawad_active\n" .
+                    "FROM officials"
+                );
+                $stats = [
+                    'total' => (int)$row['total'],
+                    'active' => (int)$row['active'],
+                    'inactive' => (int)$row['inactive'],
+                    'kagawad_active' => (int)$row['kagawad_active']
                 ];
                 break;
             case 'reports':
