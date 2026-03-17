@@ -473,8 +473,8 @@ function showActivityLogs() {
 function initPermissionsUI() {
     const roleSelect = document.getElementById('permissionsRole');
     const roleIcons = document.getElementById('permissionsRoleIcons');
-    const tableBody = document.getElementById('permissionsTableBody');
-    if (!roleSelect || !roleIcons || !tableBody) {
+    const moduleTiles = document.getElementById('permissionsModuleTiles');
+    if (!roleSelect || !roleIcons || !moduleTiles) {
         return;
     }
 
@@ -493,7 +493,7 @@ function initPermissionsUI() {
         roleSelect.value = ROLE_OPTIONS[0].value;
     }
 
-    renderPermissionsTable();
+    renderPermissionsTiles();
     roleSelect.addEventListener('change', function() {
         syncPermissionsRoleIcons(roleSelect.value);
         loadRolePermissions();
@@ -523,57 +523,27 @@ function initPermissionsUI() {
 
     syncPermissionsRoleIcons(roleSelect.value);
 
-    document.getElementById('permissionsTableBody').addEventListener('change', function(e) {
-        const target = e.target;
-        if (!target.classList.contains('perm-checkbox')) {
-            return;
-        }
-
-        const moduleKey = target.getAttribute('data-module');
-        const perm = target.getAttribute('data-perm');
-
-        if (perm !== 'can_access' && target.checked) {
-            const accessBox = document.querySelector(`input[data-module="${moduleKey}"][data-perm="can_access"]`);
-            if (accessBox) {
-                accessBox.checked = true;
-            }
-        }
-
-        if (perm === 'can_access' && !target.checked) {
-            ['can_create', 'can_edit', 'can_delete'].forEach(p => {
-                const box = document.querySelector(`input[data-module="${moduleKey}"][data-perm="${p}"]`);
-                if (box) {
-                    box.checked = false;
-                }
-            });
-        }
-    });
-
     loadRolePermissions();
 }
 
-function renderPermissionsTable() {
-    const tbody = document.getElementById('permissionsTableBody');
-    if (!tbody) {
-        return;
-    }
+function renderPermissionsTiles() {
+    const container = document.getElementById('permissionsModuleTiles');
+    if (!container) return;
 
-    tbody.innerHTML = MODULES.map(module => `
-        <tr>
-            <td>${module.label}</td>
-            <td class="text-center">
-                <input type="checkbox" class="form-check-input perm-checkbox perm-toggle" data-module="${module.key}" data-perm="can_access">
-            </td>
-            <td class="text-center">
-                <input type="checkbox" class="form-check-input perm-checkbox perm-toggle" data-module="${module.key}" data-perm="can_create">
-            </td>
-            <td class="text-center">
-                <input type="checkbox" class="form-check-input perm-checkbox perm-toggle" data-module="${module.key}" data-perm="can_edit">
-            </td>
-            <td class="text-center">
-                <input type="checkbox" class="form-check-input perm-checkbox perm-toggle" data-module="${module.key}" data-perm="can_delete">
-            </td>
-        </tr>
+    container.innerHTML = MODULES.map(m => `
+        <div class="permission-module-tile access-only" data-module="${m.key}">
+            <div class="module-tile-head">
+                <div class="module-tile-title">
+                    <i class="bi bi-grid-1x2 me-2"></i><span>${m.label}</span>
+                </div>
+            </div>
+            <div class="module-tile-body access-only">
+                <div class="perm-row">
+                    <label class="perm-label" for="perm_${m.key}_access_usersPage">Access</label>
+                    <input id="perm_${m.key}_access_usersPage" type="checkbox" class="form-check-input perm-checkbox perm-toggle" data-module="${m.key}" data-perm="can_access">
+                </div>
+            </div>
+        </div>
     `).join('');
 }
 
@@ -588,7 +558,7 @@ function loadRolePermissions() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                applyPermissionsToTable(data.data.permissions || {});
+                applyPermissionsToTiles(data.data.permissions || {});
                 applyPermissionsLock(role);
             } else {
                 showAlert('error', data.message || 'Failed to load permissions');
@@ -599,15 +569,11 @@ function loadRolePermissions() {
         });
 }
 
-function applyPermissionsToTable(permissions) {
+function applyPermissionsToTiles(permissions) {
     MODULES.forEach(module => {
         const perm = permissions[module.key] || {};
-        ['can_access', 'can_create', 'can_edit', 'can_delete'].forEach(key => {
-            const box = document.querySelector(`input[data-module="${module.key}"][data-perm="${key}"]`);
-            if (box) {
-                box.checked = !!perm[key];
-            }
-        });
+        const box = document.querySelector(`input[data-module="${module.key}"][data-perm="can_access"]`);
+        if (box) box.checked = !!perm.can_access;
     });
 }
 
@@ -625,17 +591,8 @@ function saveRolePermissions() {
     const permissions = {};
 
     MODULES.forEach(module => {
-        const getVal = perm => {
-            const box = document.querySelector(`input[data-module="${module.key}"][data-perm="${perm}"]`);
-            return box ? box.checked : false;
-        };
-
-        permissions[module.key] = {
-            can_access: getVal('can_access'),
-            can_create: getVal('can_create'),
-            can_edit: getVal('can_edit'),
-            can_delete: getVal('can_delete')
-        };
+        const box = document.querySelector(`input[data-module="${module.key}"][data-perm="can_access"]`);
+        permissions[module.key] = { can_access: !!(box && box.checked) };
     });
 
     fetch(window.API_URL + 'users.php?action=save_permissions', {
@@ -661,7 +618,7 @@ function saveRolePermissions() {
 function applyPermissionsLock(role) {
     const normalizedRole = String(role || '').trim().toLowerCase();
     const isCaptain = normalizedRole === 'barangay_captain';
-    const boxes = document.querySelectorAll('#permissionsTableBody .perm-checkbox');
+    const boxes = document.querySelectorAll('#permissionsModuleTiles .perm-checkbox');
     boxes.forEach(box => {
         box.disabled = isCaptain;
         if (isCaptain) {
