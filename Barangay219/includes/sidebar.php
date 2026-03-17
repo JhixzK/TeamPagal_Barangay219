@@ -117,7 +117,7 @@ if (empty($avatar_path)) {
     $avatar_path = ASSETS_URL . 'img/default-avatar.svg';
 }
 ?>
-<div class="sidebar" id="appSidebar" data-view-mode="<?php echo isResidentView() ? 'resident' : 'official'; ?>">
+<div class="<?php echo isResidentView() ? 'app-sidebar' : 'sidebar'; ?>" id="appSidebar" data-view-mode="<?php echo isResidentView() ? 'resident' : 'official'; ?>">
     <div class="sidebar-content">
         <div class="sidebar-toggle-wrap">
             <button class="btn btn-sm btn-outline-primary sidebar-toggle-btn" type="button" id="sidebarToggleBtn" aria-label="Toggle sidebar" aria-controls="appSidebar" aria-expanded="false">
@@ -228,7 +228,7 @@ if (empty($avatar_path)) {
 </div>
 
 <style>
-.sidebar {
+#appSidebar {
     width: 78px;
     height: calc(100vh - 56px);
     background-color: #f8f9fa;
@@ -242,12 +242,17 @@ if (empty($avatar_path)) {
     scrollbar-width: none;
 }
 
-.sidebar::-webkit-scrollbar {
+/* Resident view: smooth expand/collapse animation on toggle */
+#appSidebar[data-view-mode="resident"] {
+    transition: width 0.25s ease, left 0.25s ease !important;
+}
+
+#appSidebar::-webkit-scrollbar {
     width: 0;
     height: 0;
 }
 
-body.sidebar-expanded .sidebar {
+body.sidebar-expanded #appSidebar {
     width: 250px;
 }
 
@@ -255,13 +260,13 @@ body.sidebar-expanded .sidebar {
     padding: 1rem 0;
 }
 
-.sidebar .sidebar-toggle-wrap {
+#appSidebar .sidebar-toggle-wrap {
     display: flex;
     justify-content: center;
     padding: 0 0.75rem 0.65rem;
 }
 
-.sidebar .sidebar-toggle-btn {
+#appSidebar .sidebar-toggle-btn {
     width: 38px;
     height: 38px;
     border-radius: 10px;
@@ -271,21 +276,21 @@ body.sidebar-expanded .sidebar {
     padding: 0;
 }
 
-body.sidebar-expanded .sidebar .sidebar-toggle-wrap {
+body.sidebar-expanded #appSidebar .sidebar-toggle-wrap {
     justify-content: flex-end;
     padding: 0 1rem 0.65rem;
 }
 
-.sidebar .sidebar-profile {
+#appSidebar .sidebar-profile {
     padding-left: 0.8rem !important;
     padding-right: 0.8rem !important;
 }
 
-.sidebar .sidebar-profile a {
+#appSidebar .sidebar-profile a {
     justify-content: center;
 }
 
-.sidebar .sidebar-profile .profile-meta {
+#appSidebar .sidebar-profile .profile-meta {
     opacity: 0;
     max-width: 0;
     overflow: hidden;
@@ -294,17 +299,17 @@ body.sidebar-expanded .sidebar .sidebar-toggle-wrap {
     transition: opacity 0.2s ease, max-width 0.2s ease, transform 0.2s ease;
 }
 
-body.sidebar-expanded .sidebar .sidebar-profile a {
+body.sidebar-expanded #appSidebar .sidebar-profile a {
     justify-content: flex-start;
 }
 
-body.sidebar-expanded .sidebar .sidebar-profile .profile-meta {
+body.sidebar-expanded #appSidebar .sidebar-profile .profile-meta {
     opacity: 1;
     max-width: 180px;
     transform: translateX(0);
 }
 
-.sidebar .nav-link {
+#appSidebar .nav-link {
     color: #495057;
     padding: 0.75rem 1.5rem;
     display: flex;
@@ -314,7 +319,12 @@ body.sidebar-expanded .sidebar .sidebar-profile .profile-meta {
     border-left: 3px solid transparent;
 }
 
-.sidebar .nav-link span {
+/* Resident view: remove animated "cursor-following" effects */
+#appSidebar[data-view-mode="resident"] .nav-link {
+    transition: none !important;
+}
+
+#appSidebar .nav-link span {
     opacity: 0;
     max-width: 0;
     overflow: hidden;
@@ -322,63 +332,57 @@ body.sidebar-expanded .sidebar .sidebar-profile .profile-meta {
     transition: opacity 0.2s ease, max-width 0.2s ease;
 }
 
-body.sidebar-expanded .sidebar .nav-link span {
+body.sidebar-expanded #appSidebar .nav-link span {
     opacity: 1;
     max-width: 160px;
 }
 
-.sidebar .nav-link:hover {
+#appSidebar .nav-link:hover {
     background-color: #e9ecef;
     color: #0d6efd;
     border-left-color: #0d6efd;
 }
 
 /* Resident view: remove hover styling on links */
-.sidebar[data-view-mode="resident"] .nav-link:hover {
+#appSidebar[data-view-mode="resident"] .nav-link:hover {
     background-color: transparent;
     color: inherit;
     border-left-color: transparent;
 }
 
-/* Resident view: disable sidebar auto-expand-on-hover rules from legacy resident CSS */
-.sidebar[data-view-mode="resident"]:hover {
-    width: 78px !important;
-}
-body:has(.sidebar[data-view-mode="resident"]:hover) .main-content {
-    margin-left: 78px !important;
+/* Resident view: remove ALL hover/focus visual effects inside sidebar */
+#appSidebar[data-view-mode="resident"] a:hover,
+#appSidebar[data-view-mode="resident"] a:focus,
+#appSidebar[data-view-mode="resident"] a:focus-visible {
+    background-color: transparent !important;
+    color: inherit !important;
+    border-left-color: transparent !important;
+    box-shadow: none !important;
+    text-decoration: none !important;
 }
 
-/* Global resident-view overrides (covers any legacy .sidebar:hover rules) */
-body.resident-view .sidebar {
+/* Resident view: sidebar width is controlled ONLY by toggle (body.sidebar-expanded). */
+body.resident-view #appSidebar {
     width: 78px !important;
 }
-body.resident-view.sidebar-expanded .sidebar {
+body.resident-view.sidebar-expanded #appSidebar {
     width: 250px !important;
 }
-body.resident-view .sidebar:hover {
-    width: 78px !important;
-}
-body.resident-view:has(.sidebar:hover) .main-content {
-    margin-left: 78px !important;
-}
-body.resident-view.sidebar-expanded:has(.sidebar:hover) .main-content {
-    margin-left: 250px !important;
-}
 
-.sidebar .nav-link.active {
+#appSidebar .nav-link.active {
     background-color: #e7f1ff;
     color: #0d6efd;
     border-left-color: #0d6efd;
     font-weight: 600;
 }
 
-.sidebar .nav-link i {
+#appSidebar .nav-link i {
     font-size: 1.1rem;
     width: 20px;
     flex: 0 0 20px;
 }
 
-.sidebar .nav-section-title {
+#appSidebar .nav-section-title {
     font-size: 0.72rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -387,8 +391,8 @@ body.resident-view.sidebar-expanded:has(.sidebar:hover) .main-content {
     font-weight: 700;
 }
 
-.sidebar .nav-section-title,
-.sidebar .nav-divider {
+#appSidebar .nav-section-title,
+#appSidebar .nav-divider {
     opacity: 0;
     max-height: 0;
     overflow: hidden;
@@ -397,17 +401,17 @@ body.resident-view.sidebar-expanded:has(.sidebar:hover) .main-content {
     transition: opacity 0.2s ease, max-height 0.2s ease, margin 0.2s ease;
 }
 
-body.sidebar-expanded .sidebar .nav-section-title,
-body.sidebar-expanded .sidebar .nav-divider {
+body.sidebar-expanded #appSidebar .nav-section-title,
+body.sidebar-expanded #appSidebar .nav-divider {
     opacity: 1;
     max-height: 40px;
 }
 
-body.sidebar-expanded .sidebar .nav-divider {
+body.sidebar-expanded #appSidebar .nav-divider {
     margin: 0.45rem 1rem;
 }
 
-.sidebar .nav-divider {
+#appSidebar .nav-divider {
     margin: 0.45rem 1rem;
     border-top: 1px solid #dee2e6;
     list-style: none;
@@ -421,12 +425,17 @@ body.sidebar-expanded .sidebar .nav-divider {
     transition: margin-left 0.25s ease;
 }
 
+/* Resident view: smooth content shift on toggle */
+body.resident-view .main-content {
+    transition: margin-left 0.25s ease !important;
+}
+
 body.sidebar-expanded .main-content {
     margin-left: 250px;
 }
 
 @media (max-width: 768px) {
-    .sidebar {
+    #appSidebar {
         left: -250px;
         width: 250px;
         height: calc(100vh - 56px);
@@ -437,23 +446,23 @@ body.sidebar-expanded .main-content {
         overflow-y: auto;
     }
 
-    body.sidebar-expanded .sidebar {
+    body.sidebar-expanded #appSidebar {
         left: 0;
     }
 
-    .sidebar .sidebar-profile a {
+    #appSidebar .sidebar-profile a {
         justify-content: flex-start;
     }
 
-    .sidebar .sidebar-toggle-wrap {
+    #appSidebar .sidebar-toggle-wrap {
         justify-content: flex-end;
         padding: 0 1rem 0.65rem;
     }
 
-    .sidebar .sidebar-profile .profile-meta,
-    .sidebar .nav-link span,
-    .sidebar .nav-section-title,
-    .sidebar .nav-divider {
+    #appSidebar .sidebar-profile .profile-meta,
+    #appSidebar .nav-link span,
+    #appSidebar .nav-section-title,
+    #appSidebar .nav-divider {
         opacity: 1;
         max-width: none;
         max-height: none;
