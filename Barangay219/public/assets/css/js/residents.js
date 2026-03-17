@@ -213,8 +213,11 @@ function displayResidents(residents) {
         const canRejectNow = RESIDENT_PERMS.canEdit && hasIdUpload && verificationStatus === 'pending';
         
         const isHead = String(resident.is_household_head) === '1';
-        const householdRole = resident.household_id
-            ? (isHead ? '<span class="badge bg-primary">Head</span>' : '<span class="badge bg-light text-dark border">Member</span>')
+        const headIcon = isHead
+            ? ` <i class="bi bi-patch-check-fill text-success" title="Family Head" aria-label="Family Head"></i>`
+            : '';
+        const householdCode = resident.household_code
+            ? `<span class="badge bg-light text-dark border">${escapeHtml(String(resident.household_code))}${headIcon}</span>`
             : '<span class="text-muted">-</span>';
         return `
             <tr>
@@ -224,7 +227,7 @@ function displayResidents(residents) {
                 <td class="text-center">${formatGender(resident.gender)}</td>
                 <td class="text-center">${escapeHtml(formatTitleCaseTruncate(resident.address || '', 40))}${(resident.address||'').length>40?'...':''}</td>
                 <td class="text-center">${escapeHtml(formatPhoneNumber(resident.contact_number) || '-')}</td>
-                <td class="text-center">${householdRole}</td>
+                <td class="text-center">${householdCode}</td>
                 <td class="text-center">${getVerificationBadge(verificationStatus)}</td>
                 <td class="text-center"><span class="badge ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
                 <td class="text-center">
@@ -400,7 +403,8 @@ function viewResident(id) {
                     <tr><td><strong>Occupation</strong></td><td>${escapeHtml(toTitleCase(r.occupation || '-'))}</td></tr>
                     <tr><td><strong>Citizenship</strong></td><td>${escapeHtml(toTitleCase(r.citizenship || '-'))}</td></tr>
                     <tr><td><strong>Household</strong></td><td>${r.household_address ? 'Household #'+r.household_id+' ('+r.total_members+' members)' : 'None'}</td></tr>
-                    <tr><td><strong>Household Role</strong></td><td>${r.household_id ? (String(r.is_household_head)==='1' ? 'Head of Household' : 'Member') : '-'}</td></tr>
+                    <tr><td><strong>Household Code</strong></td><td>${r.household_code ? (escapeHtml(String(r.household_code)) + (String(r.is_household_head) === '1' ? ' <i class="bi bi-patch-check-fill text-success ms-1" title="Family Head" aria-label="Family Head"></i>' : '')) : '-'}</td></tr>
+                    <tr><td><strong>Family Head Code</strong></td><td>${String(r.is_household_head) === '1' ? (r.family_head_code ? escapeHtml(String(r.family_head_code)) : '-') : ''}</td></tr>
                     <tr><td><strong>Verification</strong></td><td>${getVerificationBadge(verificationStatus)}</td></tr>
                     <tr><td><strong>Uploaded ID</strong></td><td>${idDocLink}</td></tr>
                     <tr><td><strong>Certificates</strong></td><td>${r.certificates_count || 0} issued</td></tr>
