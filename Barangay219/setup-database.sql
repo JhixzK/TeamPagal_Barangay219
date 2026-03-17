@@ -17,3 +17,8 @@ UPDATE users SET password = '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJ
 INSERT INTO users (username, password, email, role, status) 
 VALUES ('admin', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'admin@barangay195.gov.ph', 'barangay_captain', 'active')
 ON DUPLICATE KEY UPDATE password = VALUES(password);
+
+-- Optional: create a Super Admin account (change password after first login)
+-- Password: superadmin123
+-- INSERT INTO users (username, password, email, role, status)
+-- VALUES ('superadmin', '{PASTE_PASSWORD_HASH_HERE}', 'superadmin@barangay195.gov.ph', 'super_admin', 'active');
