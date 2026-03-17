@@ -72,10 +72,10 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
             </div>
             <div class="action-row">
               <button class="btn-secondary btn-small" id="leaveHouseholdBtn" data-action="leaveHousehold" style="display:none;">
-                <i class="fa-solid fa-right-from-bracket"></i> Leave Household
+                <i class="bi bi-box-arrow-right"></i> Leave Household
               </button>
-              <button class="btn-primary btn-small" id="editHouseholdBtn" data-action="editHousehold" style="display:none;">
-                <i class="fa-solid fa-pen-to-square"></i> Update Overview
+              <button class="btn-primary btn-small" id="btnUpdateOverview" data-action="openUpdateOverview" style="display:none;">
+                <i class="bi bi-pencil-square"></i> Update Overview
               </button>
             </div>
           </div>
@@ -103,8 +103,8 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
               <p class="panel-subtitle">Status, profile details, and role-based member actions</p>
             </div>
             <div class="action-row">
-              <button class="btn-primary btn-small" id="manageMembersBtn" data-action="manageMembers" style="display:none;">
-                <i class="fa-solid fa-user-gear"></i> Manage Members
+              <button class="btn-primary btn-small" id="btnManageMembers" data-action="openManageMembers" style="display:none;">
+                <i class="bi bi-people"></i> Manage Members
               </button>
             </div>
           </div>
@@ -138,7 +138,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
       <!-- MODALS (OUTSIDE contentContainer) -->
 
       <!-- Role Selection Modal -->
-      <div id="roleSelectionModal" class="modal" style="display: none;">
+      <div id="roleSelectionModal" class="modal custom-modal" style="display: none;">
         <div class="modal-backdrop"></div>
         <div class="modal-content modal-lg">
           <div class="modal-header">
@@ -149,7 +149,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
             <p>You don't have a household yet. Enter the Family Head Code to join an existing household.</p>
             <div class="role-selection-grid">
               <div class="role-card" data-role="member">
-                <i class="fa-solid fa-users"></i>
+                <i class="bi bi-people"></i>
                 <h4>Household Member</h4>
                 <p>Join using Family Head Code</p>
                 <p class="role-desc">Example: FH-01234</p>
@@ -160,7 +160,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
       </div>
 
       <!-- Head of Household Form Modal -->
-      <div id="headFormModal" class="modal" style="display: none;">
+      <div id="headFormModal" class="modal custom-modal" style="display: none;">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
           <div class="modal-header">
@@ -195,7 +195,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
       </div>
 
       <!-- Update Household Overview Modal -->
-      <div id="overviewUpdateModal" class="modal" style="display: none;">
+      <div id="overviewUpdateModal" class="modal custom-modal" style="display: none;">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
           <div class="modal-header">
@@ -240,7 +240,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
       </div>
 
       <!-- Member Join Modal -->
-      <div id="memberJoinModal" class="modal" style="display: none;">
+      <div id="memberJoinModal" class="modal custom-modal" style="display: none;">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
           <div class="modal-header">
@@ -263,23 +263,25 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
         </div>
       </div>
 
-      <!-- Manage Members Modal (Head Only) -->
-      <div id="manageMembersModal" class="modal" style="display: none;">
+      <!-- Manage Members Modal (Head Only) - Fresh custom modal -->
+      <div id="manageMembersModal" class="modal custom-modal" style="display: none;">
         <div class="modal-backdrop"></div>
         <div class="modal-content modal-lg">
           <div class="modal-header">
-            <h3>Manage Members</h3>
+            <h3><i class="bi bi-people me-2"></i>Manage Members</h3>
             <button class="modal-close" data-action="closeManageMembersModal">&times;</button>
           </div>
           <div class="modal-body">
-            <div class="small text-muted mb-2">Actions are managed here instead of inside the table.</div>
-            <div class="panel-body table-responsive">
+            <div class="text-muted small mb-2">Manage household member actions here. The household head cannot be removed.</div>
+            <div class="table-responsive">
               <table class="members-table">
                 <thead>
                   <tr>
                     <th>Name</th>
-                    <th>Relationship</th>
-                    <th style="width:160px;">Actions</th>
+                    <th>Role</th>
+                    <th>Age</th>
+                    <th>Birth Date</th>
+                    <th style="width:200px;">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="manageMembersTableBody"></tbody>
@@ -293,7 +295,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
       </div>
 
       <!-- Transfer Head Reason Modal -->
-      <div id="transferHeadReasonModal" class="modal" style="display: none;">
+      <div id="transferHeadReasonModal" class="modal custom-modal" style="display: none;">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
           <div class="modal-header">
@@ -331,7 +333,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
       <!-- Add Member Modal removed on resident side -->
 
       <!-- Edit Member Modal -->
-      <div id="editMemberModal" class="modal" style="display: none;">
+      <div id="editMemberModal" class="modal custom-modal" style="display: none;">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
           <div class="modal-header">
@@ -394,7 +396,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
       <div id="messageContainer"></div>
 
     </div>
-</div>
+<!-- main-content wrapper closed by includes/footer.php -->
 
 <script>
   // Keep API URL deployment-safe by using relative paths.
