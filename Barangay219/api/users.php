@@ -24,15 +24,15 @@ switch ($action) {
         break;
 
     case 'get_permissions':
-        if (!isAdmin()) {
-            sendResponse(false, 'Only Barangay Captain can view role permissions', null, 403);
+        if (!isSystemAdmin()) {
+            sendResponse(false, 'Only Super Admin or Barangay Captain can view role permissions', null, 403);
         }
         getRolePermissionsApi();
         break;
 
     case 'save_permissions':
-        if (!isAdmin()) {
-            sendResponse(false, 'Only Barangay Captain can update role permissions', null, 403);
+        if (!isSystemAdmin()) {
+            sendResponse(false, 'Only Super Admin or Barangay Captain can update role permissions', null, 403);
         }
         saveRolePermissionsApi();
         break;
@@ -200,9 +200,14 @@ function createUser() {
         return;
     }
     
-    $allowed_roles = [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN];
+    $allowed_roles = [ROLE_SUPER_ADMIN, ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN];
     if (!in_array($role, $allowed_roles)) {
         sendResponse(false, 'Invalid role', null, 400);
+        return;
+    }
+
+    if ($role === ROLE_SUPER_ADMIN && !isSuperAdmin()) {
+        sendResponse(false, 'Only Super Admin can create a Super Admin account', null, 403);
         return;
     }
     
@@ -312,8 +317,16 @@ function updateUser() {
 
         $existing_role = strtolower(trim((string)($existing['role'] ?? '')));
         $requested_role = strtolower(trim((string)$role));
-        if ($existing_role === ROLE_BARANGAY_CAPTAIN && $role !== '' && $requested_role !== ROLE_BARANGAY_CAPTAIN) {
-            sendResponse(false, 'Barangay Captain role cannot be changed', null, 403);
+
+        // Protect Super Admin accounts from being modified by non-Super Admin users.
+        if ($existing_role === ROLE_SUPER_ADMIN && !isSuperAdmin()) {
+            sendResponse(false, 'Only Super Admin can modify a Super Admin account', null, 403);
+            return;
+        }
+
+        // Barangay Captain role can only be changed by Super Admin.
+        if ($existing_role === ROLE_BARANGAY_CAPTAIN && $role !== '' && $requested_role !== ROLE_BARANGAY_CAPTAIN && !isSuperAdmin()) {
+            sendResponse(false, 'Only Super Admin can change Barangay Captain role', null, 403);
             return;
         }
         
@@ -327,8 +340,12 @@ function updateUser() {
         }
         
         if ($role !== '') {
-            $allowed_roles = [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN];
-            if (in_array($role, $allowed_roles)) {
+            $allowed_roles = [ROLE_SUPER_ADMIN, ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN];
+            if (in_array($role, $allowed_roles, true)) {
+                if ($role === ROLE_SUPER_ADMIN && !isSuperAdmin()) {
+                    sendResponse(false, 'Only Super Admin can assign Super Admin role', null, 403);
+                    return;
+                }
                 $updates[] = "role = ?";
                 $params[] = $role;
             }
@@ -409,10 +426,16 @@ function deleteUser() {
     try {
         $db = Database::getInstance();
         
-        // Check if user exists
-        $existing = $db->fetchOne("SELECT id FROM users WHERE id = ?", [$id]);
+        // Check if user exists (also fetch role for guardrails)
+        $existing = $db->fetchOne("SELECT id, role FROM users WHERE id = ?", [$id]);
         if (!$existing) {
             sendResponse(false, 'User not found', null, 404);
+            return;
+        }
+
+        $targetRole = strtolower(trim((string)($existing['role'] ?? '')));
+        if ($targetRole === ROLE_SUPER_ADMIN && !isSuperAdmin()) {
+            sendResponse(false, 'Only Super Admin can suspend a Super Admin account', null, 403);
             return;
         }
         
@@ -451,6 +474,18 @@ function suspendUser() {
     
     try {
         $db = Database::getInstance();
+
+        $existing = $db->fetchOne("SELECT id, role FROM users WHERE id = ?", [$id]);
+        if (!$existing) {
+            sendResponse(false, 'User not found', null, 404);
+            return;
+        }
+        $targetRole = strtolower(trim((string)($existing['role'] ?? '')));
+        if ($targetRole === ROLE_SUPER_ADMIN && !isSuperAdmin()) {
+            sendResponse(false, 'Only Super Admin can suspend a Super Admin account', null, 403);
+            return;
+        }
+
         $sql = "UPDATE users SET status = 'suspended' WHERE id = ?";
         $db->query($sql, [$id]);
         
@@ -480,6 +515,18 @@ function activateUser() {
     
     try {
         $db = Database::getInstance();
+
+        $existing = $db->fetchOne("SELECT id, role FROM users WHERE id = ?", [$id]);
+        if (!$existing) {
+            sendResponse(false, 'User not found', null, 404);
+            return;
+        }
+        $targetRole = strtolower(trim((string)($existing['role'] ?? '')));
+        if ($targetRole === ROLE_SUPER_ADMIN && !isSuperAdmin()) {
+            sendResponse(false, 'Only Super Admin can activate a Super Admin account', null, 403);
+            return;
+        }
+
         $sql = "UPDATE users SET status = 'active' WHERE id = ?";
         $db->query($sql, [$id]);
         
@@ -521,14 +568,29 @@ function getRolePermissionsApi() {
 
     $role_normalized = strtolower(trim($role));
 
-    $allowed_roles = [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN, ROLE_RESIDENT];
+    $allowed_roles = [ROLE_SUPER_ADMIN, ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN, ROLE_RESIDENT];
     if (!in_array($role_normalized, $allowed_roles, true)) {
         sendResponse(false, 'Invalid role', null, 400);
         return;
     }
 
+    if ($role_normalized === ROLE_SUPER_ADMIN) {
+        $modules = ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'officials', 'users', 'profile'];
+        $permissions = [];
+        foreach ($modules as $module) {
+            $permissions[$module] = [
+                'can_access' => true,
+                'can_create' => true,
+                'can_edit' => true,
+                'can_delete' => true
+            ];
+        }
+        sendResponse(true, 'Role permissions loaded', ['role' => $role_normalized, 'permissions' => $permissions]);
+        return;
+    }
+
     if ($role_normalized === ROLE_BARANGAY_CAPTAIN) {
-        $modules = ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'users', 'profile'];
+        $modules = ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'officials', 'users', 'profile'];
         $permissions = [];
         foreach ($modules as $module) {
             $permissions[$module] = [
@@ -562,9 +624,14 @@ function saveRolePermissionsApi() {
     }
 
     $role_normalized = strtolower(trim($role));
-    $allowed_roles = [ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN, ROLE_RESIDENT];
+    $allowed_roles = [ROLE_SUPER_ADMIN, ROLE_BARANGAY_CAPTAIN, ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN, ROLE_RESIDENT];
     if (!in_array($role_normalized, $allowed_roles, true)) {
         sendResponse(false, 'Invalid role', null, 400);
+        return;
+    }
+
+    if ($role_normalized === ROLE_SUPER_ADMIN) {
+        sendResponse(false, 'Super Admin permissions are fixed and cannot be edited', null, 403);
         return;
     }
 
