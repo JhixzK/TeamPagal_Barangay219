@@ -17,18 +17,21 @@ const ROLE_OPTIONS = [
     { value: 'sk_chairman', label: 'SK Chairman', icon: 'bi-stars' }
 ];
 
+// Role permission modules shown in the UI.
+// Notes:
+// - These keys must match the strings used in PHP `requireModuleAccess('<key>')`.
+// - "Certificates" UI tile maps to both `applications` and `certificates` since the sidebar/page access treats them as a bundle.
 const MODULES = [
-    { key: 'dashboard', label: 'Dashboard' },
-    { key: 'applications', label: 'Certificate Applications' },
-    { key: 'resident_applications', label: 'Resident Applications' },
-    { key: 'residents', label: 'Residents' },
-    { key: 'households', label: 'Households' },
-    { key: 'certificates', label: 'Certificates' },
-    { key: 'blotters', label: 'Blotters' },
-    { key: 'complaints', label: 'Complaints' },
-    { key: 'announcements', label: 'Announcements' },
-    { key: 'reports', label: 'Reports' },
-    { key: 'users', label: 'Users' }
+    { id: 'dashboard', keys: ['dashboard'], label: 'Dashboard' },
+    { id: 'certificates_bundle', keys: ['applications', 'certificates'], label: 'Certificates (Applications / Records)' },
+    { id: 'resident_applications', keys: ['resident_applications'], label: 'Resident Applications' },
+    { id: 'residents', keys: ['residents'], label: 'Residents' },
+    { id: 'households', keys: ['households'], label: 'Households' },
+    { id: 'blotters', keys: ['blotters'], label: 'Blotters' },
+    { id: 'complaints', keys: ['complaints'], label: 'Complaints' },
+    { id: 'announcements', keys: ['announcements'], label: 'Announcements' },
+    { id: 'reports', keys: ['reports'], label: 'Reports' },
+    { id: 'users', keys: ['users'], label: 'Users' }
 ];
 
 let userFilters = { q: '', role: '', status: '' };
@@ -41,7 +44,6 @@ const USER_MANAGEMENT_PERMS = {
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
     initPermissionsUI();
-    initUserStatFilters();
     applyUsersPagePermissions();
     
     // Form submission
@@ -50,27 +52,6 @@ document.addEventListener('DOMContentLoaded', function() {
         saveUser();
     });
 });
-
-function initUserStatFilters() {
-    const container = document.querySelector('.module-stats[data-module="users"]');
-    if (!container) return;
-    container.querySelectorAll('[data-status]').forEach(card => {
-        const handleClick = () => {
-            const status = card.getAttribute('data-status') || '';
-            userFilters.status = status;
-            const statusSel = document.getElementById('filterStatus');
-            if (statusSel) statusSel.value = status;
-            loadUsers();
-        };
-        card.addEventListener('click', handleClick);
-        card.addEventListener('keypress', e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleClick();
-            }
-        });
-    });
-}
 
 /**
  * Load all users
@@ -531,7 +512,7 @@ function renderPermissionsTiles() {
     if (!container) return;
 
     container.innerHTML = MODULES.map(m => `
-        <div class="permission-module-tile access-only" data-module="${m.key}">
+        <div class="permission-module-tile access-only" data-module="${m.id}">
             <div class="module-tile-head">
                 <div class="module-tile-title">
                     <i class="bi bi-grid-1x2 me-2"></i><span>${m.label}</span>
@@ -539,8 +520,8 @@ function renderPermissionsTiles() {
             </div>
             <div class="module-tile-body access-only">
                 <div class="perm-row">
-                    <label class="perm-label" for="perm_${m.key}_access_usersPage">Access</label>
-                    <input id="perm_${m.key}_access_usersPage" type="checkbox" class="form-check-input perm-checkbox perm-toggle" data-module="${m.key}" data-perm="can_access">
+                    <label class="perm-label" for="perm_${m.id}_access_usersPage">Access</label>
+                    <input id="perm_${m.id}_access_usersPage" type="checkbox" class="form-check-input perm-checkbox perm-toggle" data-module="${m.id}" data-perm="can_access">
                 </div>
             </div>
         </div>
@@ -571,9 +552,12 @@ function loadRolePermissions() {
 
 function applyPermissionsToTiles(permissions) {
     MODULES.forEach(module => {
-        const perm = permissions[module.key] || {};
-        const box = document.querySelector(`input[data-module="${module.key}"][data-perm="can_access"]`);
-        if (box) box.checked = !!perm.can_access;
+        const box = document.querySelector(`input[data-module="${module.id}"][data-perm="can_access"]`);
+        if (!box) return;
+
+        const accessValues = (module.keys || []).map(k => !!(permissions?.[k]?.can_access));
+        // Bundle tiles: treat "Access" as enabled only if ALL mapped keys are enabled.
+        box.checked = accessValues.length ? accessValues.every(Boolean) : false;
     });
 }
 
@@ -591,8 +575,11 @@ function saveRolePermissions() {
     const permissions = {};
 
     MODULES.forEach(module => {
-        const box = document.querySelector(`input[data-module="${module.key}"][data-perm="can_access"]`);
-        permissions[module.key] = { can_access: !!(box && box.checked) };
+        const box = document.querySelector(`input[data-module="${module.id}"][data-perm="can_access"]`);
+        const enabled = !!(box && box.checked);
+        (module.keys || []).forEach(k => {
+            permissions[k] = { can_access: enabled };
+        });
     });
 
     fetch(window.API_URL + 'users.php?action=save_permissions', {
