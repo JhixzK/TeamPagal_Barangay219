@@ -69,10 +69,25 @@ function formatDateInput(date) {
 }
 
 function applyHouseholdPermissions() {
+    const createBtn = document.getElementById('btnCreateHousehold');
+    if (createBtn) createBtn.style.display = HOUSEHOLD_PERMS.canCreate ? '' : 'none';
     if (!HOUSEHOLD_PERMS.canEdit) {
         const addMemberBtn = document.getElementById('btnAddMemberEdit');
         if (addMemberBtn) addMemberBtn.style.display = 'none';
     }
+}
+
+function newHousehold() {
+    if (!HOUSEHOLD_PERMS.canCreate) { alert('Access denied'); return; }
+    resetForm();
+    document.getElementById('householdModalTitle').textContent = 'New Household';
+    const reg = document.getElementById('registration_date');
+    if (reg && !reg.value) reg.value = formatDateInput(new Date());
+    const totalMembersGroup = document.getElementById('totalMembersGroup');
+    if (totalMembersGroup) totalMembersGroup.style.display = 'none';
+    const joinSection = document.getElementById('joinHouseholdSection');
+    if (joinSection) joinSection.style.display = 'none';
+    new bootstrap.Modal(document.getElementById('householdModal')).show();
 }
 
 function loadHouseholds() {
@@ -84,28 +99,67 @@ function loadHouseholds() {
     fetch(window.API_URL + 'households.php?' + params.toString())
         .then(r => r.json())
         .then(d => {
-            const tbody = document.getElementById('householdsTableBody');
-            if (d.success && d.data) {
-                tbody.innerHTML = d.data.map(h => `
-                    <tr>
-                        <td class="text-center">${h.id}</td>
-                        <td class="text-center">${escapeHtml(toTitleCase(h.family_head_name || '-'))}</td>
-                        <td class="text-center">${escapeHtml(formatTitleCaseTruncate(h.address || '', 50))}${(h.address||'').length>50?'...':''}</td>
-                        <td class="text-center"><span class="badge bg-success">${h.total_members}</span></td>
-                        <td class="text-center">${formatDate(h.registration_date)}</td>
-                        <td class="text-center">
-                            ${HOUSEHOLD_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary me-1" title="Edit" aria-label="Edit" onclick="editHousehold(${h.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
-                            <button class="btn btn-sm btn-primary me-1" title="View" aria-label="View" onclick="viewHousehold(${h.id})"><i class="bi bi-eye"></i></button>
-                            ${HOUSEHOLD_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteHousehold(${h.id})"><i class="bi bi-trash"></i></button>` : ''}
-                        </td>
-                    </tr>
-                `).join('');
+            const tiles = document.getElementById('householdTiles');
+            if (!tiles) return;
+
+            if (d.success && Array.isArray(d.data) && d.data.length) {
+                tiles.innerHTML = d.data.map(h => {
+                    const id = Number(h.id);
+                    const head = toTitleCase(h.family_head_name || '');
+                    const address = toTitleCase(h.address || '');
+                    const members = Number((h.total_members ?? 0));
+                    const reg = formatDate(h.registration_date);
+
+                    const editBtn = HOUSEHOLD_PERMS.canEdit
+                        ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editHousehold(${id})"><i class="bi bi-pencil-square"></i></button>`
+                        : '';
+                    const viewBtn = `<button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewHousehold(${id})"><i class="bi bi-eye"></i></button>`;
+                    const delBtn = HOUSEHOLD_PERMS.canDelete
+                        ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteHousehold(${id})"><i class="bi bi-trash"></i></button>`
+                        : '';
+
+                    const subtitle = head ? `Head: ${head}` : 'No head assigned yet';
+                    const addrDisplay = address ? formatTitleCaseTruncate(address, 70) : '(no address)';
+
+                    return `
+                        <div class="household-tile card shadow-sm">
+                            <div class="tile-top">
+                                <div class="tile-title">
+                                    <div class="tile-icon"><i class="bi bi-house-heart"></i></div>
+                                    <div class="min-w-0">
+                                        <p class="tile-name mb-0">Household ${id}</p>
+                                        <p class="tile-sub">${escapeHtml(subtitle)}</p>
+                                    </div>
+                                </div>
+                                <span class="badge bg-success">Members: ${members}</span>
+                            </div>
+                            <div class="tile-body">
+                                <dl class="tile-meta">
+                                    <div>
+                                        <dt>Address</dt>
+                                        <dd>${escapeHtml(addrDisplay)}${address.length > 70 ? '...' : ''}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Registered</dt>
+                                        <dd>${escapeHtml(reg)}</dd>
+                                    </div>
+                                </dl>
+                                <div class="tile-actions">
+                                    ${editBtn}
+                                    ${viewBtn}
+                                    ${delBtn}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No households found</td></tr>';
+                tiles.innerHTML = '<div class="text-center text-muted py-5">No households found</div>';
             }
         })
         .catch(() => {
-            document.getElementById('householdsTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading</td></tr>';
+            const tiles = document.getElementById('householdTiles');
+            if (tiles) tiles.innerHTML = '<div class="text-center text-danger py-5">Error loading</div>';
         });
 }
 
@@ -176,16 +230,13 @@ function loadResidentsForDropdown() {
 function saveHousehold() {
     applyTitleCaseToForm();
     const householdId = document.getElementById('householdId').value;
-    if (!householdId) {
-        alert('Creating new household groups from this module is disabled. Select an existing household and add members there.');
-        return;
-    }
+    if (!householdId && !HOUSEHOLD_PERMS.canCreate) { alert('Access denied'); return; }
     if (householdId && !HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
     const form = document.getElementById('householdForm');
     const formData = new FormData(form);
-    formData.append('action', 'update');
+    formData.append('action', householdId ? 'update' : 'create');
     const total = form.total_members.value;
-    if (total) formData.set('total_members', parseInt(total, 10) || 1);
+    if (total !== '') formData.set('total_members', Math.max(0, parseInt(total, 10) || 0));
 
     fetch(window.API_URL + 'households.php', { method: 'POST', body: formData })
         .then(r => r.json())
@@ -212,7 +263,7 @@ function viewHousehold(id) {
             document.getElementById('viewHouseholdInfo').innerHTML = `
                 <p><strong>Family Head:</strong> ${escapeHtml(toTitleCase(h.family_head_name || '-'))}</p>
                 <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
-                <p><strong>Total Members:</strong> ${h.total_members}</p>
+                <p><strong>Total Members:</strong> ${Number((h.total_members ?? 0))}</p>
                 <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
             `;
             const members = h.members || [];
@@ -279,7 +330,7 @@ function addMemberToHousehold() {
                     if (!householdData.success) return;
                     const h = householdData.data;
                     loadResidentsForAddMember(parseInt(householdId, 10), (h.members || []).map(m => m.id));
-                    document.getElementById('total_members').value = h.total_members || 1;
+                    document.getElementById('total_members').value = (h.total_members === null || typeof h.total_members === 'undefined') ? 0 : h.total_members;
                 });
             } else alert('Error: ' + (d.message || 'Failed'));
         });
@@ -320,9 +371,13 @@ function editHousehold(id) {
         document.getElementById('householdId').value = h.id;
         document.getElementById('family_head_id').value = h.family_head_id || '';
         document.getElementById('address').value = toTitleCase(h.address || '');
-        document.getElementById('total_members').value = h.total_members || 1;
+        document.getElementById('total_members').value = (h.total_members === null || typeof h.total_members === 'undefined') ? 0 : h.total_members;
         document.getElementById('registration_date').value = h.registration_date || '';
         document.getElementById('householdModalTitle').textContent = 'Edit Household';
+        const totalMembersGroup = document.getElementById('totalMembersGroup');
+        if (totalMembersGroup) totalMembersGroup.style.display = '';
+        const joinSection = document.getElementById('joinHouseholdSection');
+        if (joinSection) joinSection.style.display = '';
         loadResidentsForAddMember(h.id, (h.members || []).map(m => m.id));
         new bootstrap.Modal(document.getElementById('householdModal')).show();
     }).catch(() => alert('Error loading household'));
@@ -348,6 +403,10 @@ function resetForm() {
         sel.innerHTML = '<option value="">-- Select resident to add --</option>';
         delete sel.dataset.householdId;
     }
+    const totalMembersGroup = document.getElementById('totalMembersGroup');
+    if (totalMembersGroup) totalMembersGroup.style.display = '';
+    const joinSection = document.getElementById('joinHouseholdSection');
+    if (joinSection) joinSection.style.display = '';
 }
 
 function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
