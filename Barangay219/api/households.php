@@ -78,6 +78,30 @@ switch ($action) {
         break;
 }
 
+function generateUniqueHouseholdCode($db) {
+    // HH-XXXXXX (6 digits)
+    for ($i = 0; $i < 20; $i++) {
+        $code = 'HH-' . str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $exists = $db->fetchOne("SELECT id FROM households WHERE household_id_code = ? LIMIT 1", [$code]);
+        if (!$exists) {
+            return $code;
+        }
+    }
+    throw new Exception('Unable to generate unique household code.');
+}
+
+function generateUniqueFamilyHeadCode($db) {
+    // FH-XXXXX (5 digits)
+    for ($i = 0; $i < 20; $i++) {
+        $code = 'FH-' . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+        $exists = $db->fetchOne("SELECT id FROM households WHERE family_head_code = ? LIMIT 1", [$code]);
+        if (!$exists) {
+            return $code;
+        }
+    }
+    throw new Exception('Unable to generate unique family head code.');
+}
+
 /**
  * List all households
  */
@@ -251,7 +275,7 @@ function updateHousehold() {
         $db = Database::getInstance();
         
         // Check if household exists
-        $existing = $db->fetchOne("SELECT id FROM households WHERE id = ?", [$id]);
+        $existing = $db->fetchOne("SELECT * FROM households WHERE id = ?", [$id]);
         if (!$existing) {
             sendResponse(false, 'Household not found', null, 404);
             return;
@@ -260,6 +284,7 @@ function updateHousehold() {
         $updates = [];
         $params = [];
         
+        $assigningHead = false;
         if (!is_null($family_head_id)) {
             if ($family_head_id > 0) {
                 $head = $db->fetchOne("SELECT id, household_id FROM residents WHERE id = ?", [$family_head_id]);
@@ -275,6 +300,7 @@ function updateHousehold() {
                 $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$id, $family_head_id]);
                 $updates[] = "family_head_id = ?";
                 $params[] = $family_head_id;
+                $assigningHead = true;
             } else {
                 // Explicitly unassign head when 0 is provided.
                 $updates[] = "family_head_id = NULL";
@@ -300,6 +326,57 @@ function updateHousehold() {
         $sql = "UPDATE households SET " . implode(', ', $updates) . " WHERE id = ?";
         
         $db->query($sql, $params);
+
+        // Generate official approval codes when a head is assigned (first time).
+        if ($assigningHead) {
+            $needsHouseholdCode = empty($existing['household_id_code']);
+            $needsHeadCode = empty($existing['family_head_code']);
+            if ($needsHouseholdCode || $needsHeadCode) {
+                $newHouseholdCode = $needsHouseholdCode ? generateUniqueHouseholdCode($db) : $existing['household_id_code'];
+                $newHeadCode = $needsHeadCode ? generateUniqueFamilyHeadCode($db) : $existing['family_head_code'];
+                $db->query(
+                    "UPDATE households SET household_id_code = COALESCE(household_id_code, ?), family_head_code = COALESCE(family_head_code, ?) WHERE id = ?",
+                    [$newHouseholdCode, $newHeadCode, $id]
+                );
+            }
+
+            // Auto-fill household details from head when missing (so tiles show info right away).
+            $current = $db->fetchOne("SELECT address, registration_date FROM households WHERE id = ?", [$id]);
+            if ($current) {
+                $needsAddress = empty(trim((string)($current['address'] ?? '')));
+                $needsRegDate = empty($current['registration_date']);
+                if ($needsAddress || $needsRegDate) {
+                    $headRow = $db->fetchOne(
+                        "SELECT address, house_number, street, purok_sitio FROM residents WHERE id = ? LIMIT 1",
+                        [$family_head_id]
+                    );
+                    $headAddress = '';
+                    if ($headRow) {
+                        $parts = array_filter([
+                            $headRow['house_number'] ?? null,
+                            $headRow['street'] ?? null,
+                            $headRow['purok_sitio'] ?? null
+                        ], function($v) { return trim((string)$v) !== ''; });
+                        $headAddress = trim((string)($headRow['address'] ?? ''));
+                        if ($headAddress === '' && !empty($parts)) {
+                            $headAddress = implode(', ', $parts);
+                        }
+                    }
+
+                    $db->query(
+                        "UPDATE households
+                         SET address = CASE WHEN (address IS NULL OR address = '') THEN ? ELSE address END,
+                             registration_date = CASE WHEN registration_date IS NULL OR registration_date = '' THEN ? ELSE registration_date END
+                         WHERE id = ?",
+                        [
+                            $needsAddress ? ($headAddress !== '' ? $headAddress : null) : ($current['address'] ?? null),
+                            $needsRegDate ? date('Y-m-d') : ($current['registration_date'] ?? null),
+                            $id
+                        ]
+                    );
+                }
+            }
+        }
 
         // Keep total_members aligned with actual linked residents when possible.
         $countRow = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$id]);
