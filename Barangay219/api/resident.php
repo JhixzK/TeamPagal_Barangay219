@@ -79,6 +79,8 @@ function listResidents() {
         $gender = sanitizeInput($_GET['gender'] ?? '');
         $age_from = $_GET['age_from'] ?? '';
         $age_to = $_GET['age_to'] ?? '';
+        $residency_from = $_GET['residency_from'] ?? ''; // Minimum years of residency
+        $residency_to = $_GET['residency_to'] ?? ''; // Maximum years of residency
         
         $db = Database::getInstance();
 
@@ -104,6 +106,20 @@ function listResidents() {
         if ($age_to !== '' && is_numeric($age_to)) {
             $where .= " AND TIMESTAMPDIFF(YEAR, r.birth_date, CURDATE()) <= ?";
             $params[] = intval($age_to);
+        }
+        
+        // Filter by length of residency (in years)
+        if ($residency_from !== '' && is_numeric($residency_from)) {
+            $minYears = floatval($residency_from);
+            $minDate = date('Y-m-d', strtotime("-$minYears years"));
+            $where .= " AND r.residency_start_date <= ?";
+            $params[] = $minDate;
+        }
+        if ($residency_to !== '' && is_numeric($residency_to)) {
+            $maxYears = floatval($residency_to);
+            $maxDate = date('Y-m-d', strtotime("-$maxYears years"));
+            $where .= " AND r.residency_start_date >= ?";
+            $params[] = $maxDate;
         }
         
         // Get total count
@@ -137,6 +153,26 @@ function listResidents() {
 
         $queryParams = array_merge($params, [$limit, $offset]);
         $residents = $db->fetchAll($sql, $queryParams);
+        
+        // Compute length_of_residency for each resident
+        foreach ($residents as &$resident) {
+            if (!empty($resident['residency_start_date'])) {
+                try {
+                    $startDateTime = new DateTime($resident['residency_start_date']);
+                    $todayDateTime = new DateTime();
+                    $interval = $todayDateTime->diff($startDateTime);
+                    $years = $interval->y;
+                    $months = $interval->m;
+                    
+                    $resident['computed_length_of_residency'] = $years . ' year' . ($years === 1 ? '' : 's') . ' ' . $months . ' month' . ($months === 1 ? '' : 's');
+                    $resident['computed_length_of_residency_years'] = (float)($years + ($months / 12));
+                } catch (Exception $e) {
+                    $resident['computed_length_of_residency'] = $resident['length_of_residency'] ?? null;
+                    $resident['computed_length_of_residency_years'] = $resident['length_of_residency_years'] ?? null;
+                }
+            }
+        }
+        unset($resident);
         
         sendResponse(true, 'Residents retrieved successfully', [
             'residents' => $residents,
@@ -192,6 +228,24 @@ function getResident() {
         if (!$resident) {
             sendResponse(false, 'Resident not found', null, 404);
             return;
+        }
+        
+        // Compute length_of_residency from residency_start_date if available
+        if (!empty($resident['residency_start_date'])) {
+            try {
+                $startDateTime = new DateTime($resident['residency_start_date']);
+                $todayDateTime = new DateTime();
+                $interval = $todayDateTime->diff($startDateTime);
+                $years = $interval->y;
+                $months = $interval->m;
+                
+                $resident['computed_length_of_residency'] = $years . ' year' . ($years === 1 ? '' : 's') . ' ' . $months . ' month' . ($months === 1 ? '' : 's');
+                $resident['computed_length_of_residency_years'] = (float)($years + ($months / 12));
+            } catch (Exception $e) {
+                // If computation fails, just return the stored values
+                $resident['computed_length_of_residency'] = $resident['length_of_residency'] ?? null;
+                $resident['computed_length_of_residency_years'] = $resident['length_of_residency_years'] ?? null;
+            }
         }
         
         sendResponse(true, 'Resident retrieved successfully', $resident);
