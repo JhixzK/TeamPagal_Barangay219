@@ -127,6 +127,7 @@ function updateProfile() {
         'mobile_number', 'contact_number',
         'email',
         'house_no', 'house_number', 'street', 'address',
+        'residency_start_date',
         'length_of_residency_years',
         'occupation', 'employment_status',
         'emergency_contact_name', 'emergency_contact_number'
@@ -149,6 +150,7 @@ function updateProfile() {
         'house_number' => ['house_number', 'house_no'],
         'street' => ['street'],
         'address' => ['address'],
+        'residency_start_date' => ['residency_start_date'],
         'length_of_residency_years' => ['length_of_residency_years'],
         'occupation' => ['occupation'],
         'employment_status' => ['employment_status'],
@@ -186,6 +188,38 @@ function updateProfile() {
                     $value = date('Y-m-d', $ts);
                 } else {
                     $value = null;
+                }
+            }
+
+            if ($targetCol === 'residency_start_date') {
+                if ($value !== '') {
+                    $ts = strtotime($value);
+                    if ($ts === false) {
+                        sendResponse(false, 'Invalid date format for residency start date.', null, 400);
+                    }
+                    if ($ts > time()) {
+                        sendResponse(false, 'Residency start date cannot be in the future.', null, 400);
+                    }
+                    $value = date('Y-m-d', $ts);
+                    
+                    // Recalculate length_of_residency automatically
+                    $startDateTime = new DateTime($value);
+                    $todayDateTime = new DateTime();
+                    $interval = $todayDateTime->diff($startDateTime);
+                    $years = $interval->y;
+                    $months = $interval->m;
+                    
+                    $computedLength = $years . ' year' . ($years === 1 ? '' : 's') . ' ' . $months . ' month' . ($months === 1 ? '' : 's');
+                    $computedYears = (float)($years + ($months / 12));
+                    
+                    // Store both values
+                    $residentUpdate['length_of_residency'] = $computedLength;
+                    $residentUpdate['length_of_residency_years'] = $computedYears;
+                } else {
+                    $value = null;
+                    // Clear computed values if residency date is cleared
+                    $residentUpdate['length_of_residency'] = null;
+                    $residentUpdate['length_of_residency_years'] = null;
                 }
             }
 
