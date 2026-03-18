@@ -446,11 +446,7 @@ $barangay219_purok_options = [
                         </div>
                         <div class="step" data-step="4">
                             <div class="step-circle">4</div>
-                            <div class="step-label">Step 4: Employment & Background</div>
-                        </div>
-                        <div class="step" data-step="5">
-                            <div class="step-circle">5</div>
-                            <div class="step-label">Step 5: Review & Submit</div>
+                            <div class="step-label">Step 4: Review & Submit</div>
                         </div>
                     </div>
 
@@ -464,7 +460,7 @@ $barangay219_purok_options = [
                         <div class="step-content active" data-step="1">
                             <div class="step-header">
                                 <div class="step-title">Phase 1: Personal Information</div>
-                                <div class="step-counter">Step 1 of 5</div>
+                                <div class="step-counter">Step 1 of 4</div>
                             </div>
                             <div class="card section-card mb-4">
                                 <div class="card-body">
@@ -534,6 +530,38 @@ $barangay219_purok_options = [
                                             <input type="text" name="citizenship" class="form-control" value="Filipino" maxlength="30">
                                         </div>
                                     </div>
+                                    <hr>
+                                    <h6 class="text-secondary mb-3">Education & Employment</h6>
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label>Educational Attainment</label>
+                                            <select name="educational_attainment" class="form-select">
+                                                <option value="">Select</option>
+                                                <option value="Elementary">Elementary</option>
+                                                <option value="High School">High School</option>
+                                                <option value="Vocational">Vocational</option>
+                                                <option value="College">College</option>
+                                                <option value="Postgraduate">Postgraduate</option>
+                                                <option value="None">None</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label>Employment Status</label>
+                                            <select name="employment_status" class="form-select">
+                                                <option value="">Select</option>
+                                                <option value="Employed">Employed</option>
+                                                <option value="Self-employed">Self-employed</option>
+                                                <option value="Unemployed">Unemployed</option>
+                                                <option value="Student">Student</option>
+                                                <option value="Retired">Retired</option>
+                                                <option value="OFW">OFW</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label>Occupation</label>
+                                            <input type="text" name="occupation" class="form-control" maxlength="80">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -542,7 +570,7 @@ $barangay219_purok_options = [
                         <div class="step-content" data-step="2">
                             <div class="step-header">
                                 <div class="step-title">Phase 2: Family Background</div>
-                                <div class="step-counter">Step 2 of 5</div>
+                                <div class="step-counter">Step 2 of 4</div>
                             </div>
                             <div class="card section-card mb-4">
                                 <div class="card-body">
@@ -555,6 +583,8 @@ $barangay219_purok_options = [
                                                 <option value="Head of Household">Head of Household</option>
                                             </select>
                                         </div>
+                                    </div>
+                                    <div class="row" id="householdMembersRow" style="display:none;">
                                         <div class="col-md-6 mb-3">
                                             <label>Number of Household Members</label>
                                             <input type="number" name="household_members" class="form-control" min="0" max="99" step="1" inputmode="numeric">
@@ -565,24 +595,29 @@ $barangay219_purok_options = [
                                             <label>Household Type <span class="text-danger">*</span></label>
                                             <select name="household_type" id="household_type" class="form-select">
                                                 <option value="">Select Household Type</option>
-                                                <option value="Nuclear Family">Nuclear Family</option>
-                                                <option value="Extended Family">Extended Family</option>
-                                                <option value="Single Parent Household">Single Parent Household</option>
+                                                <option value="Family Household">Family Household</option>
                                                 <option value="Couple Only">Couple Only</option>
-                                                <option value="Single Person Household">Single Person Household</option>
-                                                <option value="Non-Relative Household">Non-Relative Household</option>
+                                                <option value="Single Inhabitant">Single Inhabitant</option>
+                                                <option value="Non-Relative Household (Shared / Boarders)">Non-Relative Household (Shared / Boarders)</option>
                                                 <option value="Other (Specify)">Other (Specify)</option>
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="row">
+                                    <div class="row" id="householdIncomeRow" style="display:none;">
                                         <div class="col-md-6 mb-3">
-                                            <label>Father's Name</label>
-                                            <input type="text" name="father_name" class="form-control" maxlength="100">
+                                            <label>Total Household Income (Monthly) <span class="text-danger">*</span></label>
+                                            <input type="number" id="household_income" name="household_income" class="form-control" min="0" step="0.01" inputmode="decimal" placeholder="e.g., 25000">
+                                            <small class="text-muted">Enter total combined income of all household members.</small>
                                         </div>
                                         <div class="col-md-6 mb-3">
-                                            <label>Mother's Name</label>
-                                            <input type="text" name="mother_name" class="form-control" maxlength="100">
+                                            <label>Income per Family Member</label>
+                                            <input type="text" id="income_per_member" name="income_per_member" class="form-control" readonly placeholder="Auto-computed">
+                                        </div>
+                                        <div class="col-md-12 mb-2">
+                                            <label class="d-block">Economic Classification</label>
+                                            <span id="economic_classification_badge" class="badge bg-secondary">Pending</span>
+                                            <input type="text" id="economic_classification" name="economic_classification" class="form-control mt-2" readonly placeholder="Auto-classified">
+                                            <small class="text-muted d-block mt-1">Threshold: ₱12,000 per family member per month.</small>
                                         </div>
                                     </div>
                                     <div class="row">
@@ -609,6 +644,63 @@ $barangay219_purok_options = [
                                             <small class="text-muted" id="relationshipHelpText">Required for members.</small>
                                         </div>
                                     </div>
+                                    <div class="row" id="parentGuardianRow" style="display:none;">
+                                        <div class="col-md-3 mb-3">
+                                            <label>Parent / Guardian First Name <span class="text-danger">*</span></label>
+                                            <input type="text" id="parent_guardian_first_name" name="parent_guardian_first_name" class="form-control" maxlength="100" placeholder="e.g., Juan">
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label>Parent / Guardian Middle Name</label>
+                                            <input type="text" id="parent_guardian_middle_name" name="parent_guardian_middle_name" class="form-control" maxlength="100" placeholder="e.g., Santos (optional)">
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label>Parent / Guardian Last Name <span class="text-danger">*</span></label>
+                                            <input type="text" id="parent_guardian_last_name" name="parent_guardian_last_name" class="form-control" maxlength="100" placeholder="e.g., Dela Cruz">
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label>Parent / Guardian Suffix</label>
+                                            <input type="text" id="parent_guardian_suffix" name="parent_guardian_suffix" class="form-control" maxlength="20" placeholder="e.g., Jr., Sr., III (optional)">
+                                            <small class="text-muted">Required for Child or Grandchild relationship.</small>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <h6 class="text-secondary mb-3">Special Categories (Optional)</h6>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="is_senior_citizen" id="is_senior" value="1">
+                                                <label class="form-check-label" for="is_senior">Senior Citizen (60+)</label>
+                                                <small class="d-block text-muted">Auto-validated by birth date</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="is_pwd" id="is_pwd" value="1">
+                                                <label class="form-check-label" for="is_pwd">PWD</label>
+                                            </div>
+                                            <input type="text" name="pwd_id_number" class="form-control mt-1" placeholder="PWD ID No." maxlength="30" style="display:none" id="pwdIdField">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="is_solo_parent" id="is_solo" value="1">
+                                                <label class="form-check-label" for="is_solo">Solo Parent</label>
+                                            </div>
+                                            <input type="text" name="solo_parent_id_number" class="form-control mt-1" placeholder="Solo Parent ID No." maxlength="30" style="display:none" id="soloIdField">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="is_ip_member" id="is_ip" value="1">
+                                                <label class="form-check-label" for="is_ip">IP Member</label>
+                                            </div>
+                                            <input type="text" name="ip_group" class="form-control mt-1" placeholder="IP Group" maxlength="80" style="display:none" id="ipGroupField">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="is_4ps_beneficiary" id="is_4ps" value="1">
+                                                <label class="form-check-label" for="is_4ps">4Ps Beneficiary</label>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -617,7 +709,7 @@ $barangay219_purok_options = [
                         <div class="step-content" data-step="3">
                             <div class="step-header">
                                 <div class="step-title">Phase 3: Contact & Residency</div>
-                                <div class="step-counter">Step 3 of 5</div>
+                                <div class="step-counter">Step 3 of 4</div>
                             </div>
                             <div class="card section-card mb-4">
                                 <div class="card-body">
@@ -671,18 +763,18 @@ $barangay219_purok_options = [
                                             <label>City / Municipality</label>
                                             <input type="text" class="form-control" value="<?php echo htmlspecialchars($city); ?>" readonly>
                                         </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label>Residency (Months)</label>
-                                            <select name="residency_months" id="residency_months" class="form-select">
-                                                <option value="">Months</option>
-                                            </select>
-                                            <div class="invalid-feedback">Minimum residency requirement is 6 months.</div>
+                                        <div class="col-md-6 mb-3">
+                                            <label>Date of Residency Start <span class="text-danger">*</span></label>
+                                            <input type="text" name="residency_start_date" id="residency_start_date" class="form-control" placeholder="Select date" required>
+                                            <small class="text-muted">Minimum residency requirement is 6 months.</small>
+                                            <div class="invalid-feedback">Valid residency start date is required (minimum 6 months ago).</div>
                                         </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label>Residency (Years)</label>
-                                            <select name="residency_years" id="residency_years" class="form-select">
-                                                <option value="">Years</option>
-                                            </select>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label>Computed Length of Residency</label>
+                                            <input type="text" id="computed_residency_display" class="form-control" readonly placeholder="Will be computed automatically">
+                                            <small class="text-muted">Years and months calculated from residency start date.</small>
                                         </div>
                                     </div>
                                     <input type="hidden" name="length_of_residency_years" id="length_of_residency_years" value="">
@@ -722,93 +814,11 @@ $barangay219_purok_options = [
                             </div>
                         </div>
 
-                        <!-- Step 4: Employment & Background -->
+                        <!-- Step 4: Review & Submit -->
                         <div class="step-content" data-step="4">
                             <div class="step-header">
-                                <div class="step-title">Phase 4: Employment &amp; Background</div>
-                                <div class="step-counter">Step 4 of 5</div>
-                            </div>
-                            <div class="card section-card mb-4">
-                                <div class="card-body">
-                                    <h6 class="text-secondary mb-3">Education & Employment</h6>
-                                    <div class="row">
-                                        <div class="col-md-4 mb-3">
-                                            <label>Educational Attainment</label>
-                                            <select name="educational_attainment" class="form-select">
-                                                <option value="">Select</option>
-                                                <option value="Elementary">Elementary</option>
-                                                <option value="High School">High School</option>
-                                                <option value="Vocational">Vocational</option>
-                                                <option value="College">College</option>
-                                                <option value="Postgraduate">Postgraduate</option>
-                                                <option value="None">None</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label>Employment Status</label>
-                                            <select name="employment_status" class="form-select">
-                                                <option value="">Select</option>
-                                                <option value="Employed">Employed</option>
-                                                <option value="Self-employed">Self-employed</option>
-                                                <option value="Unemployed">Unemployed</option>
-                                                <option value="Student">Student</option>
-                                                <option value="Retired">Retired</option>
-                                                <option value="OFW">OFW</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label>Occupation</label>
-                                            <input type="text" name="occupation" class="form-control" maxlength="80">
-                                        </div>
-                                    </div>
-                                    <hr>
-                                    <h6 class="text-secondary mb-3">Special Categories (Optional)</h6>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="is_senior_citizen" id="is_senior" value="1">
-                                                <label class="form-check-label" for="is_senior">Senior Citizen (60+)</label>
-                                                <small class="d-block text-muted">Auto-validated by birth date</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="is_pwd" id="is_pwd" value="1">
-                                                <label class="form-check-label" for="is_pwd">PWD</label>
-                                            </div>
-                                            <input type="text" name="pwd_id_number" class="form-control mt-1" placeholder="PWD ID No." maxlength="30" style="display:none" id="pwdIdField">
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="is_solo_parent" id="is_solo" value="1">
-                                                <label class="form-check-label" for="is_solo">Solo Parent</label>
-                                            </div>
-                                            <input type="text" name="solo_parent_id_number" class="form-control mt-1" placeholder="Solo Parent ID No." maxlength="30" style="display:none" id="soloIdField">
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="is_ip_member" id="is_ip" value="1">
-                                                <label class="form-check-label" for="is_ip">IP Member</label>
-                                            </div>
-                                            <input type="text" name="ip_group" class="form-control mt-1" placeholder="IP Group" maxlength="80" style="display:none" id="ipGroupField">
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="is_4ps_beneficiary" id="is_4ps" value="1">
-                                                <label class="form-check-label" for="is_4ps">4Ps Beneficiary</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <hr>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Step 5: Review & Submit -->
-                        <div class="step-content" data-step="5">
-                            <div class="step-header">
-                                <div class="step-title">Phase 5: Review &amp; Submit</div>
-                                <div class="step-counter">Step 5 of 5</div>
+                                <div class="step-title">Phase 4: Review &amp; Submit</div>
+                                <div class="step-counter">Step 4 of 4</div>
                             </div>
                             <div class="note-box mb-3" style="border-left:4px solid #1d4ed8;">
                                 <i class="bi bi-pencil-square me-1 text-primary"></i>
@@ -865,7 +875,7 @@ $barangay219_purok_options = [
 
                         <!-- Navigation Buttons -->
                         <div class="btn-navigation">
-                            <a href="<?php echo BASE_URL; ?>home.php" class="btn btn-outline-secondary">Back to Home</a>
+                            <a href="<?php echo BASE_URL; ?>login.php" class="btn btn-outline-secondary">Cancel</a>
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-outline-secondary" id="prevBtn" style="display: none;">Back</button>
                                 <button type="button" class="btn btn-primary" id="nextBtn">Next</button>
@@ -918,7 +928,7 @@ window.addEventListener('DOMContentLoaded', function () {
 window.API_URL = '<?php echo addslashes(API_URL); ?>';
 
 let currentStep = 1;
-const totalSteps = 5;
+const totalSteps = 4;
 let isRegisterSubmitting = false;
 
 // Phase 1 name validation - letters, hyphens, apostrophes, periods only (no spaces)
@@ -936,7 +946,7 @@ phase1NameFields.forEach(fieldName => {
 });
 
 // Other text name-like fields - letters, spaces, hyphens, apostrophes, periods only
-const nameFields = ['place_of_birth', 'citizenship', 'emergency_contact_name', 'emergency_contact_relationship', 'occupation', 'ip_group', 'street', 'purok_sitio', 'father_name', 'mother_name'];
+const nameFields = ['place_of_birth', 'citizenship', 'emergency_contact_name', 'emergency_contact_relationship', 'occupation', 'ip_group', 'street', 'purok_sitio', 'parent_guardian_first_name', 'parent_guardian_middle_name', 'parent_guardian_last_name', 'parent_guardian_suffix'];
 nameFields.forEach(fieldName => {
     const field = document.querySelector(`input[name="${fieldName}"]`);
     if (field) {
@@ -1118,67 +1128,112 @@ if (birthDateField) {
     }
 }
 
-// Residency selectors (Years + Months) and hidden backend value
-function initializeResidencySelectors() {
-    const yearsSelect = document.getElementById('residency_years');
-    const monthsSelect = document.getElementById('residency_months');
-    if (!yearsSelect || !monthsSelect) return;
+// Residency date picker - Phase 3 with computed values
+function initializeResidencyDatePicker() {
+    const startDateField = document.getElementById('residency_start_date');
+    if (!startDateField) return;
 
-    for (let y = 0; y <= 100; y++) {
-        const opt = document.createElement('option');
-        opt.value = String(y);
-        opt.textContent = String(y);
-        yearsSelect.appendChild(opt);
-    }
-
-    for (let m = 0; m <= 11; m++) {
-        const opt = document.createElement('option');
-        opt.value = String(m);
-        opt.textContent = String(m);
-        monthsSelect.appendChild(opt);
+    // Initialize flatpickr if available, otherwise use HTML5 date input
+    if (typeof flatpickr !== 'undefined') {
+        flatpickr(startDateField, {
+            altFormat: 'F j, Y',
+            dateFormat: 'Y-m-d',
+            maxDate: 'today',
+            allowInput: false,
+            monthSelectorType: 'dropdown',
+            animate: true,
+            disableMobile: false,
+            onChange: function(selectedDates, dateStr) {
+                computeResidencyDuration(dateStr);
+            }
+        });
+    } else {
+        startDateField.addEventListener('change', function() {
+            computeResidencyDuration(this.value);
+        });
     }
 }
 
-function syncResidencyYearsValue() {
-    const yearsSelect = document.getElementById('residency_years');
-    const monthsSelect = document.getElementById('residency_months');
+function computeResidencyDuration(startDateStr) {
+    const startDateField = document.getElementById('residency_start_date');
     const hiddenYears = document.getElementById('length_of_residency_years');
     const hiddenResidency = document.getElementById('length_of_residency');
-    if (!yearsSelect || !monthsSelect || !hiddenYears || !hiddenResidency) return;
+    const displayField = document.getElementById('computed_residency_display');
+    
+    if (!startDateField || !hiddenYears || !hiddenResidency || !displayField) return;
 
-    const yearsRaw = yearsSelect.value.trim();
-    const monthsRaw = monthsSelect.value.trim();
-    const years = yearsRaw === '' ? 0 : parseInt(yearsRaw, 10);
-    const months = monthsRaw === '' ? 0 : parseInt(monthsRaw, 10);
-
-    if (yearsRaw === '' && monthsRaw === '') {
+    if (!startDateStr || startDateStr.trim() === '') {
         hiddenYears.value = '';
         hiddenResidency.value = '';
+        displayField.value = '';
+        startDateField.classList.remove('is-valid', 'is-invalid');
         return;
     }
 
-    if (!Number.isFinite(years) || !Number.isFinite(months)) {
+    // Parse the start date
+    const startDate = new Date(startDateStr);
+    if (isNaN(startDate.getTime())) {
         hiddenYears.value = '';
         hiddenResidency.value = '';
+        displayField.value = 'Invalid date';
+        startDateField.classList.add('is-invalid');
         return;
     }
 
+    // Check if date is in the future
+    if (startDate > new Date()) {
+        hiddenYears.value = '';
+        hiddenResidency.value = '';
+        displayField.value = 'Date cannot be in the future';
+        startDateField.classList.remove('is-valid');
+        startDateField.classList.add('is-invalid');
+        return;
+    }
+
+    // Calculate duration
+    const today = new Date();
+    let years = today.getFullYear() - startDate.getFullYear();
+    let months = today.getMonth() - startDate.getMonth();
+
+    // Adjust if birthday hasn't occurred this year or month
+    if (months < 0) {
+        years--;
+        months += 12;
+    }
+
+    // Check if the day hasn't arrived in the current month
+    if (today.getDate() < startDate.getDate()) {
+        months--;
+        if (months < 0) {
+            years--;
+            months += 12;
+        }
+    }
+
+    // Check minimum 6 months requirement
+    const totalMonths = years * 12 + months;
+    const isValidResidency = totalMonths >= 6;
+
+    // Update hidden fields
     hiddenYears.value = (years + (months / 12)).toFixed(2);
     const yLabel = `${years} year${years === 1 ? '' : 's'}`;
     const mLabel = `${months} month${months === 1 ? '' : 's'}`;
     hiddenResidency.value = `${yLabel} ${mLabel}`;
+
+    // Update display field
+    displayField.value = `${yLabel} ${mLabel}`;
+
+    // Update validation state
+    if (isValidResidency) {
+        startDateField.classList.remove('is-invalid');
+        startDateField.classList.add('is-valid');
+    } else {
+        startDateField.classList.remove('is-valid');
+        startDateField.classList.add('is-invalid');
+    }
 }
 
-initializeResidencySelectors();
-
-const residencyYearsField = document.getElementById('residency_years');
-const residencyMonthsField = document.getElementById('residency_months');
-if (residencyYearsField && residencyMonthsField) {
-    ['change', 'input'].forEach(evt => {
-        residencyYearsField.addEventListener(evt, syncResidencyYearsValue);
-        residencyMonthsField.addEventListener(evt, syncResidencyYearsValue);
-    });
-}
+initializeResidencyDatePicker();
 
 // Toggle additional fields for special categories
 ['is_pwd','is_solo','is_ip'].forEach(id => {
@@ -1188,10 +1243,43 @@ if (residencyYearsField && residencyMonthsField) {
     });
 });
 
+function toggleParentGuardianField() {
+    const relationshipField = document.getElementById('relationship_to_head');
+    const parentGuardianRow = document.getElementById('parentGuardianRow');
+    const parentGuardianFirstNameField = document.getElementById('parent_guardian_first_name');
+    const parentGuardianMiddleNameField = document.getElementById('parent_guardian_middle_name');
+    const parentGuardianLastNameField = document.getElementById('parent_guardian_last_name');
+    const parentGuardianSuffixField = document.getElementById('parent_guardian_suffix');
+
+    if (!relationshipField || !parentGuardianRow || !parentGuardianFirstNameField || !parentGuardianMiddleNameField || !parentGuardianLastNameField || !parentGuardianSuffixField) {
+        return;
+    }
+
+    const relationship = (relationshipField.value || '').trim();
+    const needsParentGuardian = relationship === 'Child' || relationship === 'Grandchild';
+
+    parentGuardianRow.style.display = needsParentGuardian ? 'flex' : 'none';
+    parentGuardianFirstNameField.required = needsParentGuardian;
+    parentGuardianLastNameField.required = needsParentGuardian;
+
+    if (!needsParentGuardian) {
+        parentGuardianFirstNameField.value = '';
+        parentGuardianMiddleNameField.value = '';
+        parentGuardianLastNameField.value = '';
+        parentGuardianSuffixField.value = '';
+        parentGuardianFirstNameField.classList.remove('is-invalid');
+        parentGuardianLastNameField.classList.remove('is-invalid');
+    }
+}
+
 function toggleHouseholdTypeField() {
     const householdRoleField = document.querySelector('select[name="household_role"]');
     const householdTypeRow = document.getElementById('householdTypeRow');
     const householdTypeField = document.getElementById('household_type');
+    const householdMembersRow = document.getElementById('householdMembersRow');
+    const householdMembersField = document.querySelector('input[name="household_members"]');
+    const householdIncomeRow = document.getElementById('householdIncomeRow');
+    const householdIncomeField = document.getElementById('household_income');
     const familyCodeField = document.getElementById('family_code');
     const relationshipField = document.getElementById('relationship_to_head');
     const familyCodeRequiredMark = document.getElementById('familyCodeRequiredMark');
@@ -1199,7 +1287,7 @@ function toggleHouseholdTypeField() {
     const familyCodeHelpText = document.getElementById('familyCodeHelpText');
     const relationshipHelpText = document.getElementById('relationshipHelpText');
 
-    if (!householdRoleField || !householdTypeRow || !householdTypeField || !familyCodeField || !relationshipField) {
+    if (!householdRoleField || !householdTypeRow || !householdTypeField || !householdMembersRow || !householdMembersField || !householdIncomeRow || !householdIncomeField || !familyCodeField || !relationshipField) {
         return;
     }
 
@@ -1213,10 +1301,27 @@ function toggleHouseholdTypeField() {
     const isMemberOfHousehold = householdRoleField.value === 'Member of Household';
     householdTypeRow.style.display = isHeadOfHousehold ? 'flex' : 'none';
     householdTypeField.required = isHeadOfHousehold;
+    householdMembersRow.style.display = isHeadOfHousehold ? 'flex' : 'none';
+    householdMembersField.required = isHeadOfHousehold;
+    householdIncomeRow.style.display = isHeadOfHousehold ? 'flex' : 'none';
+    householdIncomeField.required = isHeadOfHousehold;
 
     if (!isHeadOfHousehold) {
         householdTypeField.value = '';
         householdTypeField.classList.remove('is-invalid');
+        householdMembersField.value = '';
+        householdMembersField.classList.remove('is-invalid');
+        householdIncomeField.value = '';
+        householdIncomeField.classList.remove('is-invalid');
+        const incomePerMemberField = document.getElementById('income_per_member');
+        const economicClassificationField = document.getElementById('economic_classification');
+        const economicClassificationBadge = document.getElementById('economic_classification_badge');
+        if (incomePerMemberField) incomePerMemberField.value = '';
+        if (economicClassificationField) economicClassificationField.value = '';
+        if (economicClassificationBadge) {
+            economicClassificationBadge.className = 'badge bg-secondary';
+            economicClassificationBadge.textContent = 'Pending';
+        }
     }
 
     familyCodeField.required = isMemberOfHousehold;
@@ -1260,12 +1365,72 @@ function toggleHouseholdTypeField() {
         if (familyCodeHelpText) familyCodeHelpText.textContent = 'Select a household role first.';
         if (relationshipHelpText) relationshipHelpText.textContent = 'Select a household role first.';
     }
+
+    toggleParentGuardianField();
+    computeHouseholdIncomeClassification();
+}
+
+function computeHouseholdIncomeClassification() {
+    const threshold = 12000;
+    const householdRoleField = document.querySelector('select[name="household_role"]');
+    const membersField = document.querySelector('input[name="household_members"]');
+    const incomeField = document.getElementById('household_income');
+    const incomePerMemberField = document.getElementById('income_per_member');
+    const economicClassificationField = document.getElementById('economic_classification');
+    const economicClassificationBadge = document.getElementById('economic_classification_badge');
+
+    if (!householdRoleField || !membersField || !incomeField || !incomePerMemberField || !economicClassificationField || !economicClassificationBadge) {
+        return;
+    }
+
+    if (householdRoleField.value !== 'Head of Household') {
+        incomePerMemberField.value = '';
+        economicClassificationField.value = '';
+        economicClassificationBadge.className = 'badge bg-secondary';
+        economicClassificationBadge.textContent = 'Pending';
+        return;
+    }
+
+    const members = parseInt(membersField.value, 10);
+    const totalIncome = parseFloat(incomeField.value);
+    if (!Number.isFinite(members) || members <= 0 || !Number.isFinite(totalIncome) || totalIncome < 0) {
+        incomePerMemberField.value = '';
+        economicClassificationField.value = '';
+        economicClassificationBadge.className = 'badge bg-secondary';
+        economicClassificationBadge.textContent = 'Pending';
+        return;
+    }
+
+    const incomePerMember = totalIncome / members;
+    const classification = incomePerMember < threshold ? 'Indigent' : 'Non-Indigent';
+
+    incomePerMemberField.value = `PHP ${incomePerMember.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    economicClassificationField.value = classification;
+    economicClassificationBadge.className = classification === 'Indigent' ? 'badge bg-warning text-dark' : 'badge bg-success';
+    economicClassificationBadge.textContent = classification;
 }
 
 const householdRoleField = document.querySelector('select[name="household_role"]');
 if (householdRoleField) {
     householdRoleField.addEventListener('change', toggleHouseholdTypeField);
     toggleHouseholdTypeField();
+}
+
+const relationshipToHeadField = document.getElementById('relationship_to_head');
+if (relationshipToHeadField) {
+    relationshipToHeadField.addEventListener('change', toggleParentGuardianField);
+    relationshipToHeadField.addEventListener('input', toggleParentGuardianField);
+    toggleParentGuardianField();
+}
+
+const householdIncomeField = document.getElementById('household_income');
+if (householdMembersField) {
+    householdMembersField.addEventListener('input', computeHouseholdIncomeClassification);
+    householdMembersField.addEventListener('change', computeHouseholdIncomeClassification);
+}
+if (householdIncomeField) {
+    householdIncomeField.addEventListener('input', computeHouseholdIncomeClassification);
+    householdIncomeField.addEventListener('change', computeHouseholdIncomeClassification);
 }
 
 // Step navigation
@@ -1354,7 +1519,24 @@ function validateStep(step) {
     }
 
     if (step === 3) {
-        syncResidencyYearsValue();
+        // Validate residency start date
+        const startDateField = document.getElementById('residency_start_date');
+        const startDateValue = startDateField.value.trim();
+        startDateField.setCustomValidity('');
+
+        if (!startDateValue) {
+            startDateField.classList.add('is-invalid');
+            startDateField.setCustomValidity('Residency start date is required.');
+            isValid = false;
+        } else {
+            // Recalculate to validate
+            computeResidencyDuration(startDateValue);
+            
+            // Check if field has invalid class after computation
+            if (startDateField.classList.contains('is-invalid')) {
+                isValid = false;
+            }
+        }
 
         // Validate mobile number format
         const mobile = document.querySelector('input[name="mobile_number"]');
@@ -1376,36 +1558,6 @@ function validateStep(step) {
             email.classList.add('is-invalid');
             isValid = false;
         }
-
-        // Require at least 6 months total residency
-        const yearsField = document.querySelector('select[name="residency_years"]');
-        const monthsField = document.querySelector('select[name="residency_months"]');
-        const yearsRaw = yearsField.value.trim();
-        const monthsRaw = monthsField.value.trim();
-        const years = yearsRaw === '' ? 0 : parseInt(yearsRaw, 10);
-        const months = monthsRaw === '' ? 0 : parseInt(monthsRaw, 10);
-        yearsField.setCustomValidity('');
-        monthsField.setCustomValidity('');
-
-        if (yearsRaw === '' && monthsRaw === '') {
-            monthsField.classList.add('is-invalid');
-            monthsField.setCustomValidity('Please select your residency length.');
-            isValid = false;
-        } else if (Number.isFinite(years) && Number.isFinite(months)) {
-            const totalMonths = (years * 12) + months;
-            if (totalMonths < 6) {
-                monthsField.classList.add('is-invalid');
-                monthsField.setCustomValidity('Minimum residency requirement is 6 months.');
-                isValid = false;
-            } else {
-                monthsField.classList.remove('is-invalid');
-                monthsField.setCustomValidity('');
-            }
-        } else {
-            monthsField.classList.add('is-invalid');
-            monthsField.setCustomValidity('Please select a valid residency length.');
-            isValid = false;
-        }
     }
 
     const roleField = document.querySelector('select[name="household_role"]');
@@ -1419,6 +1571,28 @@ function validateStep(step) {
         } else {
             householdTypeField.classList.remove('is-invalid');
         }
+
+        const householdMembersFieldForValidation = document.querySelector('input[name="household_members"]');
+        const householdIncomeFieldForValidation = document.getElementById('household_income');
+        if (householdMembersFieldForValidation) {
+            const membersValue = parseInt(householdMembersFieldForValidation.value, 10);
+            if (!Number.isFinite(membersValue) || membersValue <= 0) {
+                householdMembersFieldForValidation.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                householdMembersFieldForValidation.classList.remove('is-invalid');
+            }
+        }
+        if (householdIncomeFieldForValidation) {
+            const incomeValue = parseFloat(householdIncomeFieldForValidation.value);
+            if (!Number.isFinite(incomeValue) || incomeValue < 0) {
+                householdIncomeFieldForValidation.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                householdIncomeFieldForValidation.classList.remove('is-invalid');
+            }
+        }
+        computeHouseholdIncomeClassification();
 
         if (familyCodeField && !/^BR219-\d{4}-\d{4}$/i.test((familyCodeField.value || '').trim())) {
             familyCodeField.classList.add('is-invalid');
@@ -1443,6 +1617,24 @@ function validateStep(step) {
                 isValid = false;
             } else {
                 relationshipField.classList.remove('is-invalid');
+            }
+
+            const parentGuardianFirstNameField = document.getElementById('parent_guardian_first_name');
+            const parentGuardianLastNameField = document.getElementById('parent_guardian_last_name');
+            if ((rel === 'Child' || rel === 'Grandchild') && parentGuardianFirstNameField && parentGuardianLastNameField) {
+                if (!parentGuardianFirstNameField.value.trim()) {
+                    parentGuardianFirstNameField.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    parentGuardianFirstNameField.classList.remove('is-invalid');
+                }
+
+                if (!parentGuardianLastNameField.value.trim()) {
+                    parentGuardianLastNameField.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    parentGuardianLastNameField.classList.remove('is-invalid');
+                }
             }
         }
     }
@@ -1475,10 +1667,15 @@ function populateReview() {
                 { name: 'household_role', label: 'Household Role' },
                 { name: 'household_type', label: 'Household Type' },
                 { name: 'household_members', label: 'No. of Household Members' },
-                { name: 'father_name', label: "Father's Name" },
-                { name: 'mother_name', label: "Mother's Name" },
+                { name: 'household_income', label: 'Total Household Income (Monthly)' },
+                { name: 'income_per_member', label: 'Income per Family Member' },
+                { name: 'economic_classification', label: 'Economic Classification' },
                 { name: 'family_code', label: 'Family Code' },
-                { name: 'relationship_to_head', label: 'Relationship to Head' }
+                { name: 'relationship_to_head', label: 'Relationship to Head' },
+                { name: 'parent_guardian_first_name', label: 'Parent / Guardian First Name' },
+                { name: 'parent_guardian_middle_name', label: 'Parent / Guardian Middle Name' },
+                { name: 'parent_guardian_last_name', label: 'Parent / Guardian Last Name' },
+                { name: 'parent_guardian_suffix', label: 'Parent / Guardian Suffix' }
             ]
         },
         {
@@ -1489,8 +1686,7 @@ function populateReview() {
                 { name: 'house_number', label: 'House No.' },
                 { name: 'street', label: 'Street' },
                 { name: 'purok_sitio', label: 'Purok / Sitio' },
-                { name: 'residency_years', label: 'Residency (Years)' },
-                { name: 'residency_months', label: 'Residency (Months)' },
+                { name: 'residency_start_date', label: 'Date of Residency Start' },
                 { name: 'emergency_contact_name', label: 'Emergency Contact Name' },
                 { name: 'emergency_contact_number', label: 'Emergency Contact Number' },
                 { name: 'emergency_contact_relationship', label: 'Emergency Contact Relationship' }
@@ -1543,11 +1739,14 @@ function populateReview() {
                 cloned.addEventListener(evt, function () {
                     const orig = document.querySelector(`[name="${this.dataset.field}"]`);
                     if (orig) orig.value = this.value;
-                    if (this.dataset.field === 'residency_years' || this.dataset.field === 'residency_months') {
-                        syncResidencyYearsValue();
+                    if (this.dataset.field === 'residency_start_date') {
+                        computeResidencyDuration(this.value);
                     }
                     if (this.dataset.field === 'household_role') {
                         toggleHouseholdTypeField();
+                    }
+                    if (this.dataset.field === 'relationship_to_head') {
+                        toggleParentGuardianField();
                     }
                 });
             });
@@ -1605,8 +1804,8 @@ document.getElementById('registerForm').addEventListener('submit', async functio
             btn.style.display = 'none';
             document.getElementById('nextBtn').style.display = 'none';
             document.getElementById('prevBtn').style.display = 'none';
-            const finalStepContent = document.querySelector('.step-content[data-step="5"]');
-            const finalStepIndicator = document.querySelector('.step[data-step="5"]');
+            const finalStepContent = document.querySelector('.step-content[data-step="4"]');
+            const finalStepIndicator = document.querySelector('.step[data-step="4"]');
             if (finalStepContent) finalStepContent.style.display = 'none';
             if (finalStepIndicator) finalStepIndicator.style.display = 'none';
         } else {
