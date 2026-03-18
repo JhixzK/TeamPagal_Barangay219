@@ -524,19 +524,24 @@ if ($household_role === 'Head of Household') {
         $errors[] = 'Total household income is required and must be non-negative for household heads.';
     }
 } elseif ($household_role === 'Member of Household') {
-    if ($family_code === '') {
-        $errors[] = 'Family Code is required for Member of Household.';
-    } elseif (!preg_match('/^BR219-\d{4}-\d{4}$/i', $family_code)) {
-        $errors[] = 'Invalid Family Code format. Use BR219-YYYY-XXXX.';
+    // Family code is optional during registration.
+    // If provided, validate format and (optionally) ensure it matches a valid household head code.
+    if ($family_code !== '') {
+        if (!preg_match('/^BR219-\d{4}-\d{4}$/i', $family_code)) {
+            $errors[] = 'Invalid Family Code format. Use BR219-YYYY-XXXX.';
+        } else {
+            $matchedHousehold = resolveHouseholdByFamilyCode($db, $family_code);
+            if (!$matchedHousehold) {
+                $errors[] = 'Family Code was not found or is not linked to a valid household head.';
+            }
+        }
     }
 
-    if ($relationship_to_head === '' || strtolower($relationship_to_head) === 'head') {
-        $errors[] = 'Relationship to Head is required for household members.';
-    }
-
-    $matchedHousehold = resolveHouseholdByFamilyCode($db, $family_code);
-    if (!$matchedHousehold) {
-        $errors[] = 'Family Code was not found or is not linked to a valid household head.';
+    // Relationship is optional during registration.
+    // If provided and it looks like "Head", block it since members shouldn't declare themselves as Head.
+    $relLower = strtolower(trim((string)$relationship_to_head));
+    if ($relLower !== '' && $relLower === 'head') {
+        $errors[] = 'Relationship to Head cannot be "Head" for household members.';
     }
 } else {
     $errors[] = 'Please select a valid household role.';
