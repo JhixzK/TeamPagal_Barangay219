@@ -224,7 +224,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 <div class="small text-muted" id="assignHouseholdRoleHint">Role will be detected from the approved application.</div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary" id="btnAssignHousehold">
                     <i class="bi bi-house-check"></i> Assign
                 </button>
