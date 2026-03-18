@@ -616,16 +616,44 @@ function joinAsMember($residentId, $data) {
     $headColumn = householdHeadColumn();
     $dateColumn = householdMemberDateColumn();
 
-    // Prefer new sharing code (FH-XXXXX). Fall back to legacy family_code if provided.
+    // Prefer selected resident-level head code (FH-XXXXX). Fall back to household-level legacy fields.
     $household = null;
+    $selectedHeadResidentId = 0;
     if ($familyHeadCode !== '') {
-        $household = $db->fetchOne(
-            "SELECT id, family_code, family_head_code, `{$headColumn}` AS family_head_id
-             FROM households
-             WHERE UPPER(COALESCE(family_head_code,'')) = ?
-             LIMIT 1",
-            [$familyHeadCode]
-        );
+        if (columnExists($db, 'residents', 'family_head_code')) {
+            $selectedHead = $db->fetchOne(
+                "SELECT id, household_id
+                 FROM residents
+                 WHERE UPPER(COALESCE(family_head_code,'')) = ?
+                 LIMIT 1",
+                [$familyHeadCode]
+            );
+            if ($selectedHead) {
+                $selectedHeadResidentId = (int)($selectedHead['id'] ?? 0);
+                $selectedHeadHouseholdId = (int)($selectedHead['household_id'] ?? 0);
+                if ($selectedHeadHouseholdId > 0) {
+                    $household = $db->fetchOne(
+                        "SELECT id, family_code, family_head_code, `{$headColumn}` AS family_head_id
+                         FROM households
+                         WHERE id = ?
+                         LIMIT 1",
+                        [$selectedHeadHouseholdId]
+                    );
+                } else {
+                    householdJsonResponse(false, null, 'Selected family head is not linked to a household', 400);
+                }
+            }
+        }
+
+        if (!$household) {
+            $household = $db->fetchOne(
+                "SELECT id, family_code, family_head_code, `{$headColumn}` AS family_head_id
+                 FROM households
+                 WHERE UPPER(COALESCE(family_head_code,'')) = ?
+                 LIMIT 1",
+                [$familyHeadCode]
+            );
+        }
     }
     if (!$household && $familyCode !== '') {
         $household = $db->fetchOne(
@@ -688,12 +716,22 @@ function joinAsMember($residentId, $data) {
         }
 
         $db->query('UPDATE residents SET household_id = ? WHERE id = ?', [$householdId, $residentId]);
+
+        if (columnExists($db, 'residents', 'family_head_code')) {
+            // Members should not hold a head code; keep this null to avoid being treated as a head account.
+            $db->query('UPDATE residents SET family_head_code = NULL WHERE id = ?', [$residentId]);
+        }
+        if (columnExists($db, 'residents', 'family_code') && !empty($household['family_code'])) {
+            $db->query('UPDATE residents SET family_code = ? WHERE id = ?', [$household['family_code'], $residentId]);
+        }
+
         logHouseholdHistory($householdId, 'Member Added', 'Resident joined household via family code', $residentId);
 
         $db->commit();
         householdJsonResponse(true, [
             'household_id' => $householdId,
-            'family_head_code' => (string)($household['family_head_code'] ?? ''),
+            'selected_head_resident_id' => $selectedHeadResidentId > 0 ? $selectedHeadResidentId : null,
+            'family_head_code' => $familyHeadCode !== '' ? $familyHeadCode : (string)($household['family_head_code'] ?? ''),
             'family_code' => (string)($household['family_code'] ?? '')
         ], 'Joined household successfully');
     } catch (Exception $e) {
