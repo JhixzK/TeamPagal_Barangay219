@@ -396,10 +396,16 @@ function deleteOfficial() {
     }
     try {
         $db = Database::getInstance();
-        $existing = $db->fetchOne("SELECT id FROM officials WHERE id = ?", [$id]);
+        $existing = $db->fetchOne("SELECT id, position FROM officials WHERE id = ?", [$id]);
         if (!$existing) {
             sendResponse(false, 'Official not found', null, 404);
         }
+
+        $position = normalizePosition($existing['position'] ?? '');
+        if ($position === 'barangay_captain' && !isSuperAdmin()) {
+            sendResponse(false, 'Only Super Admin can remove the Punong Barangay (Captain).', null, 403);
+        }
+
         // Soft delete: set inactive
         $db->query("UPDATE officials SET status = 'inactive' WHERE id = ?", [$id]);
         sendResponse(true, 'Official removed', null);
