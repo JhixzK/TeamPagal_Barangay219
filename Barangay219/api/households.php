@@ -23,6 +23,11 @@ switch ($action) {
     case 'get':
         getHousehold();
         break;
+
+    // Return possible family-head choices for a household (distinct FH codes).
+    case 'family_heads':
+        listFamilyHeads();
+        break;
     
     case 'create':
         if (!canPerformModulePermission('households', 'can_create')) {
@@ -78,6 +83,106 @@ switch ($action) {
         break;
 }
 
+/**
+ * List distinct family-head options inside a household.
+ * Used when assigning a member to a household that already has multiple heads.
+ */
+function listFamilyHeads() {
+    $householdId = intval($_GET['household_id'] ?? $_POST['household_id'] ?? 0);
+    if ($householdId <= 0) {
+        sendResponse(false, 'household_id is required', null, 400);
+        return;
+    }
+
+    $db = Database::getInstance();
+
+    if (!tableExists($db, 'residents')) {
+        sendResponse(false, 'Residents table missing', null, 500);
+        return;
+    }
+
+    if (!columnExists($db, 'residents', 'family_head_code')) {
+        sendResponse(true, 'No family_head_code column in residents', []);
+        return;
+    }
+
+    $hasFamilyCode = columnExists($db, 'residents', 'family_code');
+    $hasRelationship = columnExists($db, 'residents', 'relationship_to_head');
+    $hasHouseholdRole = columnExists($db, 'residents', 'household_role');
+
+    $selectCols = [
+        'id',
+        'first_name',
+        'middle_name',
+        'last_name',
+        'suffix',
+        'family_head_code'
+    ];
+    if ($hasFamilyCode) $selectCols[] = 'family_code';
+    if ($hasRelationship) $selectCols[] = 'relationship_to_head';
+    if ($hasHouseholdRole) $selectCols[] = 'household_role';
+
+    $sql = "SELECT " . implode(', ', $selectCols) . "
+            FROM residents
+            WHERE household_id = ?
+              AND family_head_code IS NOT NULL
+              AND TRIM(family_head_code) <> ''
+              AND TRIM(family_head_code) <> '-'";
+
+    $rows = $db->fetchAll($sql, [$householdId]);
+    if (!$rows) {
+        sendResponse(true, 'Family heads retrieved', []);
+        return;
+    }
+
+    // Group by family_head_code and pick a representative head for each code.
+    $groups = [];
+    foreach ($rows as $r) {
+        $code = trim((string)($r['family_head_code'] ?? ''));
+        if ($code === '' || $code === '-') continue;
+
+        if (!isset($groups[$code])) {
+            $groups[$code] = [];
+        }
+        $groups[$code][] = $r;
+    }
+
+    $heads = [];
+    foreach ($groups as $code => $groupRows) {
+        $pick = null;
+        foreach ($groupRows as $r) {
+            $rel = $hasRelationship ? strtolower(trim((string)($r['relationship_to_head'] ?? ''))) : '';
+            $role = $hasHouseholdRole ? strtolower(trim((string)($r['household_role'] ?? ''))) : '';
+            $isHead = (strpos($rel, 'head') !== false) || (strpos($role, 'head') !== false);
+            if ($isHead) {
+                $pick = $r;
+                break;
+            }
+        }
+        if (!$pick) {
+            $pick = $groupRows[0];
+        }
+
+        $last = (string)($pick['last_name'] ?? '');
+        $first = (string)($pick['first_name'] ?? '');
+        $middle = (string)($pick['middle_name'] ?? '');
+        $name = trim($last . ', ' . $first . ' ' . $middle);
+
+        $heads[] = [
+            'resident_id' => (int)($pick['id'] ?? 0),
+            'name' => $name,
+            'family_head_code' => $code,
+            'family_code' => $hasFamilyCode ? ($pick['family_code'] ?? null) : null
+        ];
+    }
+
+    usort($heads, function($a, $b) {
+        return strcmp((string)($a['family_head_code'] ?? ''), (string)($b['family_head_code'] ?? ''));
+    });
+
+    sendResponse(true, 'Family heads retrieved', $heads);
+}
+
 function generateUniqueHouseholdCode($db) {
     // HH-XXXXXX (6 digits)
     for ($i = 0; $i < 20; $i++) {
@@ -124,6 +229,17 @@ function columnExists($db, $table, $column) {
            AND table_name = ?
            AND column_name = ?",
         [$table, $column]
+    );
+    return !empty($row) && (int)$row['cnt'] > 0;
+}
+
+function tableExists($db, $table) {
+    $row = $db->fetchOne(
+        "SELECT COUNT(*) AS cnt
+         FROM information_schema.tables
+         WHERE table_schema = DATABASE()
+           AND table_name = ?",
+        [$table]
     );
     return !empty($row) && (int)$row['cnt'] > 0;
 }
@@ -334,9 +450,103 @@ function getHousehold() {
         // Reload so UI gets updated code values.
         $household = $db->fetchOne($sql, [$id]);
 
-        // Get household members
+        // Get household members (residents table is also used for remove-member actions).
         $membersSql = "SELECT * FROM residents WHERE household_id = ? ORDER BY birth_date";
         $members = $db->fetchAll($membersSql, [$id]);
+
+        // If `household_members` exists, enrich each resident with head/member flags.
+        // Note: `household_members` in this project does NOT store `resident_id`, so we match
+        // using name + birth date (+ optionally contact) to find the corresponding row.
+        if (tableExists($db, 'household_members') && !empty($members)) {
+            $hmMembersSql = "SELECT id, first_name, middle_name, last_name, suffix,
+                                     relationship_to_head, date_of_birth, is_head, contact_number
+                              FROM household_members
+                              WHERE household_id = ?";
+            $hmMembers = $db->fetchAll($hmMembersSql, [$id]);
+
+            $normalizeStr = function($v) {
+                return strtolower(trim((string)$v));
+            };
+            $normalizeDate = function($v) {
+                $s = trim((string)$v);
+                return $s;
+            };
+            $digits = function($v) {
+                return preg_replace('/\\D+/', '', (string)$v);
+            };
+
+            // Build lookup maps.
+            $mapPrimary = [];   // first|middle|last|dob
+            $mapSecondary = []; // first|last|dob
+            $mapContactDob = []; // contact|dob
+
+            foreach ($hmMembers as $hm) {
+                $dob = $normalizeDate($hm['date_of_birth'] ?? '');
+                $first = $normalizeStr($hm['first_name'] ?? '');
+                $middle = $normalizeStr($hm['middle_name'] ?? '');
+                $last = $normalizeStr($hm['last_name'] ?? '');
+                $suffix = $normalizeStr($hm['suffix'] ?? '');
+                $rel = (string)($hm['relationship_to_head'] ?? '');
+                $isHeadVal = $hm['is_head'] ?? 0;
+                $contact = $digits($hm['contact_number'] ?? '');
+
+                if ($first === '' || $last === '' || $dob === '') continue;
+
+                $keyPrimary = $first . '|' . ($middle ?: '') . '|' . $last . '|' . $dob . '|' . ($suffix ?: '');
+                $keySecondary = $first . '||' . $last . '|' . $dob . '|' . ($suffix ?: '');
+
+                // store the last match; usually unique enough
+                $mapPrimary[$keyPrimary] = ['is_head' => $isHeadVal, 'relationship_to_head' => $rel];
+                $mapSecondary[$keySecondary] = ['is_head' => $isHeadVal, 'relationship_to_head' => $rel];
+
+                if ($contact !== '') {
+                    $keyContact = $contact . '|' . $dob;
+                    $mapContactDob[$keyContact] = ['is_head' => $isHeadVal, 'relationship_to_head' => $rel];
+                }
+            }
+
+            // Enrich residents.
+            foreach ($members as &$m) {
+                $dob = $normalizeDate($m['birth_date'] ?? '');
+                $first = $normalizeStr($m['first_name'] ?? '');
+                $middle = $normalizeStr($m['middle_name'] ?? '');
+                $last = $normalizeStr($m['last_name'] ?? '');
+                $suffix = $normalizeStr($m['suffix'] ?? '');
+                $rel = null;
+                $isHeadVal = null;
+
+                if ($first !== '' && $last !== '' && $dob !== '') {
+                    $keyPrimary = $first . '|' . ($middle ?: '') . '|' . $last . '|' . $dob . '|' . ($suffix ?: '');
+                    $keySecondary = $first . '||' . $last . '|' . $dob . '|' . ($suffix ?: '');
+
+                    if (isset($mapPrimary[$keyPrimary])) {
+                        $rel = $mapPrimary[$keyPrimary]['relationship_to_head'] ?? null;
+                        $isHeadVal = $mapPrimary[$keyPrimary]['is_head'] ?? null;
+                    } elseif (isset($mapSecondary[$keySecondary])) {
+                        $rel = $mapSecondary[$keySecondary]['relationship_to_head'] ?? null;
+                        $isHeadVal = $mapSecondary[$keySecondary]['is_head'] ?? null;
+                    }
+                }
+
+                if ($isHeadVal === null) {
+                    // Try contact+dob matching as a fallback.
+                    $contact = $digits($m['mobile_number'] ?? ($m['contact_number'] ?? ''));
+                    if ($contact !== '' && $dob !== '') {
+                        $keyContact = $contact . '|' . $dob;
+                        if (isset($mapContactDob[$keyContact])) {
+                            $rel = $mapContactDob[$keyContact]['relationship_to_head'] ?? null;
+                            $isHeadVal = $mapContactDob[$keyContact]['is_head'] ?? null;
+                        }
+                    }
+                }
+
+                if ($isHeadVal !== null) {
+                    $m['hm_is_head'] = $isHeadVal;
+                    $m['hm_relationship_to_head'] = $rel;
+                }
+            }
+            unset($m);
+        }
         $household['members'] = $members;
         
         sendResponse(true, 'Household retrieved successfully', $household);
