@@ -509,6 +509,7 @@ function assignHouseholdToApprovedResident() {
     $appId = (int)($_POST['application_id'] ?? 0);
     $residentId = (int)($_POST['resident_id'] ?? 0);
     $householdId = (int)($_POST['household_id'] ?? 0);
+    $familyHeadResidentId = intval($_POST['family_head_resident_id'] ?? 0);
 
     if (!$appId || !$residentId || !$householdId) {
         sendResponse(false, 'application_id, resident_id, and household_id are required', null, 400);
@@ -560,9 +561,49 @@ function assignHouseholdToApprovedResident() {
         // Link resident into household
         $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $residentId]);
 
+        // If this approved resident is a member, copy family_code from head or household to group them.
+        // Do NOT copy family_head_code—it stays unique per head; only heads have it.
+        $isMissingCode = function($v) {
+            $s = trim((string)$v);
+            return $s === '' || $s === '-' || strtolower($s) === 'null' || strtolower($s) === 'n/a';
+        };
+
+        if (!$isHead) {
+            $hasResidentFamilyCode = columnExists($db, 'residents', 'family_code');
+            if ($hasResidentFamilyCode) {
+                $selectedFamilyCode = null;
+
+                if ($familyHeadResidentId > 0) {
+                    $headRow = $db->fetchOne("SELECT family_code FROM residents WHERE id = ? LIMIT 1", [$familyHeadResidentId]);
+                    $selectedFamilyCode = $headRow['family_code'] ?? null;
+                }
+                if ($isMissingCode($selectedFamilyCode)) {
+                    $hh = $db->fetchOne("SELECT family_code FROM households WHERE id = ? LIMIT 1", [$householdId]);
+                    $selectedFamilyCode = $hh['family_code'] ?? null;
+                }
+                if ($isMissingCode($selectedFamilyCode)) {
+                    $headRow = $db->fetchOne(
+                        "SELECT family_code FROM residents WHERE household_id = ? AND family_code IS NOT NULL AND TRIM(family_code) <> '' AND family_code <> '-' ORDER BY id DESC LIMIT 1",
+                        [$householdId]
+                    );
+                    $selectedFamilyCode = $headRow['family_code'] ?? null;
+                }
+
+                if (!$isMissingCode($selectedFamilyCode)) {
+                    $db->query("UPDATE residents SET family_code = ? WHERE id = ?", [$selectedFamilyCode, $residentId]);
+                }
+            }
+        }
+
         // If the approved application is for head of family, set as household head automatically.
         if ($isHead) {
-            $db->query("UPDATE households SET family_head_id = ? WHERE id = ?", [$residentId, $householdId]);
+            // Only set the single household.family_head_id if it's empty,
+            // so multiple heads can exist per household via resident-level codes.
+            $currentHeadId = $db->fetchOne("SELECT family_head_id FROM households WHERE id = ? LIMIT 1", [$householdId]);
+            $currentHeadIdVal = (int)($currentHeadId['family_head_id'] ?? 0);
+            if ($currentHeadIdVal <= 0) {
+                $db->query("UPDATE households SET family_head_id = ? WHERE id = ?", [$residentId, $householdId]);
+            }
             // Generate head/household codes if missing (schema tolerant).
             $householdCols = array_flip(getTableColumns($db, 'households'));
             if (isset($householdCols['household_id_code'])) {
@@ -588,6 +629,7 @@ function assignHouseholdToApprovedResident() {
                 );
             }
             if (isset($householdCols['family_code'])) {
+                $fc = generateUniqueFamilyCode($db);
                 $db->query(
                     "UPDATE households
                      SET family_code = CASE
@@ -595,8 +637,15 @@ function assignHouseholdToApprovedResident() {
                          ELSE family_code
                      END
                      WHERE id = ?",
-                    [generateUniqueFamilyCode($db), $householdId]
+                    [$fc, $householdId]
                 );
+                // Sync head resident's family_code so members assigned later group correctly.
+                if (columnExists($db, 'residents', 'family_code')) {
+                    $hh = $db->fetchOne("SELECT family_code FROM households WHERE id = ? LIMIT 1", [$householdId]);
+                    if ($hh && !empty(trim((string)($hh['family_code'] ?? '')))) {
+                        $db->query("UPDATE residents SET family_code = ? WHERE id = ?", [$hh['family_code'], $residentId]);
+                    }
+                }
             }
 
             // Auto-fill household address/registration when missing from head resident.
