@@ -129,7 +129,9 @@ function listResidents() {
         // Household code can be stored as households.household_id_code (preferred) or households.family_code (fallback).
         $hasHouseholdIdCode = columnExists($db, 'households', 'household_id_code');
         $hasFamilyCode = columnExists($db, 'households', 'family_code');
-        $hasFamilyHeadCode = columnExists($db, 'households', 'family_head_code');
+        $hasResidentFamilyHeadCode = columnExists($db, 'residents', 'family_head_code');
+        $hasHouseholdFamilyHeadCode = columnExists($db, 'households', 'family_head_code');
+
         if ($hasHouseholdIdCode) {
             $householdCodeExpr = 'h.household_id_code AS household_code,';
         } elseif ($hasFamilyCode) {
@@ -137,7 +139,14 @@ function listResidents() {
         } else {
             $householdCodeExpr = 'NULL AS household_code,';
         }
-        $familyHeadCodeExpr = $hasFamilyHeadCode ? 'h.family_head_code AS family_head_code,' : 'NULL AS family_head_code,';
+        // Prefer per-resident family_head_code when available; fall back to household-level for older data.
+        if ($hasResidentFamilyHeadCode) {
+            $familyHeadCodeExpr = 'r.family_head_code AS family_head_code,';
+        } elseif ($hasHouseholdFamilyHeadCode) {
+            $familyHeadCodeExpr = 'h.family_head_code AS family_head_code,';
+        } else {
+            $familyHeadCodeExpr = 'NULL AS family_head_code,';
+        }
         
         // Get residents - ordered by ID so new residents appear at the end
         $sql = "SELECT r.*, h.address as household_address, h.total_members, h.family_head_id,
