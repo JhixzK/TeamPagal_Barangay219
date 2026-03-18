@@ -116,6 +116,18 @@ function generateUniqueFamilyCode($db) {
     throw new Exception('Unable to generate unique family code.');
 }
 
+function columnExists($db, $table, $column) {
+    $row = $db->fetchOne(
+        "SELECT COUNT(*) AS cnt
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE()
+           AND table_name = ?
+           AND column_name = ?",
+        [$table, $column]
+    );
+    return !empty($row) && (int)$row['cnt'] > 0;
+}
+
 /**
  * Ensure household codes and basic details exist once a head is assigned.
  * This can be called from multiple flows (updateHousehold, addHouseholdMember, etc.)
@@ -137,20 +149,35 @@ function ensureHouseholdCodesAndDetails($db, $householdId) {
         return;
     }
 
+    $hasHouseholdIdCode = columnExists($db, 'households', 'household_id_code');
+    $hasFamilyHeadCode = columnExists($db, 'households', 'family_head_code');
+    $hasFamilyCode = columnExists($db, 'households', 'family_code');
+
     // Generate official approval codes when a head is assigned (first time).
-    $needsHouseholdCode = empty($existing['household_id_code']);
-    $needsHeadCode = empty($existing['family_head_code']);
+    $needsHouseholdCode = $hasHouseholdIdCode && empty($existing['household_id_code']);
+    $needsHeadCode = $hasFamilyHeadCode && empty($existing['family_head_code']);
+
     if ($needsHouseholdCode || $needsHeadCode) {
-        $newHouseholdCode = $needsHouseholdCode ? generateUniqueHouseholdCode($db) : $existing['household_id_code'];
-        $newHeadCode = $needsHeadCode ? generateUniqueFamilyHeadCode($db) : $existing['family_head_code'];
-        $db->query(
-            "UPDATE households SET household_id_code = COALESCE(household_id_code, ?), family_head_code = COALESCE(family_head_code, ?) WHERE id = ?",
-            [$newHouseholdCode, $newHeadCode, $householdId]
-        );
+        $sets = [];
+        $params = [];
+
+        if ($needsHouseholdCode) {
+            $sets[] = 'household_id_code = ?';
+            $params[] = generateUniqueHouseholdCode($db);
+        }
+        if ($needsHeadCode) {
+            $sets[] = 'family_head_code = ?';
+            $params[] = generateUniqueFamilyHeadCode($db);
+        }
+
+        if (!empty($sets)) {
+            $params[] = $householdId;
+            $db->query("UPDATE households SET " . implode(', ', $sets) . " WHERE id = ?", $params);
+        }
     }
 
     // Ensure legacy family_code exists for resident-side display/join (generate once).
-    if (array_key_exists('family_code', $existing) && empty($existing['family_code'])) {
+    if ($hasFamilyCode && empty($existing['family_code'])) {
         $db->query(
             "UPDATE households SET family_code = COALESCE(family_code, ?) WHERE id = ?",
             [generateUniqueFamilyCode($db), $householdId]
@@ -264,6 +291,12 @@ function getHousehold() {
             return;
         }
         
+        // Auto-generate missing household codes when viewing.
+        // This prevents '-/-' when migrations were added after household creation.
+        ensureHouseholdCodesAndDetails($db, $id);
+        // Reload so UI gets updated code values.
+        $household = $db->fetchOne($sql, [$id]);
+
         // Get household members
         $membersSql = "SELECT * FROM residents WHERE household_id = ? ORDER BY birth_date";
         $members = $db->fetchAll($membersSql, [$id]);
