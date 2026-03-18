@@ -444,13 +444,50 @@ $household_role = sanitize($_POST['household_role'] ?? '');
 $household_type = sanitize($_POST['household_type'] ?? '');
 $relationship_to_head = sanitize($_POST['relationship_to_head'] ?? ($household_role ?? ''));
 $household_members = isset($_POST['household_members']) ? (int)$_POST['household_members'] : null;
+$household_income_raw = trim((string)($_POST['household_income'] ?? ''));
+$income_per_member_raw = trim((string)($_POST['income_per_member'] ?? ''));
+$economic_classification = sanitize($_POST['economic_classification'] ?? '');
+$household_income = ($household_income_raw === '') ? null : (float)$household_income_raw;
+$income_per_member = ($income_per_member_raw === '') ? null : (float)$income_per_member_raw;
 $house_number = sanitize($_POST['house_number'] ?? '');
 $street = sanitize($_POST['street'] ?? '');
 $purok_sitio = sanitize($_POST['purok_sitio'] ?? '');
-$residency_years_raw = trim((string)($_POST['residency_years'] ?? ''));
-$residency_months_raw = trim((string)($_POST['residency_months'] ?? ''));
-$length_of_residency = trim((string)($_POST['length_of_residency'] ?? ''));
-$length_of_residency_years = isset($_POST['length_of_residency_years']) && $_POST['length_of_residency_years'] !== '' ? (float)$_POST['length_of_residency_years'] : null;
+$residency_start_date = trim((string)($_POST['residency_start_date'] ?? ''));
+$length_of_residency = '';
+$length_of_residency_years = null;
+
+// Validate and process residency_start_date
+if (!$residency_start_date || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $residency_start_date)) {
+    $errors[] = 'Valid residency start date is required.';
+} else {
+    $startDate = strtotime($residency_start_date);
+    if ($startDate === false || $startDate > time()) {
+        $errors[] = 'Residency start date cannot be in the future.';
+    } else {
+        // Check minimum 6 months requirement
+        $startTs = $startDate;
+        $today = time();
+        $secondsPerMonth = 365.25 / 12 * 86400; // Average seconds in a month
+        $totalSeconds = $today - $startTs;
+        $totalMonths = $totalSeconds / $secondsPerMonth;
+        
+        if ($totalMonths < 6) {
+            $errors[] = 'Minimum residency requirement is 6 months.';
+        } else {
+            // Calculate years and months
+            $startDateTime = new DateTime($residency_start_date);
+            $todayDateTime = new DateTime();
+            $interval = $todayDateTime->diff($startDateTime);
+            $years = $interval->y;
+            $months = $interval->m;
+            
+            // Build display strings
+            $length_of_residency = $years . ' year' . ($years === 1 ? '' : 's') . ' ' . $months . ' month' . ($months === 1 ? '' : 's');
+            $length_of_residency_years = (float)($years + ($months / 12));
+        }
+    }
+}
+
 $educational_attainment = sanitize($_POST['educational_attainment'] ?? '');
 $employment_status = sanitize($_POST['employment_status'] ?? '');
 $occupation = sanitize($_POST['occupation'] ?? '');
@@ -464,12 +501,10 @@ $ip_group = $is_ip ? sanitize($_POST['ip_group'] ?? '') : null;
 $is_4ps = isset($_POST['is_4ps_beneficiary']) && $_POST['is_4ps_beneficiary'] === '1';
 
 $allowed_household_types = [
-    'Nuclear Family',
-    'Extended Family',
-    'Single Parent Household',
+    'Family Household',
     'Couple Only',
-    'Single Person Household',
-    'Non-Relative Household',
+    'Single Inhabitant',
+    'Non-Relative Household (Shared / Boarders)',
     'Other (Specify)'
 ];
 
@@ -481,6 +516,14 @@ if ($household_role === 'Head of Household') {
         $errors[] = 'Household type is required when household role is Head of Household.';
     } elseif (!in_array($household_type, $allowed_household_types, true)) {
         $errors[] = 'Invalid household type selected.';
+    }
+
+    if ($household_members === null || $household_members < 1) {
+        $errors[] = 'Number of household members must be at least 1 for household heads.';
+    }
+
+    if ($household_income === null || $household_income < 0) {
+        $errors[] = 'Total household income is required and must be non-negative for household heads.';
     }
 } elseif ($household_role === 'Member of Household') {
     if ($family_code === '') {
@@ -501,8 +544,12 @@ if ($household_role === 'Head of Household') {
     $errors[] = 'Please select a valid household role.';
 }
 
-if ($length_of_residency === '') {
-    $length_of_residency = buildResidencyString($residency_years_raw, $residency_months_raw);
+if ($household_role === 'Head of Household' && $household_members !== null && $household_members > 0 && $household_income !== null && $household_income >= 0) {
+    $income_per_member = round($household_income / $household_members, 2);
+    $economic_classification = $income_per_member < 12000 ? 'Indigent' : 'Non-Indigent';
+} else {
+    $income_per_member = null;
+    $economic_classification = '';
 }
 
 // Senior citizen auto-validation (60+)
@@ -525,6 +572,9 @@ try {
     addColumnIfMissing($db, 'resident_applications', 'household_role', "VARCHAR(80) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'household_type', "VARCHAR(80) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'household_members', "INT(11) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'household_income', "DECIMAL(12,2) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'income_per_member', "DECIMAL(12,2) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'economic_classification', "VARCHAR(30) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'length_of_residency', "VARCHAR(40) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'verification_status', "VARCHAR(30) NOT NULL DEFAULT 'pending'");
 
@@ -548,12 +598,16 @@ try {
         'household_role' => ($household_role ?: $relationship_to_head) ?: null,
         'household_type' => $household_type ?: null,
         'household_members' => ($household_members !== null && $household_members > 0) ? $household_members : null,
+        'household_income' => ($household_income !== null && $household_income >= 0) ? $household_income : null,
+        'income_per_member' => ($income_per_member !== null && $income_per_member >= 0) ? $income_per_member : null,
+        'economic_classification' => $economic_classification !== '' ? $economic_classification : null,
         'house_number' => $house_number ?: null,
         'street' => $street ?: null,
         'purok_sitio' => $purok_sitio ?: null,
         'barangay' => $barangay,
         'city' => $city,
         'province' => $province,
+        'residency_start_date' => $residency_start_date ?: null,
         'length_of_residency' => $length_of_residency ?: null,
         'length_of_residency_years' => $length_of_residency_years ?: null,
         'mobile_number' => $mobile_number,
