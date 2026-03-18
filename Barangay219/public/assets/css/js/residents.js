@@ -213,11 +213,8 @@ function displayResidents(residents) {
         const canRejectNow = RESIDENT_PERMS.canEdit && hasIdUpload && verificationStatus === 'pending';
         
         const isHead = String(resident.is_household_head) === '1';
-        const headIcon = isHead
-            ? ` <i class="bi bi-patch-check-fill text-success" title="Family Head" aria-label="Family Head"></i>`
-            : '';
         const householdCode = resident.household_code
-            ? `<span class="badge bg-light text-dark border">${escapeHtml(String(resident.household_code))}${headIcon}</span>`
+            ? `<span class="badge bg-light text-dark border">${escapeHtml(String(resident.household_code))}</span>`
             : '<span class="text-muted">-</span>';
         const familyHeadCode = resident.family_head_code
             ? `<span class="badge bg-light text-dark border">${escapeHtml(String(resident.family_head_code))}</span>`
