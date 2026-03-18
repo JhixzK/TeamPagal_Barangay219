@@ -226,13 +226,47 @@ function loadResidentsForDropdown() {
                 sel.innerHTML = '<option value="">-- Select Resident --</option>' +
                     d.data.residents.map(r => {
                         const name = `${r.last_name || ''}, ${r.first_name || ''} ${r.middle_name || ''}`.trim();
-                        return `<option value="${r.id}">${escapeHtml(toTitleCase(name))}</option>`;
+                        const fullAddress = (r.address || r.household_address || '').trim();
+                        const houseNumber = r.house_number || '';
+                        const street = r.street || '';
+                        const purok = r.purok_sitio || '';
+                        return `<option value="${r.id}"
+                                    data-address="${escapeHtml(fullAddress)}"
+                                    data-house-number="${escapeHtml(houseNumber)}"
+                                    data-street="${escapeHtml(street)}"
+                                    data-purok="${escapeHtml(purok)}"
+                                >${escapeHtml(toTitleCase(name))}</option>`;
                     }).join('');
                 if (currentVal) sel.value = currentVal;
             }
         })
         .catch(() => {});
 }
+
+document.addEventListener('change', function (e) {
+    const target = e.target;
+    if (!target || target.id !== 'family_head_id') return;
+    const selected = target.selectedOptions && target.selectedOptions[0];
+    if (!selected) return;
+
+    const fullAddress = selected.getAttribute('data-address') || '';
+    const houseNumber = selected.getAttribute('data-house-number') || '';
+    const street = selected.getAttribute('data-street') || '';
+
+    const houseNumberInput = document.getElementById('house_number');
+    const streetInput = document.getElementById('street');
+    const addressTextarea = document.getElementById('address');
+
+    if (houseNumberInput) {
+        houseNumberInput.value = houseNumber;
+    }
+    if (streetInput) {
+        streetInput.value = street;
+    }
+    if (addressTextarea) {
+        addressTextarea.value = fullAddress;
+    }
+});
 
 function saveHousehold() {
     applyTitleCaseToForm();
