@@ -627,7 +627,9 @@ function assignHouseholdToApprovedResident() {
 
                 $db->query("UPDATE residents SET family_head_code = NULL WHERE id = ?", [$residentId]);
 
-
+                if (!$isMissingCode($selectedFamilyHeadCode) && columnExists($db, 'households', 'family_head_code')) {
+                    $db->query("UPDATE households SET family_head_code = ? WHERE id = ?", [$selectedFamilyHeadCode, $householdId]);
+                }
 
 
             }
@@ -693,14 +695,20 @@ function assignHouseholdToApprovedResident() {
                 );
             }
             if (isset($householdCols['family_head_code'])) {
+                $residentHeadCode = null;
+                if (columnExists($db, 'residents', 'family_head_code')) {
+                    $headRow = $db->fetchOne("SELECT family_head_code FROM residents WHERE id = ? LIMIT 1", [$residentId]);
+                    $residentHeadCode = $headRow['family_head_code'] ?? null;
+                    if ($isMissingCode($residentHeadCode)) {
+                        $residentHeadCode = generateResidentFamilyHeadCode($db);
+                        $db->query("UPDATE residents SET family_head_code = ? WHERE id = ?", [$residentHeadCode, $residentId]);
+                    }
+                }
                 $db->query(
                     "UPDATE households
-                     SET family_head_code = CASE
-                         WHEN family_head_code IS NULL OR family_head_code = '' THEN ?
-                         ELSE family_head_code
-                     END
+                     SET family_head_code = ?
                      WHERE id = ?",
-                    [generateUniqueFamilyHeadCode($db), $householdId]
+                    [!$isMissingCode($residentHeadCode) ? $residentHeadCode : generateUniqueFamilyHeadCode($db), $householdId]
                 );
             }
             if (isset($householdCols['family_code'])) {
@@ -1025,6 +1033,8 @@ function resolveResidentForApplication() {
         sendResponse(false, 'Failed to resolve resident for application', null, 500);
     }
 }
+
+
 
 
 
