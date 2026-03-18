@@ -110,7 +110,6 @@ function loadHouseholds() {
                     const members = Number((h.total_members ?? 0));
                     const reg = formatDate(h.registration_date);
                     const hhCode = (h.household_id_code || '').trim();
-                    const fhCode = (h.family_head_code || '').trim();
 
                     const editBtn = HOUSEHOLD_PERMS.canEdit
                         ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editHousehold(${id})"><i class="bi bi-pencil-square"></i></button>`
@@ -122,10 +121,8 @@ function loadHouseholds() {
 
                     const subtitle = head ? `Head: ${head}` : 'No head assigned yet';
                     const addrDisplay = address ? formatTitleCaseTruncate(address, 70) : '(no address)';
-                    const codeLineParts = [];
-                    if (hhCode) codeLineParts.push(`Household ID: ${hhCode}`);
-                    if (fhCode) codeLineParts.push(`Head Code: ${fhCode}`);
-                    const codeLine = codeLineParts.length ? codeLineParts.join(' • ') : 'Generated codes will appear after head approval';
+                    const householdIdLabel = '<small class="text-muted d-block">Household ID</small>';
+                    const householdIdBadge = `<span class="badge bg-white text-dark border">${escapeHtml(hhCode || '-')}</span>`;
 
                     return `
                         <div class="household-tile card shadow-sm">
@@ -135,12 +132,12 @@ function loadHouseholds() {
                                     <div class="min-w-0">
                                         <p class="tile-name mb-0">Household ${id}</p>
                                         <p class="tile-sub">${escapeHtml(subtitle)}</p>
+                                        <div class="mt-1">${householdIdLabel}${householdIdBadge}</div>
                                     </div>
                                 </div>
                                 <span class="badge bg-success">Members: ${members}</span>
                             </div>
                             <div class="tile-body">
-                                <div class="small text-muted">${escapeHtml(codeLine)}</div>
                                 <dl class="tile-meta">
                                     <div>
                                         <dt>Address</dt>
@@ -161,12 +158,12 @@ function loadHouseholds() {
                     `;
                 }).join('');
             } else {
-                tiles.innerHTML = '<div class="text-center text-muted py-5">No households found</div>';
+                tiles.innerHTML = '<div class="d-flex align-items-center justify-content-center w-100 text-center text-muted py-5" style="min-height:280px;">No households found</div>';
             }
         })
         .catch(() => {
             const tiles = document.getElementById('householdTiles');
-            if (tiles) tiles.innerHTML = '<div class="text-center text-danger py-5">Error loading</div>';
+            if (tiles) tiles.innerHTML = '<div class="d-flex align-items-center justify-content-center w-100 text-center text-danger py-5" style="min-height:280px;">Error loading</div>';
         });
 }
 
@@ -303,7 +300,6 @@ function viewHousehold(id) {
             const h = d.data;
             document.getElementById('viewHouseholdInfo').innerHTML = `
                 <p><strong>Household ID Code:</strong> ${escapeHtml((h.household_id_code || '-'))}</p>
-                <p><strong>Family Head Code:</strong> ${escapeHtml((h.family_head_code || '-'))}</p>
                 <p><strong>Family Head:</strong> ${escapeHtml(toTitleCase(h.family_head_name || '-'))}</p>
                 <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
                 <p><strong>Total Members:</strong> ${Number((h.total_members ?? 0))}</p>
