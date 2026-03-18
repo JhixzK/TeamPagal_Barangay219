@@ -189,9 +189,9 @@ function renderActions(app) {
         return viewBtn;
     }
     if (app.record_status === 'pending') {
-        return `${viewBtn}
-            <button class="btn btn-sm btn-success" title="Approve" aria-label="Approve" onclick="openApprove(${app.id})"><i class="bi bi-check-lg"></i></button>
-            <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="openReject(${app.id})"><i class="bi bi-x-lg"></i></button>`;
+        // For pending applications, only show the View button in the table.
+        // Approve / Reject actions are now exposed inside the Application Details modal.
+        return viewBtn;
     }
     if (app.record_status === 'approved') {
         const canAssign = app.approved_resident_id && Number(app.approved_resident_id) > 0;
@@ -325,8 +325,11 @@ function viewApplication(id) {
             const address = [app.house_number, app.street, app.purok_sitio, app.barangay, app.city, app.province].filter(Boolean).join(', ');
             document.getElementById('viewAppRef').textContent = app.application_ref || ('APP-' + app.id);
 
-            const idDoc = buildFileLink(app.id_document_path, 'Valid ID');
-            const proofDoc = buildFileLink(app.proof_of_residency_path, 'Proof of Residency');
+            const idDoc = buildFilePreview(app.id_document_path, 'Valid ID');
+            // If proof upload is missing, show the Valid ID document in the Proof section
+            // (requested behavior to avoid empty/incorrect Proof of Residency display).
+            const proofPath = app.proof_of_residency_path ? app.proof_of_residency_path : app.id_document_path;
+            const proofDoc = buildFilePreview(proofPath, 'Proof of Residency');
 
             const roleInfo = getHouseholdRoleInfo(app);
             document.getElementById('viewModalBody').innerHTML = `
@@ -356,7 +359,19 @@ function viewApplication(id) {
 
             const footer = document.getElementById('viewModalFooter');
             if (footer) {
-                footer.innerHTML = '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>';
+                let footerButtons = '';
+                if (RES_APP_PERMS.canEdit && (app.record_status === 'pending')) {
+                    footerButtons += `
+                        <button type="button" class="btn btn-success me-2" onclick="openApprove(${app.id})">
+                            <i class="bi bi-check-lg"></i> Approve
+                        </button>
+                        <button type="button" class="btn btn-outline-danger me-auto" onclick="openReject(${app.id})">
+                            <i class="bi bi-x-lg"></i> Reject
+                        </button>
+                    `;
+                }
+                footerButtons += '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>';
+                footer.innerHTML = footerButtons;
             }
 
             const modal = new bootstrap.Modal(document.getElementById('viewModal'));
@@ -371,6 +386,10 @@ function viewApplication(id) {
 function openApprove(id) {
     if (!RES_APP_PERMS.canEdit) return;
     document.getElementById('approveId').value = id;
+    const display = document.getElementById('approveIdDisplay');
+    if (display) {
+        display.value = id;
+    }
     document.getElementById('approveRemarks').value = '';
     new bootstrap.Modal(document.getElementById('approveModal')).show();
 }
@@ -512,6 +531,50 @@ function buildFileLink(path, label) {
 
     const url = trimmed.startsWith('http') ? trimmed : (base + resolvedPath);
     return `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>`;
+}
+
+function buildFilePreview(path, label) {
+    if (!path) return '<span class="text-muted">None</span>';
+    const trimmed = path.trim();
+    const base = window.RESIDENT_APPLICATIONS_BASE_URL || '';
+    let resolvedPath = trimmed.replace(/^\/+/, '');
+
+    // Backward compatibility: old records may store "applications/..." while newer store "uploads/applications/...".
+    if (!resolvedPath.startsWith('uploads/')) {
+        if (resolvedPath.startsWith('applications/')) {
+            resolvedPath = 'uploads/' + resolvedPath;
+        } else {
+            resolvedPath = 'uploads/applications/' + resolvedPath;
+        }
+    }
+
+    const url = trimmed.startsWith('http') ? trimmed : (base + resolvedPath);
+    const ext = (resolvedPath.split('.').pop() || '').toLowerCase();
+    const safeUrl = esc(url);
+    const fallbackLink = buildFileLink(path, label);
+
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
+        // Inline preview for images.
+        return `
+            <div>
+                <img src="${safeUrl}" alt="${esc(label)}" class="img-fluid rounded border" style="max-height:260px; object-fit:contain;">
+                <div class="mt-1 small text-muted">${fallbackLink}</div>
+            </div>
+        `;
+    }
+
+    if (ext === 'pdf') {
+        // Inline preview for PDFs.
+        return `
+            <div>
+                <iframe src="${safeUrl}" title="${esc(label)}" style="width:100%; height:420px; border:1px solid #e2e8f0; border-radius:10px;"></iframe>
+                <div class="mt-1 small text-muted">${fallbackLink}</div>
+            </div>
+        `;
+    }
+
+    // Fallback: show clickable link if we can't preview.
+    return buildFileLink(path, label);
 }
 
 function getStatusBadge(status) {
