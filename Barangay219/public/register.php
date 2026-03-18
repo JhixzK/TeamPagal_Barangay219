@@ -506,7 +506,7 @@ $barangay219_purok_options = [
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label>Age</label>
-                                            <input type="text" id="ageDisplay" class="form-control" readonly placeholder="Auto">
+                                            <input type="text" id="ageDisplay" class="form-control" readonly placeholder="Computed">
                                         </div>
                                     </div>
                                     <div class="row">
@@ -587,10 +587,11 @@ $barangay219_purok_options = [
                                     <div class="row" id="householdMembersRow" style="display:none;">
                                         <div class="col-md-6 mb-3">
                                             <label>Number of Household Members</label>
-                                            <input type="number" name="household_members" class="form-control" min="0" max="99" step="1" inputmode="numeric">
+                                            <input type="number" id="household_members" name="household_members" class="form-control" min="1" max="99" step="1" inputmode="numeric">
+                                            <small class="text-muted">Total household members, including you.</small>
                                         </div>
                                     </div>
-                                    <div class="row" id="householdTypeRow" style="display:none;">
+                                    <div class="row g-3" id="householdTypeRow" style="display:none;">
                                         <div class="col-md-6 mb-3">
                                             <label>Household Type <span class="text-danger">*</span></label>
                                             <select name="household_type" id="household_type" class="form-select">
@@ -601,30 +602,44 @@ $barangay219_purok_options = [
                                                 <option value="Non-Relative Household (Shared / Boarders)">Non-Relative Household (Shared / Boarders)</option>
                                                 <option value="Other (Specify)">Other (Specify)</option>
                                             </select>
+                                            <small class="text-muted">Select your household setup.</small>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label>House Type <span class="text-danger">*</span></label>
+                                            <select name="house_type" id="house_type" class="form-select">
+                                                <option value="">Select House Type</option>
+                                                <option value="Concrete">Concrete</option>
+                                                <option value="Semi-Concrete">Semi-Concrete</option>
+                                                <option value="Light Materials">Light Materials</option>
+                                                <option value="Apartment / Boarding House">Apartment / Boarding House</option>
+                                                <option value="Townhouse / Row House">Townhouse / Row House</option>
+                                                <option value="Informal / Improvised">Informal / Improvised</option>
+                                            </select>
+                                            <small class="text-muted">Select your dwelling type.</small>
                                         </div>
                                     </div>
-                                    <div class="row" id="householdIncomeRow" style="display:none;">
-                                        <div class="col-md-6 mb-3">
+                                    <div class="row g-3" id="householdIncomeRow" style="display:none;">
+                                        <div class="col-md-4 mb-3">
                                             <label>Total Household Income (Monthly) <span class="text-danger">*</span></label>
-                                            <input type="number" id="household_income" name="household_income" class="form-control" min="0" step="0.01" inputmode="decimal" placeholder="e.g., 25000">
-                                            <small class="text-muted">Enter total combined income of all household members.</small>
+                                            <input type="text" id="household_income" name="household_income" class="form-control" inputmode="decimal" placeholder="e.g., 25,000">
+                                            <small class="text-muted">Total monthly income in PHP. Commas are added automatically.</small>
                                         </div>
-                                        <div class="col-md-6 mb-3">
+                                        <div class="col-md-4 mb-3">
                                             <label>Income per Family Member</label>
-                                            <input type="text" id="income_per_member" name="income_per_member" class="form-control" readonly placeholder="Auto-computed">
+                                            <input type="text" id="income_per_member" name="income_per_member" class="form-control" readonly placeholder="Computed value">
+                                            <small class="text-muted">Auto-computed.</small>
                                         </div>
-                                        <div class="col-md-12 mb-2">
+                                        <div class="col-md-4 mb-2">
                                             <label class="d-block">Economic Classification</label>
-                                            <span id="economic_classification_badge" class="badge bg-secondary">Pending</span>
-                                            <input type="text" id="economic_classification" name="economic_classification" class="form-control mt-2" readonly placeholder="Auto-classified">
-                                            <small class="text-muted d-block mt-1">Threshold: ₱12,000 per family member per month.</small>
+                                            <input type="text" id="economic_classification" name="economic_classification" class="form-control mt-2" readonly placeholder="Classification">
+                                            <small class="text-muted d-block mt-1">Below PHP 12,000/member = Indigent.</small>
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label>Family Code / Head of Family ID <span class="text-danger" id="familyCodeRequiredMark" style="display:none;">*</span></label>
                                             <input type="text" id="family_code" name="family_code" class="form-control" maxlength="30" placeholder="Enter Head Family Code (e.g., BR219-2026-0001)">
-                                            <small class="text-muted" id="familyCodeHelpText">Heads will get an auto-generated Family Code. Members must enter the Head's Family Code.</small>
+                                            <small class="text-muted" id="familyCodeHelpText">Head: auto-generated. Member: enter exact code (BR219-YYYY-####).</small>
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label>Relationship to Head of Family <span class="text-danger" id="relationshipRequiredMark" style="display:none;">*</span></label>
@@ -641,7 +656,7 @@ $barangay219_purok_options = [
                                                 <option value="Boarder">Boarder</option>
                                                 <option value="Other">Other</option>
                                             </select>
-                                            <small class="text-muted" id="relationshipHelpText">Required for members.</small>
+                                            <small class="text-muted" id="relationshipHelpText">For members only. Do not choose Head.</small>
                                         </div>
                                     </div>
                                     <div class="row" id="parentGuardianRow" style="display:none;">
@@ -773,7 +788,7 @@ $barangay219_purok_options = [
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label>Computed Length of Residency</label>
-                                            <input type="text" id="computed_residency_display" class="form-control" readonly placeholder="Will be computed automatically">
+                                            <input type="text" id="computed_residency_display" class="form-control" readonly placeholder="Computed value">
                                             <small class="text-muted">Years and months calculated from residency start date.</small>
                                         </div>
                                     </div>
@@ -784,7 +799,7 @@ $barangay219_purok_options = [
                                     <div class="row">
                                         <div class="col-md-4 mb-3">
                                             <label>Name <span class="text-danger">*</span></label>
-                                            <input type="text" name="emergency_contact_name" class="form-control" maxlength="100" required>
+                                            <input type="text" name="emergency_contact_name" class="form-control" maxlength="100" required placeholder="Enter full name">
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label>Number <span class="text-danger">*</span></label>
@@ -1040,6 +1055,9 @@ const householdMembersField = document.querySelector('input[name="household_memb
 if (householdMembersField) {
     householdMembersField.addEventListener('input', function() {
         this.value = this.value.replace(/[^0-9]/g, '').slice(0, 2);
+        if (this.value !== '' && Number(this.value) < 1) {
+            this.value = '1';
+        }
     });
 }
 
@@ -1276,6 +1294,7 @@ function toggleHouseholdTypeField() {
     const householdRoleField = document.querySelector('select[name="household_role"]');
     const householdTypeRow = document.getElementById('householdTypeRow');
     const householdTypeField = document.getElementById('household_type');
+    const houseTypeField = document.getElementById('house_type');
     const householdMembersRow = document.getElementById('householdMembersRow');
     const householdMembersField = document.querySelector('input[name="household_members"]');
     const householdIncomeRow = document.getElementById('householdIncomeRow');
@@ -1287,7 +1306,7 @@ function toggleHouseholdTypeField() {
     const familyCodeHelpText = document.getElementById('familyCodeHelpText');
     const relationshipHelpText = document.getElementById('relationshipHelpText');
 
-    if (!householdRoleField || !householdTypeRow || !householdTypeField || !householdMembersRow || !householdMembersField || !householdIncomeRow || !householdIncomeField || !familyCodeField || !relationshipField) {
+    if (!householdRoleField || !householdTypeRow || !householdTypeField || !houseTypeField || !householdMembersRow || !householdMembersField || !householdIncomeRow || !householdIncomeField || !familyCodeField || !relationshipField) {
         return;
     }
 
@@ -1301,6 +1320,7 @@ function toggleHouseholdTypeField() {
     const isMemberOfHousehold = householdRoleField.value === 'Member of Household';
     householdTypeRow.style.display = isHeadOfHousehold ? 'flex' : 'none';
     householdTypeField.required = isHeadOfHousehold;
+    houseTypeField.required = isHeadOfHousehold;
     householdMembersRow.style.display = isHeadOfHousehold ? 'flex' : 'none';
     householdMembersField.required = isHeadOfHousehold;
     householdIncomeRow.style.display = isHeadOfHousehold ? 'flex' : 'none';
@@ -1309,19 +1329,16 @@ function toggleHouseholdTypeField() {
     if (!isHeadOfHousehold) {
         householdTypeField.value = '';
         householdTypeField.classList.remove('is-invalid');
+        houseTypeField.value = '';
+        houseTypeField.classList.remove('is-invalid');
         householdMembersField.value = '';
         householdMembersField.classList.remove('is-invalid');
         householdIncomeField.value = '';
         householdIncomeField.classList.remove('is-invalid');
         const incomePerMemberField = document.getElementById('income_per_member');
         const economicClassificationField = document.getElementById('economic_classification');
-        const economicClassificationBadge = document.getElementById('economic_classification_badge');
         if (incomePerMemberField) incomePerMemberField.value = '';
         if (economicClassificationField) economicClassificationField.value = '';
-        if (economicClassificationBadge) {
-            economicClassificationBadge.className = 'badge bg-secondary';
-            economicClassificationBadge.textContent = 'Pending';
-        }
     }
 
     familyCodeField.required = isMemberOfHousehold;
@@ -1373,31 +1390,29 @@ function toggleHouseholdTypeField() {
 function computeHouseholdIncomeClassification() {
     const threshold = 12000;
     const householdRoleField = document.querySelector('select[name="household_role"]');
-    const membersField = document.querySelector('input[name="household_members"]');
+    const membersField = document.getElementById('household_members');
     const incomeField = document.getElementById('household_income');
     const incomePerMemberField = document.getElementById('income_per_member');
     const economicClassificationField = document.getElementById('economic_classification');
-    const economicClassificationBadge = document.getElementById('economic_classification_badge');
 
-    if (!householdRoleField || !membersField || !incomeField || !incomePerMemberField || !economicClassificationField || !economicClassificationBadge) {
+    if (!householdRoleField || !membersField || !incomeField || !incomePerMemberField || !economicClassificationField) {
         return;
     }
 
     if (householdRoleField.value !== 'Head of Household') {
         incomePerMemberField.value = '';
         economicClassificationField.value = '';
-        economicClassificationBadge.className = 'badge bg-secondary';
-        economicClassificationBadge.textContent = 'Pending';
         return;
     }
 
-    const members = parseInt(membersField.value, 10);
-    const totalIncome = parseFloat(incomeField.value);
+    const membersRaw = String(membersField.value || '').trim();
+    const incomeRaw = String(incomeField.value || '').trim().replace(/,/g, '');
+    const members = Number(membersRaw);
+    const totalIncome = Number(incomeRaw);
+
     if (!Number.isFinite(members) || members <= 0 || !Number.isFinite(totalIncome) || totalIncome < 0) {
         incomePerMemberField.value = '';
         economicClassificationField.value = '';
-        economicClassificationBadge.className = 'badge bg-secondary';
-        economicClassificationBadge.textContent = 'Pending';
         return;
     }
 
@@ -1406,8 +1421,6 @@ function computeHouseholdIncomeClassification() {
 
     incomePerMemberField.value = `PHP ${incomePerMember.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     economicClassificationField.value = classification;
-    economicClassificationBadge.className = classification === 'Indigent' ? 'badge bg-warning text-dark' : 'badge bg-success';
-    economicClassificationBadge.textContent = classification;
 }
 
 const householdRoleField = document.querySelector('select[name="household_role"]');
@@ -1424,13 +1437,45 @@ if (relationshipToHeadField) {
 }
 
 const householdIncomeField = document.getElementById('household_income');
+
+function formatHouseholdIncomeInput(raw) {
+    const cleaned = String(raw || '').replace(/[^0-9.]/g, '');
+    if (!cleaned) return '';
+
+    const firstDot = cleaned.indexOf('.');
+    const normalized = firstDot === -1
+        ? cleaned
+        : cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
+
+    const parts = normalized.split('.');
+    const integerPart = (parts[0] || '').replace(/^0+(?=\d)/, '');
+    const formattedInteger = (integerPart || '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+    if (parts.length === 1) return formattedInteger;
+    const decimalPart = parts[1].slice(0, 2);
+    return decimalPart.length ? `${formattedInteger}.${decimalPart}` : `${formattedInteger}.`;
+}
+
+function applyHouseholdIncomeFormatting(field) {
+    if (!field) return;
+    const formatted = formatHouseholdIncomeInput(field.value);
+    if (field.value !== formatted) {
+        field.value = formatted;
+    }
+}
+
 if (householdMembersField) {
     householdMembersField.addEventListener('input', computeHouseholdIncomeClassification);
     householdMembersField.addEventListener('change', computeHouseholdIncomeClassification);
+    householdMembersField.addEventListener('blur', computeHouseholdIncomeClassification);
 }
 if (householdIncomeField) {
+    householdIncomeField.addEventListener('input', function () {
+        applyHouseholdIncomeFormatting(this);
+    });
     householdIncomeField.addEventListener('input', computeHouseholdIncomeClassification);
     householdIncomeField.addEventListener('change', computeHouseholdIncomeClassification);
+    householdIncomeField.addEventListener('blur', computeHouseholdIncomeClassification);
 }
 
 // Step navigation
@@ -1562,14 +1607,22 @@ function validateStep(step) {
 
     const roleField = document.querySelector('select[name="household_role"]');
     const householdTypeField = document.getElementById('household_type');
+    const houseTypeField = document.getElementById('house_type');
     const familyCodeField = document.getElementById('family_code');
     const relationshipField = document.getElementById('relationship_to_head');
-    if (roleField && householdTypeField && roleField.value === 'Head of Household') {
+    if (roleField && householdTypeField && houseTypeField && roleField.value === 'Head of Household') {
         if (!householdTypeField.value.trim()) {
             householdTypeField.classList.add('is-invalid');
             isValid = false;
         } else {
             householdTypeField.classList.remove('is-invalid');
+        }
+
+        if (!houseTypeField.value.trim()) {
+            houseTypeField.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            houseTypeField.classList.remove('is-invalid');
         }
 
         const householdMembersFieldForValidation = document.querySelector('input[name="household_members"]');
@@ -1584,7 +1637,7 @@ function validateStep(step) {
             }
         }
         if (householdIncomeFieldForValidation) {
-            const incomeValue = parseFloat(householdIncomeFieldForValidation.value);
+            const incomeValue = parseFloat(String(householdIncomeFieldForValidation.value || '').replace(/,/g, ''));
             if (!Number.isFinite(incomeValue) || incomeValue < 0) {
                 householdIncomeFieldForValidation.classList.add('is-invalid');
                 isValid = false;
@@ -1646,6 +1699,55 @@ function populateReview() {
     const reviewContent = document.getElementById('reviewContent');
     reviewContent.innerHTML = '';
 
+    const syncReviewFieldsFromOriginal = () => {
+        const reviewFields = reviewContent.querySelectorAll('.review-edit-field');
+        if (!reviewFields.length) return;
+
+        reviewFields.forEach(clonedField => {
+            const fieldName = clonedField.dataset.field;
+            if (!fieldName) return;
+
+            const originalField = document.querySelector(`[name="${fieldName}"]`);
+            if (!originalField) return;
+
+            clonedField.value = originalField.value;
+            clonedField.readOnly = !!originalField.readOnly;
+            clonedField.disabled = !!originalField.disabled;
+            clonedField.required = !!originalField.required;
+
+            const col = clonedField.closest('.col-md-6');
+            if (col) {
+                col.style.display = '';
+            }
+        });
+
+        const roleOriginal = document.querySelector('[name="household_role"]');
+        const relationshipOriginal = document.querySelector('[name="relationship_to_head"]');
+        const isHead = roleOriginal && roleOriginal.value === 'Head of Household';
+        const needsParentGuardian = relationshipOriginal && (relationshipOriginal.value === 'Child' || relationshipOriginal.value === 'Grandchild');
+
+        const setReviewFieldVisibility = (fieldName, shouldShow) => {
+            const field = reviewContent.querySelector(`.review-edit-field[data-field="${fieldName}"]`);
+            if (!field) return;
+            const col = field.closest('.col-md-6');
+            if (!col) return;
+            col.style.display = shouldShow ? '' : 'none';
+        };
+
+        setReviewFieldVisibility('household_type', !!isHead);
+        setReviewFieldVisibility('house_type', !!isHead);
+        setReviewFieldVisibility('household_members', !!isHead);
+        setReviewFieldVisibility('household_income', !!isHead);
+        setReviewFieldVisibility('income_per_member', !!isHead);
+        setReviewFieldVisibility('economic_classification', !!isHead);
+
+        const showParentGuardian = !!needsParentGuardian;
+        setReviewFieldVisibility('parent_guardian_first_name', showParentGuardian);
+        setReviewFieldVisibility('parent_guardian_middle_name', showParentGuardian);
+        setReviewFieldVisibility('parent_guardian_last_name', showParentGuardian);
+        setReviewFieldVisibility('parent_guardian_suffix', showParentGuardian);
+    };
+
     const reviewSections = [
         {
             title: 'Personal Information',
@@ -1666,6 +1768,7 @@ function populateReview() {
             fields: [
                 { name: 'household_role', label: 'Household Role' },
                 { name: 'household_type', label: 'Household Type' },
+                { name: 'house_type', label: 'House Type' },
                 { name: 'household_members', label: 'No. of Household Members' },
                 { name: 'household_income', label: 'Total Household Income (Monthly)' },
                 { name: 'income_per_member', label: 'Income per Family Member' },
@@ -1737,6 +1840,10 @@ function populateReview() {
             // Sync edits back to the original form field
             ['input', 'change'].forEach(evt => {
                 cloned.addEventListener(evt, function () {
+                    if (this.dataset.field === 'household_income') {
+                        applyHouseholdIncomeFormatting(this);
+                    }
+
                     const orig = document.querySelector(`[name="${this.dataset.field}"]`);
                     if (orig) orig.value = this.value;
                     if (this.dataset.field === 'residency_start_date') {
@@ -1745,9 +1852,14 @@ function populateReview() {
                     if (this.dataset.field === 'household_role') {
                         toggleHouseholdTypeField();
                     }
+                    if (this.dataset.field === 'household_members' || this.dataset.field === 'household_income') {
+                        computeHouseholdIncomeClassification();
+                    }
                     if (this.dataset.field === 'relationship_to_head') {
                         toggleParentGuardianField();
                     }
+
+                    syncReviewFieldsFromOriginal();
                 });
             });
 
@@ -1760,6 +1872,8 @@ function populateReview() {
         card.appendChild(cardBody);
         reviewContent.appendChild(card);
     });
+
+    syncReviewFieldsFromOriginal();
 }
 
 // Event listeners
