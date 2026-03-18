@@ -229,9 +229,11 @@ function getResidentProfileForHousehold($residentId) {
 
 function getResidentHouseholdContext($residentId) {
     $db = Database::getInstance();
+    $houseCols = getColumnsMap('households');
+    $headColumn = isset($houseCols['family_head_id']) ? 'family_head_id' : 'head_id';
 
     $memberRow = $db->fetchOne(
-        "SELECT hm.household_id, hm.id AS member_row_id, hm.relationship_to_head, h.head_id
+        "SELECT hm.household_id, hm.id AS member_row_id, hm.relationship_to_head, h.`{$headColumn}` AS head_id
          FROM household_members hm
          INNER JOIN households h ON h.id = hm.household_id
          WHERE hm.resident_id = ?
@@ -252,7 +254,7 @@ function getResidentHouseholdContext($residentId) {
     $resident = getResidentProfileForHousehold($residentId);
     $residentHouseholdId = (int)($resident['household_id'] ?? 0);
     if ($residentHouseholdId > 0) {
-        $headRow = $db->fetchOne("SELECT head_id FROM households WHERE id = ?", [$residentHouseholdId]);
+        $headRow = $db->fetchOne("SELECT `{$headColumn}` AS head_id FROM households WHERE id = ?", [$residentHouseholdId]);
         if ($headRow) {
             return [
                 'household_id' => $residentHouseholdId,
