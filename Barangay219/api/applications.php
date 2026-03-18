@@ -300,6 +300,22 @@ function generateResidentCode() {
     return $prefix . str_pad($seq, 5, '0', STR_PAD_LEFT);
 }
 
+
+function isHeadRoleValue($value) {
+    $v = strtolower(trim((string)$value));
+    if ($v === '') {
+        return false;
+    }
+
+    $allowedHeadRoles = [
+        'head',
+        'head of family',
+        'family head',
+        'household head',
+    ];
+
+    return in_array($v, $allowedHeadRoles, true);
+}
 function approveApplication() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         sendResponse(false, 'Method not allowed', null, 405);
@@ -413,8 +429,7 @@ function approveApplication() {
         $relationshipRaw = trim((string)($app['relationship_to_head'] ?? ''));
         $householdRoleRaw = trim((string)($app['household_role'] ?? ''));
         $roleRaw = $relationshipRaw !== '' ? $relationshipRaw : $householdRoleRaw;
-        $roleRawLower = strtolower($roleRaw);
-        $isHead = $roleRawLower !== '' && (strpos($roleRawLower, 'head') !== false || strpos($roleRawLower, 'single') !== false);
+        $isHead = isHeadRoleValue($roleRaw);
         if ($isHead && columnExists($db, 'residents', 'family_head_code')) {
             $headCode = generateResidentFamilyHeadCode($db);
             $db->query(
@@ -555,8 +570,8 @@ function assignHouseholdToApprovedResident() {
         }
 
         // Detect role from approved application (head vs member)
-        $roleRaw = strtolower(trim((string)($app['relationship_to_head'] ?? $app['household_role'] ?? '')));
-        $isHead = $roleRaw !== '' && (strpos($roleRaw, 'head') !== false || strpos($roleRaw, 'single') !== false);
+        $roleRaw = trim((string)($app['relationship_to_head'] ?? $app['household_role'] ?? ''));
+        $isHead = isHeadRoleValue($roleRaw);
 
         // Link resident into household
         $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $residentId]);
@@ -610,8 +625,11 @@ function assignHouseholdToApprovedResident() {
                     $selectedFamilyHeadCode = $headRow['family_head_code'] ?? null;
                 }
 
-                // Family head code is reserved for head accounts only.
                 $db->query("UPDATE residents SET family_head_code = NULL WHERE id = ?", [$residentId]);
+
+
+
+
             }
 
             if (columnExists($db, 'residents', 'relationship_to_head')) {
@@ -629,8 +647,12 @@ function assignHouseholdToApprovedResident() {
                         [$familyHeadResidentId]
                     );
                     $selectedFamilyCode = $headFamilyCodeRow['family_code'] ?? null;
+                    if ($isMissingCode($selectedFamilyCode)) {
+                        $selectedFamilyCode = generateUniqueFamilyCode($db);
+                        $db->query("UPDATE residents SET family_code = ? WHERE id = ?", [$selectedFamilyCode, $familyHeadResidentId]);
+                    }
                 }
-                if ($isMissingCode($selectedFamilyCode)) {
+                if ($isMissingCode($selectedFamilyCode) && $familyHeadResidentId <= 0) {
                     $hh = $db->fetchOne("SELECT family_code FROM households WHERE id = ? LIMIT 1", [$householdId]);
                     $selectedFamilyCode = $hh['family_code'] ?? null;
                 }
@@ -1003,6 +1025,12 @@ function resolveResidentForApplication() {
         sendResponse(false, 'Failed to resolve resident for application', null, 500);
     }
 }
+
+
+
+
+
+
 
 
 
