@@ -48,6 +48,12 @@ switch ($action) {
         }
         getActivationLink();
         break;
+    case 'resolve_resident':
+        if (!canPerformModulePermission('resident_applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        resolveResidentForApplication();
+        break;
     default:
         sendResponse(false, 'Invalid action', null, 400);
         break;
@@ -89,6 +95,22 @@ function generateUniqueFamilyHeadCode($db) {
         }
     }
     throw new Exception('Unable to generate unique family head code.');
+}
+
+// Generate a unique FH-XXXXX code stored on the residents table.
+function generateResidentFamilyHeadCode($db) {
+    if (!tableExists($db, 'residents') || !columnExists($db, 'residents', 'family_head_code')) {
+        // Schema might not have resident-level head codes yet; return best-effort value.
+        return 'FH-' . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+    }
+    for ($i = 0; $i < 30; $i++) {
+        $code = 'FH-' . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+        $exists = $db->fetchOne("SELECT id FROM residents WHERE family_head_code = ? LIMIT 1", [$code]);
+        if (!$exists) {
+            return $code;
+        }
+    }
+    throw new Exception('Unable to generate unique resident family head code.');
 }
 
 function generateUniqueFamilyCode($db) {
@@ -386,73 +408,24 @@ function approveApplication() {
 
         $residentId = $db->lastInsertId();
 
-        // Determine if application indicates the resident is the household head.
-        $roleRaw = strtolower(trim((string)($app['relationship_to_head'] ?? $app['household_role'] ?? '')));
-        $isHead = $roleRaw !== '' && (strpos($roleRaw, 'head') !== false || strpos($roleRaw, 'single') !== false);
-        $familyCode = trim((string)($app['family_code'] ?? ''));
-
-        if (tableExists($db, 'households')) {
-            $householdCols = array_flip(getTableColumns($db, 'households'));
-
-            if ($isHead) {
-                // Auto-create a new household for approved heads and generate codes.
-                $hhData = [
-                    'family_head_id'      => $residentId,
-                    'address'             => $address ?: ($app['barangay'] ?? null),
-                    'total_members'       => 1,
-                    'registration_date'   => date('Y-m-d'),
-                ];
-
-                // Codes are optional depending on migrations/schema.
-                if (isset($householdCols['household_id_code'])) {
-                    $hhData['household_id_code'] = generateUniqueHouseholdCode($db);
-                }
-                if (isset($householdCols['family_head_code'])) {
-                    $hhData['family_head_code'] = generateUniqueFamilyHeadCode($db);
-                }
-                if (isset($householdCols['family_code'])) {
-                    $hhData['family_code'] = $familyCode !== '' ? $familyCode : generateUniqueFamilyCode($db);
-                }
-
-                $hhInsertCols = [];
-                $hhInsertParams = [];
-                foreach ($hhData as $col => $val) {
-                    if (isset($householdCols[$col])) {
-                        $hhInsertCols[] = $col;
-                        $hhInsertParams[] = $val;
-                    }
-                }
-
-                if (!empty($hhInsertCols)) {
-                    $hhColSql = '`' . implode('`,`', $hhInsertCols) . '`';
-                    $hhPlaceholders = implode(',', array_fill(0, count($hhInsertCols), '?'));
-                    $db->query("INSERT INTO households ($hhColSql) VALUES ($hhPlaceholders)", $hhInsertParams);
-                    $householdId = (int)$db->lastInsertId();
-
-                    // Link head resident to this new household.
-                    if (isset($resCols['household_id'])) {
-                        $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $residentId]);
-                    }
-                }
-            } else {
-                // Non-head applications may optionally link to an existing household via family_code.
-                if ($familyCode !== '' && isset($householdCols['family_code'])) {
-                    $linkedHousehold = $db->fetchOne(
-                        "SELECT id FROM households WHERE family_code = ? LIMIT 1",
-                        [$familyCode]
-                    );
-                    if ($linkedHousehold) {
-                        $linkedHouseholdId = (int)$linkedHousehold['id'];
-                        if (isset($resCols['household_id'])) {
-                            $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$linkedHouseholdId, $residentId]);
-                        }
-                        if (isset($householdCols['total_members'])) {
-                            $db->query("UPDATE households SET total_members = GREATEST(0, COALESCE(total_members,0) + 1) WHERE id = ?", [$linkedHouseholdId]);
-                        }
-                    }
-                }
-            }
+        // If this application indicates a head of family role, generate a per-resident Family Head Code (FH-XXXXX).
+        // Important: relationship_to_head may exist but be an empty string, so we must fall back to household_role.
+        $relationshipRaw = trim((string)($app['relationship_to_head'] ?? ''));
+        $householdRoleRaw = trim((string)($app['household_role'] ?? ''));
+        $roleRaw = $relationshipRaw !== '' ? $relationshipRaw : $householdRoleRaw;
+        $roleRawLower = strtolower($roleRaw);
+        $isHead = $roleRawLower !== '' && (strpos($roleRawLower, 'head') !== false || strpos($roleRawLower, 'single') !== false);
+        if ($isHead && columnExists($db, 'residents', 'family_head_code')) {
+            $headCode = generateResidentFamilyHeadCode($db);
+            $db->query(
+                "UPDATE residents SET family_head_code = ? WHERE id = ?",
+                [$headCode, $residentId]
+            );
         }
+
+        // NOTE: Household records and member linking are now managed explicitly
+        // via the Households module and the "Assign Household" action.
+        // Approving an application will no longer auto-create or auto-attach households.
 
         // Create user account with Resident ID as username, placeholder password until activation
         $activationToken = bin2hex(random_bytes(32));
@@ -828,5 +801,103 @@ function getActivationLink() {
     } catch (Exception $e) {
         error_log('Get activation link: ' . $e->getMessage());
         sendResponse(false, 'Failed to retrieve activation link', null, 500);
+    }
+}
+
+/**
+ * Resolve the resident row for an approved application when approved_resident_id
+ * is missing or schema does not include it.
+ */
+function resolveResidentForApplication() {
+    $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+    if (!$id) {
+        sendResponse(false, 'Application ID required', null, 400);
+    }
+
+    try {
+        $db = Database::getInstance();
+        if (!tableExists($db, 'resident_applications')) {
+            sendResponse(false, 'Resident applications table is missing.', null, 500);
+        }
+        if (!tableExists($db, 'residents')) {
+            sendResponse(false, 'Residents table is missing.', null, 500);
+        }
+
+        $appCols = array_flip(getTableColumns($db, 'resident_applications'));
+        $statusCol = isset($appCols['record_status']) ? 'record_status' : (isset($appCols['status']) ? 'status' : null);
+        if (!$statusCol) {
+            sendResponse(false, 'Missing status column in resident_applications', null, 500);
+        }
+
+        $app = $db->fetchOne("SELECT * FROM resident_applications WHERE id = ?", [$id]);
+        if (!$app) {
+            sendResponse(false, 'Application not found', null, 404);
+        }
+        if (($app[$statusCol] ?? '') !== 'approved') {
+            sendResponse(false, 'Resident can only be resolved for approved applications.', null, 400);
+        }
+
+        // If schema already has approved_resident_id, prefer that.
+        if (isset($appCols['approved_resident_id']) && !empty($app['approved_resident_id'])) {
+            sendResponse(true, 'Resident resolved.', [
+                'resident_id' => (int)$app['approved_resident_id']
+            ]);
+        }
+
+        // Otherwise, resolve by strong identity: name + birthdate + (email or phone).
+        $first = $app['first_name'] ?? '';
+        $last = $app['last_name'] ?? '';
+        $birth = $app['birth_date'] ?? null;
+        $email = $app['email'] ?? '';
+        $mobile = $app['mobile_number'] ?? '';
+
+        if ($first === '' || $last === '' || !$birth) {
+            sendResponse(false, 'Insufficient identity details to resolve resident.', null, 400);
+        }
+
+        $params = [$first, $last, $birth];
+        $whereExtra = '';
+        if ($email !== '' || $mobile !== '') {
+            $whereExtra = " AND (
+                (? <> '' AND r.email = ?)
+                OR
+                (? <> '' AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(r.contact_number, ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') = ?)
+            )";
+            $params[] = $email;
+            $params[] = $email;
+            $params[] = $mobile;
+            $params[] = preg_replace('/\D/', '', (string)$mobile);
+        }
+
+        $sql = "SELECT r.id
+                FROM residents r
+                WHERE r.first_name = ?
+                  AND r.last_name = ?
+                  AND r.birth_date = ?"
+               . $whereExtra .
+               " ORDER BY r.id DESC
+                 LIMIT 1";
+
+        $resident = $db->fetchOne($sql, $params);
+        if (!$resident) {
+            sendResponse(false, 'Could not find resident record for this application.', null, 404);
+        }
+
+        $residentId = (int)$resident['id'];
+
+        // If schema has approved_resident_id, persist mapping for future use.
+        if (isset($appCols['approved_resident_id'])) {
+            $db->query(
+                "UPDATE resident_applications SET approved_resident_id = ? WHERE id = ?",
+                [$residentId, $id]
+            );
+        }
+
+        sendResponse(true, 'Resident resolved.', [
+            'resident_id' => $residentId
+        ]);
+    } catch (Exception $e) {
+        error_log('Resolve resident for application: ' . $e->getMessage());
+        sendResponse(false, 'Failed to resolve resident for application', null, 500);
     }
 }
