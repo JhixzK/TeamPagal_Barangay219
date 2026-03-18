@@ -415,6 +415,18 @@ $heroSlides = [
             height: 100%;
         }
 
+        .about-panel.about-tips-panel {
+            height: auto;
+            max-width: 560px;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 1.5rem 1.4rem;
+        }
+
+        .about-panel.about-tips-panel .steps-list li {
+            margin-bottom: 0.7rem;
+        }
+
         .about-panel p {
             color: var(--text-secondary);
             margin-bottom: 1rem;
@@ -576,6 +588,29 @@ $heroSlides = [
             font-size: 0.92rem;
         }
 
+        .official-list {
+            text-align: left;
+        }
+
+        .official-list-title {
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            margin-bottom: 0.55rem;
+            color: var(--text-primary);
+            text-transform: uppercase;
+        }
+
+        .official-list ul {
+            margin: 0;
+            padding-left: 1.1rem;
+            color: #334155;
+        }
+
+        .official-list li {
+            margin-bottom: 0.25rem;
+            font-size: 0.93rem;
+        }
+
         .cta-panel {
             border: 1px solid var(--border-soft);
             border-radius: 16px;
@@ -596,16 +631,125 @@ $heroSlides = [
             margin-bottom: 1.3rem;
         }
 
-        footer {
-            border-top: 1px solid var(--border-soft);
-            background: #fff;
-            color: #334155;
-            padding: 2rem 0 1.2rem;
+        footer.site-footer {
+            background: linear-gradient(145deg, #0f172a 0%, #1e3a8a 100%);
+            color: #e2e8f0;
+            padding: 3rem 0 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
         }
 
-        .footer-brand {
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 1.3fr 1fr 0.85fr 0.8fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        .footer-title {
+            color: #ffffff;
+            font-size: 1.05rem;
             font-weight: 700;
-            color: var(--text-primary);
+            margin-bottom: 0.85rem;
+            letter-spacing: 0.01em;
+        }
+
+        .footer-map-wrap {
+            width: 100%;
+            height: 210px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 12px 24px rgba(2, 6, 23, 0.35);
+        }
+
+        .footer-map-wrap iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+        }
+
+        .footer-contact-list,
+        .footer-links {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .footer-contact-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            margin-bottom: 0.75rem;
+            color: rgba(226, 232, 240, 0.95);
+        }
+
+        .footer-contact-list i {
+            color: #93c5fd;
+            margin-top: 2px;
+            font-size: 1rem;
+        }
+
+        .footer-links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-links a {
+            color: rgba(226, 232, 240, 0.95);
+            text-decoration: none;
+            transition: color 0.2s ease, transform 0.2s ease;
+            display: inline-block;
+        }
+
+        .footer-links a:hover,
+        .footer-links a:focus {
+            color: #ffffff;
+            transform: translateX(3px);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .footer-logos {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-logo-circle {
+            width: 84px;
+            height: 84px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 8px 18px rgba(2, 6, 23, 0.35);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+        }
+
+        .footer-logo-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .footer-logo-barangay {
+            transform: scale(1.22);
+            transform-origin: center;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            margin-top: 1.6rem;
+            padding-top: 0.95rem;
+            text-align: center;
+            color: rgba(226, 232, 240, 0.92);
+            font-size: 0.92rem;
         }
 
         .reveal-on-scroll {
@@ -700,6 +844,19 @@ $heroSlides = [
 
             .hero-actions {
                 width: 100%;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 1.2rem;
+            }
+
+            .footer-map-wrap {
+                height: 190px;
+            }
+
+            .footer-logos {
+                justify-content: center;
             }
         }
     </style>
@@ -804,18 +961,18 @@ $heroSlides = [
                 <div class="col-lg-6 mb-4">
                     <div class="about-panel">
                         <p>
-                            Maligayang pagdating sa e-Barangay Portal - isang modernong sistema na ginawa upang dalhin ang mga pangunahing serbisyo ng barangay direkta sa inyong mga kamay.
+                            Barangay 219 is a dynamic and close-knit community located in Tondo, Manila. Situated at Barangay 219 Zone 20, District II, Tindalo corner Cavite Street, Tondo, Manila, the barangay is part of one of the oldest and most culturally rich areas in the country.
                         </p>
                         <p>
-                            Layunin ng platform na ito na gawing mas mabilis, maayos, at accessible ang mga barangay services sa pamamagitan ng digital technology.
+                            Historically, Tondo has long been known as a center of trade, culture, and community life, and Barangay 219 continues to reflect that legacy. Through the years, it has evolved into a lively neighborhood where families, small businesses, and local traditions thrive side by side. Streets like Tindalo and Cavite are not just pathways but places where everyday stories unfold - children playing, neighbors sharing meals, and residents supporting one another in times of need.
                         </p>
                         <p class="mb-0">
-                            Dito ninyo makikita ang mga opisyal na impormasyon, serbisyo, at mga anunsyo ng barangay. Kung kayo ay residente na nangangailangan ng dokumento o nais lamang manatiling updated sa mga balita ng komunidad, ang e-Barangay Portal ay ginawa upang maging simple at convenient gamitin.
+                            Barangay 219 is a testament to the strength and resilience of its people. Despite the challenges that come with urban living, the community remains united and proactive. Local leaders and residents work hand in hand to promote peace and order, cleanliness, and social development programs that benefit everyone - from youth activities and education initiatives to health and safety efforts.
                         </p>
                     </div>
                 </div>
                 <div class="col-lg-6 mb-4">
-                    <div class="about-panel">
+                    <div class="about-panel about-tips-panel">
                             <h4 class="mb-3" style="font-weight: 700; color: var(--gov-blue);">Getting Started</h4>
                         <ul class="steps-list">
                             <li><i class="bi bi-check-circle-fill"></i><span><strong>Step 1:</strong> I-click ang Register upang gumawa ng account.</span></li>
@@ -966,32 +1123,50 @@ $heroSlides = [
             </div>
 
             <div class="row g-4">
-                <div class="col-sm-6 col-lg-3">
+                <div class="col-md-6 col-lg-4">
                     <div class="official-card">
-                        <div class="official-avatar">BC</div>
-                        <p class="official-name">Barangay Captain</p>
-                        <p class="official-role">Punong tagapangasiwa ng barangay.</p>
+                        <div class="official-avatar">PB</div>
+                        <p class="official-name">Fernando M. Legaspi</p>
+                        <p class="official-role">Punong Barangay</p>
                     </div>
                 </div>
-                <div class="col-sm-6 col-lg-3">
+
+                <div class="col-md-6 col-lg-4">
+                    <div class="official-card official-list">
+                        <p class="official-list-title mb-2">Barangay Kagawad</p>
+                        <ul>
+                            <li>Eduardo R. Grande</li>
+                            <li>Ferdinand W. Mejos</li>
+                            <li>Anita B. Carretero</li>
+                            <li>Luzviminda L. Lagman</li>
+                            <li>June F. Bonagua</li>
+                            <li>Joel T. Olitres</li>
+                            <li>Emma T. Borilla</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-4">
                     <div class="official-card">
                         <div class="official-avatar">SK</div>
-                        <p class="official-name">Barangay Secretary</p>
-                        <p class="official-role">Namamahala sa mga records at dokumento ng barangay.</p>
+                        <p class="official-name">Mico E. Soria</p>
+                        <p class="official-role">SK Chairman</p>
                     </div>
                 </div>
-                <div class="col-sm-6 col-lg-3">
+
+                <div class="col-md-6 col-lg-6">
                     <div class="official-card">
-                        <div class="official-avatar">TR</div>
-                        <p class="official-name">Barangay Treasurer</p>
-                        <p class="official-role">Namamahala sa pondo at budget ng barangay.</p>
+                        <div class="official-avatar">BS</div>
+                        <p class="official-name">Adrian M. Rino</p>
+                        <p class="official-role">Barangay Secretary</p>
                     </div>
                 </div>
-                <div class="col-sm-6 col-lg-3">
+
+                <div class="col-md-6 col-lg-6">
                     <div class="official-card">
-                        <div class="official-avatar">KG</div>
-                        <p class="official-name">Barangay Kagawad</p>
-                        <p class="official-role">Tumutulong sa pagpapatupad ng mga programa at serbisyo ng barangay.</p>
+                        <div class="official-avatar">BT</div>
+                        <p class="official-name">Katrina C. Chuidian</p>
+                        <p class="official-role">Barangay Treasurer</p>
                     </div>
                 </div>
             </div>
@@ -1013,21 +1188,69 @@ $heroSlides = [
     </section>
 
     <!-- FOOTER -->
-    <footer id="contact">
+    <footer id="contact" class="site-footer">
         <div class="container-lg">
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <p class="footer-brand">E-Barangay Portal</p>
-                    <p><?php echo htmlspecialchars($barangayName); ?> • <?php echo htmlspecialchars($city); ?>, <?php echo htmlspecialchars($province); ?></p>
+            <div class="footer-grid">
+                <div>
+                    <h3 class="footer-title">Our Location</h3>
+                    <div class="footer-map-wrap">
+                        <iframe
+                            src="https://www.google.com/maps?q=Barangay+219+Tondo+Manila&output=embed"
+                            loading="lazy"
+                            referrerpolicy="no-referrer-when-downgrade"
+                            title="Barangay 219, Tondo, Manila Map"
+                            aria-label="Google Map showing Barangay 219, Tondo, Manila"
+                            allowfullscreen>
+                        </iframe>
+                    </div>
                 </div>
-                <div class="col-md-6 text-md-end">
-                    <p><strong>Contact:</strong> (02) XXX-XXXX | email@barangay.gov.ph</p>
+
+                <div>
+                    <h3 class="footer-title">Contact Us</h3>
+                    <ul class="footer-contact-list">
+                        <li>
+                            <i class="bi bi-envelope-fill" aria-hidden="true"></i>
+                            <span>barangay219@tondo.gov.ph</span>
+                        </li>
+                        <li>
+                            <i class="bi bi-telephone-fill" aria-hidden="true"></i>
+                            <span>+63 9XX-XXX-XXXX</span>
+                        </li>
+                        <li>
+                            <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
+                            <span>Barangay 219 Zone 20 District II Manila, Tindalo cor. Cavite St., Tondo, Manila
+</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="footer-title">Quick Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="<?php echo BASE_URL; ?>home.php">Home</a></li>
+                        <li><a href="#about">About Us</a></li>
+                        <li><a href="#services">Services</a></li>
+                        <li><a href="#news">Announcements</a></li>
+                        <li><a href="#officials">Officials</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="footer-title">Official Seals</h3>
+                    <div class="footer-logos" aria-label="Official barangay and city logos">
+                        <div class="footer-logo-circle">
+                            <img src="<?php echo ASSETS_URL; ?>img/brgy219logo.jpg" alt="Barangay 219 Logo" class="footer-logo-image footer-logo-barangay">
+                        </div>
+                        <div class="footer-logo-circle">
+                            <img src="<?php echo ASSETS_URL; ?>img/manilalogo.png" alt="Manila City Seal" class="footer-logo-image" onerror="this.onerror=null;this.src='<?php echo ASSETS_URL; ?>img/manila-city-seal.svg';">
+                        </div>
+                    </div>
                 </div>
             </div>
-            <hr style="opacity: 0.1; margin: 0;">
-            <p style="text-align: center; margin-top: 16px; color: #64748b;">
-                &copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars($barangayName); ?>. All Rights Reserved.
-            </p>
+
+            <div class="footer-bottom">
+                &copy; 2026 Barangay 219, Tondo, Manila. All Rights Reserved.
+            </div>
         </div>
     </footer>
 
