@@ -128,6 +128,12 @@ function columnExists($db, $table, $column) {
     return !empty($row) && (int)$row['cnt'] > 0;
 }
 
+function isMissingCode($value) {
+    // Treat common placeholder values as "missing" so codes get generated.
+    $v = trim((string)$value);
+    return $v === '' || $v === '-' || strtolower($v) === 'null' || strtolower($v) === 'n/a';
+}
+
 /**
  * Ensure household codes and basic details exist once a head is assigned.
  * This can be called from multiple flows (updateHousehold, addHouseholdMember, etc.)
@@ -144,18 +150,16 @@ function ensureHouseholdCodesAndDetails($db, $householdId) {
     }
 
     $family_head_id = (int)($existing['family_head_id'] ?? 0);
-    if ($family_head_id <= 0) {
-        // Nothing to do if there is still no head.
-        return;
-    }
+    $hasHead = $family_head_id > 0;
 
     $hasHouseholdIdCode = columnExists($db, 'households', 'household_id_code');
     $hasFamilyHeadCode = columnExists($db, 'households', 'family_head_code');
     $hasFamilyCode = columnExists($db, 'households', 'family_code');
 
     // Generate official approval codes when a head is assigned (first time).
-    $needsHouseholdCode = $hasHouseholdIdCode && empty($existing['household_id_code']);
-    $needsHeadCode = $hasFamilyHeadCode && empty($existing['family_head_code']);
+    $needsHouseholdCode = $hasHouseholdIdCode && isMissingCode($existing['household_id_code'] ?? null);
+    // Only generate per-head codes when a head is actually assigned.
+    $needsHeadCode = $hasHead && $hasFamilyHeadCode && isMissingCode($existing['family_head_code'] ?? null);
 
     if ($needsHouseholdCode || $needsHeadCode) {
         $sets = [];
@@ -187,6 +191,10 @@ function ensureHouseholdCodesAndDetails($db, $householdId) {
     // Auto-fill household details from head when missing (so tiles show info right away).
     $current = $db->fetchOne("SELECT address, registration_date FROM households WHERE id = ?", [$householdId]);
     if ($current) {
+        if (!$hasHead) {
+            // No head assigned yet; don't try to pull address from a head resident.
+            return;
+        }
         $needsAddress = empty(trim((string)($current['address'] ?? '')));
         $needsRegDate = empty($current['registration_date']);
         if ($needsAddress || $needsRegDate) {
@@ -255,6 +263,35 @@ function listHouseholds() {
                 ORDER BY h.registration_date DESC, h.id DESC";
         
         $households = $db->fetchAll($sql, $params);
+
+        // If some existing households were created before codes were generated,
+        // generate household_id_code on-the-fly so the tiles don't show "-".
+        if (columnExists($db, 'households', 'household_id_code')) {
+            $needsCode = [];
+            foreach ($households as $h) {
+                if (isMissingCode($h['household_id_code'] ?? null)) {
+                    $needsCode[] = (int)($h['id'] ?? 0);
+                }
+            }
+
+            foreach ($needsCode as $householdId) {
+                if ($householdId <= 0) {
+                    continue;
+                }
+                ensureHouseholdCodesAndDetails($db, $householdId);
+
+                // Update only the code field in the in-memory list.
+                $codeRow = $db->fetchOne("SELECT household_id_code FROM households WHERE id = ?", [$householdId]);
+                if ($codeRow) {
+                    foreach ($households as &$hh) {
+                        if ((int)($hh['id'] ?? 0) === $householdId) {
+                            $hh['household_id_code'] = $codeRow['household_id_code'] ?? $hh['household_id_code'];
+                        }
+                    }
+                }
+            }
+            unset($hh);
+        }
         
         sendResponse(true, 'Households retrieved successfully', $households);
         
@@ -321,7 +358,12 @@ function createHousehold() {
     
     $family_head_id = intval($_POST['family_head_id'] ?? 0);
     $address = sanitizeInput($_POST['address'] ?? '');
-    $registration_date = $_POST['registration_date'] ?? date('Y-m-d');
+    $registration_date_raw = $_POST['registration_date'] ?? '';
+    $registration_date = is_string($registration_date_raw) ? trim($registration_date_raw) : '';
+    // If empty string is posted, default to today's date so households can be created without selecting a head.
+    if ($registration_date === '') {
+        $registration_date = date('Y-m-d');
+    }
     $total_members_raw = $_POST['total_members'] ?? null;
     $total_members = is_null($total_members_raw) || $total_members_raw === '' ? null : intval($total_members_raw);
     
@@ -344,15 +386,28 @@ function createHousehold() {
         }
         
         // Allow creating an empty household (no head yet, no address yet).
-        $address_db_val = $address !== '' ? $address : null;
+        // Your schema still has NOT NULL on `address`, so we must not pass NULL.
+        $address_db_val = $address !== '' ? $address : '';
         $total_members_db_val = is_null($total_members) ? ($family_head_db_val ? 1 : 0) : max(0, $total_members);
 
         // Insert household
-        $sql = "INSERT INTO households (family_head_id, address, total_members, registration_date) 
+        $sql = "INSERT INTO households (family_head_id, address, total_members, registration_date)
                 VALUES (?, ?, ?, ?)";
-        
+
         $db->query($sql, [$family_head_db_val, $address_db_val, $total_members_db_val, $registration_date]);
         $householdId = $db->lastInsertId();
+
+        // Generate Household ID Code immediately, even if the household is still empty.
+        if (columnExists($db, 'households', 'household_id_code')) {
+            $currentCodeRow = $db->fetchOne("SELECT household_id_code FROM households WHERE id = ?", [$householdId]);
+            $currentCode = $currentCodeRow['household_id_code'] ?? null;
+            if (isMissingCode($currentCode)) {
+                $db->query(
+                    "UPDATE households SET household_id_code = ? WHERE id = ?",
+                    [generateUniqueHouseholdCode($db), $householdId]
+                );
+            }
+        }
         
         // If head was selected during creation, link them into the household and recompute member count.
         if ($family_head_db_val) {
@@ -367,6 +422,59 @@ function createHousehold() {
         sendResponse(true, 'Household created successfully', $household);
         
     } catch (Exception $e) {
+        // If schema still enforces NOT NULL on family_head_id, fix automatically and retry once.
+        $msgLower = strtolower($e->getMessage());
+        $isFamilyHeadNullViolation = strpos($msgLower, "family_head_id") !== false
+            && (strpos($msgLower, "cannot be null") !== false || strpos($msgLower, "null") !== false);
+
+        $isAddressNullViolation = strpos($msgLower, "address") !== false
+            && (strpos($msgLower, "cannot be null") !== false || strpos($msgLower, "null") !== false);
+
+        if (($family_head_db_val === null && $isFamilyHeadNullViolation) || ($address_db_val === null && $isAddressNullViolation)) {
+            try {
+                $db = Database::getInstance();
+                // Allow empty household creation for both head and address.
+                if ($family_head_db_val === null && $isFamilyHeadNullViolation) {
+                    $db->query("ALTER TABLE households MODIFY COLUMN family_head_id INT(11) NULL");
+                }
+                if ($address_db_val === null && $isAddressNullViolation) {
+                    // address is text-ish in this project; make it nullable.
+                    $db->query("ALTER TABLE households MODIFY COLUMN address TEXT NULL");
+                }
+
+                // Retry insert
+                $sql = "INSERT INTO households (family_head_id, address, total_members, registration_date)
+                        VALUES (?, ?, ?, ?)";
+                $db->query($sql, [$family_head_db_val, $address_db_val, $total_members_db_val, $registration_date]);
+                $householdId = $db->lastInsertId();
+
+                // Generate Household ID Code immediately, even if household is empty.
+                if (columnExists($db, 'households', 'household_id_code')) {
+                    $currentCodeRow = $db->fetchOne("SELECT household_id_code FROM households WHERE id = ?", [$householdId]);
+                    $currentCode = $currentCodeRow['household_id_code'] ?? null;
+                    if (isMissingCode($currentCode)) {
+                        $db->query(
+                            "UPDATE households SET household_id_code = ? WHERE id = ?",
+                            [generateUniqueHouseholdCode($db), $householdId]
+                        );
+                    }
+                }
+
+                // If head was selected during creation, link them into the household and recompute member count.
+                if ($family_head_db_val) {
+                    $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $family_head_db_val]);
+                    $count = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$householdId])['c'];
+                    $db->query("UPDATE households SET total_members = ? WHERE id = ?", [(int)$count, $householdId]);
+                }
+
+                $household = $db->fetchOne("SELECT * FROM households WHERE id = ?", [$householdId]);
+                sendResponse(true, 'Household created successfully', $household);
+            } catch (Exception $e2) {
+                // Fall through to standard error response.
+                error_log("Retry create household error: " . $e2->getMessage());
+            }
+        }
+
         error_log("Create household error: " . $e->getMessage());
         $msg = 'Error creating household';
         if (defined('DEBUG_MODE') && DEBUG_MODE) {
@@ -435,7 +543,8 @@ function updateHousehold() {
         
         if (!is_null($address)) {
             $updates[] = "address = ?";
-            $params[] = ($address === '' ? null : $address);
+            // Your schema may have address as NOT NULL; keep empty as ''.
+            $params[] = ($address === '' ? '' : $address);
         }
         
         if ($total_members >= 0 && isset($_POST['total_members'])) {
@@ -453,9 +562,10 @@ function updateHousehold() {
         
         $db->query($sql, $params);
 
-        if ($assigningHead) {
-            ensureHouseholdCodesAndDetails($db, $id);
-        }
+        // Always ensure codes exist:
+        // - `household_id_code` should exist even when household is still empty
+        // - `family_head_code` will only be generated when a head is actually assigned
+        ensureHouseholdCodesAndDetails($db, $id);
 
         // Keep total_members aligned with actual linked residents when possible.
         $countRow = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$id]);
