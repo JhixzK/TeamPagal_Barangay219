@@ -527,7 +527,7 @@ $barangay219_purok_options = [
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label>Citizenship</label>
-                                            <input type="text" name="citizenship" class="form-control" value="Filipino" maxlength="30">
+                                            <input type="text" name="citizenship" class="form-control" value="Filipino" maxlength="30" readonly tabindex="-1">
                                         </div>
                                     </div>
                                     <hr>
@@ -635,7 +635,7 @@ $barangay219_purok_options = [
                                             <small class="text-muted d-block mt-1">Below PHP 12,000/member = Indigent.</small>
                                         </div>
                                     </div>
-                                    <div class="row">
+                                    <div class="row" id="familyCodeRow">
                                         <div class="col-md-6 mb-3">
                                             <label>Family Code / Head of Family ID <span class="text-danger" id="familyCodeRequiredMark" style="display:none;">*</span></label>
                                             <input type="text" id="family_code" name="family_code" class="form-control" maxlength="30" placeholder="Enter Head Family Code (e.g., BR219-2026-0001)">
@@ -794,37 +794,7 @@ $barangay219_purok_options = [
                                     </div>
                                     <input type="hidden" name="length_of_residency_years" id="length_of_residency_years" value="">
                                     <input type="hidden" name="length_of_residency" id="length_of_residency" value="">
-                                    <hr>
-                                    <h6 class="text-secondary mb-3">Emergency Contact</h6>
-                                    <div class="row">
-                                        <div class="col-md-4 mb-3">
-                                            <label>Name <span class="text-danger">*</span></label>
-                                            <input type="text" name="emergency_contact_name" class="form-control" maxlength="100" required placeholder="Enter full name">
-                                        </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label>Number <span class="text-danger">*</span></label>
-                                            <input type="tel" name="emergency_contact_number" class="form-control" maxlength="14" inputmode="numeric" required placeholder="+63 9XXXXXXXXX" value="+63 ">
-                                        </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label>Relationship <span class="text-danger">*</span></label>
-                                            <select name="emergency_contact_relationship" class="form-select" required>
-                                                <option value="">Select</option>
-                                                <option value="Parent">Parent</option>
-                                                <option value="Father">Father</option>
-                                                <option value="Mother">Mother</option>
-                                                <option value="Spouse">Spouse</option>
-                                                <option value="Partner">Partner</option>
-                                                <option value="Son">Son</option>
-                                                <option value="Daughter">Daughter</option>
-                                                <option value="Brother">Brother</option>
-                                                <option value="Sister">Sister</option>
-                                                <option value="Grandparent">Grandparent</option>
-                                                <option value="Uncle / Aunt">Uncle / Aunt</option>
-                                                <option value="Cousin">Cousin</option>
-                                                <option value="Relative (Other)">Relative (Other)</option>
-                                            </select>
-                                        </div>
-                                    </div>
+                                    <!-- Emergency contact section removed as per requirements -->
                                 </div>
                             </div>
                         </div>
@@ -961,7 +931,7 @@ phase1NameFields.forEach(fieldName => {
 });
 
 // Other text name-like fields - letters, spaces, hyphens, apostrophes, periods only
-const nameFields = ['place_of_birth', 'citizenship', 'emergency_contact_name', 'emergency_contact_relationship', 'occupation', 'ip_group', 'street', 'purok_sitio', 'parent_guardian_first_name', 'parent_guardian_middle_name', 'parent_guardian_last_name', 'parent_guardian_suffix'];
+const nameFields = ['place_of_birth', 'occupation', 'ip_group', 'street', 'purok_sitio', 'parent_guardian_first_name', 'parent_guardian_middle_name', 'parent_guardian_last_name', 'parent_guardian_suffix'];
 nameFields.forEach(fieldName => {
     const field = document.querySelector(`input[name="${fieldName}"]`);
     if (field) {
@@ -992,7 +962,7 @@ function formatPhoneInput(raw) {
     return '+63 ' + digits;
 }
 
-const phoneFields = ['mobile_number', 'emergency_contact_number'];
+const phoneFields = ['mobile_number'];
 phoneFields.forEach(fieldName => {
     const field = document.querySelector(`input[name="${fieldName}"]`);
     if (field) {
@@ -1299,6 +1269,7 @@ function toggleHouseholdTypeField() {
     const householdMembersField = document.querySelector('input[name="household_members"]');
     const householdIncomeRow = document.getElementById('householdIncomeRow');
     const householdIncomeField = document.getElementById('household_income');
+    const familyCodeRow = document.getElementById('familyCodeRow');
     const familyCodeField = document.getElementById('family_code');
     const relationshipField = document.getElementById('relationship_to_head');
     const familyCodeRequiredMark = document.getElementById('familyCodeRequiredMark');
@@ -1306,7 +1277,7 @@ function toggleHouseholdTypeField() {
     const familyCodeHelpText = document.getElementById('familyCodeHelpText');
     const relationshipHelpText = document.getElementById('relationshipHelpText');
 
-    if (!householdRoleField || !householdTypeRow || !householdTypeField || !houseTypeField || !householdMembersRow || !householdMembersField || !householdIncomeRow || !householdIncomeField || !familyCodeField || !relationshipField) {
+    if (!householdRoleField || !householdTypeRow || !householdTypeField || !houseTypeField || !householdMembersRow || !householdMembersField || !householdIncomeRow || !householdIncomeField || !familyCodeRow || !familyCodeField || !relationshipField) {
         return;
     }
 
@@ -1348,34 +1319,26 @@ function toggleHouseholdTypeField() {
     if (relationshipRequiredMark) relationshipRequiredMark.style.display = isMemberOfHousehold ? 'inline' : 'none';
 
     if (isHeadOfHousehold) {
-        familyCodeField.readOnly = true;
-        familyCodeField.value = buildFamilyCodePreview();
-        familyCodeField.dataset.autogenerated = '1';
-        familyCodeField.classList.remove('is-invalid');
-        if (familyCodeHelpText) familyCodeHelpText.textContent = 'Auto-generated for Head of Household. Final code is assigned during registration.';
-
+        // Hide Family Code / Relationship row for heads; code is generated server-side only.
+        familyCodeRow.style.display = 'none';
         relationshipField.value = 'Head';
         relationshipField.disabled = true;
         relationshipField.classList.remove('is-invalid');
+        if (familyCodeHelpText) familyCodeHelpText.textContent = 'Family Code is assigned internally once your application is approved.';
         if (relationshipHelpText) relationshipHelpText.textContent = 'Automatically set to Head for household heads.';
     } else if (isMemberOfHousehold) {
+        familyCodeRow.style.display = '';
         relationshipField.disabled = false;
         if (relationshipField.value === 'Head') {
             relationshipField.value = '';
-        }
-        if (familyCodeField.dataset.autogenerated === '1') {
-            familyCodeField.value = '';
-            delete familyCodeField.dataset.autogenerated;
         }
         familyCodeField.readOnly = false;
         familyCodeField.placeholder = 'Enter Head Family Code (e.g., BR219-2026-0001)';
         if (familyCodeHelpText) familyCodeHelpText.textContent = 'Enter the Head of Household Family Code to link your registration.';
         if (relationshipHelpText) relationshipHelpText.textContent = 'Choose your relationship to the Head. This is required.';
     } else {
+        familyCodeRow.style.display = '';
         relationshipField.disabled = false;
-        if (familyCodeField.dataset.autogenerated === '1') {
-            delete familyCodeField.dataset.autogenerated;
-        }
         familyCodeField.readOnly = false;
         familyCodeField.value = '';
         relationshipField.value = '';
@@ -1590,13 +1553,6 @@ function validateStep(step) {
             isValid = false;
         }
 
-        // Validate emergency contact number format
-        const emergencyContact = document.querySelector('input[name="emergency_contact_number"]');
-        if (emergencyContact.value && !/^\+63\s\d{10}$/.test(emergencyContact.value)) {
-            emergencyContact.classList.add('is-invalid');
-            isValid = false;
-        }
-
         // Validate email if provided - must be a Gmail address
         const email = document.querySelector('input[name="email"]');
         if (email.value && !/^[a-zA-Z0-9._%+\-]+@gmail\.com$/.test(email.value)) {
@@ -1647,12 +1603,7 @@ function validateStep(step) {
         }
         computeHouseholdIncomeClassification();
 
-        if (familyCodeField && !/^BR219-\d{4}-\d{4}$/i.test((familyCodeField.value || '').trim())) {
-            familyCodeField.classList.add('is-invalid');
-            isValid = false;
-        } else if (familyCodeField) {
-            familyCodeField.classList.remove('is-invalid');
-        }
+        // No Family Code validation for head; code is generated server-side.
     }
 
     if (roleField && roleField.value === 'Member of Household') {
@@ -1789,10 +1740,7 @@ function populateReview() {
                 { name: 'house_number', label: 'House No.' },
                 { name: 'street', label: 'Street' },
                 { name: 'purok_sitio', label: 'Purok / Sitio' },
-                { name: 'residency_start_date', label: 'Date of Residency Start' },
-                { name: 'emergency_contact_name', label: 'Emergency Contact Name' },
-                { name: 'emergency_contact_number', label: 'Emergency Contact Number' },
-                { name: 'emergency_contact_relationship', label: 'Emergency Contact Relationship' }
+                { name: 'residency_start_date', label: 'Date of Residency Start' }
             ]
         }
     ];
@@ -1900,7 +1848,8 @@ document.getElementById('registerForm').addEventListener('submit', async functio
         return;
     }
     applyTitleCaseToRegisterForm();
-    if (!validateStep(5)) {
+    // Validate the final step (Review & Submit) before sending
+    if (!validateStep(4)) {
         alert('Please complete all required fields and confirm the information.');
         return;
     }
