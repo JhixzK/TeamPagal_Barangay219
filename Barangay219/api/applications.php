@@ -317,6 +317,7 @@ function approveApplication() {
             'relationship_to_head' => $app['relationship_to_head'] ?? null,
             'contact_number' => $app['mobile_number'] ?? null,
             'email' => $app['email'] ?? null,
+            'residency_start_date' => $app['residency_start_date'] ?? null,
             'length_of_residency' => $app['length_of_residency'] ?? null,
             'length_of_residency_years' => $app['length_of_residency_years'] ?? null,
             'emergency_contact_name' => $app['emergency_contact_name'] ?? null,
