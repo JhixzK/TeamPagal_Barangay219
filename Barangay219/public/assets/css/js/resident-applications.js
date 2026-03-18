@@ -22,6 +22,7 @@ let appFilters = { q: '', sex: '', from: '', to: '' };
 let isApproveSubmitting = false;
 let isRejectSubmitting = false;
 let currentViewedApplication = null;
+let currentAssignIsHead = false;
 
 document.addEventListener('DOMContentLoaded', function() {
     bindTabs();
@@ -215,9 +216,10 @@ function openAssignHousehold(applicationId, residentId, isHead) {
     }
     document.getElementById('assignApplicationId').value = applicationId;
     document.getElementById('assignResidentId').value = residentId;
+    currentAssignIsHead = !!isHead;
     const hint = document.getElementById('assignHouseholdRoleHint');
     if (hint) {
-        hint.textContent = isHead ? 'Detected role: Head of Family (HH/FH codes will generate if missing)' : 'Detected role: Member';
+        hint.textContent = isHead ? 'Head of Family' : 'Detected role: Member';
     }
 
     const sel = document.getElementById('assignHouseholdId');
@@ -239,6 +241,44 @@ function openAssignHousehold(applicationId, residentId, isHead) {
                     return `<option value="${id}">${esc(label)}</option>`;
                 }));
             sel.innerHTML = opts.join('');
+
+            // On household change, load family-head dropdown (only for members).
+            sel.onchange = function () {
+                const householdId = Number(sel.value || 0);
+                const row = document.getElementById('assignFamilyHeadRow');
+                const selFH = document.getElementById('assignFamilyHeadId');
+                if (!row || !selFH) return;
+
+                selFH.innerHTML = '<option value="">-- Select family head --</option>';
+                if (currentAssignIsHead || !householdId) {
+                    row.style.display = 'none';
+                    return;
+                }
+
+                fetch(`${window.API_URL}households.php?action=family_heads&household_id=${householdId}`)
+                    .then(rr => rr.json())
+                    .then(dd => {
+                        const heads = Array.isArray(dd.data) ? dd.data : [];
+                        if (heads.length > 1) {
+                            row.style.display = '';
+                            selFH.innerHTML = heads.map(h => {
+                                const label = `${esc(h.name || ('Head ' + h.resident_id))} • ${esc(h.family_head_code || '-')}`;
+                                return `<option value="${Number(h.resident_id)}">${label}</option>`;
+                            }).join('');
+                            // Default-select first head
+                            if (!selFH.value && heads[0] && heads[0].resident_id) {
+                                selFH.value = String(Number(heads[0].resident_id));
+                            }
+                        } else {
+                            // Hide dropdown when only one head exists (member assignment can auto-detect).
+                            row.style.display = 'none';
+                        }
+                    })
+                    .catch(() => {
+                        // Hide on error to avoid blocking assignment.
+                        row.style.display = 'none';
+                    });
+            };
         })
         .catch(() => {
             sel.innerHTML = '<option value="">Failed to load households</option>';
@@ -252,6 +292,7 @@ function submitAssignHousehold() {
     const applicationId = Number(document.getElementById('assignApplicationId')?.value || 0);
     const residentId = Number(document.getElementById('assignResidentId')?.value || 0);
     const householdId = Number(document.getElementById('assignHouseholdId')?.value || 0);
+    const familyHeadResidentId = Number(document.getElementById('assignFamilyHeadId')?.value || 0);
 
     if (!applicationId || !residentId || !householdId) {
         showAlert('error', 'Please select a household.');
@@ -262,6 +303,9 @@ function submitAssignHousehold() {
     fd.append('application_id', applicationId);
     fd.append('resident_id', residentId);
     fd.append('household_id', householdId);
+    if (!currentAssignIsHead && familyHeadResidentId) {
+        fd.append('family_head_resident_id', familyHeadResidentId);
+    }
 
     fetch(`${window.API_URL}applications.php?action=assign_household`, { method: 'POST', body: fd })
         .then(async r => {
