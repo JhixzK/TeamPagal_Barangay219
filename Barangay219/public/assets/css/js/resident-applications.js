@@ -21,6 +21,7 @@ let currentPage = 1;
 let appFilters = { q: '', sex: '', from: '', to: '' };
 let isApproveSubmitting = false;
 let isRejectSubmitting = false;
+let currentViewedApplication = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     bindTabs();
@@ -321,6 +322,7 @@ function viewApplication(id) {
                 return;
             }
             const app = data.data;
+            currentViewedApplication = app;
             const fullName = [app.first_name, app.middle_name, app.last_name, app.suffix].filter(Boolean).join(' ');
             const address = [app.house_number, app.street, app.purok_sitio, app.barangay, app.city, app.province].filter(Boolean).join(', ');
             document.getElementById('viewAppRef').textContent = app.application_ref || ('APP-' + app.id);
@@ -360,7 +362,10 @@ function viewApplication(id) {
             const footer = document.getElementById('viewModalFooter');
             if (footer) {
                 let footerButtons = '';
-                if (RES_APP_PERMS.canEdit && (app.record_status === 'pending')) {
+                const appStatus = String(app.record_status || app.status || '').toLowerCase();
+
+                // Pending: Approve / Reject controls
+                if (RES_APP_PERMS.canEdit && appStatus === 'pending') {
                     footerButtons += `
                         <button type="button" class="btn btn-success me-2" onclick="openApprove(${app.id})">
                             <i class="bi bi-check-lg"></i> Approve
@@ -370,7 +375,20 @@ function viewApplication(id) {
                         </button>
                     `;
                 }
-                footerButtons += '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>';
+
+                // Close button (always shown, aligned on the left by default)
+                footerButtons += '<button type="button" class="btn btn-secondary me-auto" data-bs-dismiss="modal">Close</button>';
+
+                // Approved: Assign Household shortcut (manual placement to empty/existing household) on the right
+                if (RES_APP_PERMS.canEdit && appStatus === 'approved') {
+                    footerButtons += `
+                        <button type="button" class="btn btn-outline-primary"
+                            onclick="openAssignHouseholdFromModal()">
+                            <i class="bi bi-house-check"></i> Assign Household
+                        </button>
+                    `;
+                }
+
                 footer.innerHTML = footerButtons;
             }
 
@@ -383,8 +401,63 @@ function viewApplication(id) {
         });
 }
 
+function openAssignHouseholdFromModal() {
+    if (!RES_APP_PERMS.canEdit) {
+        showAlert('error', 'Access denied');
+        return;
+    }
+    if (!currentViewedApplication) {
+        showAlert('error', 'No application is currently loaded.');
+        return;
+    }
+    const app = currentViewedApplication;
+    // Hide the Application Details modal to avoid stacked/overlapping modals
+    const viewModalEl = document.getElementById('viewModal');
+    if (viewModalEl) {
+        const viewInstance = bootstrap.Modal.getInstance(viewModalEl);
+        if (viewInstance) viewInstance.hide();
+    }
+    const roleInfo = getHouseholdRoleInfo(app);
+    const isHead = (roleInfo.label || '').toLowerCase() === 'head';
+    const existingResidentId = Number(app.approved_resident_id || 0);
+
+    // If backend already stored approved_resident_id, use it directly.
+    if (existingResidentId > 0) {
+        openAssignHousehold(app.id, existingResidentId, isHead ? 1 : 0);
+        return;
+    }
+
+    // Otherwise, ask backend to resolve resident for this approved application.
+    fetch(`${window.API_URL}applications.php?action=resolve_resident&id=${app.id}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success || !data.data || !data.data.resident_id) {
+                showAlert('error', data.message || 'Resident record for this application is not found. Make sure the application is approved.');
+                return;
+            }
+            const resolvedId = Number(data.data.resident_id);
+            if (!resolvedId) {
+                showAlert('error', 'Resident record for this application is not found. Make sure the application is approved.');
+                return;
+            }
+            // Cache for this page view so subsequent clicks don't need another call.
+            app.approved_resident_id = resolvedId;
+            openAssignHousehold(app.id, resolvedId, isHead ? 1 : 0);
+        })
+        .catch(err => {
+            console.error(err);
+            showAlert('error', 'Unable to resolve resident record for this application.');
+        });
+}
+
 function openApprove(id) {
     if (!RES_APP_PERMS.canEdit) return;
+    // Hide the Application Details modal to avoid stacked/overlapping modals
+    const viewModalEl = document.getElementById('viewModal');
+    if (viewModalEl) {
+        const viewInstance = bootstrap.Modal.getInstance(viewModalEl);
+        if (viewInstance) viewInstance.hide();
+    }
     document.getElementById('approveId').value = id;
     const display = document.getElementById('approveIdDisplay');
     if (display) {
@@ -440,6 +513,12 @@ function submitApprove() {
 
 function openReject(id) {
     if (!RES_APP_PERMS.canEdit) return;
+    // Hide the Application Details modal to avoid stacked/overlapping modals
+    const viewModalEl = document.getElementById('viewModal');
+    if (viewModalEl) {
+        const viewInstance = bootstrap.Modal.getInstance(viewModalEl);
+        if (viewInstance) viewInstance.hide();
+    }
     document.getElementById('rejectId').value = id;
     document.getElementById('rejectReason').value = '';
     new bootstrap.Modal(document.getElementById('rejectModal')).show();
