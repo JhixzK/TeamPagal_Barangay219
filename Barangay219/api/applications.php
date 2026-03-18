@@ -61,6 +61,10 @@ function sendResponse($success, $message, $data = null, $code = 200) {
 
 function generateUniqueHouseholdCode($db) {
     // HH-XXXXXX (6 digits)
+    if (!columnExists($db, 'households', 'household_id_code')) {
+        // Schema might not have household codes yet; return best-effort value.
+        return 'HH-' . str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    }
     for ($i = 0; $i < 20; $i++) {
         $code = 'HH-' . str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $exists = $db->fetchOne("SELECT id FROM households WHERE household_id_code = ? LIMIT 1", [$code]);
@@ -73,6 +77,10 @@ function generateUniqueHouseholdCode($db) {
 
 function generateUniqueFamilyHeadCode($db) {
     // FH-XXXXX (5 digits)
+    if (!columnExists($db, 'households', 'family_head_code')) {
+        // Schema might not have family head codes yet; return best-effort value.
+        return 'FH-' . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+    }
     for ($i = 0; $i < 20; $i++) {
         $code = 'FH-' . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
         $exists = $db->fetchOne("SELECT id FROM households WHERE family_head_code = ? LIMIT 1", [$code]);
@@ -85,6 +93,11 @@ function generateUniqueFamilyHeadCode($db) {
 
 function generateUniqueFamilyCode($db) {
     // BR219-YYYY-XXXX (4 digits)
+    if (!columnExists($db, 'households', 'family_code')) {
+        // Schema might not have family codes yet; return best-effort value.
+        $year = date('Y');
+        return 'BR219-' . $year . '-' . str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+    }
     $year = date('Y');
     for ($i = 0; $i < 30; $i++) {
         $suffix = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
@@ -115,6 +128,18 @@ function getTableColumns($db, $table) {
         [$table]
     );
     return array_map(static function($r) { return $r['column_name']; }, $rows);
+}
+
+function columnExists($db, $table, $column) {
+    $row = $db->fetchOne(
+        "SELECT COUNT(*) AS cnt
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE()
+           AND table_name = ?
+           AND column_name = ?",
+        [$table, $column]
+    );
+    return !empty($row) && (int)$row['cnt'] > 0;
 }
 
 function listApplications() {
@@ -361,26 +386,66 @@ function approveApplication() {
 
         $residentId = $db->lastInsertId();
 
-        // Household assignment is handled by officials after approval (Assign Household action).
-        // Do NOT auto-create a new household when a "Head" application is approved.
-        // Non-head applications may still optionally link to an existing household via family_code.
+        // Determine if application indicates the resident is the household head.
         $roleRaw = strtolower(trim((string)($app['relationship_to_head'] ?? $app['household_role'] ?? '')));
         $isHead = $roleRaw !== '' && (strpos($roleRaw, 'head') !== false || strpos($roleRaw, 'single') !== false);
         $familyCode = trim((string)($app['family_code'] ?? ''));
 
-        if (!$isHead && tableExists($db, 'households')) {
-            // Household assignment for members is handled by officials after approval.
-            // Keep optional legacy linking by family_code, but never block approval when it's missing/invalid.
-            if ($familyCode !== '') {
-                $householdCols = array_flip(getTableColumns($db, 'households'));
+        if (tableExists($db, 'households')) {
+            $householdCols = array_flip(getTableColumns($db, 'households'));
+
+            if ($isHead) {
+                // Auto-create a new household for approved heads and generate codes.
+                $hhData = [
+                    'family_head_id'      => $residentId,
+                    'address'             => $address ?: ($app['barangay'] ?? null),
+                    'total_members'       => 1,
+                    'registration_date'   => date('Y-m-d'),
+                ];
+
+                // Codes are optional depending on migrations/schema.
+                if (isset($householdCols['household_id_code'])) {
+                    $hhData['household_id_code'] = generateUniqueHouseholdCode($db);
+                }
+                if (isset($householdCols['family_head_code'])) {
+                    $hhData['family_head_code'] = generateUniqueFamilyHeadCode($db);
+                }
                 if (isset($householdCols['family_code'])) {
+                    $hhData['family_code'] = $familyCode !== '' ? $familyCode : generateUniqueFamilyCode($db);
+                }
+
+                $hhInsertCols = [];
+                $hhInsertParams = [];
+                foreach ($hhData as $col => $val) {
+                    if (isset($householdCols[$col])) {
+                        $hhInsertCols[] = $col;
+                        $hhInsertParams[] = $val;
+                    }
+                }
+
+                if (!empty($hhInsertCols)) {
+                    $hhColSql = '`' . implode('`,`', $hhInsertCols) . '`';
+                    $hhPlaceholders = implode(',', array_fill(0, count($hhInsertCols), '?'));
+                    $db->query("INSERT INTO households ($hhColSql) VALUES ($hhPlaceholders)", $hhInsertParams);
+                    $householdId = (int)$db->lastInsertId();
+
+                    // Link head resident to this new household.
+                    if (isset($resCols['household_id'])) {
+                        $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $residentId]);
+                    }
+                }
+            } else {
+                // Non-head applications may optionally link to an existing household via family_code.
+                if ($familyCode !== '' && isset($householdCols['family_code'])) {
                     $linkedHousehold = $db->fetchOne(
                         "SELECT id FROM households WHERE family_code = ? LIMIT 1",
                         [$familyCode]
                     );
                     if ($linkedHousehold) {
                         $linkedHouseholdId = (int)$linkedHousehold['id'];
-                        $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$linkedHouseholdId, $residentId]);
+                        if (isset($resCols['household_id'])) {
+                            $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$linkedHouseholdId, $residentId]);
+                        }
                         if (isset($householdCols['total_members'])) {
                             $db->query("UPDATE households SET total_members = GREATEST(0, COALESCE(total_members,0) + 1) WHERE id = ?", [$linkedHouseholdId]);
                         }
@@ -525,18 +590,40 @@ function assignHouseholdToApprovedResident() {
         // If the approved application is for head of family, set as household head automatically.
         if ($isHead) {
             $db->query("UPDATE households SET family_head_id = ? WHERE id = ?", [$residentId, $householdId]);
-            // Generate head/household codes if missing (same rules as households module).
-            $hhRow = $db->fetchOne("SELECT household_id_code, family_head_code, family_code FROM households WHERE id = ?", [$householdId]);
-            if ($hhRow) {
-                if (empty($hhRow['household_id_code'])) {
-                    $db->query("UPDATE households SET household_id_code = ? WHERE id = ? AND (household_id_code IS NULL OR household_id_code='')", [generateUniqueHouseholdCode($db), $householdId]);
-                }
-                if (empty($hhRow['family_head_code'])) {
-                    $db->query("UPDATE households SET family_head_code = ? WHERE id = ? AND (family_head_code IS NULL OR family_head_code='')", [generateUniqueFamilyHeadCode($db), $householdId]);
-                }
-                if (array_key_exists('family_code', $hhRow) && empty($hhRow['family_code'])) {
-                    $db->query("UPDATE households SET family_code = ? WHERE id = ? AND (family_code IS NULL OR family_code='')", [generateUniqueFamilyCode($db), $householdId]);
-                }
+            // Generate head/household codes if missing (schema tolerant).
+            $householdCols = array_flip(getTableColumns($db, 'households'));
+            if (isset($householdCols['household_id_code'])) {
+                $db->query(
+                    "UPDATE households
+                     SET household_id_code = CASE
+                         WHEN household_id_code IS NULL OR household_id_code = '' THEN ?
+                         ELSE household_id_code
+                     END
+                     WHERE id = ?",
+                    [generateUniqueHouseholdCode($db), $householdId]
+                );
+            }
+            if (isset($householdCols['family_head_code'])) {
+                $db->query(
+                    "UPDATE households
+                     SET family_head_code = CASE
+                         WHEN family_head_code IS NULL OR family_head_code = '' THEN ?
+                         ELSE family_head_code
+                     END
+                     WHERE id = ?",
+                    [generateUniqueFamilyHeadCode($db), $householdId]
+                );
+            }
+            if (isset($householdCols['family_code'])) {
+                $db->query(
+                    "UPDATE households
+                     SET family_code = CASE
+                         WHEN family_code IS NULL OR family_code = '' THEN ?
+                         ELSE family_code
+                     END
+                     WHERE id = ?",
+                    [generateUniqueFamilyCode($db), $householdId]
+                );
             }
 
             // Auto-fill household address/registration when missing from head resident.
