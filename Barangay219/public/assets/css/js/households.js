@@ -125,7 +125,7 @@ function loadHouseholds() {
                     const codeLineParts = [];
                     if (hhCode) codeLineParts.push(`Household ID: ${hhCode}`);
                     if (fhCode) codeLineParts.push(`Head Code: ${fhCode}`);
-                    const codeLine = codeLineParts.length ? codeLineParts.join(' • ') : 'Codes will generate after head approval';
+                    const codeLine = codeLineParts.length ? codeLineParts.join(' • ') : 'Generated codes will appear after head approval';
 
                     return `
                         <div class="household-tile card shadow-sm">
