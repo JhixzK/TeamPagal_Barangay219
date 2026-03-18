@@ -1312,11 +1312,13 @@ function toggleHouseholdTypeField() {
         if (economicClassificationField) economicClassificationField.value = '';
     }
 
-    familyCodeField.required = isMemberOfHousehold;
-    relationshipField.required = isMemberOfHousehold;
+    // Family Code should not be required during registration.
+    familyCodeField.required = false;
+    // Relationship should not be required during registration.
+    relationshipField.required = false;
 
-    if (familyCodeRequiredMark) familyCodeRequiredMark.style.display = isMemberOfHousehold ? 'inline' : 'none';
-    if (relationshipRequiredMark) relationshipRequiredMark.style.display = isMemberOfHousehold ? 'inline' : 'none';
+    if (familyCodeRequiredMark) familyCodeRequiredMark.style.display = 'none';
+    if (relationshipRequiredMark) relationshipRequiredMark.style.display = 'none';
 
     if (isHeadOfHousehold) {
         // Hide Family Code / Relationship row for heads; code is generated server-side only.
@@ -1607,16 +1609,26 @@ function validateStep(step) {
     }
 
     if (roleField && roleField.value === 'Member of Household') {
-        if (familyCodeField && !/^BR219-\d{4}-\d{4}$/i.test((familyCodeField.value || '').trim())) {
-            familyCodeField.classList.add('is-invalid');
-            isValid = false;
+        const familyCodeVal = (familyCodeField && typeof familyCodeField.value === 'string')
+            ? familyCodeField.value.trim()
+            : '';
+        // Family Code is optional during registration.
+        if (familyCodeField && familyCodeVal !== '') {
+            if (!/^BR219-\d{4}-\d{4}$/i.test(familyCodeVal)) {
+                familyCodeField.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                familyCodeField.classList.remove('is-invalid');
+            }
         } else if (familyCodeField) {
             familyCodeField.classList.remove('is-invalid');
         }
 
         if (relationshipField) {
             const rel = (relationshipField.value || '').trim();
-            if (rel === '' || rel.toLowerCase() === 'head') {
+            // Relationship to Head is optional during registration.
+            // Only block if user entered "Head".
+            if (rel.toLowerCase() === 'head') {
                 relationshipField.classList.add('is-invalid');
                 isValid = false;
             } else {
