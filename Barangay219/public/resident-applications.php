@@ -64,7 +64,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <th class="text-center">Submitted</th>
                         <th class="text-center" style="width: 140px;">Household Role</th>
                         <th class="text-center">Status</th>
-                        <th class="text-center">Actions</th>
+                        <th class="text-center">VIEW</th>
                     </tr>
                 </thead>
                 <tbody id="applicationsTableBody">
@@ -166,6 +166,10 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div class="modal-body">
                 <input type="hidden" id="approveId">
+                <div class="mb-2">
+                    <label class="form-label">Application ID</label>
+                    <input type="text" class="form-control" id="approveIdDisplay" readonly>
+                </div>
                 <label class="form-label">Remarks (optional)</label>
                 <textarea class="form-control" id="approveRemarks" rows="3" placeholder="Approval notes"></textarea>
             </div>
