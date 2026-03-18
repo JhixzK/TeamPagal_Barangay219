@@ -225,6 +225,19 @@ function renderOfficialTile(o) {
     const isActive = String(o.status || '').toLowerCase() === 'active';
     const statusBadge = isActive ? 'bg-success' : 'bg-secondary';
     const icon = getPositionIcon(o.position);
+    const isCaptain = String(o.position || '').toLowerCase() === 'barangay_captain';
+    const isSuper = isSuperAdminClient();
+    const deleteButton = isCaptain
+        ? (isSuper
+            ? `<button class="btn btn-sm btn-outline-danger" title="Remove (Super Admin only)" aria-label="Remove" onclick="deleteOfficial(${o.id})">
+                    <i class="bi bi-trash"></i>
+               </button>`
+            : `<button class="btn btn-sm btn-outline-secondary" title="Protected (Super Admin only)" aria-label="Protected" disabled>
+                    <i class="bi bi-shield-lock"></i>
+               </button>`)
+        : `<button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="deleteOfficial(${o.id})">
+                <i class="bi bi-trash"></i>
+           </button>`;
     return `
         <div class="official-tile card border-0 shadow-sm">
             <div class="card-body">
@@ -248,9 +261,7 @@ function renderOfficialTile(o) {
                         <button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editOfficial(${o.id})">
                             <i class="bi bi-pencil-square"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="deleteOfficial(${o.id})">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                        ${deleteButton}
                     </div>
                 </div>
                 <div class="official-foot mt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
