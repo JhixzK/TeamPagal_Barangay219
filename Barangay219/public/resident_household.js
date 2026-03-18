@@ -29,6 +29,11 @@ function normalizeRelationship(value) {
   return RELATIONSHIP_MAP[value] || value;
 }
 
+function isHeadRelationship(value) {
+  const rel = (value || "").toString().trim().toLowerCase();
+  return rel === "head" || rel === "head of family" || rel === "family head" || rel === "household head";
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -226,11 +231,7 @@ function renderMembersTable(members, isHead) {
     .map((member) => {
       const isSelf = !!member.is_self;
       const memberId = Number(member.id || 0);
-      const relLower = (member.relationship_to_head || "").toString().trim().toLowerCase();
-      const isMemberHead =
-        relLower === "head" ||
-        relLower.includes("head") ||
-        (Number(member.resident_id || 0) === Number(currentHouseholdData?.family_head_id || 0));
+        const isMemberHead = isHeadRelationship(member.relationship_to_head) || (Number(member.resident_id || 0) === Number(currentHouseholdData?.family_head_id || 0));
       const canRemove = memberId > 0 && !member.readonly && isHead && !isSelf && !isMemberHead;
       const canAssignHead = memberId > 0 && !member.readonly && isHead && !isSelf;
 
@@ -332,8 +333,7 @@ function renderManageMembersTable(members) {
   tbody.innerHTML = members.map((member) => {
     const isSelf = !!member.is_self;
     const memberId = Number(member.id || 0);
-    const relLower = (member.relationship_to_head || "").toString().trim().toLowerCase();
-    const isMemberHead = relLower === "head" || relLower.includes("head") || (Number(member.resident_id || 0) === Number(currentHouseholdData?.family_head_id || 0));
+      const isMemberHead = isHeadRelationship(member.relationship_to_head) || (Number(member.resident_id || 0) === Number(currentHouseholdData?.family_head_id || 0));
 
     const canAssignHead = !isSelf && !isMemberHead;
     const canRemove = !isSelf && !isMemberHead;
@@ -524,10 +524,8 @@ function editMember(memberId) {
     showErrorMessage("Member not found.");
     return;
   }
-  const relLower = (member.relationship_to_head || "").toString().trim().toLowerCase();
   const isMemberHead =
-    relLower === "head" ||
-    relLower.includes("head") ||
+    isHeadRelationship(member.relationship_to_head) ||
     (Number(member.resident_id || 0) === Number(currentHouseholdData?.family_head_id || 0));
   if (isMemberHead) {
     showErrorMessage("Head of the family information cannot be edited here.");
