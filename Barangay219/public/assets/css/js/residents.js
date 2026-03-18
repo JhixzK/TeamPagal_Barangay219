@@ -181,7 +181,7 @@ function displayResidents(residents) {
     const tbody = document.getElementById('residentsTableBody');
     
     if (residents.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center">No residents found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center">No residents found</td></tr>';
         return;
     }
 
@@ -219,6 +219,9 @@ function displayResidents(residents) {
         const householdCode = resident.household_code
             ? `<span class="badge bg-light text-dark border">${escapeHtml(String(resident.household_code))}${headIcon}</span>`
             : '<span class="text-muted">-</span>';
+        const familyHeadCode = resident.family_head_code
+            ? `<span class="badge bg-light text-dark border">${escapeHtml(String(resident.family_head_code))}</span>`
+            : '<span class="text-muted">-</span>';
         return `
             <tr>
                 <td class="text-center">${residentCode}</td>
@@ -228,6 +231,7 @@ function displayResidents(residents) {
                 <td class="text-center">${escapeHtml(formatTitleCaseTruncate(resident.address || '', 40))}${(resident.address||'').length>40?'...':''}</td>
                 <td class="text-center">${escapeHtml(formatPhoneNumber(resident.contact_number) || '-')}</td>
                 <td class="text-center">${householdCode}</td>
+                <td class="text-center">${familyHeadCode}</td>
                 <td class="text-center">${getVerificationBadge(verificationStatus)}</td>
                 <td class="text-center"><span class="badge ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
                 <td class="text-center">
