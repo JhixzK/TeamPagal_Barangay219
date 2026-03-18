@@ -741,7 +741,7 @@ function getHouseholdRoleInfo(app) {
             badge: '<span class="text-muted">-</span>'
         };
     }
-    const isHead = lower === 'head' || lower.includes('head') || lower.includes('single');
+    const isHead = ['head', 'head of family', 'family head', 'household head'].includes(lower);
     return {
         label: isHead ? 'Head' : 'Member',
         relationship: (app.relationship_to_head || '').toString().trim() || raw,
@@ -912,3 +912,4 @@ function fallbackCopyText(value) {
         textarea.remove();
     }
 }
+
