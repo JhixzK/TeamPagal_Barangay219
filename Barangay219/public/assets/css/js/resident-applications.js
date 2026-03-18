@@ -261,13 +261,28 @@ function openAssignHousehold(applicationId, residentId, isHead) {
                         const heads = Array.isArray(dd.data) ? dd.data : [];
                         if (heads.length > 1) {
                             row.style.display = '';
-                            selFH.innerHTML = heads.map(h => {
-                                const label = `${esc(h.name || ('Head ' + h.resident_id))} • ${esc(h.family_head_code || '-')}`;
-                                return `<option value="${Number(h.resident_id)}">${label}</option>`;
-                            }).join('');
+                            const options = heads
+                                .map(h => {
+                                    const residentId = Number(h.resident_id || h.id || 0);
+                                    if (!residentId) return '';
+                                    const fallbackName = h.resident_name || h.full_name || ('Head ' + residentId);
+                                    const label = `${esc(h.name || fallbackName)} • ${esc(h.family_head_code || '-')}`;
+                                    return `<option value="${residentId}">${label}</option>`;
+                                })
+                                .filter(Boolean);
+
+                            if (!options.length) {
+                                row.style.display = 'none';
+                                return;
+                            }
+
+                            selFH.innerHTML = options.join('');
                             // Default-select first head
-                            if (!selFH.value && heads[0] && heads[0].resident_id) {
-                                selFH.value = String(Number(heads[0].resident_id));
+                            if (!selFH.value) {
+                                const firstOption = selFH.querySelector('option');
+                                if (firstOption) {
+                                    selFH.value = firstOption.value;
+                                }
                             }
                         } else {
                             // Hide dropdown when only one head exists (member assignment can auto-detect).
@@ -296,6 +311,12 @@ function submitAssignHousehold() {
 
     if (!applicationId || !residentId || !householdId) {
         showAlert('error', 'Please select a household.');
+        return;
+    }
+
+    const familyHeadRow = document.getElementById('assignFamilyHeadRow');
+    if (!currentAssignIsHead && familyHeadRow && familyHeadRow.style.display !== 'none' && !familyHeadResidentId) {
+        showAlert('error', 'Please select a family head.');
         return;
     }
 
