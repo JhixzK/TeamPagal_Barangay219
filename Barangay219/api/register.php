@@ -322,9 +322,7 @@ if (!$birth_date || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $birth_date)) $errors[]
 if (strtotime($birth_date) > time()) $errors[] = 'Date of birth cannot be in the future.';
 if (!strlen($mobile_number) || strlen($mobile_number) < 10) $errors[] = 'Valid mobile number is required.';
 if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Valid email address is required.';
-if (!$emergency_contact_name) $errors[] = 'Emergency contact name is required.';
-if (!$emergency_contact_number || strlen($emergency_contact_number) < 10) $errors[] = 'Emergency contact number is required.';
-if (!$emergency_contact_relationship) $errors[] = 'Emergency contact relationship is required.';
+// Emergency contact details are now optional for registration.
 if (!in_array($valid_id_type, $allowed_id_types)) $errors[] = 'Valid ID type is required.';
 if (!$valid_id_number || strlen($valid_id_number) > 100) $errors[] = 'Valid ID number is required.';
 if (!$data_privacy) $errors[] = 'Data Privacy Act consent is required.';
