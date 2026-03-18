@@ -222,6 +222,13 @@ include __DIR__ . '/../includes/sidebar.php';
                     <small class="text-muted">Choose the household this approved resident should belong to.</small>
                 </div>
                 <div class="small text-muted" id="assignHouseholdRoleHint">Role will be detected from the approved application.</div>
+                <div class="mb-3" id="assignFamilyHeadRow" style="display:none;">
+                    <label class="form-label">Select Family Head (if household has multiple)</label>
+                    <select class="form-select" id="assignFamilyHeadId">
+                        <option value="">-- Select family head --</option>
+                    </select>
+                    <small class="text-muted">This determines which family head code the member will belong to.</small>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
