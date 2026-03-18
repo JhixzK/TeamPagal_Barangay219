@@ -234,38 +234,109 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <div class="modal fade" id="householdModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="householdModalTitle">Edit Household</h5>
+                <h5 class="modal-title" id="householdModalTitle">Add New Household</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="householdForm">
                 <div class="modal-body">
                     <input type="hidden" id="householdId" name="id">
-                    <div class="mb-3">
-                        <label for="family_head_id" class="form-label">Family Head</label>
-                        <select class="form-select" id="family_head_id" name="family_head_id">
-                            <option value="">-- Select Resident --</option>
-                        </select>
-                        <small class="text-muted">Optional for now. You can create an empty household first, then assign the head later.</small>
-                    </div>
-                    <div class="mb-3">
-                        <label for="address" class="form-label">Address</label>
-                        <textarea class="form-control" id="address" name="address" rows="2" placeholder="(optional)"></textarea>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3" id="totalMembersGroup">
-                            <label for="total_members" class="form-label">Total Members</label>
-                            <input type="number" min="0" class="form-control" id="total_members" name="total_members" value="0">
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-primary text-white">
+                            <span><i class="bi bi-house-heart me-2"></i>Household Details</span>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="registration_date" class="form-label">Registration Date</label>
-                            <input type="date" class="form-control" id="registration_date" name="registration_date">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="family_head_id" class="form-label">Family Head (Resident ID)</label>
+                                    <select class="form-select" id="family_head_id" name="family_head_id">
+                                        <option value="">-- Select Resident --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Household Type</label>
+                                    <select class="form-select" id="household_type" name="household_type">
+                                        <option value="single">Single</option>
+                                        <option value="couple">Couple</option>
+                                        <option value="family">Family</option>
+                                        <option value="shared_renters">Shared/Renters</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="registration_date" class="form-label">Registration Date</label>
+                                    <input type="date" class="form-control" id="registration_date" name="registration_date">
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div id="joinHouseholdSection">
-                        <hr>
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-light">
+                            <strong><i class="bi bi-geo-alt me-2"></i>Address Information</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">House No.</label>
+                                    <input type="text" class="form-control" id="house_number" name="house_number" placeholder="e.g., 123">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">House Type</label>
+                                    <select class="form-select" id="house_type" name="house_type">
+                                        <option value="">Select House Type</option>
+                                        <option value="concrete">Concrete</option>
+                                        <option value="semi_concrete">Semi-Concrete</option>
+                                        <option value="light_materials">Light Materials</option>
+                                        <option value="apartment_boarding">Apartment / Boarding House</option>
+                                        <option value="townhouse_row">Townhouse / Row House</option>
+                                        <option value="informal_improvised">Informal / Improvised</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Street</label>
+                                    <input type="text" class="form-control" id="street" name="street" placeholder="Select Street">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">House Ownership</label>
+                                    <select class="form-select" id="house_ownership" name="house_ownership">
+                                        <option value="">Select Ownership</option>
+                                        <option value="owned">Owned</option>
+                                        <option value="rented">Rented</option>
+                                        <option value="relatives">Living with Relatives</option>
+                                        <option value="informal_settler">Informal Settler</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Barangay</label>
+                                    <input type="text" class="form-control" value="219" readonly>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Zone</label>
+                                    <input type="text" class="form-control" value="20" readonly>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">District</label>
+                                    <input type="text" class="form-control" value="II" readonly>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">City</label>
+                                    <input type="text" class="form-control" value="Manila" readonly>
+                                </div>
+                                <div class="col-12 mt-2">
+                                    <label for="address" class="form-label">Full Address</label>
+                                    <textarea class="form-control" id="address" name="address" rows="2" readonly onfocus="this.blur()"></textarea>
+                                </div>
+                                <div class="col-md-4" id="totalMembersGroup">
+                                    <label for="total_members" class="form-label">Total Members</label>
+                                    <input type="number" min="0" class="form-control" id="total_members" name="total_members" value="0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="joinHouseholdSection" class="mt-3">
                         <h6>Join Selected Household</h6>
                         <div class="input-group mb-2">
                             <select class="form-select" id="addMemberResidentEdit">
