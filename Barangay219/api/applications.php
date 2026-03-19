@@ -174,7 +174,7 @@ function listApplications() {
     $limit = min(50, max(10, (int)($_GET['limit'] ?? ITEMS_PER_PAGE)));
     $offset = ($page - 1) * $limit;
 
-    $allowed_status = ['pending', 'approved', 'rejected'];
+    $allowed_status = ['', 'pending', 'approved', 'rejected'];
     if (!in_array($status, $allowed_status)) {
         $status = 'pending';
     }
@@ -193,8 +193,10 @@ function listApplications() {
             sendResponse(false, 'Missing status column in resident_applications (expected record_status or status)', null, 500);
         }
 
-        if ($status === 'pending') {
-            // Support legacy pending-like values so newly submitted records still appear.
+        if ($status === '' || $status === 'all') {
+            $where = '1=1';
+            $params = [];
+        } elseif ($status === 'pending') {
             $where = "`$statusCol` IN ('pending','submitted','new')";
             $params = [];
         } else {
@@ -249,6 +251,37 @@ function listApplications() {
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?";
         $list = $db->fetchAll($sql, array_merge($params, [$limit, $offset]));
+
+        foreach ($list as &$app) {
+            $app['head_needs_assignment'] = false;
+            if (($app['record_status'] ?? '') === 'approved') {
+                $roleRaw = trim((string)($app['relationship_to_head'] ?? $app['household_role'] ?? ''));
+                if (!isHeadRoleValue($roleRaw)) {
+                    continue;
+                }
+                $resId = (int)($app['approved_resident_id'] ?? 0);
+                if ($resId <= 0) {
+                    $first = trim((string)($app['first_name'] ?? ''));
+                    $last = trim((string)($app['last_name'] ?? ''));
+                    $dob = trim((string)($app['birth_date'] ?? ''));
+                    if ($first !== '' && $last !== '' && $dob !== '') {
+                        $dobCol = columnExists($db, 'residents', 'birth_date') ? 'birth_date' : 'date_of_birth';
+                        $found = $db->fetchOne(
+                            "SELECT id, household_id FROM residents WHERE first_name = ? AND last_name = ? AND $dobCol = ? LIMIT 1",
+                            [$first, $last, $dob]
+                        );
+                        if ($found) {
+                            $resId = (int)$found['id'];
+                        }
+                    }
+                }
+                if ($resId > 0) {
+                    $res = $db->fetchOne("SELECT household_id FROM residents WHERE id = ? LIMIT 1", [$resId]);
+                    $app['head_needs_assignment'] = !$res || empty($res['household_id']) || (int)$res['household_id'] <= 0;
+                }
+            }
+        }
+        unset($app);
 
         sendResponse(true, 'Applications retrieved', [
             'applications' => $list,
@@ -312,9 +345,14 @@ function isHeadRoleValue($value) {
         'head of family',
         'family head',
         'household head',
+        'head of household',
+        'head of the family',
     ];
 
-    return in_array($v, $allowedHeadRoles, true);
+    if (in_array($v, $allowedHeadRoles, true)) {
+        return true;
+    }
+    return strpos($v, 'head') !== false && strlen($v) <= 50;
 }
 function approveApplication() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
