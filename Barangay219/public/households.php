@@ -209,7 +209,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Filter Households</h5>
@@ -234,7 +234,7 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <div class="modal fade" id="householdModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="householdModalTitle">Add New Household</h5>
@@ -357,7 +357,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- View Household Modal -->
 <div class="modal fade" id="viewHouseholdModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Household Details</h5>
