@@ -258,7 +258,13 @@ function getResidentHouseholdContext($residentId) {
         $isDesignatedHead = (int)$memberRow['head_id'] === (int)$residentId;
         $relRaw = strtolower(trim((string)($memberRow['relationship_to_head'] ?? '')));
         $isHeadByRole = $relRaw !== '' && strpos($relRaw, 'head') !== false;
-        $isHead = $isDesignatedHead || $isHeadByRole;
+        $isHeadByFhc = false;
+        if (columnExists($db, 'residents', 'family_head_code')) {
+            $fhcRow = $db->fetchOne("SELECT family_head_code FROM residents WHERE id = ? LIMIT 1", [$residentId]);
+            $fhc = trim((string)($fhcRow['family_head_code'] ?? ''));
+            $isHeadByFhc = $fhc !== '' && $fhc !== '-';
+        }
+        $isHead = $isDesignatedHead || $isHeadByRole || $isHeadByFhc;
         return [
             'household_id' => (int)$memberRow['household_id'],
             'is_head' => $isHead,
@@ -273,10 +279,17 @@ function getResidentHouseholdContext($residentId) {
         $headRow = $db->fetchOne("SELECT `{$headColumn}` AS head_id FROM households WHERE id = ?", [$residentHouseholdId]);
         if ($headRow) {
             $isDesignatedHead = (int)$headRow['head_id'] === (int)$residentId;
-            $residentRel = $db->fetchOne("SELECT relationship_to_head FROM residents WHERE id = ? LIMIT 1", [$residentId]);
+            $resSelect = columnExists($db, 'residents', 'family_head_code')
+                ? 'relationship_to_head, family_head_code' : 'relationship_to_head';
+            $residentRel = $db->fetchOne("SELECT {$resSelect} FROM residents WHERE id = ? LIMIT 1", [$residentId]);
             $relRaw = strtolower(trim((string)($residentRel['relationship_to_head'] ?? '')));
             $isHeadByRole = $relRaw !== '' && strpos($relRaw, 'head') !== false;
-            $isHead = $isDesignatedHead || $isHeadByRole;
+            $isHeadByFhc = false;
+            if (columnExists($db, 'residents', 'family_head_code') && $residentRel) {
+                $fhc = trim((string)($residentRel['family_head_code'] ?? ''));
+                $isHeadByFhc = $fhc !== '' && $fhc !== '-';
+            }
+            $isHead = $isDesignatedHead || $isHeadByRole || $isHeadByFhc;
             return [
                 'household_id' => $residentHouseholdId,
                 'is_head' => $isHead,
