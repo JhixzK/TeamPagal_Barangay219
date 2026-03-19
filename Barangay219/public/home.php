@@ -1214,11 +1214,11 @@ $heroSlides = [
                         </li>
                         <li>
                             <i class="bi bi-telephone-fill" aria-hidden="true"></i>
-                            <span>+63 925-742-5677</span>
+                            <span>+63 9XX-XXX-XXXX</span>
                         </li>
                         <li>
                             <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
-                            <span>Barangay 219 Zone 20 District II, Tindalo cor. Cavite St., Tondo, Manila
+                            <span>Barangay 219 Zone 20 District II Manila, Tindalo cor. Cavite St., Tondo, Manila
 </span>
                         </li>
                     </ul>
