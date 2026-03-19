@@ -11,7 +11,8 @@ try {
 
     $db = Database::getInstance();
     $rows = $db->fetchAll(
-        "SELECT id, certificate_type, purpose, reference_number, status, attachment, created_at, updated_at
+        "SELECT id, certificate_type, purpose, reference_number, status, attachment,
+                rejection_reason, remarks, created_at, updated_at
          FROM certificate_requests
          WHERE resident_id = ?
          ORDER BY created_at DESC, id DESC",
