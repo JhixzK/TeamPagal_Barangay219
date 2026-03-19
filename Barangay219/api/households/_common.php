@@ -199,6 +199,18 @@ function ensureResidentHouseholdSchema() {
     }
 }
 
+function columnExists($db, $table, $column) {
+    $row = $db->fetchOne(
+        "SELECT COUNT(*) AS cnt
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE()
+           AND table_name = ?
+           AND column_name = ?",
+        [$table, $column]
+    );
+    return !empty($row) && (int)$row['cnt'] > 0;
+}
+
 function getColumnsMap($table) {
     $db = Database::getInstance();
     $rows = $db->fetchAll("SHOW COLUMNS FROM {$table}");
@@ -243,9 +255,13 @@ function getResidentHouseholdContext($residentId) {
     );
 
     if ($memberRow) {
+        $isDesignatedHead = (int)$memberRow['head_id'] === (int)$residentId;
+        $relRaw = strtolower(trim((string)($memberRow['relationship_to_head'] ?? '')));
+        $isHeadByRole = $relRaw !== '' && strpos($relRaw, 'head') !== false;
+        $isHead = $isDesignatedHead || $isHeadByRole;
         return [
             'household_id' => (int)$memberRow['household_id'],
-            'is_head' => (int)$memberRow['head_id'] === (int)$residentId,
+            'is_head' => $isHead,
             'member_row_id' => (int)$memberRow['member_row_id'],
             'relationship_to_head' => $memberRow['relationship_to_head']
         ];
@@ -256,11 +272,16 @@ function getResidentHouseholdContext($residentId) {
     if ($residentHouseholdId > 0) {
         $headRow = $db->fetchOne("SELECT `{$headColumn}` AS head_id FROM households WHERE id = ?", [$residentHouseholdId]);
         if ($headRow) {
+            $isDesignatedHead = (int)$headRow['head_id'] === (int)$residentId;
+            $residentRel = $db->fetchOne("SELECT relationship_to_head FROM residents WHERE id = ? LIMIT 1", [$residentId]);
+            $relRaw = strtolower(trim((string)($residentRel['relationship_to_head'] ?? '')));
+            $isHeadByRole = $relRaw !== '' && strpos($relRaw, 'head') !== false;
+            $isHead = $isDesignatedHead || $isHeadByRole;
             return [
                 'household_id' => $residentHouseholdId,
-                'is_head' => (int)$headRow['head_id'] === (int)$residentId,
+                'is_head' => $isHead,
                 'member_row_id' => null,
-                'relationship_to_head' => (int)$headRow['head_id'] === (int)$residentId ? 'Head' : 'Member'
+                'relationship_to_head' => $isHead ? 'Head' : 'Member'
             ];
         }
     }
