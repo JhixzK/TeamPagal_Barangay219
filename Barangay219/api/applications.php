@@ -672,14 +672,19 @@ function assignHouseholdToApprovedResident() {
             }
         }
 
-        // If the approved application is for head of family, set as household head automatically.
+        // If the approved application is for head of family, set as household head.
+        // Only set family_head_id when empty so multiple heads in same household all stay as head.
         if ($isHead) {
-            // Only set the single household.family_head_id if it's empty,
-            // so multiple heads can exist per household via resident-level codes.
             $currentHeadId = $db->fetchOne("SELECT family_head_id FROM households WHERE id = ? LIMIT 1", [$householdId]);
             $currentHeadIdVal = (int)($currentHeadId['family_head_id'] ?? 0);
             if ($currentHeadIdVal <= 0) {
                 $db->query("UPDATE households SET family_head_id = ? WHERE id = ?", [$residentId, $householdId]);
+            }
+            if (columnExists($db, 'residents', 'relationship_to_head')) {
+                $db->query("UPDATE residents SET relationship_to_head = 'Head' WHERE id = ?", [$residentId]);
+            }
+            if (columnExists($db, 'residents', 'household_role')) {
+                $db->query("UPDATE residents SET household_role = 'Head' WHERE id = ?", [$residentId]);
             }
             // Generate head/household codes if missing (schema tolerant).
             $householdCols = array_flip(getTableColumns($db, 'households'));
@@ -704,12 +709,12 @@ function assignHouseholdToApprovedResident() {
                         $db->query("UPDATE residents SET family_head_code = ? WHERE id = ?", [$residentHeadCode, $residentId]);
                     }
                 }
-                $db->query(
-                    "UPDATE households
-                     SET family_head_code = ?
-                     WHERE id = ?",
-                    [!$isMissingCode($residentHeadCode) ? $residentHeadCode : generateUniqueFamilyHeadCode($db), $householdId]
-                );
+                if ($currentHeadIdVal <= 0) {
+                    $db->query(
+                        "UPDATE households SET family_head_code = ? WHERE id = ?",
+                        [!$isMissingCode($residentHeadCode) ? $residentHeadCode : generateUniqueFamilyHeadCode($db), $householdId]
+                    );
+                }
             }
             if (isset($householdCols['family_code'])) {
                 $fc = generateUniqueFamilyCode($db);
