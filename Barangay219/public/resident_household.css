@@ -233,6 +233,25 @@
   font-weight: 600;
 }
 
+.badge.bg-primary {
+  background: linear-gradient(140deg, var(--hh-primary), var(--hh-primary-2)) !important;
+  color: #fff !important;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.bg-light.text-dark.border {
+  background: #f0f4fb !important;
+  color: #334766 !important;
+  border: 1px solid #d8e2f2 !important;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .self-tag {
   color: var(--hh-primary);
   font-size: 12px;
