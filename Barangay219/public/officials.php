@@ -47,7 +47,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Official Modal -->
 <div class="modal fade" id="officialModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="officialModalTitle">Add Official</h5>
@@ -69,9 +69,15 @@ include __DIR__ . '/../includes/sidebar.php';
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Position <span class="text-danger">*</span></label>
-                            <input type="hidden" id="position" name="position" value="">
-                            <input type="text" class="form-control" id="position_display" value="" readonly>
-                            <small class="text-muted">Position is fixed by the tile/slot you selected.</small>
+                            <select class="form-select" id="position" name="position" required>
+                                <option value="">-- Select position --</option>
+                                <option value="barangay_captain">Punong Barangay (Captain)</option>
+                                <option value="kagawad">Kagawad</option>
+                                <option value="sk_chairperson">SK Chairperson</option>
+                                <option value="secretary">Secretary</option>
+                                <option value="treasurer">Treasurer</option>
+                            </select>
+                            <small class="text-muted">Choose the official's position in the barangay.</small>
                         </div>
                     </div>
 
