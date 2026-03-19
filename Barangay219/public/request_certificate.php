@@ -151,6 +151,8 @@ function rcResolveResidentId($conn, $userId, $username, $sessionResidentId) {
       ? 'contact_number'
       : (rcColumnExists($conn, 'residents', 'mobile_number') ? 'mobile_number' : "''");
     $residentCodeExpr = rcColumnExists($conn, 'residents', 'resident_code') ? 'resident_code' : "''";
+    $validIdTypeExpr = rcColumnExists($conn, 'residents', 'valid_id_type') ? 'valid_id_type' : "''";
+    $idDocumentExpr = rcColumnExists($conn, 'residents', 'id_document_path') ? 'id_document_path' : "''";
     $verificationExpr = rcColumnExists($conn, 'residents', 'verification_status') ? 'verification_status' : "''";
     $statusExpr = rcColumnExists($conn, 'residents', 'status') ? 'status' : "''";
     $recordStatusExpr = rcColumnExists($conn, 'residents', 'record_status') ? 'record_status' : "''";
@@ -166,6 +168,8 @@ function rcResolveResidentId($conn, $userId, $username, $sessionResidentId) {
              COALESCE(civil_status, '') AS civil_status,
              {$contactExpr} AS contact_number,
              COALESCE(address, '') AS address,
+             {$validIdTypeExpr} AS valid_id_type,
+             {$idDocumentExpr} AS id_document_path,
              COALESCE({$verificationExpr}, '') AS verification_status,
              COALESCE({$statusExpr}, '') AS status,
              COALESCE({$recordStatusExpr}, '') AS record_status,
@@ -218,6 +222,40 @@ function rcGenerateReferenceNumber($conn) {
   return $prefix . str_pad((string)$seq, 5, '0', STR_PAD_LEFT);
 }
 
+function rcGetApprovedApplicationValidIdPath($conn, $residentId) {
+  if (!rcTableExists($conn, 'resident_applications') || $residentId <= 0) {
+    return '';
+  }
+
+  $statusCol = rcColumnExists($conn, 'resident_applications', 'record_status')
+    ? 'record_status'
+    : (rcColumnExists($conn, 'resident_applications', 'status') ? 'status' : '');
+  if ($statusCol === '') {
+    return '';
+  }
+
+  if (rcColumnExists($conn, 'resident_applications', 'approved_resident_id')) {
+    $row = rcFetchOne(
+      $conn,
+      "SELECT id_document_path
+       FROM resident_applications
+       WHERE approved_resident_id = ?
+         AND `$statusCol` = 'approved'
+         AND id_document_path IS NOT NULL
+         AND TRIM(id_document_path) <> ''
+       ORDER BY id DESC
+       LIMIT 1",
+      'i',
+      [$residentId]
+    );
+    if (!empty($row['id_document_path'])) {
+      return trim((string)$row['id_document_path']);
+    }
+  }
+
+  return '';
+}
+
 $certificateOptions = [
   'Barangay Certificate',
   'Barangay Indigency'
@@ -257,6 +295,8 @@ $residentData = [
     'civil_status' => '',
     'contact_number' => '',
     'address' => '',
+    'valid_id_type' => '',
+    'id_document_path' => '',
     'status' => '',
     'record_status' => '',
     'household_id' => null
@@ -292,6 +332,8 @@ $residentFullAddress = 'Barangay 219, Tondo, Manila';
 $civilStatus = '';
 $gender = '';
 $contactNumber = '';
+$residentValidIdType = '';
+$residentValidIdPath = '';
 
 $eligibility = [
     'resident_verified' => false,
@@ -385,6 +427,11 @@ if ($mysqli && $residentId > 0) {
             $civilStatus = rcPrettyLabel($row['civil_status'] ?? '');
             $gender = rcPrettyLabel($row['gender'] ?? '');
             $contactNumber = rcFormatPhone($row['contact_number'] ?? '');
+            $residentValidIdType = trim((string)($row['valid_id_type'] ?? ''));
+            $residentValidIdPath = trim((string)($row['id_document_path'] ?? ''));
+            if ($residentValidIdPath === '') {
+              $residentValidIdPath = rcGetApprovedApplicationValidIdPath($mysqli, $residentId);
+            }
 
             $statusRaw = strtolower(trim((string)($row['verification_status'] ?: $row['status'] ?: $row['record_status'])));
             $eligibility['resident_verified'] = in_array($statusRaw, ['active', 'approved', 'verified'], true);
@@ -464,10 +511,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $uploadedFiles = [];
     $uploadedPaths = [];
+    $usingSavedValidId = $residentValidIdPath !== '';
 
-    if (!isset($_FILES['documents']) || !isset($_FILES['documents']['name']) || !is_array($_FILES['documents']['name'])) {
-        $errors[] = 'Please upload at least one supporting document.';
-    } else {
+    if (isset($_FILES['documents']) && isset($_FILES['documents']['name']) && is_array($_FILES['documents']['name'])) {
         $names = $_FILES['documents']['name'];
         $tmpNames = $_FILES['documents']['tmp_name'];
         $sizes = $_FILES['documents']['size'];
@@ -486,43 +532,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
         }
 
-        if (count($uploadedFiles) === 0) {
-            $errors[] = 'Please upload at least one supporting document.';
-        }
-
         if (count($uploadedFiles) > 3) {
             $errors[] = 'Maximum of 3 files only.';
         }
 
-        $allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
-        $allowedMime = ['image/jpeg', 'image/png', 'application/pdf'];
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        if (count($uploadedFiles) > 0) {
+          $allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
+          $allowedMime = ['image/jpeg', 'image/png', 'application/pdf'];
+          $finfo = finfo_open(FILEINFO_MIME_TYPE);
 
-        foreach ($uploadedFiles as $file) {
+          foreach ($uploadedFiles as $file) {
             if ($file['error'] !== UPLOAD_ERR_OK) {
-                $errors[] = 'One of the files failed to upload. Please try again.';
-                continue;
+              $errors[] = 'One of the files failed to upload. Please try again.';
+              continue;
             }
 
             if ($file['size'] > (5 * 1024 * 1024)) {
-                $errors[] = 'Each file must be 5MB or below.';
+              $errors[] = 'Each file must be 5MB or below.';
             }
 
             $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             if (!in_array($ext, $allowedExtensions, true)) {
-                $errors[] = 'Only JPG, PNG, and PDF files are allowed.';
+              $errors[] = 'Only JPG, PNG, and PDF files are allowed.';
             }
 
             $mime = $finfo ? finfo_file($finfo, $file['tmp_name']) : '';
             if ($mime && !in_array($mime, $allowedMime, true)) {
-                $errors[] = 'Invalid file format detected.';
+              $errors[] = 'Invalid file format detected.';
             }
-        }
+            }
 
-        if ($finfo) {
+          if ($finfo) {
             finfo_close($finfo);
+          }
         }
     }
+
+      if (!$usingSavedValidId && count($uploadedFiles) === 0) {
+        $errors[] = 'Please upload at least one supporting document (Valid ID).';
+      }
 
     if (empty($errors) && $mysqli) {
       // Only prevent duplicate submissions while an equivalent request is still pending review.
@@ -545,7 +593,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
 
-    if (empty($errors) && $mysqli) {
+    if (empty($errors) && $mysqli && count($uploadedFiles) > 0) {
         $uploadDir = __DIR__ . '/uploads/request_documents';
         if (!is_dir($uploadDir)) {
             @mkdir($uploadDir, 0775, true);
@@ -574,7 +622,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $finalPurpose = $isIndigencyRequest
         ? ''
         : ($formData['purpose'] === 'Others' ? $formData['purpose_other'] : $formData['purpose']);
-      $attachmentValue = $uploadedPaths[0] ?? null;
+      $attachmentValue = $uploadedPaths[0] ?? ($residentValidIdPath !== '' ? $residentValidIdPath : null);
       $referenceNumber = rcGenerateReferenceNumber($mysqli);
 
       $mysqli->begin_transaction();
@@ -649,6 +697,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->close();
         $mysqli->commit();
 
+        rcLog('Certificate request created', [
+          'resident_id' => $residentId,
+          'reference_number' => $referenceNumber,
+          'used_saved_valid_id' => $residentValidIdPath !== '' && empty($uploadedPaths),
+          'uploaded_files_count' => count($uploadedPaths)
+        ]);
+
         $redirectUrl = BASE_URL . 'request_confirmation.php?tracking=' . urlencode($referenceNumber);
         if (!headers_sent()) {
           header('Location: ' . $redirectUrl);
@@ -672,6 +727,8 @@ if ($mysqli) {
 }
 
 $purposeOptions = $purposeOptionsByType[$formData['certificate_type']] ?? [];
+$hasSavedValidId = $residentValidIdPath !== '';
+$savedValidIdUrl = $hasSavedValidId ? (BASE_URL . ltrim($residentValidIdPath, '/')) : '';
 ?>
 <link rel="stylesheet" href="<?php echo BASE_URL; ?>request_certificate.css?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/request_certificate.css')); ?>">
 
@@ -715,7 +772,7 @@ $purposeOptions = $purposeOptionsByType[$formData['certificate_type']] ?? [];
       </section>
     <?php endif; ?>
 
-    <form id="requestForm" method="POST" enctype="multipart/form-data" novalidate>
+    <form id="requestForm" method="POST" enctype="multipart/form-data" novalidate data-has-valid-id="<?php echo $hasSavedValidId ? '1' : '0'; ?>">
       <section class="card form-card">
         <div class="card-head">
           <h3><i class="fa-regular fa-file-lines"></i> Certificate Selection</h3>
@@ -818,10 +875,18 @@ $purposeOptions = $purposeOptionsByType[$formData['certificate_type']] ?? [];
         <div class="card-head">
           <h3><i class="fa-solid fa-cloud-arrow-up"></i> File Uploads</h3>
         </div>
+        <?php if ($hasSavedValidId): ?>
+          <div class="notice success-notice" style="margin-bottom:12px;">
+            <h4>Saved Valid ID Detected</h4>
+            <p>Your existing valid ID from registration will be used automatically for this request.</p>
+            <p><a href="<?php echo htmlspecialchars($savedValidIdUrl); ?>" target="_blank" rel="noopener noreferrer">View saved Valid ID</a></p>
+            <p>You may still upload up to 3 additional supporting files if needed.</p>
+          </div>
+        <?php endif; ?>
         <div class="upload-box" id="uploadBox">
           <input type="file" id="documents" name="documents[]" accept=".jpg,.jpeg,.png,.pdf" multiple hidden>
           <button type="button" class="btn-ghost" id="browseBtn"><i class="fa-regular fa-folder-open"></i> Choose Files</button>
-          <p>Upload up to 3 files (JPG, PNG, PDF)</p>
+          <p><?php echo $hasSavedValidId ? 'Optional: upload up to 3 additional files (JPG, PNG, PDF)' : 'Upload up to 3 files (JPG, PNG, PDF)'; ?></p>
           <small>Max size: 5MB each</small>
         </div>
         <ul class="file-list" id="fileList"></ul>
