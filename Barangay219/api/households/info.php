@@ -354,11 +354,13 @@ function handleGetHouseholdInfo($residentId) {
     $psExpr = isset($residentCols['is_4ps_beneficiary']) ? 'COALESCE(r.is_4ps_beneficiary, 0) AS is_4ps_beneficiary' : '0 AS is_4ps_beneficiary';
     $soloExpr = isset($residentCols['is_solo_parent']) ? 'COALESCE(r.is_solo_parent, 0) AS is_solo_parent' : '0 AS is_solo_parent';
 
+    $resFhcExpr = columnExists($db, 'residents', 'family_head_code') ? 'r.family_head_code,' : '';
     $members = $db->fetchAll(
         "SELECT hm.id, hm.household_id, hm.resident_id, hm.relationship_to_head,
                 hm.`{$dateColumn}` AS date_of_birth, hm.gender, hm.civil_status,
                 hm.created_at, hm.updated_at,
                 r.first_name, r.middle_name, r.last_name, r.resident_code,
+                {$resFhcExpr}
                 {$memberStatusExpr}, {$verificationExpr}, {$pwdExpr}, {$psExpr}, {$soloExpr}
          FROM household_members hm
          INNER JOIN residents r ON r.id = hm.resident_id
@@ -367,16 +369,23 @@ function handleGetHouseholdInfo($residentId) {
         [$householdId, $household['family_head_id']]
     );
 
+    $designatedHeadId = (int)($household['family_head_id'] ?? 0);
     $mappedMembers = [];
     foreach ($members as $member) {
         $age = computeAge($member['date_of_birth'] ?? null);
         $memberName = formatResidentName($member);
+        $rel = (string)($member['relationship_to_head'] ?? '');
+        $fhc = trim((string)($member['family_head_code'] ?? ''));
+        $isHeadByRole = $rel !== '' && stripos($rel, 'head') !== false;
+        $isHeadByFhc = $fhc !== '' && $fhc !== '-';
+        $isDesignatedHead = (int)($member['resident_id'] ?? 0) === $designatedHeadId;
+        $displayRel = ($isDesignatedHead || $isHeadByRole || $isHeadByFhc) ? 'Head' : ($rel !== '' ? $rel : 'Member');
         $mappedMembers[] = [
             'id' => (int)$member['id'],
             'resident_id' => (int)$member['resident_id'],
             'resident_code' => (string)($member['resident_code'] ?? ''),
             'name' => $memberName,
-            'relationship_to_head' => (string)($member['relationship_to_head'] ?? 'Member'),
+            'relationship_to_head' => $displayRel,
             'sex' => ucfirst(strtolower((string)($member['gender'] ?? ''))),
             'date_of_birth' => $member['date_of_birth'],
             'age' => $age,
@@ -403,10 +412,11 @@ function handleGetHouseholdInfo($residentId) {
         $excludeParams = array_keys($existingResidentIds);
     }
 
+    $linkedResFhc = columnExists($db, 'residents', 'family_head_code') ? 'r.family_head_code,' : '';
     $linked = $db->fetchAll(
         "SELECT r.id AS resident_id, r.resident_code, r.first_name, r.middle_name, r.last_name,
-                r.birth_date AS date_of_birth, r.gender, {$memberStatusExpr}, {$verificationExpr},
-                {$pwdExpr}, {$psExpr}, {$soloExpr}
+                r.birth_date AS date_of_birth, r.gender, {$linkedResFhc}
+                {$memberStatusExpr}, {$verificationExpr}, {$pwdExpr}, {$psExpr}, {$soloExpr}
          FROM residents r
          WHERE r.household_id = ? {$excludeClause}
          ORDER BY CASE WHEN r.id = ? THEN 0 ELSE 1 END, r.id ASC",
@@ -415,13 +425,15 @@ function handleGetHouseholdInfo($residentId) {
 
     foreach ($linked as $residentRow) {
         $age = computeAge($residentRow['date_of_birth'] ?? null);
-        $isHead = (int)$residentRow['resident_id'] === (int)$household['family_head_id'];
+        $fhcLinked = trim((string)($residentRow['family_head_code'] ?? ''));
+        $isDesignatedLinked = (int)$residentRow['resident_id'] === $designatedHeadId;
+        $isHeadLinked = $isDesignatedLinked || ($fhcLinked !== '' && $fhcLinked !== '-');
         $mappedMembers[] = [
             'id' => 0,
             'resident_id' => (int)$residentRow['resident_id'],
             'resident_code' => (string)($residentRow['resident_code'] ?? ''),
             'name' => formatResidentName($residentRow),
-            'relationship_to_head' => $isHead ? 'Head' : 'Member',
+            'relationship_to_head' => $isHeadLinked ? 'Head' : 'Member',
             'sex' => ucfirst(strtolower((string)($residentRow['gender'] ?? ''))),
             'date_of_birth' => $residentRow['date_of_birth'] ?? null,
             'age' => $age,
