@@ -355,12 +355,14 @@ function handleGetHouseholdInfo($residentId) {
     $soloExpr = isset($residentCols['is_solo_parent']) ? 'COALESCE(r.is_solo_parent, 0) AS is_solo_parent' : '0 AS is_solo_parent';
 
     $resFhcExpr = columnExists($db, 'residents', 'family_head_code') ? 'r.family_head_code,' : '';
+    $resFcExpr = columnExists($db, 'residents', 'family_code') ? 'r.family_code,' : '';
     $members = $db->fetchAll(
         "SELECT hm.id, hm.household_id, hm.resident_id, hm.relationship_to_head,
                 hm.`{$dateColumn}` AS date_of_birth, hm.gender, hm.civil_status,
                 hm.created_at, hm.updated_at,
                 r.first_name, r.middle_name, r.last_name, r.resident_code,
                 {$resFhcExpr}
+                {$resFcExpr}
                 {$memberStatusExpr}, {$verificationExpr}, {$pwdExpr}, {$psExpr}, {$soloExpr}
          FROM household_members hm
          INNER JOIN residents r ON r.id = hm.resident_id
@@ -393,7 +395,8 @@ function handleGetHouseholdInfo($residentId) {
             'is_self' => (int)$member['resident_id'] === (int)$residentId,
             'is_pwd' => (int)($member['is_pwd'] ?? 0),
             'is_4ps_beneficiary' => (int)($member['is_4ps_beneficiary'] ?? 0),
-            'is_solo_parent' => (int)($member['is_solo_parent'] ?? 0)
+            'is_solo_parent' => (int)($member['is_solo_parent'] ?? 0),
+            'family_code' => (string)($member['family_code'] ?? '')
         ];
     }
 
@@ -413,9 +416,11 @@ function handleGetHouseholdInfo($residentId) {
     }
 
     $linkedResFhc = columnExists($db, 'residents', 'family_head_code') ? 'r.family_head_code,' : '';
+    $linkedResFc = columnExists($db, 'residents', 'family_code') ? 'r.family_code,' : '';
     $linked = $db->fetchAll(
         "SELECT r.id AS resident_id, r.resident_code, r.first_name, r.middle_name, r.last_name,
                 r.birth_date AS date_of_birth, r.gender, {$linkedResFhc}
+                {$linkedResFc}
                 {$memberStatusExpr}, {$verificationExpr}, {$pwdExpr}, {$psExpr}, {$soloExpr}
          FROM residents r
          WHERE r.household_id = ? {$excludeClause}
@@ -442,6 +447,7 @@ function handleGetHouseholdInfo($residentId) {
             'is_pwd' => (int)($residentRow['is_pwd'] ?? 0),
             'is_4ps_beneficiary' => (int)($residentRow['is_4ps_beneficiary'] ?? 0),
             'is_solo_parent' => (int)($residentRow['is_solo_parent'] ?? 0),
+            'family_code' => (string)($residentRow['family_code'] ?? ''),
             'readonly' => true
         ];
     }
