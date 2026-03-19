@@ -217,6 +217,44 @@ function rpVerificationBadge($status) {
     return ['label' => 'Pending Verification', 'class' => 'pending'];
 }
 
+  function rpFormatIdTypeLabel($value) {
+    $normalized = strtolower(trim((string)$value));
+    if ($normalized === '') {
+      return 'N/A';
+    }
+
+    $map = [
+      'psa_birth' => 'PSA Birth Certificate',
+      'passport' => 'Passport',
+      'drivers_license' => "Driver's License",
+      'umid' => 'UMID',
+      'postal_id' => 'Postal ID',
+      'sss_id' => 'SSS ID',
+      'prc_id' => 'PRC ID',
+      'voters_id' => "Voter's ID",
+      'national_id' => 'National ID',
+      'other' => 'Other'
+    ];
+
+    if (isset($map[$normalized])) {
+      return $map[$normalized];
+    }
+
+    $label = str_replace('_', ' ', $normalized);
+    return ucwords($label);
+  }
+
+  function rpFileUrlFromPath($path) {
+    $value = trim((string)$path);
+    if ($value === '') {
+      return '';
+    }
+    if (preg_match('#^https?://#i', $value)) {
+      return $value;
+    }
+    return BASE_URL . ltrim($value, '/');
+  }
+
 $conn = rpConnectMysqli();
 $pageErrors = [];
 $successMessage = '';
@@ -465,6 +503,7 @@ $resident = [];
 $user = [];
 $household = [];
 $sectionUpdated = [];
+$approvedApplication = [];
 
 if ($conn && empty($pageErrors)) {
     $resident = rpFetchOne($conn, 'SELECT * FROM residents WHERE id = ? LIMIT 1', 'i', [$residentId]) ?? [];
@@ -480,6 +519,55 @@ if ($conn && empty($pageErrors)) {
         foreach ($rows as $row) {
             $sectionUpdated[$row['section_name']] = $row['updated_at'];
         }
+    }
+
+    if (rpTableExists($conn, 'resident_applications')) {
+      $appCols = array_flip(rpGetColumns($conn, 'resident_applications'));
+      $statusCol = isset($appCols['record_status']) ? 'record_status' : (isset($appCols['status']) ? 'status' : '');
+
+      if ($statusCol !== '') {
+        $selectApprovedResidentId = isset($appCols['approved_resident_id']) ? 'approved_resident_id' : 'NULL AS approved_resident_id';
+        $selectValidIdType = isset($appCols['valid_id_type']) ? 'valid_id_type' : 'NULL AS valid_id_type';
+        $selectValidIdNumber = isset($appCols['valid_id_number']) ? 'valid_id_number' : 'NULL AS valid_id_number';
+        $selectIdDoc = isset($appCols['id_document_path']) ? 'id_document_path' : 'NULL AS id_document_path';
+        $selectProofDoc = isset($appCols['proof_of_residency_path']) ? 'proof_of_residency_path' : 'NULL AS proof_of_residency_path';
+        $orderBy = isset($appCols['reviewed_at']) ? 'reviewed_at DESC, id DESC' : 'id DESC';
+
+        if (isset($appCols['approved_resident_id'])) {
+          $approvedApplication = rpFetchOne(
+            $conn,
+            "SELECT id, $selectApprovedResidentId, $selectValidIdType, $selectValidIdNumber, $selectIdDoc, $selectProofDoc
+             FROM resident_applications
+             WHERE approved_resident_id = ? AND `$statusCol` = 'approved'
+                     ORDER BY $orderBy
+             LIMIT 1",
+            'i',
+            [$residentId]
+          ) ?? [];
+        }
+
+        if (empty($approvedApplication)) {
+          $firstName = trim((string)($resident['first_name'] ?? ''));
+          $lastName = trim((string)($resident['last_name'] ?? ''));
+          $birthDate = trim((string)($resident['birth_date'] ?? ''));
+
+          if ($firstName !== '' && $lastName !== '' && $birthDate !== '') {
+            $approvedApplication = rpFetchOne(
+              $conn,
+              "SELECT id, $selectApprovedResidentId, $selectValidIdType, $selectValidIdNumber, $selectIdDoc, $selectProofDoc
+               FROM resident_applications
+               WHERE LOWER(first_name) = LOWER(?)
+                 AND LOWER(last_name) = LOWER(?)
+                 AND birth_date = ?
+                 AND `$statusCol` = 'approved'
+                         ORDER BY $orderBy
+               LIMIT 1",
+              'sss',
+              [$firstName, $lastName, $birthDate]
+            ) ?? [];
+          }
+        }
+      }
     }
 }
 
@@ -523,6 +611,14 @@ switch (strtolower((string)($verification['class'] ?? ''))) {
 $createdAt = $pick($resident, ['created_at'], $pick($user, ['created_at']));
 $createdAtLabel = $createdAt ? date('F d, Y', strtotime($createdAt)) : 'N/A';
 
+$resolvedValidIdType = $pick($resident, ['valid_id_type'], $pick($approvedApplication, ['valid_id_type']));
+$resolvedValidIdNumber = $pick($resident, ['valid_id_number', 'national_id'], $pick($approvedApplication, ['valid_id_number']));
+$resolvedIdDocumentPath = $pick($resident, ['id_document_path'], $pick($approvedApplication, ['id_document_path']));
+$resolvedProofDocumentPath = $pick($resident, ['proof_of_residency_path'], $pick($approvedApplication, ['proof_of_residency_path']));
+$resolvedIdTypeLabel = rpFormatIdTypeLabel($resolvedValidIdType);
+$idDocumentUrl = rpFileUrlFromPath($resolvedIdDocumentPath);
+$proofDocumentUrl = rpFileUrlFromPath($resolvedProofDocumentPath);
+
 $displayHouseNumber = trim((string)$pick($resident, ['house_number', 'house_no']));
 $displayStreet = trim((string)$pick($resident, ['street']));
 $displayPurokSitio = trim((string)$pick($resident, ['purok_sitio']));
@@ -543,7 +639,7 @@ if ($displayPurokSitio === '' && $displayHouseNumber !== '') {
   }
 }
 
-$avatarPath = $pick($resident, ['id_document_path']);
+$avatarPath = $resolvedIdDocumentPath;
 $avatarUrl = 'https://i.pravatar.cc/140?img=12';
 if ($avatarPath !== '') {
     $avatarUrl = BASE_URL . ltrim($avatarPath, '/');
@@ -682,8 +778,8 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
           <div class="info-row"><span>Gender</span><strong><?php echo h($pick($resident, ['gender', 'sex'], 'N/A')); ?></strong></div>
           <div class="info-row"><span>Civil Status</span><strong><?php echo h($pick($resident, ['civil_status'], 'N/A')); ?></strong></div>
           <div class="info-row"><span>Citizenship</span><strong><?php echo h($pick($resident, ['citizenship'], 'N/A')); ?></strong></div>
-          <div class="info-row"><span>Government ID Type</span><strong><?php echo h($pick($resident, ['valid_id_type'], 'N/A')); ?></strong></div>
-          <div class="info-row"><span>ID Number</span><strong><?php echo h($pick($resident, ['valid_id_number', 'national_id'], 'N/A')); ?></strong></div>
+          <div class="info-row"><span>Government ID Type</span><strong><?php echo h($resolvedIdTypeLabel); ?></strong></div>
+          <div class="info-row"><span>ID Number</span><strong><?php echo h($resolvedValidIdNumber !== '' ? $resolvedValidIdNumber : 'N/A'); ?></strong></div>
         </div>
 
         <form method="POST" class="edit-form hidden" id="form-personal">
@@ -698,8 +794,8 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
             <label><span>Gender</span><input type="text" name="gender" value="<?php echo h($pick($resident, ['gender', 'sex'])); ?>"></label>
             <label><span>Civil Status</span><input type="text" name="civil_status" value="<?php echo h($pick($resident, ['civil_status'])); ?>"></label>
             <label><span>Citizenship</span><input type="text" name="citizenship" value="<?php echo h($pick($resident, ['citizenship'], 'Filipino')); ?>"></label>
-            <label><span>Government ID Type</span><input type="text" name="valid_id_type" value="<?php echo h($pick($resident, ['valid_id_type'])); ?>"></label>
-            <label class="full"><span>ID Number</span><input type="text" name="valid_id_number" value="<?php echo h($pick($resident, ['valid_id_number', 'national_id'])); ?>"></label>
+            <label><span>Government ID Type</span><input type="text" name="valid_id_type" value="<?php echo h($resolvedValidIdType); ?>"></label>
+            <label class="full"><span>ID Number</span><input type="text" name="valid_id_number" value="<?php echo h($resolvedValidIdNumber); ?>"></label>
           </div>
           <div class="form-actions"><button class="btn-primary" type="submit">Save Personal Info</button></div>
         </form>
@@ -887,7 +983,9 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
           </div>
         </div>
         <div class="info-list">
-          <div class="info-row"><span>Current ID File</span><strong><?php echo h($pick($resident, ['id_document_path'], 'No ID uploaded')); ?></strong></div>
+          <div class="info-row"><span>Uploaded ID Type</span><strong><?php echo h($resolvedIdTypeLabel); ?></strong></div>
+          <div class="info-row"><span>Valid ID Document</span><strong><?php if ($resolvedIdDocumentPath !== ''): ?><a href="<?php echo h($idDocumentUrl); ?>" target="_blank" rel="noopener noreferrer"><?php echo h($resolvedIdDocumentPath); ?></a><?php else: ?>No ID uploaded<?php endif; ?></strong></div>
+          <div class="info-row"><span>Proof of Residency</span><strong><?php if ($resolvedProofDocumentPath !== ''): ?><a href="<?php echo h($proofDocumentUrl); ?>" target="_blank" rel="noopener noreferrer"><?php echo h($resolvedProofDocumentPath); ?></a><?php else: ?>No proof uploaded<?php endif; ?></strong></div>
           <div class="info-row"><span>Verification Status</span><strong><span class="badge <?php echo h($verificationBadgeClass); ?>"><?php echo h($verification['label']); ?></span></strong></div>
           <div class="info-row"><span>Certificate Requests</span><strong><?php echo strtolower($verification['class']) === 'verified' ? 'Enabled' : 'Disabled until verified'; ?></strong></div>
           <div class="info-row"><span>Verification Source</span><strong>Registration submission</strong></div>
