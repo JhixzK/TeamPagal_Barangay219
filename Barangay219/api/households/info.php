@@ -59,10 +59,18 @@ function ensureResidentHouseholdContractColumns() {
         );
     }
 
-    $familyCodeIdx = $db->fetchOne("SHOW INDEX FROM households WHERE Key_name = 'idx_households_family_code'");
-    if (!$familyCodeIdx) {
-        $db->query('ALTER TABLE households ADD KEY idx_households_family_code (family_code)');
+    if (columnExists($db, 'households', 'family_code')) {
+        $familyCodeIdx = $db->fetchOne("SHOW INDEX FROM households WHERE Key_name = 'idx_households_family_code'");
+        if (!$familyCodeIdx) {
+            $db->query('ALTER TABLE households ADD KEY idx_households_family_code (family_code)');
+        }
     }
+
+    $resCols = getColumnsMap('residents');
+    addColumnIfMissing('residents', $resCols, 'family_code', 'VARCHAR(30) NULL');
+    addColumnIfMissing('residents', $resCols, 'family_head_code', 'VARCHAR(9) NULL');
+    addColumnIfMissing('residents', $resCols, 'relationship_to_head', 'VARCHAR(100) NULL');
+    addColumnIfMissing('residents', $resCols, 'household_id', 'INT(11) NULL');
 
     $memberCols = getColumnsMap('household_members');
     addColumnIfMissing('household_members', $memberCols, 'date_of_birth', 'DATE NULL');
@@ -124,8 +132,12 @@ function generateFamilyCode() {
     for ($i = 0; $i < 30; $i++) {
         $suffix = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
         $familyCode = 'BR219-' . $year . '-' . $suffix;
-        $exists = $db->fetchOne('SELECT id FROM households WHERE family_code = ? LIMIT 1', [$familyCode]);
-        if (!$exists) {
+        if (columnExists($db, 'households', 'family_code')) {
+            $exists = $db->fetchOne('SELECT id FROM households WHERE family_code = ? LIMIT 1', [$familyCode]);
+            if (!$exists) {
+                return $familyCode;
+            }
+        } else {
             return $familyCode;
         }
     }
@@ -309,14 +321,20 @@ function handleGetHouseholdInfo($residentId) {
     $headColumn = householdHeadColumn();
     $dateColumn = householdMemberDateColumn();
 
+    $hhExtra = [];
+    if (columnExists($db, 'households', 'family_code')) $hhExtra[] = 'h.family_code';
+    if (columnExists($db, 'households', 'household_id_code')) $hhExtra[] = 'h.household_id_code';
+    if (columnExists($db, 'households', 'family_head_code')) $hhExtra[] = 'h.family_head_code';
+    $hhExtraSql = empty($hhExtra) ? '' : ', ' . implode(', ', $hhExtra);
+
     $household = $db->fetchOne(
-        "SELECT h.id, h.family_code, h.household_id_code, h.family_head_code, h.`{$headColumn}` AS family_head_id,
+        "SELECT h.id, h.`{$headColumn}` AS family_head_id,
                 h.house_number, h.street, h.barangay, h.city, h.province,
                 h.household_type, h.housing_status, h.years_of_residency,
                 h.indigent_household, h.emergency_contact_name,
                 h.emergency_contact_relationship, h.emergency_contact_number,
                 h.created_at, h.updated_at,
-                r.first_name, r.middle_name, r.last_name
+                r.first_name, r.middle_name, r.last_name{$hhExtraSql}
          FROM households h
          LEFT JOIN residents r ON r.id = h.`{$headColumn}`
          WHERE h.id = ?
@@ -442,6 +460,37 @@ function handleGetHouseholdInfo($residentId) {
         ];
     }
 
+    // Resolve the correct Family Head Code for the current resident:
+    // - Heads: show their own residents.family_head_code
+    // - Members: show their head's residents.family_head_code (head = same family_code, has family_head_code)
+    $displayFamilyHeadCode = (string)($household['family_head_code'] ?? '');
+    if (columnExists($db, 'residents', 'family_head_code')) {
+        if ($context['is_head']) {
+            $me = $db->fetchOne("SELECT family_head_code FROM residents WHERE id = ? LIMIT 1", [$residentId]);
+            $displayFamilyHeadCode = trim((string)($me['family_head_code'] ?? ''));
+            if ($displayFamilyHeadCode === '' || $displayFamilyHeadCode === '-') {
+                $displayFamilyHeadCode = (string)($household['family_head_code'] ?? '');
+            }
+        } else {
+            if (columnExists($db, 'residents', 'family_code')) {
+                $myFc = $db->fetchOne("SELECT family_code FROM residents WHERE id = ? LIMIT 1", [$residentId]);
+                $memberFamilyCode = trim((string)($myFc['family_code'] ?? ''));
+                if ($memberFamilyCode !== '') {
+                    $headRow = $db->fetchOne(
+                        "SELECT family_head_code FROM residents
+                         WHERE household_id = ? AND family_code = ? AND family_head_code IS NOT NULL
+                           AND TRIM(family_head_code) <> '' AND family_head_code <> '-'
+                         LIMIT 1",
+                        [$householdId, $memberFamilyCode]
+                    );
+                    if ($headRow && !empty(trim((string)($headRow['family_head_code'] ?? '')))) {
+                        $displayFamilyHeadCode = trim((string)$headRow['family_head_code']);
+                    }
+                }
+            }
+        }
+    }
+
     $payload = [
         'context' => $contextPayload,
         'resident_id' => $residentId,
@@ -451,7 +500,7 @@ function handleGetHouseholdInfo($residentId) {
             'id' => (int)$household['id'],
             'household_code' => (string)($household['household_id_code'] ?? ''),
             'household_id_code' => (string)($household['household_id_code'] ?? ''),
-            'family_head_code' => (string)($household['family_head_code'] ?? ''),
+            'family_head_code' => $displayFamilyHeadCode,
             'family_code' => (string)($household['family_code'] ?? ''),
             'family_head_id' => (int)($household['family_head_id'] ?? 0),
             'head_name' => ($household['first_name'] ?? null) ? formatResidentName($household) : '',
@@ -563,8 +612,12 @@ function createHeadHousehold($residentId, $data) {
         $db->query('DELETE FROM household_members WHERE resident_id = ?', [$residentId]);
 
         $houseCols = getColumnsMap('households');
-        $insertCols = [$headColumn, 'family_code', 'house_number', 'street', 'barangay', 'city', 'province', 'household_type', 'housing_status', 'years_of_residency'];
-        $insertVals = [$residentId, $familyCode, $houseNumber ?: null, $street, $barangay, $city, $province, $householdType, $housingStatus, $yearsResidency];
+        $insertCols = [$headColumn, 'house_number', 'street', 'barangay', 'city', 'province', 'household_type', 'housing_status', 'years_of_residency'];
+        $insertVals = [$residentId, $houseNumber ?: null, $street, $barangay, $city, $province, $householdType, $housingStatus, $yearsResidency];
+        if (isset($houseCols['family_code'])) {
+            $insertCols[] = 'family_code';
+            $insertVals[] = $familyCode;
+        }
 
         if (isset($houseCols['head_id']) && $headColumn !== 'head_id') {
             $insertCols[] = 'head_id';
@@ -604,7 +657,7 @@ function createHeadHousehold($residentId, $data) {
 }
 
 function joinAsMember($residentId, $data) {
-    $familyHeadCode = strtoupper(trim((string)($data['family_head_code'] ?? '')));
+    $familyHeadCode = preg_replace('/\s+/', '', strtoupper(trim((string)($data['family_head_code'] ?? ''))));
     $familyCode = strtoupper(trim((string)($data['family_code'] ?? ''))); // legacy fallback
     $relationship = sanitizeInput((string)($data['relationship_to_head'] ?? 'Member'));
 
@@ -616,42 +669,65 @@ function joinAsMember($residentId, $data) {
     $headColumn = householdHeadColumn();
     $dateColumn = householdMemberDateColumn();
 
-    // Match by family_head_code: prefer household where that code is the official/primary head.
-    // (Residents lookup first could match a member in a different household, joining the wrong one.)
+    // Match by family_head_code: PRIORITIZE resident-level (exact head who owns this FH code).
+    // In multi-head households, each head has their own FH code; household.family_head_code may only store one.
     $household = null;
     $selectedHeadResidentId = 0;
+    $selectedHeadFamilyCode = null;
+    $fhNorm = preg_replace('/\s+/', '', $familyHeadCode);
     if ($familyHeadCode !== '') {
-        // 1. Household-level: household whose primary head has this FH code (what user expects)
-        $household = $db->fetchOne(
-            "SELECT h.id, h.family_code, h.family_head_code, h.`{$headColumn}` AS family_head_id
-             FROM households h
-             WHERE UPPER(TRIM(COALESCE(h.family_head_code,''))) = ?
-             LIMIT 1",
-            [$familyHeadCode]
-        );
+        $hasHouseholdFamilyCode = columnExists($db, 'households', 'family_code');
+        $hasHouseholdFhCode = columnExists($db, 'households', 'family_head_code');
+        $hasResidentFamilyCode = columnExists($db, 'residents', 'family_code');
 
-        // 2. Resident-level: resident with this FH code as their head code (household may show different primary)
-        if (!$household && columnExists($db, 'residents', 'family_head_code')) {
+        $hhSelect = "id, `{$headColumn}` AS family_head_id";
+        if ($hasHouseholdFamilyCode) $hhSelect .= ", family_code";
+        if ($hasHouseholdFhCode) $hhSelect .= ", family_head_code";
+
+        // 1. Resident-level FIRST: find the specific head who owns this FH code (correct for multi-head)
+        if (columnExists($db, 'residents', 'family_head_code')) {
+            $resSelect = "id, household_id";
+            if ($hasResidentFamilyCode) $resSelect .= ", family_code";
             $selectedHead = $db->fetchOne(
-                "SELECT id, household_id FROM residents
-                 WHERE UPPER(TRIM(COALESCE(family_head_code,''))) = ?
+                "SELECT {$resSelect} FROM residents
+                 WHERE UPPER(REPLACE(TRIM(COALESCE(family_head_code,'')), ' ', '')) = ?
                  LIMIT 1",
-                [$familyHeadCode]
+                [$fhNorm]
             );
             if ($selectedHead && (int)($selectedHead['household_id'] ?? 0) > 0) {
                 $selectedHeadResidentId = (int)($selectedHead['id'] ?? 0);
+                $selectedHeadFamilyCode = $hasResidentFamilyCode ? trim((string)($selectedHead['family_code'] ?? '')) : '';
                 $household = $db->fetchOne(
-                    "SELECT id, family_code, family_head_code, `{$headColumn}` AS family_head_id
-                     FROM households WHERE id = ? LIMIT 1",
+                    "SELECT {$hhSelect} FROM households WHERE id = ? LIMIT 1",
                     [(int)$selectedHead['household_id']]
                 );
             }
         }
+
+        // 2. Fallback: household-level match (when resident doesn't have family_head_code column or no resident match)
+        if (!$household && $hasHouseholdFhCode) {
+            $household = $db->fetchOne(
+                "SELECT {$hhSelect} FROM households
+                 WHERE UPPER(REPLACE(TRIM(COALESCE(family_head_code,'')), ' ', '')) = ?
+                 LIMIT 1",
+                [$fhNorm]
+            );
+            if ($household) {
+                $selectedHeadResidentId = (int)($household['family_head_id'] ?? 0);
+                $selectedHeadFamilyCode = $hasHouseholdFamilyCode ? trim((string)($household['family_code'] ?? '')) : '';
+                if ($selectedHeadFamilyCode === '' && $selectedHeadResidentId > 0 && $hasResidentFamilyCode) {
+                    $headFcRow = $db->fetchOne("SELECT family_code FROM residents WHERE id = ? LIMIT 1", [$selectedHeadResidentId]);
+                    $selectedHeadFamilyCode = trim((string)($headFcRow['family_code'] ?? ''));
+                }
+            }
+        }
     }
-    if (!$household && $familyCode !== '') {
+    if (!$household && $familyCode !== '' && columnExists($db, 'households', 'family_code')) {
+        $hhSelectFc = "id, `{$headColumn}` AS family_head_id";
+        if (columnExists($db, 'households', 'family_code')) $hhSelectFc .= ", family_code";
+        if (columnExists($db, 'households', 'family_head_code')) $hhSelectFc .= ", family_head_code";
         $household = $db->fetchOne(
-            "SELECT id, family_code, family_head_code, `{$headColumn}` AS family_head_id
-             FROM households
+            "SELECT {$hhSelectFc} FROM households
              WHERE UPPER(COALESCE(family_code,'')) = ?
              LIMIT 1",
             [$familyCode]
@@ -714,8 +790,25 @@ function joinAsMember($residentId, $data) {
             // Members should not hold a head code; keep this null to avoid being treated as a head account.
             $db->query('UPDATE residents SET family_head_code = NULL WHERE id = ?', [$residentId]);
         }
-        if (columnExists($db, 'residents', 'family_code') && !empty($household['family_code'])) {
-            $db->query('UPDATE residents SET family_code = ? WHERE id = ?', [$household['family_code'], $residentId]);
+        $memberFamilyCode = $selectedHeadFamilyCode;
+        if (($memberFamilyCode ?? '') === '' && $selectedHeadResidentId > 0 && columnExists($db, 'residents', 'family_code')) {
+            $headRow = $db->fetchOne("SELECT family_code FROM residents WHERE id = ?", [$selectedHeadResidentId]);
+            $memberFamilyCode = trim((string)($headRow['family_code'] ?? ''));
+            // If head has no family_code, generate one for the head first (so member gets correct group)
+            if ($memberFamilyCode === '') {
+                try {
+                    $memberFamilyCode = generateFamilyCode();
+                } catch (Exception $e) {
+                    $memberFamilyCode = 'BR219-' . date('Y') . '-' . str_pad((string)mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
+                }
+                $db->query('UPDATE residents SET family_code = ? WHERE id = ?', [$memberFamilyCode, $selectedHeadResidentId]);
+            }
+        }
+        if (($memberFamilyCode ?? '') === '') {
+            $memberFamilyCode = trim((string)($household['family_code'] ?? ''));
+        }
+        if (columnExists($db, 'residents', 'family_code') && $memberFamilyCode !== '') {
+            $db->query('UPDATE residents SET family_code = ? WHERE id = ?', [$memberFamilyCode, $residentId]);
         }
 
         logHouseholdHistory($householdId, 'Member Added', 'Resident joined household via family code', $residentId);
@@ -825,8 +918,10 @@ function getAvailableHouseholdsForJoin() {
     $db = Database::getInstance();
     $headColumn = householdHeadColumn();
 
+    $fcCol = columnExists($db, 'households', 'family_code') ? 'h.family_code,' : '';
+
     $rows = $db->fetchAll(
-        "SELECT h.id, h.family_code, h.house_number, h.street, h.barangay, h.city, h.province,
+        "SELECT h.id, {$fcCol} h.house_number, h.street, h.barangay, h.city, h.province,
                 r.first_name, r.middle_name, r.last_name
          FROM households h
          INNER JOIN residents r ON r.id = h.`{$headColumn}`
