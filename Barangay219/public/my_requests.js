@@ -202,6 +202,9 @@ function openDetailsModal(request) {
   detailsHtml += "<div class='modal-row'><span>Purpose</span><strong>" + request.purpose + "</strong></div>";
   detailsHtml += "<div class='modal-row'><span>Date Requested</span><strong>" + request.dateRequested + "</strong></div>";
   detailsHtml += "<div class='modal-row'><span>Status</span><strong><span class='badge " + slugStatus(request.status) + "'>" + request.status + "</span></strong></div>";
+  if (request.rawStatus === "rejected") {
+    detailsHtml += "<div class='modal-row'><span>Rejection Reason</span><strong>" + (request.rejectionReason || "Not provided") + "</strong></div>";
+  }
   detailsHtml += "<div class='modal-row'><span>Uploaded Documents</span><strong>" + uploadedDocs + "</strong></div>";
 
   modalContent.innerHTML = detailsHtml;
@@ -245,6 +248,7 @@ function mapApiRequest(row) {
   const status = row.status || "pending";
   const attachment = row.attachment || "";
   const attachmentName = attachment ? attachment.split("/").pop() : "";
+  const rejectionReason = (row.rejection_reason || row.remarks || "").trim();
 
   return {
     numericId: Number(row.id),
@@ -254,7 +258,8 @@ function mapApiRequest(row) {
     dateRequested: formatDate(row.created_at),
     status: displayStatus(status),
     rawStatus: status,
-    attachmentName
+    attachmentName,
+    rejectionReason
   };
 }
 
