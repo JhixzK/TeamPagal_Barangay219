@@ -5,6 +5,23 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
 let currentViewHouseholdId = null;
 let householdFilters = { q: '', from: '', to: '' };
 
+function showHouseholdToast(message, type) {
+    type = type || 'success';
+    const container = document.getElementById('householdToastContainer');
+    if (!container) return;
+    const id = 'toast-' + Date.now();
+    const toastEl = document.createElement('div');
+    toastEl.id = id;
+    toastEl.className = 'toast align-items-center text-bg-' + (type === 'success' ? 'success' : 'danger') + ' border-0';
+    toastEl.setAttribute('role', 'alert');
+    const safeMsg = typeof message === 'string' ? (message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')) : '';
+    toastEl.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-' + (type === 'success' ? 'check-circle' : 'exclamation-circle') + ' me-2"></i>' + safeMsg + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+    container.appendChild(toastEl);
+    const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+    toast.show();
+    toastEl.addEventListener('hidden.bs.toast', () => { toastEl.remove(); });
+}
+
 const HOUSEHOLD_PERMS = {
     canCreate: window.canModulePermission ? window.canModulePermission('households', 'can_create') : true,
     canEdit: window.canModulePermission ? window.canModulePermission('households', 'can_edit') : true,
@@ -401,7 +418,19 @@ function viewHousehold(id) {
             document.getElementById('viewHouseholdMembers').innerHTML = members.length
                 ? membersHtml
                 : '<p class="text-muted">No members yet.</p>';
-            new bootstrap.Modal(document.getElementById('viewHouseholdModal')).show();
+            const viewModalEl = document.getElementById('viewHouseholdModal');
+            let viewModalInstance = bootstrap.Modal.getInstance(viewModalEl);
+            if (!viewModalInstance) {
+                viewModalInstance = new bootstrap.Modal(viewModalEl);
+                viewModalEl.addEventListener('hidden.bs.modal', function() {
+                    if (window._householdSwitchingToConfirm) return;
+                    document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                });
+            }
+            viewModalInstance.show();
         })
         .catch(() => alert('Error loading household'));
 }
@@ -456,9 +485,41 @@ function addMemberToHousehold() {
         });
 }
 
+let pendingTransferHead = null;
+
 function transferHeadTo(newHeadResidentId, oldHeadResidentId) {
     if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
-    if (!confirm('Transfer head role to this member? The current head will become a member.')) return;
+    pendingTransferHead = { newHeadResidentId, oldHeadResidentId };
+    window._householdSwitchingToConfirm = true;
+    const viewEl = document.getElementById('viewHouseholdModal');
+    const viewModal = bootstrap.Modal.getInstance(viewEl);
+    const showTransferModal = () => {
+        window._householdSwitchingToConfirm = false;
+        const el = document.getElementById('transferHeadModal');
+        let m = bootstrap.Modal.getInstance(el);
+        if (!m) m = new bootstrap.Modal(el);
+        el.addEventListener('hidden.bs.modal', function onHidden() {
+            if (pendingTransferHead) pendingTransferHead = null;
+            if (viewModal && currentViewHouseholdId) viewModal.show();
+            el.removeEventListener('hidden.bs.modal', onHidden);
+        }, { once: true });
+        m.show();
+    };
+    if (viewModal && viewEl.classList.contains('show')) {
+        viewEl.addEventListener('hidden.bs.modal', showTransferModal, { once: true });
+        viewModal.hide();
+    } else {
+        showTransferModal();
+    }
+}
+
+function confirmTransferHead() {
+    if (!pendingTransferHead) return;
+    const { newHeadResidentId, oldHeadResidentId } = pendingTransferHead;
+    pendingTransferHead = null;
+    const btn = document.getElementById('transferHeadConfirmBtn');
+    if (btn) btn.disabled = true;
+    bootstrap.Modal.getInstance(document.getElementById('transferHeadModal'))?.hide();
     const fd = new FormData();
     fd.append('action', 'assign_head_official');
     fd.append('household_id', currentViewHouseholdId);
@@ -468,16 +529,50 @@ function transferHeadTo(newHeadResidentId, oldHeadResidentId) {
         .then(r => r.json())
         .then(d => {
             if (d.success) {
+                showHouseholdToast('Head role transferred successfully.');
                 viewHousehold(currentViewHouseholdId);
                 loadHouseholds();
             } else alert('Error: ' + (d.message || 'Failed'));
         })
-        .catch(() => alert('Error transferring head'));
+        .catch(() => alert('Error transferring head'))
+        .finally(() => { if (btn) btn.disabled = false; });
 }
+
+let pendingRemoveMemberId = null;
 
 function removeMember(residentId) {
     if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
-    if (!confirm('Remove this member from household?')) return;
+    pendingRemoveMemberId = residentId;
+    window._householdSwitchingToConfirm = true;
+    const viewEl = document.getElementById('viewHouseholdModal');
+    const viewModal = bootstrap.Modal.getInstance(viewEl);
+    const showRemoveModal = () => {
+        window._householdSwitchingToConfirm = false;
+        const el = document.getElementById('removeMemberModal');
+        let m = bootstrap.Modal.getInstance(el);
+        if (!m) m = new bootstrap.Modal(el);
+        el.addEventListener('hidden.bs.modal', function onHidden() {
+            if (pendingRemoveMemberId !== null) pendingRemoveMemberId = null;
+            if (viewModal && currentViewHouseholdId) viewModal.show();
+            el.removeEventListener('hidden.bs.modal', onHidden);
+        }, { once: true });
+        m.show();
+    };
+    if (viewModal && viewEl.classList.contains('show')) {
+        viewEl.addEventListener('hidden.bs.modal', showRemoveModal, { once: true });
+        viewModal.hide();
+    } else {
+        showRemoveModal();
+    }
+}
+
+function confirmRemoveMember() {
+    if (pendingRemoveMemberId === null) return;
+    const residentId = pendingRemoveMemberId;
+    pendingRemoveMemberId = null;
+    const btn = document.getElementById('removeMemberConfirmBtn');
+    if (btn) btn.disabled = true;
+    bootstrap.Modal.getInstance(document.getElementById('removeMemberModal'))?.hide();
     const fd = new FormData();
     fd.append('action', 'remove_member');
     fd.append('resident_id', residentId);
@@ -485,10 +580,13 @@ function removeMember(residentId) {
         .then(r => r.json())
         .then(d => {
             if (d.success) {
+                showHouseholdToast('Member removed from household.');
                 viewHousehold(currentViewHouseholdId);
                 loadHouseholds();
             } else alert('Error: ' + (d.message || 'Failed'));
-        });
+        })
+        .catch(() => alert('Error removing member'))
+        .finally(() => { if (btn) btn.disabled = false; });
 }
 
 function editHousehold(id) {
