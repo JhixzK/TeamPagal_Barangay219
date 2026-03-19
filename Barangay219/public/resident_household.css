@@ -349,6 +349,12 @@
   max-width: 700px;
 }
 
+/* Manage Members modal – wider for table layout */
+#manageMembersModal .modal-content {
+  max-width: 95%;
+  width: 960px;
+}
+
 .custom-modal .modal-header {
   display: flex;
   justify-content: space-between;
