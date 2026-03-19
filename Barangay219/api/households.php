@@ -77,7 +77,14 @@ switch ($action) {
     case 'update_household_details':
         updateHouseholdDetails();
         break;
-    
+
+    case 'assign_head_official':
+        if (!canPerformModulePermission('households', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        assignHeadOfficial();
+        break;
+
     default:
         sendResponse(false, 'Invalid action', null, 400);
         break;
@@ -1270,9 +1277,32 @@ function removeHouseholdMember() {
         }
         $household_id = $resident['household_id'];
         $headRow = $db->fetchOne("SELECT family_head_id FROM households WHERE id = ?", [$household_id]);
-        if ($headRow && !empty($headRow['family_head_id']) && intval($headRow['family_head_id']) === $resident_id) {
-            sendResponse(false, 'Cannot remove the family head. Assign a new head first.', null, 400);
-            return;
+        $isDesignatedHead = $headRow && !empty($headRow['family_head_id']) && intval($headRow['family_head_id']) === $resident_id;
+        if ($isDesignatedHead) {
+            $others = $db->fetchAll("SELECT id FROM residents WHERE household_id = ? AND id != ? LIMIT 1", [$household_id, $resident_id]);
+            if (!empty($others)) {
+                $newHeadId = (int)$others[0]['id'];
+                $houseCols = $db->fetchAll("SHOW COLUMNS FROM households");
+                $colMap = [];
+                foreach ($houseCols as $c) $colMap[$c['Field']] = true;
+                $headColumn = isset($colMap['family_head_id']) ? 'family_head_id' : 'head_id';
+                $db->query("UPDATE households SET {$headColumn} = ? WHERE id = ?", [$newHeadId, $household_id]);
+                if (isset($colMap['family_head_id']) && $headColumn !== 'family_head_id') {
+                    $db->query("UPDATE households SET family_head_id = ? WHERE id = ?", [$newHeadId, $household_id]);
+                }
+                if (isset($colMap['head_id']) && $headColumn !== 'head_id') {
+                    $db->query("UPDATE households SET head_id = ? WHERE id = ?", [$newHeadId, $household_id]);
+                }
+            } else {
+                $houseCols = $db->fetchAll("SHOW COLUMNS FROM households");
+                $colMap = [];
+                foreach ($houseCols as $c) $colMap[$c['Field']] = true;
+                $headColumn = isset($colMap['family_head_id']) ? 'family_head_id' : 'head_id';
+                $db->query("UPDATE households SET {$headColumn} = NULL WHERE id = ?", [$household_id]);
+                if (isset($colMap['head_id']) && $headColumn !== 'head_id') {
+                    $db->query("UPDATE households SET head_id = NULL WHERE id = ?", [$household_id]);
+                }
+            }
         }
         // Remove from both residents.household_id AND household_members so resident-side Household Information stays in sync
         if (tableExists($db, 'household_members')) {
@@ -1285,6 +1315,128 @@ function removeHouseholdMember() {
     } catch (Exception $e) {
         error_log("Remove member error: " . $e->getMessage());
         sendResponse(false, 'Error removing member', null, 500);
+    }
+}
+
+/**
+ * Transfer head role to another member (officials only).
+ * Same logic as resident-side: the head who OWNS the family group (old_head_resident_id) loses the role,
+ * the selected member gains it and receives the family_head_code. Members are "inside" a head by family_code.
+ */
+function assignHeadOfficial() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'Invalid request method', null, 405);
+        return;
+    }
+
+    $householdId = (int)($_POST['household_id'] ?? 0);
+    $newHeadResidentId = (int)($_POST['new_head_resident_id'] ?? 0);
+    $oldHeadResidentIdParam = (int)($_POST['old_head_resident_id'] ?? 0);
+
+    if (!$householdId || !$newHeadResidentId) {
+        sendResponse(false, 'household_id and new_head_resident_id are required', null, 400);
+        return;
+    }
+
+    try {
+        $db = Database::getInstance();
+        $houseCols = $db->fetchAll("SHOW COLUMNS FROM households");
+        $colMap = [];
+        foreach ($houseCols as $c) $colMap[$c['Field']] = true;
+        $headColumn = isset($colMap['family_head_id']) ? 'family_head_id' : 'head_id';
+
+        $household = $db->fetchOne("SELECT id, `{$headColumn}` AS hid FROM households WHERE id = ?", [$householdId]);
+        if (!$household) {
+            sendResponse(false, 'Household not found', null, 404);
+            return;
+        }
+
+        $designatedHeadId = (int)($household['hid'] ?? 0);
+        $oldHeadResidentId = $oldHeadResidentIdParam > 0 ? $oldHeadResidentIdParam : $designatedHeadId;
+
+        if ($oldHeadResidentId <= 0) {
+            sendResponse(false, 'Cannot determine which head to transfer from. Ensure the household has a designated head or the member is under a head.', null, 400);
+            return;
+        }
+        if ($oldHeadResidentId === $newHeadResidentId) {
+            sendResponse(false, 'Selected resident is already the head of this family group', null, 400);
+            return;
+        }
+
+        $resident = $db->fetchOne("SELECT id, household_id FROM residents WHERE id = ?", [$newHeadResidentId]);
+        if (!$resident) {
+            sendResponse(false, 'Resident not found', null, 404);
+            return;
+        }
+        if ((int)($resident['household_id'] ?? 0) !== $householdId) {
+            sendResponse(false, 'Resident is not a member of this household', null, 400);
+            return;
+        }
+
+        if (columnExists($db, 'residents', 'family_code')) {
+            $oldHeadFc = $db->fetchOne("SELECT family_code FROM residents WHERE id = ?", [$oldHeadResidentId]);
+            $newHeadFc = $db->fetchOne("SELECT family_code FROM residents WHERE id = ?", [$newHeadResidentId]);
+            $oldFc = trim((string)($oldHeadFc['family_code'] ?? ''));
+            $newFc = trim((string)($newHeadFc['family_code'] ?? ''));
+            if ($oldFc !== '' && $newFc !== '' && $oldFc !== $newFc) {
+                sendResponse(false, 'You can only transfer head role to members in the same family group', null, 400);
+                return;
+            }
+        }
+
+        $db->beginTransaction();
+        try {
+            if ($designatedHeadId === $oldHeadResidentId) {
+                $db->query("UPDATE households SET {$headColumn} = ? WHERE id = ?", [$newHeadResidentId, $householdId]);
+                if (isset($colMap['family_head_id']) && $headColumn !== 'family_head_id') {
+                    $db->query("UPDATE households SET family_head_id = ? WHERE id = ?", [$newHeadResidentId, $householdId]);
+                }
+                if (isset($colMap['head_id']) && $headColumn !== 'head_id') {
+                    $db->query("UPDATE households SET head_id = ? WHERE id = ?", [$newHeadResidentId, $householdId]);
+                }
+            }
+
+            if (tableExists($db, 'household_members')) {
+                $db->query("UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?", ['Head', $newHeadResidentId, $householdId]);
+                $db->query("UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?", ['Member', $oldHeadResidentId, $householdId]);
+            }
+
+            if (columnExists($db, 'residents', 'relationship_to_head')) {
+                $db->query("UPDATE residents SET relationship_to_head = ? WHERE id = ?", ['Head', $newHeadResidentId]);
+                if ($oldHeadResidentId > 0) {
+                    $db->query("UPDATE residents SET relationship_to_head = ? WHERE id = ?", ['Member', $oldHeadResidentId]);
+                }
+            }
+
+            if (columnExists($db, 'residents', 'family_head_code') && $oldHeadResidentId > 0) {
+                $oldHead = $db->fetchOne("SELECT family_head_code FROM residents WHERE id = ?", [$oldHeadResidentId]);
+                $oldFhc = $oldHead ? trim((string)($oldHead['family_head_code'] ?? '')) : '';
+                if ($oldFhc !== '' && $oldFhc !== '-') {
+                    $db->query("UPDATE residents SET family_head_code = ? WHERE id = ?", [$oldFhc, $newHeadResidentId]);
+                    $db->query("UPDATE residents SET family_head_code = NULL WHERE id = ?", [$oldHeadResidentId]);
+                    if ($designatedHeadId === $oldHeadResidentId && isset($colMap['family_head_code'])) {
+                        $db->query("UPDATE households SET family_head_code = ? WHERE id = ?", [$oldFhc, $householdId]);
+                    }
+                }
+            }
+
+            if (tableExists($db, 'household_history_logs')) {
+                $performedBy = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
+                $db->query(
+                    "INSERT INTO household_history_logs (household_id, action, performed_by, target_resident_id, details) VALUES (?, ?, ?, ?, ?)",
+                    [$householdId, 'Head Changed', $performedBy, $newHeadResidentId, 'Household head transferred by official.']
+                );
+            }
+
+            $db->commit();
+            sendResponse(true, 'Household head transferred successfully', ['new_head_resident_id' => $newHeadResidentId]);
+        } catch (Exception $e) {
+            $db->rollback();
+            throw $e;
+        }
+    } catch (Exception $e) {
+        error_log("Assign head official error: " . $e->getMessage());
+        sendResponse(false, $e->getMessage(), null, 500);
     }
 }
 
