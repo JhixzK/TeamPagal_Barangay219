@@ -109,7 +109,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Filter Complaints</h5>
@@ -147,7 +147,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- View Modal -->
 <div class="modal fade" id="viewModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Complaint Details</h5>
@@ -161,7 +161,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Edit Modal -->
 <div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Edit Complaint</h5>
@@ -225,7 +225,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Create Modal -->
 <div class="modal fade" id="createModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">New Complaint</h5>
