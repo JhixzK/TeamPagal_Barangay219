@@ -149,7 +149,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- View Modal -->
 <div class="modal fade" id="viewModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Application Details - <span id="viewAppRef"></span></h5>
@@ -163,7 +163,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Approve Modal -->
 <div class="modal fade" id="approveModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Approve Application</h5>
@@ -188,7 +188,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Reject Modal -->
 <div class="modal fade" id="rejectModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Reject Application</h5>
@@ -291,7 +291,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Filter Applications</h5>
