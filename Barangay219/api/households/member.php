@@ -366,19 +366,52 @@ function assignHouseholdHead($residentId, $data) {
 
     $householdId = (int)$target['household_id'];
     $newHeadResidentId = (int)$target['resident_id'];
+    $oldHeadResidentId = (int)$residentId;
+
+    if (columnExists($db, 'residents', 'family_code')) {
+        $oldHeadFc = $db->fetchOne("SELECT family_code FROM residents WHERE id = ?", [$oldHeadResidentId]);
+        $newHeadFc = $db->fetchOne("SELECT family_code FROM residents WHERE id = ?", [$newHeadResidentId]);
+        $oldFc = trim((string)($oldHeadFc['family_code'] ?? ''));
+        $newFc = trim((string)($newHeadFc['family_code'] ?? ''));
+        if ($oldFc !== '' && $newFc !== '' && $oldFc !== $newFc) {
+            householdJsonResponse(false, null, 'You can only transfer head role to members in your family group', 400);
+        }
+    }
+
+    $currentDesignated = $db->fetchOne("SELECT `{$headColumn}` AS hid FROM households WHERE id = ? LIMIT 1", [$householdId]);
+    $currentDesignatedId = (int)($currentDesignated['hid'] ?? 0);
 
     $db->beginTransaction();
     try {
-        $db->query("UPDATE households SET {$headColumn} = ? WHERE id = ?", [$newHeadResidentId, $householdId]);
-        if (isset($houseCols['family_head_id']) && $headColumn !== 'family_head_id') {
-            $db->query('UPDATE households SET family_head_id = ? WHERE id = ?', [$newHeadResidentId, $householdId]);
-        }
-        if (isset($houseCols['head_id']) && $headColumn !== 'head_id') {
-            $db->query('UPDATE households SET head_id = ? WHERE id = ?', [$newHeadResidentId, $householdId]);
+        if ($currentDesignatedId === $oldHeadResidentId) {
+            $db->query("UPDATE households SET {$headColumn} = ? WHERE id = ?", [$newHeadResidentId, $householdId]);
+            if (isset($houseCols['family_head_id']) && $headColumn !== 'family_head_id') {
+                $db->query('UPDATE households SET family_head_id = ? WHERE id = ?', [$newHeadResidentId, $householdId]);
+            }
+            if (isset($houseCols['head_id']) && $headColumn !== 'head_id') {
+                $db->query('UPDATE households SET head_id = ? WHERE id = ?', [$newHeadResidentId, $householdId]);
+            }
         }
 
         $db->query('UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?', ['Head', $newHeadResidentId, $householdId]);
-        $db->query('UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?', ['Member', $residentId, $householdId]);
+        $db->query('UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?', ['Member', $oldHeadResidentId, $householdId]);
+
+        if (columnExists($db, 'residents', 'relationship_to_head')) {
+            $db->query('UPDATE residents SET relationship_to_head = ? WHERE id = ?', ['Head', $newHeadResidentId]);
+            $db->query('UPDATE residents SET relationship_to_head = ? WHERE id = ?', ['Member', $oldHeadResidentId]);
+        }
+
+        if (columnExists($db, 'residents', 'family_head_code')) {
+            $oldHead = $db->fetchOne('SELECT family_head_code FROM residents WHERE id = ? LIMIT 1', [$oldHeadResidentId]);
+            $oldFhc = $oldHead ? trim((string)($oldHead['family_head_code'] ?? '')) : '';
+            if ($oldFhc !== '' && $oldFhc !== '-') {
+                $db->query('UPDATE residents SET family_head_code = ? WHERE id = ?', [$oldFhc, $newHeadResidentId]);
+                $db->query('UPDATE residents SET family_head_code = NULL WHERE id = ?', [$oldHeadResidentId]);
+                if ($currentDesignatedId === $oldHeadResidentId && isset($houseCols['family_head_code'])) {
+                    $db->query('UPDATE households SET family_head_code = ? WHERE id = ?', [$oldFhc, $householdId]);
+                }
+            }
+        }
 
         logMemberHistory($householdId, 'Head Changed', 'Household head reassigned. Reason: ' . $reason, $newHeadResidentId);
 
