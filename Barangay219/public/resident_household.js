@@ -333,12 +333,14 @@ function renderManageMembersTable(members) {
     return;
   }
 
+  const currentUserFc = (members || []).find(m => m.is_self)?.family_code ?? '';
   tbody.innerHTML = members.map((member) => {
     const isSelf = !!member.is_self;
     const memberId = Number(member.id || 0);
       const isMemberHead = isHeadRelationship(member.relationship_to_head) || (Number(member.resident_id || 0) === Number(currentHouseholdData?.family_head_id || 0));
 
-    const canAssignHead = !isSelf && !isMemberHead;
+    const canAssignHead = !isSelf && !isMemberHead &&
+      (currentUserFc === '' || (member.family_code || '') === currentUserFc);
     const canRemove = !isSelf && !isMemberHead;
     const age = member.age ?? calculateAge(member.date_of_birth || member.birth_date) ?? "-";
     const birthDateLabel = formatDate(member.date_of_birth || member.birth_date);
