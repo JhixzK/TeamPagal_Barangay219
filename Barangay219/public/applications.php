@@ -1082,11 +1082,17 @@ include __DIR__ . '/../includes/sidebar.php';
 
     window.rejectApp = function(id) {
         if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
-        const reason = prompt('Rejection reason (optional):');
+        const reasonInput = prompt('Rejection reason (required):');
+        if (reasonInput === null) return;
+        const reason = (reasonInput || '').trim();
+        if (!reason) {
+            alert('Rejection reason is required.');
+            return;
+        }
         const fd = new FormData();
         fd.append('action', 'reject');
         fd.append('id', id);
-        if (reason) fd.append('reason', reason);
+        fd.append('reason', reason);
         fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
             .then(r => r.json())
             .then(d => { if (d.success) loadApplications(); else alert(d.message || 'Error'); });
