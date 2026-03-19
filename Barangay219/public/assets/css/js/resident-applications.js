@@ -170,6 +170,10 @@ function renderApplications(apps) {
         const statusBadge = getStatusBadge(app.record_status);
         const actions = renderActions(app);
         const roleInfo = getHouseholdRoleInfo(app);
+        const headNeedsAssign = !!app.head_needs_assignment;
+        const roleCell = roleInfo.badge + (headNeedsAssign
+            ? ' <span class="badge bg-warning text-dark ms-1" title="Head not yet assigned to a household"><i class="bi bi-exclamation-circle me-1"></i>Not assigned</span>'
+            : '');
         return `
             <tr>
                 <td class="text-center"><code>${esc(app.application_ref || 'APP-' + app.id)}</code></td>
@@ -177,7 +181,7 @@ function renderApplications(apps) {
                 <td class="text-center">${esc(toTitleCase(app.sex || '-'))}</td>
                 <td class="text-center">${esc(formatPhoneNumber(app.mobile_number) || '-')}</td>
                 <td class="text-center">${formatDate(app.created_at)}</td>
-                <td class="text-center"><div class="d-flex justify-content-center">${roleInfo.badge}</div></td>
+                <td class="text-center"><div class="d-flex flex-wrap justify-content-center align-items-center gap-1">${roleCell}</div></td>
                 <td class="text-center">${statusBadge}</td>
                 <td class="text-center">${actions}</td>
             </tr>
@@ -743,7 +747,7 @@ function getHouseholdRoleInfo(app) {
             badge: '<span class="text-muted">-</span>'
         };
     }
-    const isHead = ['head', 'head of family', 'family head', 'household head'].includes(lower);
+    const isHead = ['head', 'head of family', 'family head', 'household head', 'head of household'].includes(lower) || lower.indexOf('head') !== -1;
     return {
         label: isHead ? 'Head' : 'Member',
         relationship: (app.relationship_to_head || '').toString().trim() || raw,
