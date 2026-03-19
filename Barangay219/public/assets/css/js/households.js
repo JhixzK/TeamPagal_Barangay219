@@ -321,6 +321,7 @@ function viewHousehold(id) {
             };
 
             const heads = members.filter(isHead);
+            const memberList = members.filter(m => !isHead(m));
             const familyHeadNames = heads.length
                 ? heads.map(m => toName(m)).join(', ')
                 : (h.family_head_name ? toTitleCase(h.family_head_name) : '-');
@@ -329,40 +330,71 @@ function viewHousehold(id) {
                 <p><strong>Household ID Code:</strong> ${escapeHtml((h.household_id_code || '-'))}</p>
                 <p><strong>Family Head(s):</strong> ${escapeHtml(familyHeadNames)}</p>
                 <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
-                <p><strong>Total Members:</strong> ${Number((h.total_members ?? 0))}</p>
+                <p><strong>Total Members:</strong> ${members.length}</p>
                 <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
             `;
-            const memberList = members.filter(m => !isHead(m));
+
+            // Group members by family_code (members share same family_code as their head)
+            const getFamilyCode = (m) => (m.family_code ?? '').toString().trim();
+            const designatedHeadFc = designatedHeadId > 0 ? getFamilyCode(members.find(m => Number(m.id) === designatedHeadId) || {}) : '';
 
             let membersHtml = '';
             heads.forEach(head => {
                 const fhc = ((head.family_head_code ?? '').toString().trim() || householdFhCode);
+                const headFc = getFamilyCode(head) || (Number(head.id) === designatedHeadId ? designatedHeadFc : null);
+                const headMembers = headFc ? memberList.filter(m => getFamilyCode(m) === headFc) : [];
                 const removeBtn = (designatedHeadId > 0 && Number(head.id) === designatedHeadId) ? '' : (allowEditMembers ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${head.id})"><i class="bi bi-person-dash"></i></button>` : '');
                 membersHtml += `
-                    <div class="d-flex align-items-center justify-content-between py-2 px-2 border rounded mb-2 bg-light">
-                        <div>
-                            <span class="fw-semibold">${escapeHtml(toName(head))}</span>
-                            <span class="badge bg-primary ms-2">Head</span>
-                            <small class="text-muted ms-2">(${escapeHtml(fhc)})</small>
+                    <div class="household-head-group mb-3">
+                        <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1 bg-light">
+                            <div>
+                                <span class="fw-semibold">${escapeHtml(toName(head))}</span>
+                                <span class="badge bg-primary ms-2">Head</span>
+                                <small class="text-muted ms-2">(${escapeHtml(fhc)})</small>
+                            </div>
+                            ${removeBtn}
                         </div>
-                        ${removeBtn}
+                        ${headMembers.map(m => {
+                            const mRemoveBtn = allowEditMembers
+                                ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>`
+                                : '';
+                            return `
+                                <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1 ms-3" style="border-left: 3px solid var(--bs-primary) !important;">
+                                    <div>
+                                        <span>${escapeHtml(toName(m))}</span>
+                                        <span class="badge bg-light text-dark border ms-2">Member</span>
+                                        <small class="text-muted ms-1">(joined via ${escapeHtml(fhc)})</small>
+                                    </div>
+                                    ${mRemoveBtn}
+                                </div>`;
+                        }).join('')}
                     </div>
                 `;
             });
-            memberList.forEach(m => {
-                const removeBtn = allowEditMembers
-                    ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>`
-                    : '';
-                membersHtml += `
-                    <div class="d-flex align-items-center justify-content-between py-2 px-2 border rounded mb-2">
-                        <div>
-                            <span>${escapeHtml(toName(m))}</span>
-                            <span class="badge bg-light text-dark border ms-2">Member</span>
-                        </div>
-                        ${removeBtn}
-                    </div>
-                `;
-            });
+            // Ungrouped members (no matching family_code head)
+            const groupedIds = new Set(heads.flatMap(head => {
+                const headFc = getFamilyCode(head) || (Number(head.id) === designatedHeadId ? designatedHeadFc : null);
+                if (!headFc) return [];
+                return memberList.filter(m => getFamilyCode(m) === headFc).map(m => m.id);
+            }));
+            const ungrouped = memberList.filter(m => !groupedIds.has(m.id));
+            if (ungrouped.length > 0) {
+                membersHtml += `<div class="household-head-group mb-3"><div class="small text-muted mb-1 px-2">Other members</div>`;
+                ungrouped.forEach(m => {
+                    const mRemoveBtn = allowEditMembers
+                        ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>`
+                        : '';
+                    membersHtml += `
+                        <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1">
+                            <div>
+                                <span>${escapeHtml(toName(m))}</span>
+                                <span class="badge bg-light text-dark border ms-2">Member</span>
+                            </div>
+                            ${mRemoveBtn}
+                        </div>`;
+                });
+                membersHtml += `</div>`;
+            }
 
             document.getElementById('viewHouseholdMembers').innerHTML = members.length
                 ? membersHtml
