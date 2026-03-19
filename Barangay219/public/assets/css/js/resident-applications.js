@@ -303,8 +303,103 @@ function openAssignHousehold(applicationId, residentId, isHead) {
             sel.innerHTML = '<option value="">Failed to load households</option>';
         });
 
+    const headsModalEl = document.getElementById('assignHeadsModal');
+    const headsModal = headsModalEl ? bootstrap.Modal.getInstance(headsModalEl) : null;
+    if (headsModal) {
+        headsModal.hide();
+    }
+
     const modal = new bootstrap.Modal(document.getElementById('assignHouseholdModal'));
     modal.show();
+}
+
+function openAssignHeadsModal() {
+    if (!RES_APP_PERMS.canEdit) {
+        showAlert('error', 'Access denied');
+        return;
+    }
+    const tbody = document.getElementById('assignHeadsTableBody');
+    const emptyEl = document.getElementById('assignHeadsEmpty');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="spinner-border spinner-border-sm"></div> Loading...</td></tr>';
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    fetch(`${window.API_URL}applications.php?action=approved_heads`)
+        .then(r => r.json())
+        .then(d => {
+            if (!d || !d.success) {
+                if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">' + esc(d && d.message ? d.message : 'Failed to load') + '</td></tr>';
+                return;
+            }
+            const heads = Array.isArray(d.data?.heads) ? d.data.heads : [];
+            if (heads.length === 0) {
+                if (tbody) tbody.innerHTML = '';
+                if (emptyEl) emptyEl.style.display = 'block';
+                return;
+            }
+            if (emptyEl) emptyEl.style.display = 'none';
+            tbody.innerHTML = heads.map(h => {
+                const fullName = [h.first_name, h.middle_name, h.last_name].filter(Boolean).join(' ');
+                const statusBadge = h.head_needs_assignment
+                    ? '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Not Assigned</span>'
+                    : '<span class="badge bg-success">Assigned</span>';
+                const householdCell = h.household_label ? esc(h.household_label) : '—';
+                const assignBtn = h.head_needs_assignment && h.approved_resident_id > 0
+                    ? `<button class="btn btn-sm btn-outline-primary" onclick="openAssignHousehold(${h.id}, ${h.approved_resident_id}, 1)" title="Assign"><i class="bi bi-house-check"></i> Assign</button>`
+                    : '<span class="text-muted">—</span>';
+                return `<tr class="${h.head_needs_assignment ? 'table-warning' : ''}">
+                    <td><code>${esc(h.application_ref || '')}</code></td>
+                    <td>${esc(toTitleCase(fullName || '-'))}</td>
+                    <td>${statusBadge}</td>
+                    <td>${householdCell}</td>
+                    <td class="text-end">${assignBtn}</td>
+                </tr>`;
+            }).join('');
+        })
+        .catch(err => {
+            console.error(err);
+            if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load approved heads</td></tr>';
+        });
+
+    const modal = new bootstrap.Modal(document.getElementById('assignHeadsModal'));
+    modal.show();
+}
+
+function refreshAssignHeadsTableIfOpen() {
+    const modalEl = document.getElementById('assignHeadsModal');
+    const tbody = document.getElementById('assignHeadsTableBody');
+    if (!tbody) return;
+    if (modalEl && !modalEl.classList.contains('show')) return;
+    fetch(`${window.API_URL}applications.php?action=approved_heads`)
+        .then(r => r.json())
+        .then(d => {
+            if (!d || !d.success) return;
+            const heads = Array.isArray(d.data?.heads) ? d.data.heads : [];
+            const emptyEl = document.getElementById('assignHeadsEmpty');
+            if (heads.length === 0) {
+                tbody.innerHTML = '';
+                if (emptyEl) emptyEl.style.display = 'block';
+                return;
+            }
+            if (emptyEl) emptyEl.style.display = 'none';
+            tbody.innerHTML = heads.map(h => {
+                const fullName = [h.first_name, h.middle_name, h.last_name].filter(Boolean).join(' ');
+                const statusBadge = h.head_needs_assignment
+                    ? '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Not Assigned</span>'
+                    : '<span class="badge bg-success">Assigned</span>';
+                const householdCell = h.household_label ? esc(h.household_label) : '—';
+                const assignBtn = h.head_needs_assignment && h.approved_resident_id > 0
+                    ? `<button class="btn btn-sm btn-outline-primary" onclick="openAssignHousehold(${h.id}, ${h.approved_resident_id}, 1)" title="Assign"><i class="bi bi-house-check"></i> Assign</button>`
+                    : '<span class="text-muted">—</span>';
+                return `<tr class="${h.head_needs_assignment ? 'table-warning' : ''}">
+                    <td><code>${esc(h.application_ref || '')}</code></td>
+                    <td>${esc(toTitleCase(fullName || '-'))}</td>
+                    <td>${statusBadge}</td>
+                    <td>${householdCell}</td>
+                    <td class="text-end">${assignBtn}</td>
+                </tr>`;
+            }).join('');
+        })
+        .catch(() => {});
 }
 
 function submitAssignHousehold() {
@@ -349,6 +444,7 @@ function submitAssignHousehold() {
                 if (modal) modal.hide();
                 showAlert('success', d.message || 'Household assigned');
                 loadApplications();
+                refreshAssignHeadsTableIfOpen();
             } else {
                 showAlert('error', (d && d.message) ? d.message : 'Failed to assign household');
             }
