@@ -202,7 +202,7 @@ function renderActions(app) {
     if (app.record_status === 'approved') {
         const roleInfo = getHouseholdRoleInfo(app);
         const isHead = (roleInfo.label || '').toLowerCase() === 'head';
-        const canAssign = isHead && app.approved_resident_id && Number(app.approved_resident_id) > 0;
+        const canAssign = isHead && app.approved_resident_id && Number(app.approved_resident_id) > 0 && !!app.head_needs_assignment;
         const assignBtn = canAssign
             ? `<button class="btn btn-sm btn-outline-secondary" title="Assign Household" aria-label="Assign Household" onclick="openAssignHousehold(${app.id}, ${Number(app.approved_resident_id)}, 1)"><i class="bi bi-house-check"></i></button>`
             : '';
@@ -342,7 +342,7 @@ function openAssignHeadsModal() {
                 const statusBadge = h.head_needs_assignment
                     ? '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Not Assigned</span>'
                     : '<span class="badge bg-success">Assigned</span>';
-                const householdCell = h.household_label ? esc(h.household_label) : '—';
+                const householdCell = formatHouseholdCell(h.household_label);
                 const assignBtn = h.head_needs_assignment && h.approved_resident_id > 0
                     ? `<button class="btn btn-sm btn-outline-primary" onclick="openAssignHousehold(${h.id}, ${h.approved_resident_id}, 1)" title="Assign"><i class="bi bi-house-check"></i> Assign</button>`
                     : '<span class="text-muted">—</span>';
@@ -386,7 +386,7 @@ function refreshAssignHeadsTableIfOpen() {
                 const statusBadge = h.head_needs_assignment
                     ? '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Not Assigned</span>'
                     : '<span class="badge bg-success">Assigned</span>';
-                const householdCell = h.household_label ? esc(h.household_label) : '—';
+                const householdCell = formatHouseholdCell(h.household_label);
                 const assignBtn = h.head_needs_assignment && h.approved_resident_id > 0
                     ? `<button class="btn btn-sm btn-outline-primary" onclick="openAssignHousehold(${h.id}, ${h.approved_resident_id}, 1)" title="Assign"><i class="bi bi-house-check"></i> Assign</button>`
                     : '<span class="text-muted">—</span>';
@@ -544,10 +544,11 @@ function viewApplication(id) {
                 // Close button (always shown, aligned on the left by default)
                 footerButtons += '<button type="button" class="btn btn-secondary me-auto" data-bs-dismiss="modal">Close</button>';
 
-                // Approved: Assign Household only for family heads (officials assign heads; members join via FH code)
+                // Approved: Assign Household only for family heads not yet assigned
                 const roleInfo = getHouseholdRoleInfo(app);
                 const isHead = (roleInfo.label || '').toLowerCase() === 'head';
-                if (RES_APP_PERMS.canEdit && appStatus === 'approved' && isHead) {
+                const headNeedsAssign = !!app.head_needs_assignment;
+                if (RES_APP_PERMS.canEdit && appStatus === 'approved' && isHead && headNeedsAssign) {
                     footerButtons += `
                         <button type="button" class="btn btn-outline-primary"
                             onclick="openAssignHouseholdFromModal()">
@@ -890,6 +891,14 @@ function formatPhoneNumber(raw) {
     if (!digits) return String(raw).trim();
     if (digits.length < 10) return String(raw).trim();
     return '+63 ' + digits;
+}
+
+function formatHouseholdCell(householdLabel) {
+    if (!householdLabel || !householdLabel.trim()) return '—';
+    const parts = String(householdLabel).split(' - ');
+    const hhCode = parts[0] ? parts[0].trim() : '';
+    if (!hhCode) return esc(householdLabel);
+    return `<span class="badge bg-white text-dark border">${esc(hhCode)}</span>`;
 }
 
 function esc(value) {
