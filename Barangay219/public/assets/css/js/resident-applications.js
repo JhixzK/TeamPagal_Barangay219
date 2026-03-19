@@ -196,11 +196,11 @@ function renderActions(app) {
         return viewBtn;
     }
     if (app.record_status === 'approved') {
-        const canAssign = app.approved_resident_id && Number(app.approved_resident_id) > 0;
         const roleInfo = getHouseholdRoleInfo(app);
         const isHead = (roleInfo.label || '').toLowerCase() === 'head';
+        const canAssign = isHead && app.approved_resident_id && Number(app.approved_resident_id) > 0;
         const assignBtn = canAssign
-            ? `<button class="btn btn-sm btn-outline-secondary" title="Assign Household" aria-label="Assign Household" onclick="openAssignHousehold(${app.id}, ${Number(app.approved_resident_id)}, ${isHead ? 1 : 0})"><i class="bi bi-house-check"></i></button>`
+            ? `<button class="btn btn-sm btn-outline-secondary" title="Assign Household" aria-label="Assign Household" onclick="openAssignHousehold(${app.id}, ${Number(app.approved_resident_id)}, 1)"><i class="bi bi-house-check"></i></button>`
             : '';
         return `${viewBtn}
             ${assignBtn}
@@ -444,8 +444,10 @@ function viewApplication(id) {
                 // Close button (always shown, aligned on the left by default)
                 footerButtons += '<button type="button" class="btn btn-secondary me-auto" data-bs-dismiss="modal">Close</button>';
 
-                // Approved: Assign Household shortcut (manual placement to empty/existing household) on the right
-                if (RES_APP_PERMS.canEdit && appStatus === 'approved') {
+                // Approved: Assign Household only for family heads (officials assign heads; members join via FH code)
+                const roleInfo = getHouseholdRoleInfo(app);
+                const isHead = (roleInfo.label || '').toLowerCase() === 'head';
+                if (RES_APP_PERMS.canEdit && appStatus === 'approved' && isHead) {
                     footerButtons += `
                         <button type="button" class="btn btn-outline-primary"
                             onclick="openAssignHouseholdFromModal()">
