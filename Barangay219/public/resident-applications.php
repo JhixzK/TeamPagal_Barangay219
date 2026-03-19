@@ -209,10 +209,13 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Assign Household Modal (Approved applications) -->
 <div class="modal fade" id="assignHouseholdModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Assign Household</h5>
+                <h5 class="modal-title">
+                    <i class="bi bi-house-check me-2"></i>Assign Household
+                    <span class="badge bg-primary ms-2">Approved</span>
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -220,7 +223,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 <input type="hidden" id="assignResidentId">
 
                 <div class="mb-3">
-                    <label class="form-label">Select Household</label>
+                    <label class="form-label"><span class="badge bg-light text-dark border me-1">1</span>Select Household</label>
                     <select class="form-select" id="assignHouseholdId">
                         <option value="">Loading households...</option>
                     </select>
@@ -228,7 +231,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
                 <div class="small text-muted" id="assignHouseholdRoleHint">Role will be detected from the approved application.</div>
                 <div class="mb-3" id="assignFamilyHeadRow" style="display:none;">
-                    <label class="form-label">Select Family Head (if household has multiple)</label>
+                    <label class="form-label"><span class="badge bg-light text-dark border me-1">2</span>Select Family Head (if household has multiple)</label>
                     <select class="form-select" id="assignFamilyHeadId">
                         <option value="">-- Select family head --</option>
                     </select>
@@ -247,14 +250,20 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Assign Heads Modal (Table of approved heads) -->
 <div class="modal fade" id="assignHeadsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Assign Household - Approved Heads</h5>
+                <h5 class="modal-title">
+                    <i class="bi bi-people me-2"></i>Assign Household - Approved Heads
+                    <span class="badge bg-success ms-2">Heads</span>
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small mb-3">Assign approved head accounts to households. Heads not yet assigned are highlighted.</p>
+                <p class="text-muted small mb-3">
+                    <span class="badge bg-info me-1">Info</span>
+                    Assign approved head accounts to households. Heads not yet assigned are highlighted.
+                </p>
                 <div class="table-responsive">
                     <table class="table table-sm table-hover">
                         <thead>
