@@ -231,14 +231,17 @@ function renderMembersTable(members, isHead) {
     .map((member) => {
       const isSelf = !!member.is_self;
       const memberId = Number(member.id || 0);
-        const isMemberHead = isHeadRelationship(member.relationship_to_head) || (Number(member.resident_id || 0) === Number(currentHouseholdData?.family_head_id || 0));
+      const isMemberHead = isHeadRelationship(member.relationship_to_head) || (Number(member.resident_id || 0) === Number(currentHouseholdData?.family_head_id || 0));
       const canRemove = memberId > 0 && !member.readonly && isHead && !isSelf && !isMemberHead;
       const canAssignHead = memberId > 0 && !member.readonly && isHead && !isSelf;
+      const roleBadge = isMemberHead
+        ? '<span class="badge bg-primary">Head</span>'
+        : '<span class="badge bg-light text-dark border">' + escapeHtml(member.relationship_to_head || "Member") + '</span>';
 
       return `
         <tr>
           <td>${escapeHtml(member.name || "Unknown")}${isSelf ? ' <span class="self-tag">(You)</span>' : ""}</td>
-          <td>${escapeHtml(member.relationship_to_head || "-")}</td>
+          <td>${roleBadge}</td>
           <td>${escapeHtml(member.sex || "-")}</td>
           <td>${member.age ?? calculateAge(member.date_of_birth) ?? "-"}</td>
           <td><span class="badge text-bg-light border">${escapeHtml(member.status || "Active")}</span></td>
@@ -340,8 +343,8 @@ function renderManageMembersTable(members) {
     const age = member.age ?? calculateAge(member.date_of_birth || member.birth_date) ?? "-";
     const birthDateLabel = formatDate(member.date_of_birth || member.birth_date);
     const roleBadge = isMemberHead
-      ? '<span class="status-badge">Head</span>'
-      : '<span class="status-badge">Member</span>';
+      ? '<span class="badge bg-primary">Head</span>'
+      : '<span class="badge bg-light text-dark border">Member</span>';
 
     const actions = [];
     if (canAssignHead) {
