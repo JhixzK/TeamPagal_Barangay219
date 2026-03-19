@@ -30,6 +30,12 @@ switch ($action) {
         }
         approveApplication();
         break;
+    case 'approved_heads':
+        if (!canPerformModulePermission('resident_applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        listApprovedHeads();
+        break;
     case 'assign_household':
         if (!canPerformModulePermission('resident_applications', 'can_edit')) {
             sendResponse(false, 'Access denied', null, 403);
@@ -317,6 +323,122 @@ function getApplication() {
     } catch (Exception $e) {
         error_log('Get application: ' . $e->getMessage());
         sendResponse(false, 'Failed to load application', null, 500);
+    }
+}
+
+function listApprovedHeads() {
+    try {
+        $db = Database::getInstance();
+        if (!tableExists($db, 'resident_applications')) {
+            sendResponse(false, 'Resident applications table is missing.', null, 500);
+        }
+
+        $cols = array_flip(getTableColumns($db, 'resident_applications'));
+        $statusCol = isset($cols['record_status']) ? 'record_status' : (isset($cols['status']) ? 'status' : null);
+        $selectApprovedResidentId = isset($cols['approved_resident_id']) ? 'approved_resident_id' : 'NULL AS approved_resident_id';
+        $relCol = isset($cols['relationship_to_head']) ? 'relationship_to_head' : null;
+        $roleCol = isset($cols['household_role']) ? 'household_role' : null;
+        if ($relCol && $roleCol) {
+            $selectRelationship = "COALESCE(NULLIF(`$relCol`, ''), `$roleCol`) AS relationship_to_head";
+        } elseif ($relCol) {
+            $selectRelationship = "`$relCol` AS relationship_to_head";
+        } else {
+            $selectRelationship = "NULL AS relationship_to_head";
+        }
+
+        $sql = "SELECT id, application_ref, first_name, middle_name, last_name, suffix, birth_date, $selectApprovedResidentId, $selectRelationship
+                FROM resident_applications
+                WHERE `$statusCol` = 'approved'
+                ORDER BY created_at DESC";
+        $rows = $db->fetchAll($sql);
+
+        $heads = [];
+        $dobCol = columnExists($db, 'residents', 'birth_date') ? 'birth_date' : 'date_of_birth';
+        $hhCodeCol = columnExists($db, 'households', 'household_id_code');
+        $hhCols = array_flip(getTableColumns($db, 'households'));
+        $hhHeadCol = isset($hhCols['family_head_id']) ? 'family_head_id' : 'head_id';
+
+        foreach ($rows as $app) {
+            $roleRaw = trim((string)($app['relationship_to_head'] ?? ''));
+            if (!isHeadRoleValue($roleRaw)) {
+                continue;
+            }
+
+            $resId = (int)($app['approved_resident_id'] ?? 0);
+            if ($resId <= 0) {
+                $first = trim((string)($app['first_name'] ?? ''));
+                $last = trim((string)($app['last_name'] ?? ''));
+                $dob = trim((string)($app['birth_date'] ?? ''));
+                if ($first !== '' && $last !== '' && $dob !== '') {
+                    $found = $db->fetchOne(
+                        "SELECT id, household_id FROM residents WHERE first_name = ? AND last_name = ? AND $dobCol = ? LIMIT 1",
+                        [$first, $last, $dob]
+                    );
+                    if ($found) {
+                        $resId = (int)$found['id'];
+                    }
+                }
+            }
+
+            if ($resId <= 0) {
+                $heads[] = [
+                    'id' => (int)$app['id'],
+                    'application_ref' => $app['application_ref'] ?? 'APP-' . $app['id'],
+                    'first_name' => $app['first_name'] ?? '',
+                    'middle_name' => $app['middle_name'] ?? '',
+                    'last_name' => $app['last_name'] ?? '',
+                    'approved_resident_id' => 0,
+                    'household_id' => 0,
+                    'household_label' => '',
+                    'head_needs_assignment' => true
+                ];
+                continue;
+            }
+
+            $res = $db->fetchOne("SELECT household_id FROM residents WHERE id = ? LIMIT 1", [$resId]);
+            $hhId = (int)($res['household_id'] ?? 0);
+            $headNeedsAssignment = $hhId <= 0;
+            $householdLabel = '';
+
+            if ($hhId > 0) {
+                $hhSelect = "id";
+                if ($hhCodeCol) $hhSelect .= ", household_id_code";
+                $hhSelect .= ", $hhHeadCol AS family_head_id";
+                $hh = $db->fetchOne("SELECT $hhSelect FROM households WHERE id = ?", [$hhId]);
+                if ($hh) {
+                    $code = trim((string)($hh['household_id_code'] ?? ''));
+                    if ($code === '' || $code === '-' || strtolower($code) === 'null') {
+                        $code = 'HH-' . str_pad((string)$hhId, 5, '0', STR_PAD_LEFT);
+                    }
+                    $headResId = (int)($hh['family_head_id'] ?? 0);
+                    $headName = '';
+                    if ($headResId > 0) {
+                        $headRow = $db->fetchOne("SELECT first_name, middle_name, last_name FROM residents WHERE id = ?", [$headResId]);
+                        if ($headRow) {
+                            $headName = trim(implode(' ', array_filter([$headRow['first_name'] ?? '', $headRow['middle_name'] ?? '', $headRow['last_name'] ?? ''])));
+                        }
+                    }
+                    $householdLabel = $code . ($headName !== '' ? ' - ' . $headName : '');
+                }
+            }
+
+            $heads[] = [
+                'id' => (int)$app['id'],
+                'application_ref' => $app['application_ref'] ?? 'APP-' . $app['id'],
+                'first_name' => $app['first_name'] ?? '',
+                'middle_name' => $app['middle_name'] ?? '',
+                'last_name' => $app['last_name'] ?? '',
+                'approved_resident_id' => $resId,
+                'household_id' => $hhId,
+                'household_label' => $householdLabel,
+                'head_needs_assignment' => $headNeedsAssignment
+            ];
+        }
+
+        sendResponse(true, 'Approved heads retrieved', ['heads' => $heads]);
+    } catch (Exception $e) {
+        error_log('List approved heads: ' . $e->getMessage());
+        sendResponse(false, 'Failed to load approved heads', null, 500);
     }
 }
 
