@@ -131,7 +131,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Filter Users</h5>
@@ -170,7 +170,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- User Modal -->
 <div class="modal fade" id="userModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="userModalTitle">Add New User</h5>
