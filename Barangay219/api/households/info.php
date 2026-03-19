@@ -616,43 +616,36 @@ function joinAsMember($residentId, $data) {
     $headColumn = householdHeadColumn();
     $dateColumn = householdMemberDateColumn();
 
-    // Prefer selected resident-level head code (FH-XXXXX). Fall back to household-level legacy fields.
+    // Match by family_head_code: prefer household where that code is the official/primary head.
+    // (Residents lookup first could match a member in a different household, joining the wrong one.)
     $household = null;
     $selectedHeadResidentId = 0;
     if ($familyHeadCode !== '') {
-        if (columnExists($db, 'residents', 'family_head_code')) {
-            $selectedHead = $db->fetchOne(
-                "SELECT id, household_id
-                 FROM residents
-                 WHERE UPPER(COALESCE(family_head_code,'')) = ?
-                 LIMIT 1",
-                [$familyHeadCode]
-            );
-            if ($selectedHead) {
-                $selectedHeadResidentId = (int)($selectedHead['id'] ?? 0);
-                $selectedHeadHouseholdId = (int)($selectedHead['household_id'] ?? 0);
-                if ($selectedHeadHouseholdId > 0) {
-                    $household = $db->fetchOne(
-                        "SELECT id, family_code, family_head_code, `{$headColumn}` AS family_head_id
-                         FROM households
-                         WHERE id = ?
-                         LIMIT 1",
-                        [$selectedHeadHouseholdId]
-                    );
-                } else {
-                    householdJsonResponse(false, null, 'Selected family head is not linked to a household', 400);
-                }
-            }
-        }
+        // 1. Household-level: household whose primary head has this FH code (what user expects)
+        $household = $db->fetchOne(
+            "SELECT h.id, h.family_code, h.family_head_code, h.`{$headColumn}` AS family_head_id
+             FROM households h
+             WHERE UPPER(TRIM(COALESCE(h.family_head_code,''))) = ?
+             LIMIT 1",
+            [$familyHeadCode]
+        );
 
-        if (!$household) {
-            $household = $db->fetchOne(
-                "SELECT id, family_code, family_head_code, `{$headColumn}` AS family_head_id
-                 FROM households
-                 WHERE UPPER(COALESCE(family_head_code,'')) = ?
+        // 2. Resident-level: resident with this FH code as their head code (household may show different primary)
+        if (!$household && columnExists($db, 'residents', 'family_head_code')) {
+            $selectedHead = $db->fetchOne(
+                "SELECT id, household_id FROM residents
+                 WHERE UPPER(TRIM(COALESCE(family_head_code,''))) = ?
                  LIMIT 1",
                 [$familyHeadCode]
             );
+            if ($selectedHead && (int)($selectedHead['household_id'] ?? 0) > 0) {
+                $selectedHeadResidentId = (int)($selectedHead['id'] ?? 0);
+                $household = $db->fetchOne(
+                    "SELECT id, family_code, family_head_code, `{$headColumn}` AS family_head_id
+                     FROM households WHERE id = ? LIMIT 1",
+                    [(int)$selectedHead['household_id']]
+                );
+            }
         }
     }
     if (!$household && $familyCode !== '') {
