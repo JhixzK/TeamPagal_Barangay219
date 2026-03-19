@@ -318,7 +318,25 @@ function getApplication() {
         if (!$app) {
             sendResponse(false, 'Application not found', null, 404);
         }
-        // Do not expose full file paths; only relative paths for display
+        $app['head_needs_assignment'] = false;
+        if (($app['record_status'] ?? '') === 'approved') {
+            $roleRaw = trim((string)($app['relationship_to_head'] ?? $app['household_role'] ?? ''));
+            if (isHeadRoleValue($roleRaw)) {
+                $resId = (int)($app['approved_resident_id'] ?? 0);
+                if ($resId <= 0 && !empty($app['first_name']) && !empty($app['last_name']) && !empty($app['birth_date'])) {
+                    $dobCol = columnExists($db, 'residents', 'birth_date') ? 'birth_date' : 'date_of_birth';
+                    $found = $db->fetchOne(
+                        "SELECT id, household_id FROM residents WHERE first_name = ? AND last_name = ? AND $dobCol = ? LIMIT 1",
+                        [$app['first_name'], $app['last_name'], $app['birth_date']]
+                    );
+                    if ($found) $resId = (int)$found['id'];
+                }
+                if ($resId > 0) {
+                    $res = $db->fetchOne("SELECT household_id FROM residents WHERE id = ? LIMIT 1", [$resId]);
+                    $app['head_needs_assignment'] = !$res || empty($res['household_id']) || (int)$res['household_id'] <= 0;
+                }
+            }
+        }
         sendResponse(true, 'Application retrieved', $app);
     } catch (Exception $e) {
         error_log('Get application: ' . $e->getMessage());
