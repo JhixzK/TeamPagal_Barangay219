@@ -343,7 +343,7 @@ function viewHousehold(id) {
                 const fhc = ((head.family_head_code ?? '').toString().trim() || householdFhCode);
                 const headFc = getFamilyCode(head) || (Number(head.id) === designatedHeadId ? designatedHeadFc : null);
                 const headMembers = headFc ? memberList.filter(m => getFamilyCode(m) === headFc) : [];
-                const removeBtn = (designatedHeadId > 0 && Number(head.id) === designatedHeadId) ? '' : (allowEditMembers ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${head.id})"><i class="bi bi-person-dash"></i></button>` : '');
+                const removeBtn = allowEditMembers ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${head.id})"><i class="bi bi-person-dash"></i></button>` : '';
                 membersHtml += `
                     <div class="household-head-group mb-3">
                         <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1 bg-light">
@@ -352,9 +352,10 @@ function viewHousehold(id) {
                                 <span class="badge bg-primary ms-2">Head</span>
                                 <small class="text-muted ms-2">(${escapeHtml(fhc)})</small>
                             </div>
-                            ${removeBtn}
+                            <div>${removeBtn}</div>
                         </div>
                         ${headMembers.map(m => {
+                            const mTransferBtn = allowEditMembers ? ` <button class="btn btn-sm btn-outline-primary" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${head.id})"><i class="bi bi-person-badge"></i></button>` : '';
                             const mRemoveBtn = allowEditMembers
                                 ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>`
                                 : '';
@@ -365,7 +366,7 @@ function viewHousehold(id) {
                                         <span class="badge bg-light text-dark border ms-2">Member</span>
                                         <small class="text-muted ms-1">(joined via ${escapeHtml(fhc)})</small>
                                     </div>
-                                    ${mRemoveBtn}
+                                    <div>${mTransferBtn}${mRemoveBtn}</div>
                                 </div>`;
                         }).join('')}
                     </div>
@@ -381,6 +382,7 @@ function viewHousehold(id) {
             if (ungrouped.length > 0) {
                 membersHtml += `<div class="household-head-group mb-3"><div class="small text-muted mb-1 px-2">Other members</div>`;
                 ungrouped.forEach(m => {
+                    const mTransferBtn = (allowEditMembers && designatedHeadId > 0) ? ` <button class="btn btn-sm btn-outline-primary" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${designatedHeadId})"><i class="bi bi-person-badge"></i></button>` : '';
                     const mRemoveBtn = allowEditMembers
                         ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>`
                         : '';
@@ -390,7 +392,7 @@ function viewHousehold(id) {
                                 <span>${escapeHtml(toName(m))}</span>
                                 <span class="badge bg-light text-dark border ms-2">Member</span>
                             </div>
-                            ${mRemoveBtn}
+                            <div>${mTransferBtn}${mRemoveBtn}</div>
                         </div>`;
                 });
                 membersHtml += `</div>`;
@@ -452,6 +454,25 @@ function addMemberToHousehold() {
                 });
             } else alert('Error: ' + (d.message || 'Failed'));
         });
+}
+
+function transferHeadTo(newHeadResidentId, oldHeadResidentId) {
+    if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
+    if (!confirm('Transfer head role to this member? The current head will become a member.')) return;
+    const fd = new FormData();
+    fd.append('action', 'assign_head_official');
+    fd.append('household_id', currentViewHouseholdId);
+    fd.append('new_head_resident_id', newHeadResidentId);
+    if (oldHeadResidentId) fd.append('old_head_resident_id', oldHeadResidentId);
+    fetch(window.API_URL + 'households.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                viewHousehold(currentViewHouseholdId);
+                loadHouseholds();
+            } else alert('Error: ' + (d.message || 'Failed'));
+        })
+        .catch(() => alert('Error transferring head'));
 }
 
 function removeMember(residentId) {
