@@ -355,6 +355,47 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </div>
 
+<!-- Toast container for success messages -->
+<div class="toast-container position-fixed top-0 end-0 p-3" id="householdToastContainer" style="z-index: 9999;"></div>
+
+<!-- Remove Member Confirmation Modal -->
+<div class="modal fade" id="removeMemberModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-dash me-2"></i>Remove Member</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Remove this member from household?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="removeMemberConfirmBtn" onclick="confirmRemoveMember()"><i class="bi bi-person-dash me-1"></i> Remove</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transfer Head Confirmation Modal -->
+<div class="modal fade" id="transferHeadModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-badge me-2"></i>Transfer Head Role</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Transfer head role to this member? The current head will become a member.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="transferHeadConfirmBtn" onclick="confirmTransferHead()"><i class="bi bi-person-badge me-1"></i> Transfer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- View Household Modal -->
 <div class="modal fade" id="viewHouseholdModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
