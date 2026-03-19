@@ -14,6 +14,11 @@ if (!isResidentView()) {
     exit();
 }
 
+// This page includes layout templates early; buffer output so POST redirects remain valid.
+if (ob_get_level() === 0) {
+  ob_start();
+}
+
 $page_title = 'Request Certificate';
 require_once __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
@@ -520,16 +525,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors) && $mysqli) {
-        $duplicateSql = "SELECT id
-                         FROM certificate_requests
-                         WHERE resident_id = ?
-                           AND certificate_type = ?
-                           AND status IN ('pending', 'approved', 'ready_for_pickup')
-                         LIMIT 1";
-        $duplicateRow = rcFetchOne($mysqli, $duplicateSql, 'is', [$residentId, $formData['certificate_type']]);
-        if ($duplicateRow) {
-            $errors[] = 'You already have an active request for this certificate.';
+      // Only prevent duplicate submissions while an equivalent request is still pending review.
+      // Once a request moves forward (approved/ready/released/rejected), resident can submit again.
+      $duplicateSql = "SELECT id, reference_number
+               FROM certificate_requests
+               WHERE resident_id = ?
+                 AND certificate_type = ?
+                 AND status = 'pending'
+               ORDER BY created_at DESC, id DESC
+               LIMIT 1";
+      $duplicateRow = rcFetchOne($mysqli, $duplicateSql, 'is', [$residentId, $formData['certificate_type']]);
+      if ($duplicateRow) {
+        $tracking = trim((string)($duplicateRow['reference_number'] ?? ''));
+        if ($tracking !== '') {
+          $errors[] = 'You already have a pending request for this certificate (Tracking: ' . $tracking . ').';
+        } else {
+          $errors[] = 'You already have a pending request for this certificate.';
         }
+      }
     }
 
     if (empty($errors) && $mysqli) {
@@ -557,54 +570,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors) && $mysqli) {
-        $isIndigencyRequest = ($formData['certificate_type'] === 'Barangay Indigency');
-        $finalPurpose = $isIndigencyRequest
-          ? ''
-          : ($formData['purpose'] === 'Others' ? $formData['purpose_other'] : $formData['purpose']);
+      $isIndigencyRequest = ($formData['certificate_type'] === 'Barangay Indigency');
+      $finalPurpose = $isIndigencyRequest
+        ? ''
+        : ($formData['purpose'] === 'Others' ? $formData['purpose_other'] : $formData['purpose']);
       $attachmentValue = $uploadedPaths[0] ?? null;
       $referenceNumber = rcGenerateReferenceNumber($mysqli);
 
-        $mysqli->begin_transaction();
+      $mysqli->begin_transaction();
 
-        try {
-        $insertSql = "INSERT INTO certificate_requests (
-                resident_id,
-                certificate_type,
-                purpose,
-                attachment,
-                reference_number,
-                status,
-                created_at
-                ) VALUES (?, ?, ?, ?, ?, 'pending', NOW())";
-            $stmt = $mysqli->prepare($insertSql);
-            if (!$stmt) {
-                throw new Exception('Failed to prepare insert statement.');
-            }
+      try {
+        $insertColumns = ['resident_id', 'certificate_type', 'purpose', 'status', 'created_at'];
+        $placeholders = ['?', '?', '?', "'pending'", 'NOW()'];
+        $bindTypes = 'iss';
+        $bindValues = [
+          $residentId,
+          $formData['certificate_type'],
+          $finalPurpose
+        ];
 
-            $stmt->bind_param(
-          'issss',
-                $residentId,
-                $formData['certificate_type'],
-                $finalPurpose,
-          $attachmentValue,
-          $referenceNumber
-            );
-
-            if (!$stmt->execute()) {
-                $stmt->close();
-                throw new Exception('Failed to save request.');
-            }
-
-            $stmt->close();
-
-            $mysqli->commit();
-
-            header('Location: ' . BASE_URL . 'request_confirmation.php?tracking=' . urlencode($referenceNumber));
-            exit();
-        } catch (Exception $ex) {
-            $mysqli->rollback();
-            $errors[] = $ex->getMessage();
+        if (rcColumnExists($mysqli, 'certificate_requests', 'requested_by')) {
+          $insertColumns[] = 'requested_by';
+          $placeholders[] = '?';
+          $bindTypes .= 'i';
+          $bindValues[] = max(0, (int)$userId);
         }
+
+        if (rcColumnExists($mysqli, 'certificate_requests', 'attachment')) {
+          $insertColumns[] = 'attachment';
+          $placeholders[] = '?';
+          $bindTypes .= 's';
+          $bindValues[] = $attachmentValue;
+        }
+
+        if (rcColumnExists($mysqli, 'certificate_requests', 'reference_number')) {
+          $insertColumns[] = 'reference_number';
+          $placeholders[] = '?';
+          $bindTypes .= 's';
+          $bindValues[] = $referenceNumber;
+        }
+
+        if (rcColumnExists($mysqli, 'certificate_requests', 'purpose_option')) {
+          $insertColumns[] = 'purpose_option';
+          $placeholders[] = '?';
+          $bindTypes .= 's';
+          $bindValues[] = $isIndigencyRequest ? null : $formData['purpose'];
+        }
+
+        if (rcColumnExists($mysqli, 'certificate_requests', 'purpose_other')) {
+          $insertColumns[] = 'purpose_other';
+          $placeholders[] = '?';
+          $bindTypes .= 's';
+          $bindValues[] = ($formData['purpose'] === 'Others') ? $formData['purpose_other'] : null;
+        }
+
+        if (rcColumnExists($mysqli, 'certificate_requests', 'application_ref')) {
+          $insertColumns[] = 'application_ref';
+          $placeholders[] = '?';
+          $bindTypes .= 's';
+          $bindValues[] = 'APP-' . date('Y') . '-' . str_pad((string)mt_rand(1, 99999), 5, '0', STR_PAD_LEFT);
+        }
+
+        $insertSql = 'INSERT INTO certificate_requests (' . implode(', ', $insertColumns) . ') VALUES (' . implode(', ', $placeholders) . ')';
+        $stmt = $mysqli->prepare($insertSql);
+        if (!$stmt) {
+          throw new Exception('Failed to prepare insert statement.');
+        }
+
+        $stmt->bind_param($bindTypes, ...$bindValues);
+
+        if (!$stmt->execute()) {
+          $dbError = $stmt->error ?: $mysqli->error;
+          $stmt->close();
+          rcLog('Request insert failed', ['error' => $dbError, 'sql' => $insertSql]);
+          throw new Exception('Failed to save request.');
+        }
+
+        $stmt->close();
+        $mysqli->commit();
+
+        $redirectUrl = BASE_URL . 'request_confirmation.php?tracking=' . urlencode($referenceNumber);
+        if (!headers_sent()) {
+          header('Location: ' . $redirectUrl);
+          exit();
+        }
+
+        // Fallback redirect when shared layout already produced output.
+        $safeRedirectUrl = json_encode($redirectUrl);
+        echo '<script>window.location.replace(' . $safeRedirectUrl . ');</script>';
+        echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($redirectUrl, ENT_QUOTES, 'UTF-8') . '"></noscript>';
+        exit();
+      } catch (Exception $ex) {
+        $mysqli->rollback();
+        $errors[] = $ex->getMessage();
+      }
     }
 }
 
