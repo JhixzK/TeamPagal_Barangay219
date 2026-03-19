@@ -91,7 +91,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Create Announcement Modal -->
 <div class="modal fade" id="createModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">New Announcement</h5>
@@ -162,7 +162,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Edit Announcement Modal -->
 <div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Edit Announcement</h5>
