@@ -24,10 +24,8 @@ function isSuperAdminClient() {
 }
 
 function setFixedPosition(positionKey) {
-    const hidden = document.getElementById('position');
-    const display = document.getElementById('position_display');
-    if (hidden) hidden.value = String(positionKey || '');
-    if (display) display.value = formatPosition(positionKey);
+    const sel = document.getElementById('position');
+    if (sel) sel.value = String(positionKey || '');
 }
 
 function initResidentSearch() {
@@ -347,7 +345,7 @@ function saveOfficial() {
     }
     const position = String(fd.get('position') || '').trim();
     if (!position) {
-        showOfficialsAlert('error', 'Position is missing. Please click a vacant slot tile first.');
+        showOfficialsAlert('error', 'Please select a position.');
         return;
     }
 
