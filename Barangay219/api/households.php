@@ -408,6 +408,44 @@ function listHouseholds() {
             }
             unset($hh);
         }
+
+        foreach ($households as &$h) {
+            $h['family_head_names'] = $h['family_head_name'] ?? '';
+        }
+        unset($h);
+        try {
+            $hasRel = columnExists($db, 'residents', 'relationship_to_head');
+            $hasFhc = columnExists($db, 'residents', 'family_head_code');
+            $resSelect = "id, first_name, middle_name, last_name";
+            if ($hasRel) $resSelect .= ", relationship_to_head";
+            if ($hasFhc) $resSelect .= ", family_head_code";
+            foreach ($households as &$h) {
+                $hid = (int)($h['id'] ?? 0);
+                $designatedId = (int)($h['family_head_id'] ?? 0);
+                $headNames = [];
+                $residents = $db->fetchAll("SELECT $resSelect FROM residents WHERE household_id = ?", [$hid]);
+                foreach ($residents as $r) {
+                    $rid = (int)($r['id'] ?? 0);
+                    $isHead = ($rid === $designatedId);
+                    if (!$isHead && $hasRel) {
+                        $rel = strtolower(trim((string)($r['relationship_to_head'] ?? '')));
+                        $isHead = $isHead || (strpos($rel, 'head') !== false);
+                    }
+                    if (!$isHead && $hasFhc) {
+                        $fhc = trim((string)($r['family_head_code'] ?? ''));
+                        $isHead = $isHead || ($fhc !== '' && $fhc !== '-');
+                    }
+                    if ($isHead) {
+                        $name = trim(($r['first_name'] ?? '') . ' ' . ($r['middle_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
+                        if ($name !== '') $headNames[] = $name;
+                    }
+                }
+                $h['family_head_names'] = !empty($headNames) ? implode(', ', $headNames) : ($h['family_head_name'] ?? '');
+            }
+            unset($h);
+        } catch (Exception $headEx) {
+            error_log("List households family_head_names enrichment: " . $headEx->getMessage());
+        }
         
         sendResponse(true, 'Households retrieved successfully', $households);
         
@@ -547,6 +585,9 @@ function getHousehold() {
                 if ($isHeadVal !== null) {
                     $m['hm_is_head'] = $isHeadVal;
                     $m['hm_relationship_to_head'] = $rel;
+                    if (empty(trim((string)($m['relationship_to_head'] ?? ''))) && $rel !== null && $rel !== '') {
+                        $m['relationship_to_head'] = $rel;
+                    }
                 }
             }
             unset($m);
