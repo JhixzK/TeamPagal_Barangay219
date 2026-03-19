@@ -20,6 +20,11 @@ include __DIR__ . '/../includes/sidebar.php';
                     <h2 class="mb-1"><i class="bi bi-person-lines-fill me-2"></i>Resident Applications</h2>
                     <p class="module-subtitle mb-0">Review resident registration requests and process approvals with traceability.</p>
                 </div>
+                <?php if (function_exists('canPerformModulePermission') && canPerformModulePermission('resident_applications', 'can_edit')): ?>
+                <button class="btn btn-primary" onclick="openAssignHeadsModal()">
+                    <i class="bi bi-house-check"></i> Assign Household
+                </button>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -235,6 +240,41 @@ include __DIR__ . '/../includes/sidebar.php';
                 <button type="button" class="btn btn-primary" id="btnAssignHousehold">
                     <i class="bi bi-house-check"></i> Assign
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Heads Modal (Table of approved heads) -->
+<div class="modal fade" id="assignHeadsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assign Household - Approved Heads</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Assign approved head accounts to households. Heads not yet assigned are highlighted.</p>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Ref #</th>
+                                <th>Applicant</th>
+                                <th>Status</th>
+                                <th>Household</th>
+                                <th class="text-end" style="width:100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assignHeadsTableBody">
+                            <tr><td colspan="5" class="text-center py-4">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p id="assignHeadsEmpty" class="text-muted text-center py-3" style="display:none;">No approved heads found.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
