@@ -560,8 +560,13 @@ function assignHouseholdToApprovedResident() {
         if (!$resident) {
             sendResponse(false, 'Resident not found', null, 404);
         }
-        if (!empty($resident['household_id']) && (int)$resident['household_id'] !== $householdId) {
-            sendResponse(false, 'Resident is already assigned to a different household', null, 400);
+        $existingHouseholdId = (int)($resident['household_id'] ?? 0);
+        if ($existingHouseholdId > 0) {
+            if ($existingHouseholdId === $householdId) {
+                sendResponse(false, 'Resident is already in this household', null, 400);
+            } else {
+                sendResponse(false, 'Resident is already assigned to a different household', null, 400);
+            }
         }
 
         $household = $db->fetchOne("SELECT id FROM households WHERE id = ? LIMIT 1", [$householdId]);
