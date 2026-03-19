@@ -550,6 +550,7 @@ function approveApplication() {
             'valid_id_type' => $app['valid_id_type'] ?? null,
             'valid_id_number' => $app['valid_id_number'] ?? null,
             'id_document_path' => $app['id_document_path'] ?? null,
+            'proof_of_residency_path' => $app['proof_of_residency_path'] ?? null,
             'address' => $address ?: ($app['barangay'] ?? ''),
             'house_number' => $app['house_number'] ?? null,
             'street' => $app['street'] ?? null,
