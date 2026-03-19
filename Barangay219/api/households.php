@@ -451,12 +451,16 @@ function getHousehold() {
         $household = $db->fetchOne($sql, [$id]);
 
         // Get household members (residents table is also used for remove-member actions).
-        $membersSql = "SELECT * FROM residents WHERE household_id = ? ORDER BY birth_date";
+        $orderCol = columnExists($db, 'residents', 'birth_date') ? 'birth_date'
+            : (columnExists($db, 'residents', 'date_of_birth') ? 'date_of_birth' : 'id');
+        $membersSql = "SELECT * FROM residents WHERE household_id = ? ORDER BY " . $orderCol;
         $members = $db->fetchAll($membersSql, [$id]);
 
         // If `household_members` exists, enrich each resident with head/member flags.
-        // Note: `household_members` in this project does NOT store `resident_id`, so we match
+        // Note: `household_members` in this project may NOT store `resident_id`, so we match
         // using name + birth date (+ optionally contact) to find the corresponding row.
+        // Wrapped in try to avoid failing when household_members schema differs.
+        try {
         if (tableExists($db, 'household_members') && !empty($members)) {
             $hmMembersSql = "SELECT id, first_name, middle_name, last_name, suffix,
                                      relationship_to_head, date_of_birth, is_head, contact_number
@@ -505,9 +509,9 @@ function getHousehold() {
                 }
             }
 
-            // Enrich residents.
+            // Enrich residents (birth_date or date_of_birth depending on schema).
             foreach ($members as &$m) {
-                $dob = $normalizeDate($m['birth_date'] ?? '');
+                $dob = $normalizeDate($m['birth_date'] ?? $m['date_of_birth'] ?? '');
                 $first = $normalizeStr($m['first_name'] ?? '');
                 $middle = $normalizeStr($m['middle_name'] ?? '');
                 $last = $normalizeStr($m['last_name'] ?? '');
@@ -547,13 +551,19 @@ function getHousehold() {
             }
             unset($m);
         }
+        } catch (Exception $hmEx) {
+            error_log("Household members enrichment skipped: " . $hmEx->getMessage());
+        }
         $household['members'] = $members;
         
         sendResponse(true, 'Household retrieved successfully', $household);
         
     } catch (Exception $e) {
         error_log("Get household error: " . $e->getMessage());
-        sendResponse(false, 'Error retrieving household', null, 500);
+        $msg = defined('DEBUG_MODE') && DEBUG_MODE
+            ? ('Error retrieving household: ' . $e->getMessage())
+            : 'Error retrieving household';
+        sendResponse(false, $msg, null, 500);
     }
 }
 
@@ -1222,6 +1232,10 @@ function removeHouseholdMember() {
         if ($headRow && !empty($headRow['family_head_id']) && intval($headRow['family_head_id']) === $resident_id) {
             sendResponse(false, 'Cannot remove the family head. Assign a new head first.', null, 400);
             return;
+        }
+        // Remove from both residents.household_id AND household_members so resident-side Household Information stays in sync
+        if (tableExists($db, 'household_members')) {
+            $db->query("DELETE FROM household_members WHERE resident_id = ? AND household_id = ?", [$resident_id, $household_id]);
         }
         $db->query("UPDATE residents SET household_id = NULL WHERE id = ?", [$resident_id]);
         $count = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$household_id])['c'];
