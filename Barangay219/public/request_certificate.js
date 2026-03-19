@@ -21,10 +21,16 @@ const summaryCertificate = document.getElementById("summaryCertificate");
 const summaryPurpose = document.getElementById("summaryPurpose");
 const summaryDocuments = document.getElementById("summaryDocuments");
 const requirementsList = document.getElementById("requirementsList");
+const hasSavedValidId = requestForm && requestForm.dataset && requestForm.dataset.hasValidId === "1";
 
 const requirementMap = {
-  "Barangay Certificate": ["Valid ID"],
-  "Barangay Indigency": ["Valid ID", "Supporting proof (optional)"]
+  "Barangay Certificate": [
+    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID"
+  ],
+  "Barangay Indigency": [
+    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID",
+    "Supporting proof (optional)"
+  ]
 };
 
 const purposeOptionsByType = {
@@ -104,7 +110,7 @@ function renderFileList() {
   fileList.innerHTML = "";
 
   if (!selectedFiles.length) {
-    summaryDocuments.textContent = "None";
+    summaryDocuments.textContent = hasSavedValidId ? "Saved Valid ID (auto-attached)" : "None";
     return;
   }
 
@@ -215,7 +221,9 @@ function updateSummary() {
     : (purpose.value === "Others" ? (purposeOther.value.trim() || "Others") : (purpose.value || "-"));
   summaryCertificate.textContent = certificateType.value || "-";
   summaryPurpose.textContent = selectedPurpose;
-  summaryDocuments.textContent = selectedFiles.length ? selectedFiles.map((file) => file.name).join(", ") : "None";
+  summaryDocuments.textContent = selectedFiles.length
+    ? selectedFiles.map((file) => file.name).join(", ")
+    : (hasSavedValidId ? "Saved Valid ID (auto-attached)" : "None");
 }
 
 function validatePickedFiles(files) {
@@ -271,7 +279,7 @@ function validateFormClient() {
     }
   }
 
-  if (!selectedFiles.length) {
+  if (!selectedFiles.length && !hasSavedValidId) {
     setError("documentsError", "Please upload at least one supporting document.");
     valid = false;
   }
