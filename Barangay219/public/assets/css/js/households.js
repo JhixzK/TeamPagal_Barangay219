@@ -102,10 +102,12 @@ function loadHouseholds() {
             const tiles = document.getElementById('householdTiles');
             if (!tiles) return;
 
-            if (d.success && Array.isArray(d.data) && d.data.length) {
-                tiles.innerHTML = d.data.map(h => {
+            const data = Array.isArray(d.data) ? d.data : (d.data && typeof d.data === 'object' ? Object.values(d.data) : []);
+            if (d.success && data.length) {
+                tiles.innerHTML = data.map(h => {
                     const id = Number(h.id);
-                    const head = toTitleCase(h.family_head_name || '');
+                    const headNames = (h.family_head_names || h.family_head_name || '').toString().trim();
+                    const head = toTitleCase(headNames || '');
                     const address = toTitleCase(h.address || '');
                     const members = Number((h.total_members ?? 0));
                     const reg = formatDate(h.registration_date);
@@ -298,13 +300,6 @@ function viewHousehold(id) {
         .then(d => {
             if (!d.success) { alert(d.message || 'Error'); return; }
             const h = d.data;
-            document.getElementById('viewHouseholdInfo').innerHTML = `
-                <p><strong>Household ID Code:</strong> ${escapeHtml((h.household_id_code || '-'))}</p>
-                <p><strong>Family Head:</strong> ${escapeHtml(toTitleCase(h.family_head_name || '-'))}</p>
-                <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
-                <p><strong>Total Members:</strong> ${Number((h.total_members ?? 0))}</p>
-                <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
-            `;
             const members = h.members || [];
             const allowEditMembers = HOUSEHOLD_PERMS.canEdit;
             const designatedHeadId = Number(h.family_head_id ?? 0);
@@ -316,14 +311,27 @@ function viewHousehold(id) {
             };
 
             const isHead = (m) => {
-                const rel = (m.relationship_to_head ?? '').toString().toLowerCase();
-                if (rel.includes('head')) return true;
                 if (Number(m.id) === designatedHeadId) return true;
+                const hmHead = m.hm_is_head;
+                if (hmHead === 1 || hmHead === true || hmHead === '1') return true;
+                const rel = (m.relationship_to_head ?? m.hm_relationship_to_head ?? '').toString().toLowerCase();
+                if (rel.includes('head')) return true;
                 const fhc = (m.family_head_code ?? '').toString().trim();
                 return fhc !== '' && fhc !== '-';
             };
 
             const heads = members.filter(isHead);
+            const familyHeadNames = heads.length
+                ? heads.map(m => toName(m)).join(', ')
+                : (h.family_head_name ? toTitleCase(h.family_head_name) : '-');
+
+            document.getElementById('viewHouseholdInfo').innerHTML = `
+                <p><strong>Household ID Code:</strong> ${escapeHtml((h.household_id_code || '-'))}</p>
+                <p><strong>Family Head(s):</strong> ${escapeHtml(familyHeadNames)}</p>
+                <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
+                <p><strong>Total Members:</strong> ${Number((h.total_members ?? 0))}</p>
+                <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
+            `;
             const memberList = members.filter(m => !isHead(m));
 
             let membersHtml = '';
