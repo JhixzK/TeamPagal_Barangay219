@@ -258,11 +258,14 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <div class="col-md-6">
                                     <label class="form-label">Household Type</label>
                                     <select class="form-select" id="household_type" name="household_type">
-                                        <option value="single">Single</option>
-                                        <option value="couple">Couple</option>
-                                        <option value="family">Family</option>
-                                        <option value="shared_renters">Shared/Renters</option>
+                                        <option value="">Select Household Type</option>
+                                        <option value="Family Household">Family Household</option>
+                                        <option value="Couple Only">Couple Only</option>
+                                        <option value="Single Inhabitant">Single Inhabitant</option>
+                                        <option value="Non-Relative Household (Shared / Boarders)">Non-Relative Household (Shared / Boarders)</option>
+                                        <option value="Other (Specify)">Other (Specify)</option>
                                     </select>
+                                    <small class="text-muted form-text">When head is assigned from registration, this reflects the head's registered household type.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="registration_date" class="form-label">Registration Date</label>
