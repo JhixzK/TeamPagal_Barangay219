@@ -565,7 +565,7 @@ $barangay219_purok_options = [
                                         </div>
                                     </div>
                                     <div class="row g-3" id="householdTypeRow" style="display:none;">
-                                        <div class="col-md-6 mb-3">
+                                        <div class="col-md-4 mb-3">
                                             <label>Household Type <span class="text-danger">*</span></label>
                                             <select name="household_type" id="household_type" class="form-select">
                                                 <option value="">Select Household Type</option>
@@ -589,6 +589,15 @@ $barangay219_purok_options = [
                                                 <option value="Informal / Improvised">Informal / Improvised</option>
                                             </select>
                                             <small class="text-muted">Select your dwelling type.</small>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label>House Ownership <span class="text-danger">*</span></label>
+                                            <select name="house_ownership" id="house_ownership" class="form-select">
+                                                <option value="">Select Ownership</option>
+                                                <option value="owned">Owned</option>
+                                                <option value="rented">Rented</option>
+                                            </select>
+                                            <small class="text-muted">Select ownership status. Landlords are automatically set to Owned.</small>
                                         </div>
                                     </div>
                                     <div class="row g-3" id="householdIncomeRow" style="display:none;">
@@ -1195,12 +1204,13 @@ function toggleHouseholdTypeField() {
     const householdTypeRow = document.getElementById('householdTypeRow');
     const householdTypeField = document.getElementById('household_type');
     const houseTypeField = document.getElementById('house_type');
+    const houseOwnershipField = document.getElementById('house_ownership');
     const householdMembersRow = document.getElementById('householdMembersRow');
     const householdMembersField = document.querySelector('input[name="household_members"]');
     const householdIncomeRow = document.getElementById('householdIncomeRow');
     const householdIncomeField = document.getElementById('household_income');
 
-    if (!householdRoleField || !householdTypeRow || !householdTypeField || !houseTypeField || !householdMembersRow || !householdMembersField || !householdIncomeRow || !householdIncomeField) {
+    if (!householdRoleField || !householdTypeRow || !householdTypeField || !houseTypeField || !houseOwnershipField || !householdMembersRow || !householdMembersField || !householdIncomeRow || !householdIncomeField) {
         return;
     }
 
@@ -1214,6 +1224,7 @@ function toggleHouseholdTypeField() {
     householdTypeRow.style.display = showHouseholdFields ? 'flex' : 'none';
     householdTypeField.required = showHouseholdFields;
     houseTypeField.required = showHouseholdFields;
+    houseOwnershipField.required = showHouseholdFields;
     householdMembersRow.style.display = showHouseholdFields ? 'flex' : 'none';
     householdMembersField.required = showHouseholdFields;
     if (isSingleHeadOfHousehold) {
@@ -1230,13 +1241,20 @@ function toggleHouseholdTypeField() {
         householdTypeField.innerHTML = '<option value="Non-Relative Household (Shared / Boarders)">Non-Relative Household (Shared / Boarders)</option>';
         householdTypeField.value = 'Non-Relative Household (Shared / Boarders)';
         householdTypeField.readOnly = false;
+        houseOwnershipField.value = 'owned';
+        houseOwnershipField.disabled = true;
+        houseOwnershipField.classList.remove('is-invalid');
     } else if (isHeadOfHousehold) {
+        houseOwnershipField.disabled = false;
         filterHouseholdTypesByCivilStatus();
     } else {
         householdTypeField.value = '';
         householdTypeField.classList.remove('is-invalid');
         houseTypeField.value = '';
         houseTypeField.classList.remove('is-invalid');
+        houseOwnershipField.value = '';
+        houseOwnershipField.disabled = false;
+        houseOwnershipField.classList.remove('is-invalid');
         householdMembersField.value = '';
         householdMembersField.classList.remove('is-invalid');
         householdIncomeField.value = '';
@@ -1474,7 +1492,8 @@ function validateStep(step) {
     const roleField = document.querySelector('select[name="household_role"]');
     const householdTypeField = document.getElementById('household_type');
     const houseTypeField = document.getElementById('house_type');
-    if (roleField && householdTypeField && houseTypeField && (roleField.value === 'Head of Household' || roleField.value === 'Landlord')) {
+    const houseOwnershipField = document.getElementById('house_ownership');
+    if (roleField && householdTypeField && houseTypeField && houseOwnershipField && (roleField.value === 'Head of Household' || roleField.value === 'Landlord')) {
         if (!householdTypeField.value.trim()) {
             householdTypeField.classList.add('is-invalid');
             isValid = false;
@@ -1487,6 +1506,13 @@ function validateStep(step) {
             isValid = false;
         } else {
             houseTypeField.classList.remove('is-invalid');
+        }
+
+        if (!houseOwnershipField.value.trim()) {
+            houseOwnershipField.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            houseOwnershipField.classList.remove('is-invalid');
         }
 
         const householdMembersFieldForValidation = document.querySelector('input[name="household_members"]');
@@ -1561,6 +1587,7 @@ function populateReview() {
 
         setReviewFieldVisibility('household_type', !!isHead);
         setReviewFieldVisibility('house_type', !!isHead);
+        setReviewFieldVisibility('house_ownership', !!isHead);
         setReviewFieldVisibility('household_members', !!isHead);
         setReviewFieldVisibility('household_income', !!isHead);
         setReviewFieldVisibility('income_per_member', !!isHead);
@@ -1588,6 +1615,7 @@ function populateReview() {
                 { name: 'household_role', label: 'Household Role' },
                 { name: 'household_type', label: 'Household Type' },
                 { name: 'house_type', label: 'House Type' },
+                { name: 'house_ownership', label: 'House Ownership' },
                 { name: 'household_members', label: 'No. of Household Members' },
                 { name: 'household_income', label: 'Total Household Income (Monthly)' },
                 { name: 'income_per_member', label: 'Income per Family Member' },
