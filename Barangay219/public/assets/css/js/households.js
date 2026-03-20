@@ -142,6 +142,11 @@ function loadHouseholds() {
                     const addrDisplay = address ? formatTitleCaseTruncate(address, 70) : '(no address)';
                     const householdIdLabel = '<small class="text-muted d-block">Household ID</small>';
                     const householdIdBadge = `<span class="badge bg-white text-dark border">${escapeHtml(hhCode || '-')}</span>`;
+                    const isOccupied = members > 0 || (h.family_head_id && Number(h.family_head_id) > 0);
+                    const householdTypeLabel = (h.household_type || '').toString().trim();
+                    const householdTypeDisplay = isOccupied && householdTypeLabel
+                        ? `<div class="mt-1"><small class="text-muted d-block">Household Type</small><span class="badge bg-light text-dark border">${escapeHtml(householdTypeLabel)}</span></div>`
+                        : '';
 
                     return `
                         <div class="household-tile card shadow-sm">
@@ -152,6 +157,7 @@ function loadHouseholds() {
                                         <p class="tile-name mb-0">Household ${id}</p>
                                         <p class="tile-sub">${escapeHtml(subtitle)}</p>
                                         <div class="mt-1">${householdIdLabel}${householdIdBadge}</div>
+                                        ${householdTypeDisplay}
                                     </div>
                                 </div>
                                 <span class="badge bg-success">Members: ${members}</span>
@@ -343,9 +349,14 @@ function viewHousehold(id) {
                 ? heads.map(m => toName(m)).join(', ')
                 : (h.family_head_name ? toTitleCase(h.family_head_name) : '-');
 
+            const householdTypeVal = (h.household_type || '').toString().trim();
+            const householdTypeRow = householdTypeVal
+                ? `<p><strong>Household Type:</strong> ${escapeHtml(householdTypeVal)}</p>`
+                : '';
             document.getElementById('viewHouseholdInfo').innerHTML = `
                 <p><strong>Household ID Code:</strong> ${escapeHtml((h.household_id_code || '-'))}</p>
                 <p><strong>Family Head(s):</strong> ${escapeHtml(familyHeadNames)}</p>
+                ${householdTypeRow}
                 <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
                 <p><strong>Total Members:</strong> ${members.length}</p>
                 <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
