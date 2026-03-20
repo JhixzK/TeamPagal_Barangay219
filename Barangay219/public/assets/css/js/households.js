@@ -344,6 +344,10 @@ function viewHousehold(id) {
             };
 
             const heads = members.filter(isHead);
+            // Put designated head first so shared members appear under the primary head
+            if (designatedHeadId > 0) {
+                heads.sort((a, b) => (Number(b.id) === designatedHeadId ? 1 : 0) - (Number(a.id) === designatedHeadId ? 1 : 0));
+            }
             const memberList = members.filter(m => !isHead(m));
             const familyHeadNames = heads.length
                 ? heads.map(m => toName(m)).join(', ')
@@ -363,14 +367,23 @@ function viewHousehold(id) {
             `;
 
             // Group members by family_code (members share same family_code as their head)
+            // Each member is shown only once—under the designated head when multiple heads share the same family_code
             const getFamilyCode = (m) => (m.family_code ?? '').toString().trim();
             const designatedHeadFc = designatedHeadId > 0 ? getFamilyCode(members.find(m => Number(m.id) === designatedHeadId) || {}) : '';
+            const shownMemberIds = new Set();
 
             let membersHtml = '';
             heads.forEach(head => {
                 const fhc = ((head.family_head_code ?? '').toString().trim() || householdFhCode);
                 const headFc = getFamilyCode(head) || (Number(head.id) === designatedHeadId ? designatedHeadFc : null);
-                const headMembers = headFc ? memberList.filter(m => getFamilyCode(m) === headFc) : [];
+                const headMembers = headFc
+                    ? memberList.filter(m => {
+                        if (getFamilyCode(m) !== headFc) return false;
+                        if (shownMemberIds.has(Number(m.id))) return false;
+                        shownMemberIds.add(Number(m.id));
+                        return true;
+                      })
+                    : [];
                 const removeBtn = allowEditMembers ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${head.id})"><i class="bi bi-person-dash"></i></button>` : '';
                 membersHtml += `
                     <div class="household-head-group mb-3">
