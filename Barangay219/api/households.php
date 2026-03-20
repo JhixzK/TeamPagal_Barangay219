@@ -282,6 +282,21 @@ function generateUniqueFamilyHeadCode($db) {
     throw new Exception('Unable to generate unique family head code.');
 }
 
+function generateResidentFamilyHeadCode($db) {
+    $prefix = 'FH-';
+    if (!columnExists($db, 'residents', 'family_head_code')) {
+        return $prefix . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+    }
+    for ($i = 0; $i < 30; $i++) {
+        $code = $prefix . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+        $exists = $db->fetchOne("SELECT id FROM residents WHERE family_head_code = ? LIMIT 1", [$code]);
+        if (!$exists) {
+            return $code;
+        }
+    }
+    throw new Exception('Unable to generate unique resident family head code.');
+}
+
 function generateUniqueFamilyCode($db) {
     // BR219-YYYY-XXXX (4 digits)
     $year = date('Y');
@@ -1506,15 +1521,26 @@ function assignHeadOfficial() {
                 }
             }
 
-            if (columnExists($db, 'residents', 'family_head_code') && $oldHeadResidentId > 0) {
-                $oldHead = $db->fetchOne("SELECT family_head_code FROM residents WHERE id = ?", [$oldHeadResidentId]);
-                $oldFhc = $oldHead ? trim((string)($oldHead['family_head_code'] ?? '')) : '';
-                if ($oldFhc !== '' && $oldFhc !== '-') {
-                    $db->query("UPDATE residents SET family_head_code = ? WHERE id = ?", [$oldFhc, $newHeadResidentId]);
+            // Ensure the new designated head always has a family_head_code; restore from old head or generate.
+            if (columnExists($db, 'residents', 'family_head_code')) {
+                $oldFhc = '';
+                if ($oldHeadResidentId > 0) {
+                    $oldHead = $db->fetchOne("SELECT family_head_code FROM residents WHERE id = ?", [$oldHeadResidentId]);
+                    $oldFhc = $oldHead ? trim((string)($oldHead['family_head_code'] ?? '')) : '';
+                }
+                if (($oldFhc === '' || $oldFhc === '-') && $designatedHeadId === $oldHeadResidentId && isset($colMap['family_head_code'])) {
+                    $hh = $db->fetchOne("SELECT family_head_code FROM households WHERE id = ? LIMIT 1", [$householdId]);
+                    $oldFhc = $hh ? trim((string)($hh['family_head_code'] ?? '')) : '';
+                }
+                if ($oldFhc === '' || $oldFhc === '-') {
+                    $oldFhc = generateResidentFamilyHeadCode($db);
+                }
+                $db->query("UPDATE residents SET family_head_code = ? WHERE id = ?", [$oldFhc, $newHeadResidentId]);
+                if ($oldHeadResidentId > 0) {
                     $db->query("UPDATE residents SET family_head_code = NULL WHERE id = ?", [$oldHeadResidentId]);
-                    if ($designatedHeadId === $oldHeadResidentId && isset($colMap['family_head_code'])) {
-                        $db->query("UPDATE households SET family_head_code = ? WHERE id = ?", [$oldFhc, $householdId]);
-                    }
+                }
+                if ($designatedHeadId === $oldHeadResidentId && isset($colMap['family_head_code'])) {
+                    $db->query("UPDATE households SET family_head_code = ? WHERE id = ?", [$oldFhc, $householdId]);
                 }
             }
 
