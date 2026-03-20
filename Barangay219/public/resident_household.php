@@ -74,6 +74,9 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
               <button class="btn-secondary btn-small" id="leaveHouseholdBtn" data-action="leaveHousehold" style="display:none;">
                 <i class="bi bi-box-arrow-right"></i> Leave Household
               </button>
+              <button class="btn-secondary btn-small" id="switchHeadBtn" data-action="openSwitchHeadModal" style="display:none;">
+                <i class="bi bi-arrow-repeat"></i> Switch Head
+              </button>
               <button class="btn-primary btn-small" id="btnUpdateOverview" data-action="openUpdateOverview" style="display:none;">
                 <i class="bi bi-pencil-square"></i> Update Overview
               </button>
@@ -248,6 +251,30 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
           <div class="modal-footer">
             <button class="btn-secondary" data-action="closeOverviewModal">Cancel</button>
             <button class="btn-primary" id="submitOverviewUpdateBtn" data-action="submitOverviewUpdate">Save Overview</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Switch Head Modal (Member only) -->
+      <div id="switchHeadModal" class="modal custom-modal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Switch Family Head</h3>
+            <button class="modal-close" data-action="closeSwitchHeadModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted small mb-3">Showing the wrong head? Enter the Family Head Code of the head you want to associate with (e.g. <strong>FH-03975</strong>). The head must be in your current household.</p>
+            <form id="switchHeadForm">
+              <div class="form-group">
+                <label for="switchHeadCodeInput">Family Head Code *</label>
+                <input type="text" id="switchHeadCodeInput" placeholder="FH-01234" maxlength="9" required>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" data-action="closeSwitchHeadModal">Cancel</button>
+            <button class="btn-primary" id="submitSwitchHeadBtn" data-action="submitSwitchHead">Switch Head</button>
           </div>
         </div>
       </div>
