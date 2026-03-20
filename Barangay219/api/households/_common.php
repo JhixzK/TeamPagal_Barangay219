@@ -211,6 +211,21 @@ function columnExists($db, $table, $column) {
     return !empty($row) && (int)$row['cnt'] > 0;
 }
 
+function generateResidentFamilyHeadCode($db) {
+    $prefix = 'FH-';
+    if (!columnExists($db, 'residents', 'family_head_code')) {
+        return $prefix . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+    }
+    for ($i = 0; $i < 30; $i++) {
+        $code = $prefix . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+        $exists = $db->fetchOne("SELECT id FROM residents WHERE family_head_code = ? LIMIT 1", [$code]);
+        if (!$exists) {
+            return $code;
+        }
+    }
+    return $prefix . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+}
+
 function getColumnsMap($table) {
     $db = Database::getInstance();
     $rows = $db->fetchAll("SHOW COLUMNS FROM {$table}");
