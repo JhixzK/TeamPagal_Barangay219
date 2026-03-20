@@ -427,6 +427,14 @@ function ensureHouseholdCodesAndDetails($db, $householdId) {
 function listHouseholds() {
     try {
         $db = Database::getInstance();
+        // Ensure household_type column exists so registration input can be persisted
+        if (!columnExists($db, 'households', 'household_type')) {
+            try {
+                $db->query("ALTER TABLE households ADD COLUMN household_type VARCHAR(80) NULL DEFAULT NULL");
+            } catch (Exception $e) {
+                error_log("Ensure household_type column: " . $e->getMessage());
+            }
+        }
         $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
         $from = sanitizeInput($_GET['from'] ?? '');
         $to = sanitizeInput($_GET['to'] ?? '');
