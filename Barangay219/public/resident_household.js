@@ -91,7 +91,10 @@ function setupEventListeners() {
     ["openUpdateOverview", editHousehold],
     ["closeOverviewModal", closeOverviewUpdateModal],
     ["submitOverviewUpdate", submitOverviewUpdate],
-    ["leaveHousehold", leaveHousehold]
+    ["leaveHousehold", leaveHousehold],
+    ["openSwitchHeadModal", openSwitchHeadModal],
+    ["closeSwitchHeadModal", closeSwitchHeadModal],
+    ["submitSwitchHead", submitSwitchHead]
   ].forEach(([action, handler]) => {
     document.querySelectorAll(`[data-action="${action}"]`).forEach((btn) => {
       btn.addEventListener("click", handler);
@@ -125,6 +128,14 @@ function setupEventListeners() {
   const householdSelect = document.getElementById("householdSelect");
   if (householdSelect) {
     householdSelect.remove();
+  }
+
+  const switchHeadForm = document.getElementById("switchHeadForm");
+  if (switchHeadForm) {
+    switchHeadForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      submitSwitchHead(e);
+    });
   }
 
   const reasonSel = document.getElementById("transferHeadReason");
@@ -206,10 +217,12 @@ function displayHouseholdPanel(data) {
   document.getElementById("displayCreated").textContent = formatDate(household.created_at);
 
   const leaveBtn = document.getElementById("leaveHouseholdBtn");
+  const switchHeadBtn = document.getElementById("switchHeadBtn");
   const newUpdateOverviewBtn = document.getElementById("btnUpdateOverview");
   const newManageBtn = document.getElementById("btnManageMembers");
   if (newUpdateOverviewBtn) newUpdateOverviewBtn.style.display = isHead ? "inline-flex" : "none";
   if (leaveBtn) leaveBtn.style.display = isHead ? "none" : "inline-flex";
+  if (switchHeadBtn) switchHeadBtn.style.display = isHead ? "none" : "inline-flex";
   if (newManageBtn) newManageBtn.style.display = isHead ? "inline-flex" : "none";
   const addDepBtn = document.getElementById("btnAddDependent");
   if (addDepBtn) addDepBtn.style.display = isHead ? "inline-flex" : "none";
@@ -712,6 +725,48 @@ async function leaveHousehold() {
       body: JSON.stringify({ action: "leave_household" })
     });
     showSuccessMessage("You have left the household.");
+    await loadHouseholdInfo();
+  } catch (error) {
+    showErrorMessage(error.message);
+  }
+}
+
+function openSwitchHeadModal() {
+  const modal = document.getElementById("switchHeadModal");
+  const input = document.getElementById("switchHeadCodeInput");
+  if (!modal || !input) return;
+  input.value = "";
+  modal.style.display = "flex";
+  document.body.style.overflow = "hidden";
+  input.focus();
+}
+
+function closeSwitchHeadModal() {
+  const modal = document.getElementById("switchHeadModal");
+  if (modal) {
+    modal.style.display = "none";
+    document.body.style.overflow = "auto";
+  }
+}
+
+async function submitSwitchHead(e) {
+  e?.preventDefault();
+  const familyHeadCode = (document.getElementById("switchHeadCodeInput")?.value || "").trim();
+  if (!familyHeadCode) {
+    showErrorMessage("Please enter the Family Head Code.");
+    return;
+  }
+
+  try {
+    await requestJson(`${HOUSEHOLD_API}/info.php`, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "switch_head",
+        family_head_code: familyHeadCode
+      })
+    });
+    showSuccessMessage("Head updated successfully.");
+    closeSwitchHeadModal();
     await loadHouseholdInfo();
   } catch (error) {
     showErrorMessage(error.message);
