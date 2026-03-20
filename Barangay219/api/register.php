@@ -520,6 +520,9 @@ if ($household_role === 'Head of Household' || $household_role === 'Landlord') {
         $errors[] = 'Invalid household type selected.';
     }
 
+    if ($civil_status === 'single' && $household_role === 'Head of Household') {
+        $household_members = 1;
+    }
     if ($household_members === null || $household_members < 1) {
         $errors[] = 'Number of household members must be at least 1.';
     }
