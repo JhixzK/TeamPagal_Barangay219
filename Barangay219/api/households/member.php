@@ -401,15 +401,22 @@ function assignHouseholdHead($residentId, $data) {
             $db->query('UPDATE residents SET relationship_to_head = ? WHERE id = ?', ['Member', $oldHeadResidentId]);
         }
 
+        // Ensure the new designated head always has a family_head_code; restore from old head or generate.
         if (columnExists($db, 'residents', 'family_head_code')) {
+            $oldFhc = '';
             $oldHead = $db->fetchOne('SELECT family_head_code FROM residents WHERE id = ? LIMIT 1', [$oldHeadResidentId]);
             $oldFhc = $oldHead ? trim((string)($oldHead['family_head_code'] ?? '')) : '';
-            if ($oldFhc !== '' && $oldFhc !== '-') {
-                $db->query('UPDATE residents SET family_head_code = ? WHERE id = ?', [$oldFhc, $newHeadResidentId]);
-                $db->query('UPDATE residents SET family_head_code = NULL WHERE id = ?', [$oldHeadResidentId]);
-                if ($currentDesignatedId === $oldHeadResidentId && isset($houseCols['family_head_code'])) {
-                    $db->query('UPDATE households SET family_head_code = ? WHERE id = ?', [$oldFhc, $householdId]);
-                }
+            if (($oldFhc === '' || $oldFhc === '-') && $currentDesignatedId === $oldHeadResidentId && isset($houseCols['family_head_code'])) {
+                $hh = $db->fetchOne('SELECT family_head_code FROM households WHERE id = ? LIMIT 1', [$householdId]);
+                $oldFhc = $hh ? trim((string)($hh['family_head_code'] ?? '')) : '';
+            }
+            if ($oldFhc === '' || $oldFhc === '-') {
+                $oldFhc = generateResidentFamilyHeadCode($db);
+            }
+            $db->query('UPDATE residents SET family_head_code = ? WHERE id = ?', [$oldFhc, $newHeadResidentId]);
+            $db->query('UPDATE residents SET family_head_code = NULL WHERE id = ?', [$oldHeadResidentId]);
+            if ($currentDesignatedId === $oldHeadResidentId && isset($houseCols['family_head_code'])) {
+                $db->query('UPDATE households SET family_head_code = ? WHERE id = ?', [$oldFhc, $householdId]);
             }
         }
 
