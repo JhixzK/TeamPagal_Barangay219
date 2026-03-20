@@ -244,39 +244,14 @@ function enrichHouseholdTypeFromHeadApplication($db, $household) {
     );
     if ($app) {
         $appType = trim((string)($app['household_type'] ?? ''));
-        $appRole = strtolower(trim((string)($app['household_role'] ?? '')));
         if ($appType !== '' && isRegisterHouseholdType($appType)) {
             $household['household_type'] = $appType;
-        } elseif ($appRole === 'landlord') {
-            $household['household_type'] = 'Non-Relative Household (Shared / Boarders)';
-        } else {
-            $headRole = '';
-            if (columnExists($db, 'residents', 'household_role')) {
-                $headRow = $db->fetchOne("SELECT household_role FROM residents WHERE id = ? LIMIT 1", [$headId]);
-                $headRole = strtolower(trim((string)($headRow['household_role'] ?? '')));
-            }
-            if ($headRole === 'landlord') {
-                $household['household_type'] = 'Non-Relative Household (Shared / Boarders)';
-            }
         }
         if ($household['household_type'] !== null && $hasCol) {
             try {
                 $db->query("UPDATE households SET household_type = ? WHERE id = ?", [$household['household_type'], $hid]);
             } catch (Exception $e) {
                 error_log("enrichHouseholdType from app: " . $e->getMessage());
-            }
-        }
-    } elseif (columnExists($db, 'residents', 'household_role')) {
-        $headRow = $db->fetchOne("SELECT household_role FROM residents WHERE id = ? LIMIT 1", [$headId]);
-        $headRole = strtolower(trim((string)($headRow['household_role'] ?? '')));
-        if ($headRole === 'landlord') {
-            $household['household_type'] = 'Non-Relative Household (Shared / Boarders)';
-            if ($hasCol) {
-                try {
-                    $db->query("UPDATE households SET household_type = ? WHERE id = ?", [$household['household_type'], $hid]);
-                } catch (Exception $e) {
-                    error_log("enrichHouseholdType landlord: " . $e->getMessage());
-                }
             }
         }
     }
