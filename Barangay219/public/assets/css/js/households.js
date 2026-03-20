@@ -144,8 +144,8 @@ function loadHouseholds() {
                     const householdIdBadge = `<span class="badge bg-white text-dark border">${escapeHtml(hhCode || '-')}</span>`;
                     const isOccupied = members > 0 || (h.family_head_id && Number(h.family_head_id) > 0);
                     const householdTypeLabel = (h.household_type || '').toString().trim();
-                    const householdTypeDisplay = isOccupied && householdTypeLabel
-                        ? `<div class="mt-1"><small class="text-muted d-block">Household Type</small><span class="badge bg-light text-dark border">${escapeHtml(householdTypeLabel)}</span></div>`
+                    const householdTypeDisplay = isOccupied
+                        ? `<div class="mt-1"><small class="text-muted d-block">Household Type</small><span class="badge bg-light text-dark border">${escapeHtml(householdTypeLabel || '--')}</span></div>`
                         : '';
 
                     return `
