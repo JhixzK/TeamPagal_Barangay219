@@ -190,6 +190,99 @@ function listFamilyHeads() {
     sendResponse(true, 'Family heads retrieved', $heads);
 }
 
+$REGISTER_HOUSEHOLD_TYPES = ['Family Household', 'Couple Only', 'Single Inhabitant', 'Non-Relative Household (Shared / Boarders)', 'Other (Specify)'];
+$LEGACY_HOUSEHOLD_TYPES = ['nuclear', 'extended', 'single_parent', 'others'];
+
+function isLegacyHouseholdType($val) {
+    global $LEGACY_HOUSEHOLD_TYPES;
+    return in_array(strtolower(trim((string)$val)), $LEGACY_HOUSEHOLD_TYPES, true);
+}
+
+function isRegisterHouseholdType($val) {
+    global $REGISTER_HOUSEHOLD_TYPES;
+    return in_array(trim((string)$val), $REGISTER_HOUSEHOLD_TYPES, true);
+}
+
+/**
+ * Enrich household_type from the head's registration (resident_applications) when available.
+ * Legacy values (nuclear, extended, etc.) are cleared to null.
+ */
+function enrichHouseholdTypeFromHeadApplication($db, $household) {
+    $headId = (int)($household['family_head_id'] ?? $household['head_id'] ?? 0);
+    $current = trim((string)($household['household_type'] ?? ''));
+    $hid = (int)($household['id'] ?? 0);
+    $hasCol = $hid > 0 && columnExists($db, 'households', 'household_type');
+
+    if (isLegacyHouseholdType($current)) {
+        $household['household_type'] = null;
+        if ($hasCol) {
+            try {
+                $db->query("UPDATE households SET household_type = NULL WHERE id = ?", [$hid]);
+            } catch (Exception $e) {
+                error_log("enrichHouseholdType clear legacy: " . $e->getMessage());
+            }
+        }
+        return $household;
+    }
+    if (isRegisterHouseholdType($current)) {
+        return $household;
+    }
+    if ($headId <= 0) {
+        return $household;
+    }
+    if (!tableExists($db, 'resident_applications')) {
+        return $household;
+    }
+    $statusCol = columnExists($db, 'resident_applications', 'record_status') ? 'record_status' : 'status';
+    $approvedCol = columnExists($db, 'resident_applications', 'approved_resident_id') ? 'approved_resident_id' : null;
+    if (!$approvedCol) {
+        return $household;
+    }
+    $app = $db->fetchOne(
+        "SELECT household_type, household_role FROM resident_applications WHERE $approvedCol = ? AND (`$statusCol` = 'approved' OR `$statusCol` = 'Approved') LIMIT 1",
+        [$headId]
+    );
+    if ($app) {
+        $appType = trim((string)($app['household_type'] ?? ''));
+        $appRole = strtolower(trim((string)($app['household_role'] ?? '')));
+        if ($appType !== '' && isRegisterHouseholdType($appType)) {
+            $household['household_type'] = $appType;
+        } elseif ($appRole === 'landlord') {
+            $household['household_type'] = 'Non-Relative Household (Shared / Boarders)';
+        } else {
+            $headRole = '';
+            if (columnExists($db, 'residents', 'household_role')) {
+                $headRow = $db->fetchOne("SELECT household_role FROM residents WHERE id = ? LIMIT 1", [$headId]);
+                $headRole = strtolower(trim((string)($headRow['household_role'] ?? '')));
+            }
+            if ($headRole === 'landlord') {
+                $household['household_type'] = 'Non-Relative Household (Shared / Boarders)';
+            }
+        }
+        if ($household['household_type'] !== null && $hasCol) {
+            try {
+                $db->query("UPDATE households SET household_type = ? WHERE id = ?", [$household['household_type'], $hid]);
+            } catch (Exception $e) {
+                error_log("enrichHouseholdType from app: " . $e->getMessage());
+            }
+        }
+    } elseif (columnExists($db, 'residents', 'household_role')) {
+        $headRow = $db->fetchOne("SELECT household_role FROM residents WHERE id = ? LIMIT 1", [$headId]);
+        $headRole = strtolower(trim((string)($headRow['household_role'] ?? '')));
+        if ($headRole === 'landlord') {
+            $household['household_type'] = 'Non-Relative Household (Shared / Boarders)';
+            if ($hasCol) {
+                try {
+                    $db->query("UPDATE households SET household_type = ? WHERE id = ?", [$household['household_type'], $hid]);
+                } catch (Exception $e) {
+                    error_log("enrichHouseholdType landlord: " . $e->getMessage());
+                }
+            }
+        }
+    }
+    return $household;
+}
+
 function generateUniqueHouseholdCode($db) {
     // HH-XXXXXX (6 digits)
     for ($i = 0; $i < 20; $i++) {
@@ -453,6 +546,19 @@ function listHouseholds() {
         } catch (Exception $headEx) {
             error_log("List households family_head_names enrichment: " . $headEx->getMessage());
         }
+
+        foreach ($households as &$h) {
+            try {
+                $h = enrichHouseholdTypeFromHeadApplication($db, $h);
+            } catch (Throwable $ex) {
+                error_log("enrichHouseholdType list: " . $ex->getMessage());
+                $cur = trim((string)($h['household_type'] ?? ''));
+                if (in_array(strtolower($cur), ['nuclear', 'extended', 'single_parent', 'others'], true)) {
+                    $h['household_type'] = null;
+                }
+            }
+        }
+        unset($h);
         
         sendResponse(true, 'Households retrieved successfully', $households);
         
@@ -494,6 +600,15 @@ function getHousehold() {
         ensureHouseholdCodesAndDetails($db, $id);
         // Reload so UI gets updated code values.
         $household = $db->fetchOne($sql, [$id]);
+        try {
+            $household = enrichHouseholdTypeFromHeadApplication($db, $household);
+        } catch (Throwable $ex) {
+            error_log("enrichHouseholdType get: " . $ex->getMessage());
+            $cur = trim((string)($household['household_type'] ?? ''));
+            if (in_array(strtolower($cur), ['nuclear', 'extended', 'single_parent', 'others'], true)) {
+                $household['household_type'] = null;
+            }
+        }
 
         // Get household members (residents table is also used for remove-member actions).
         $orderCol = columnExists($db, 'residents', 'birth_date') ? 'birth_date'
