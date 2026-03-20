@@ -32,7 +32,7 @@ function ensureResidentHouseholdContractColumns() {
     addColumnIfMissing('households', $houseCols, 'family_code', 'VARCHAR(30) NULL');
     addColumnIfMissing('households', $houseCols, 'household_id_code', 'VARCHAR(10) NULL');
     addColumnIfMissing('households', $houseCols, 'family_head_code', 'VARCHAR(9) NULL');
-    addColumnIfMissing('households', $houseCols, 'household_type', "VARCHAR(40) NULL DEFAULT 'nuclear'");
+    addColumnIfMissing('households', $houseCols, 'household_type', "VARCHAR(80) NULL DEFAULT NULL");
     addColumnIfMissing('households', $houseCols, 'housing_status', "VARCHAR(40) NULL DEFAULT 'owned'");
     addColumnIfMissing('households', $houseCols, 'years_of_residency', 'INT(11) NULL DEFAULT 0');
     addColumnIfMissing('households', $houseCols, 'indigent_household', 'TINYINT(1) NOT NULL DEFAULT 0');
