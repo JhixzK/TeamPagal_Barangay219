@@ -366,7 +366,7 @@ function viewHousehold(id) {
                         <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1 bg-light">
                             <div>
                                 <span class="fw-semibold">${escapeHtml(toName(head))}</span>
-                                <span class="badge bg-primary ms-2">Head</span>
+                                <span class="badge ${(head.household_role || '').toString().toLowerCase() === 'landlord' ? 'bg-info' : 'bg-primary'} ms-2">${(head.household_role || '').toString().toLowerCase() === 'landlord' ? 'Landlord' : 'Head'}</span>
                                 <small class="text-muted ms-2">(${escapeHtml(fhc)})</small>
                             </div>
                             <div>${removeBtn}</div>
