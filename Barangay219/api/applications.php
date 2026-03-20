@@ -905,6 +905,15 @@ function assignHouseholdToApprovedResident() {
                     );
                 }
             }
+            // Set household_type from the family head's registration (application) when occupied.
+            $appHouseholdType = trim((string)($app['household_type'] ?? ''));
+            if ($appHouseholdType !== '' && isset($householdCols['household_type'])) {
+                $db->query(
+                    "UPDATE households SET household_type = ? WHERE id = ?",
+                    [$appHouseholdType, $householdId]
+                );
+            }
+
             if (isset($householdCols['family_code'])) {
                 $fc = generateUniqueFamilyCode($db);
                 $db->query(
