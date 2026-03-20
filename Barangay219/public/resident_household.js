@@ -232,10 +232,11 @@ function renderMembersTable(members, isHead) {
       const isSelf = !!member.is_self;
       const memberId = Number(member.id || 0);
       const isMemberHead = isHeadRelationship(member.relationship_to_head) || (Number(member.resident_id || 0) === Number(currentHouseholdData?.family_head_id || 0));
+      const isLandlord = (member.household_role || member.relationship_to_head || '').toString().toLowerCase() === 'landlord';
       const canRemove = memberId > 0 && !member.readonly && isHead && !isSelf && !isMemberHead;
       const canAssignHead = memberId > 0 && !member.readonly && isHead && !isSelf;
       const roleBadge = isMemberHead
-        ? '<span class="badge bg-primary">Head</span>'
+        ? (isLandlord ? '<span class="badge bg-info">Landlord</span>' : '<span class="badge bg-primary">Head</span>')
         : '<span class="badge bg-light text-dark border">' + escapeHtml(member.relationship_to_head || "Member") + '</span>';
 
       return `
@@ -338,6 +339,7 @@ function renderManageMembersTable(members) {
     const isSelf = !!member.is_self;
     const memberId = Number(member.id || 0);
       const isMemberHead = isHeadRelationship(member.relationship_to_head) || (Number(member.resident_id || 0) === Number(currentHouseholdData?.family_head_id || 0));
+    const isLandlord = (member.household_role || member.relationship_to_head || '').toString().toLowerCase() === 'landlord';
 
     const canAssignHead = !isSelf && !isMemberHead &&
       (currentUserFc === '' || (member.family_code || '') === currentUserFc);
@@ -345,7 +347,7 @@ function renderManageMembersTable(members) {
     const age = member.age ?? calculateAge(member.date_of_birth || member.birth_date) ?? "-";
     const birthDateLabel = formatDate(member.date_of_birth || member.birth_date);
     const roleBadge = isMemberHead
-      ? '<span class="badge bg-primary">Head</span>'
+      ? (isLandlord ? '<span class="badge bg-info">Landlord</span>' : '<span class="badge bg-primary">Head</span>')
       : '<span class="badge bg-light text-dark border">Member</span>';
 
     const actions = [];
