@@ -437,9 +437,10 @@ async function submitHeadForm(e) {
   const street = document.getElementById("householdStreet")?.value || "";
   const city = document.getElementById("householdCity")?.value || "";
   const province = document.getElementById("householdProvince")?.value || "";
+  const householdType = (document.getElementById("headFormHouseholdType")?.value || "").trim();
 
-  if (!address || !street || !city || !province) {
-    showErrorMessage("Please fill in all address fields.");
+  if (!address || !street || !city || !province || !householdType) {
+    showErrorMessage("Please fill in all required fields including Household Type.");
     return;
   }
 
@@ -734,7 +735,13 @@ async function editHousehold() {
   const housingStatus = document.getElementById("overviewHousingStatus");
   const yearsResidency = document.getElementById("overviewYearsResidency");
 
-  if (householdType) householdType.value = currentHouseholdData.household_type || "nuclear";
+  if (householdType) {
+    const val = (currentHouseholdData.household_type || "").toString().trim();
+    const legacy = ["nuclear", "extended", "single_parent", "others"];
+    const isLegacy = legacy.includes(val.toLowerCase());
+    const hasOpt = Array.from(householdType.options).some(o => o.value === val);
+    householdType.value = (val && !isLegacy && hasOpt) ? val : "";
+  }
   if (housingStatus) housingStatus.value = currentHouseholdData.housing_status || "owned";
   if (yearsResidency) yearsResidency.value = String(currentHouseholdData.years_of_residency ?? 0);
 
@@ -765,8 +772,8 @@ async function submitOverviewUpdate(e) {
   const housingStatus = (document.getElementById("overviewHousingStatus")?.value || "").trim();
   const yearsRaw = (document.getElementById("overviewYearsResidency")?.value || "").trim();
   const years = Number.parseInt(yearsRaw, 10);
-  if (!householdType || !housingStatus || !Number.isFinite(years) || years < 0 || years > 120) {
-    showErrorMessage("Please provide valid household type, housing status, and residency years (0-120).");
+  if (!housingStatus || !Number.isFinite(years) || years < 0 || years > 120) {
+    showErrorMessage("Please provide valid housing status and residency years (0-120).");
     return;
   }
 
@@ -775,7 +782,7 @@ async function submitOverviewUpdate(e) {
       method: "POST",
       body: JSON.stringify({
         action: "update_household_meta",
-        household_type: householdType,
+        household_type: householdType || null,
         housing_status: housingStatus,
         years_of_residency: years,
       })
