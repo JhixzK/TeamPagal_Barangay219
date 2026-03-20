@@ -71,6 +71,7 @@ function ensureResidentHouseholdContractColumns() {
     addColumnIfMissing('residents', $resCols, 'family_head_code', 'VARCHAR(9) NULL');
     addColumnIfMissing('residents', $resCols, 'relationship_to_head', 'VARCHAR(100) NULL');
     addColumnIfMissing('residents', $resCols, 'household_id', 'INT(11) NULL');
+    addColumnIfMissing('residents', $resCols, 'household_role', 'VARCHAR(80) NULL');
 
     $memberCols = getColumnsMap('household_members');
     addColumnIfMissing('household_members', $memberCols, 'date_of_birth', 'DATE NULL');
@@ -356,6 +357,7 @@ function handleGetHouseholdInfo($residentId) {
 
     $resFhcExpr = columnExists($db, 'residents', 'family_head_code') ? 'r.family_head_code,' : '';
     $resFcExpr = columnExists($db, 'residents', 'family_code') ? 'r.family_code,' : '';
+    $resRoleExpr = columnExists($db, 'residents', 'household_role') ? 'r.household_role,' : '';
     $members = $db->fetchAll(
         "SELECT hm.id, hm.household_id, hm.resident_id, hm.relationship_to_head,
                 hm.`{$dateColumn}` AS date_of_birth, hm.gender, hm.civil_status,
@@ -363,6 +365,7 @@ function handleGetHouseholdInfo($residentId) {
                 r.first_name, r.middle_name, r.last_name, r.resident_code,
                 {$resFhcExpr}
                 {$resFcExpr}
+                {$resRoleExpr}
                 {$memberStatusExpr}, {$verificationExpr}, {$pwdExpr}, {$psExpr}, {$soloExpr}
          FROM household_members hm
          INNER JOIN residents r ON r.id = hm.resident_id
@@ -381,13 +384,17 @@ function handleGetHouseholdInfo($residentId) {
         $isHeadByRole = $rel !== '' && stripos($rel, 'head') !== false;
         $isHeadByFhc = $fhc !== '' && $fhc !== '-';
         $isDesignatedHead = (int)($member['resident_id'] ?? 0) === $designatedHeadId;
-        $displayRel = ($isDesignatedHead || $isHeadByRole || $isHeadByFhc) ? 'Head' : ($rel !== '' ? $rel : 'Member');
+        $resHouseholdRole = trim((string)($member['household_role'] ?? ''));
+        $displayRel = ($isDesignatedHead || $isHeadByRole || $isHeadByFhc)
+            ? (strtolower($resHouseholdRole) === 'landlord' ? 'Landlord' : 'Head')
+            : ($rel !== '' ? $rel : 'Member');
         $mappedMembers[] = [
             'id' => (int)$member['id'],
             'resident_id' => (int)$member['resident_id'],
             'resident_code' => (string)($member['resident_code'] ?? ''),
             'name' => $memberName,
             'relationship_to_head' => $displayRel,
+            'household_role' => $resHouseholdRole !== '' ? $resHouseholdRole : null,
             'sex' => ucfirst(strtolower((string)($member['gender'] ?? ''))),
             'date_of_birth' => $member['date_of_birth'],
             'age' => $age,
@@ -417,10 +424,12 @@ function handleGetHouseholdInfo($residentId) {
 
     $linkedResFhc = columnExists($db, 'residents', 'family_head_code') ? 'r.family_head_code,' : '';
     $linkedResFc = columnExists($db, 'residents', 'family_code') ? 'r.family_code,' : '';
+    $linkedResRole = columnExists($db, 'residents', 'household_role') ? 'r.household_role,' : '';
     $linked = $db->fetchAll(
         "SELECT r.id AS resident_id, r.resident_code, r.first_name, r.middle_name, r.last_name,
                 r.birth_date AS date_of_birth, r.gender, {$linkedResFhc}
                 {$linkedResFc}
+                {$linkedResRole}
                 {$memberStatusExpr}, {$verificationExpr}, {$pwdExpr}, {$psExpr}, {$soloExpr}
          FROM residents r
          WHERE r.household_id = ? {$excludeClause}
@@ -433,12 +442,17 @@ function handleGetHouseholdInfo($residentId) {
         $fhcLinked = trim((string)($residentRow['family_head_code'] ?? ''));
         $isDesignatedLinked = (int)$residentRow['resident_id'] === $designatedHeadId;
         $isHeadLinked = $isDesignatedLinked || ($fhcLinked !== '' && $fhcLinked !== '-');
+        $linkedRole = trim((string)($residentRow['household_role'] ?? ''));
+        $linkedDisplayRel = $isHeadLinked
+            ? (strtolower($linkedRole) === 'landlord' ? 'Landlord' : 'Head')
+            : 'Member';
         $mappedMembers[] = [
             'id' => 0,
             'resident_id' => (int)$residentRow['resident_id'],
             'resident_code' => (string)($residentRow['resident_code'] ?? ''),
             'name' => formatResidentName($residentRow),
-            'relationship_to_head' => $isHeadLinked ? 'Head' : 'Member',
+            'relationship_to_head' => $linkedDisplayRel,
+            'household_role' => $linkedRole !== '' ? $linkedRole : null,
             'sex' => ucfirst(strtolower((string)($residentRow['gender'] ?? ''))),
             'date_of_birth' => $residentRow['date_of_birth'] ?? null,
             'age' => $age,
