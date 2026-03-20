@@ -137,6 +137,276 @@ function generateUniqueFamilyCode($db) {
     throw new Exception('Unable to generate unique family code.');
 }
 
+/**
+ * Find an existing household at the same address (house_number, street, purok_sitio).
+ * Returns household id or null. Requires at least one non-empty field to avoid broad matches.
+ * Tries component match first; falls back to full address match when components are empty in DB.
+ */
+function findExistingHouseholdByAddress($db, $houseNumber, $street, $purokSitio, $app = null) {
+    $hn = trim((string)($houseNumber ?? ''));
+    $st = trim((string)($street ?? ''));
+    $ps = trim((string)($purokSitio ?? ''));
+    if ($hn === '' && $st === '' && $ps === '') {
+        return null;
+    }
+
+    // 1) Try match on house_number, street, purok_sitio (when columns exist)
+    if (columnExists($db, 'households', 'house_number') && columnExists($db, 'households', 'street') && columnExists($db, 'households', 'purok_sitio')) {
+        $hnNorm = $hn === '' ? '' : strtolower($hn);
+        $stNorm = $st === '' ? '' : strtolower($st);
+        $psNorm = $ps === '' ? '' : strtolower($ps);
+        $row = $db->fetchOne(
+            "SELECT id FROM households
+             WHERE LOWER(TRIM(COALESCE(house_number,''))) = ?
+               AND LOWER(TRIM(COALESCE(street,''))) = ?
+               AND LOWER(TRIM(COALESCE(purok_sitio,''))) = ?
+             ORDER BY id ASC LIMIT 1",
+            [$hnNorm, $stNorm, $psNorm]
+        );
+        if ($row) {
+            return (int)$row['id'];
+        }
+    }
+
+    // 2) Fallback: match on full address (for households that only have address, not components)
+    if ($app && columnExists($db, 'households', 'address')) {
+        $addrParts = array_filter([
+            $app['house_number'] ?? null,
+            $app['street'] ?? null,
+            $app['purok_sitio'] ?? null,
+            $app['barangay'] ?? null,
+            $app['city'] ?? null,
+            $app['province'] ?? null
+        ], function ($v) { return trim((string)$v) !== ''; });
+        $addrNorm = preg_replace('/\s+/', ' ', strtolower(trim(implode(', ', $addrParts))));
+        if ($addrNorm !== '') {
+            $all = $db->fetchAll("SELECT id, address FROM households WHERE address IS NOT NULL AND TRIM(address) <> '' ORDER BY id ASC", []);
+            foreach ($all as $h) {
+                $dbAddr = preg_replace('/\s+/', ' ', strtolower(trim((string)($h['address'] ?? ''))));
+                if ($dbAddr === $addrNorm) {
+                    return (int)$h['id'];
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Join an approved head to an existing household as co-head (same address).
+ */
+function joinHeadToExistingHousehold($db, $residentId, $householdId, $app) {
+    $isMissingCode = function($v) {
+        $s = trim((string)$v);
+        return $s === '' || $s === '-' || strtolower($s) === 'null' || strtolower($s) === 'n/a';
+    };
+
+    $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $residentId]);
+    if (columnExists($db, 'residents', 'relationship_to_head')) {
+        $db->query("UPDATE residents SET relationship_to_head = 'Head' WHERE id = ?", [$residentId]);
+    }
+    if (columnExists($db, 'residents', 'household_role')) {
+        $db->query("UPDATE residents SET household_role = 'Head' WHERE id = ?", [$residentId]);
+    }
+
+    $currentHeadId = $db->fetchOne("SELECT family_head_id FROM households WHERE id = ? LIMIT 1", [$householdId]);
+    $currentHeadIdVal = (int)($currentHeadId['family_head_id'] ?? 0);
+    if ($currentHeadIdVal <= 0) {
+        $db->query("UPDATE households SET family_head_id = ? WHERE id = ?", [$residentId, $householdId]);
+    }
+
+    $appHouseholdRole = strtolower(trim((string)($app['household_role'] ?? '')));
+    $civilStatusRaw = strtolower(trim((string)($app['civil_status'] ?? '')));
+    $isSingleHeadOfHousehold = ($civilStatusRaw === 'single') && ($appHouseholdRole === 'head of household');
+
+    $householdCols = array_flip(getTableColumns($db, 'households'));
+    if (isset($householdCols['household_id_code'])) {
+        $db->query(
+            "UPDATE households SET household_id_code = CASE WHEN household_id_code IS NULL OR household_id_code = '' THEN ? ELSE household_id_code END WHERE id = ?",
+            [generateUniqueHouseholdCode($db), $householdId]
+        );
+    }
+    if (isset($householdCols['family_head_code']) && !$isSingleHeadOfHousehold && columnExists($db, 'residents', 'family_head_code')) {
+        $headRow = $db->fetchOne("SELECT family_head_code FROM residents WHERE id = ? LIMIT 1", [$residentId]);
+        $residentHeadCode = $headRow['family_head_code'] ?? null;
+        if ($isMissingCode($residentHeadCode)) {
+            $residentHeadCode = generateResidentFamilyHeadCode($db);
+            $db->query("UPDATE residents SET family_head_code = ? WHERE id = ?", [$residentHeadCode, $residentId]);
+        }
+    } elseif ($isSingleHeadOfHousehold && columnExists($db, 'residents', 'family_head_code')) {
+        $db->query("UPDATE residents SET family_head_code = NULL WHERE id = ?", [$residentId]);
+    }
+
+    if (isset($householdCols['family_code']) && columnExists($db, 'residents', 'family_code')) {
+        $hh = $db->fetchOne("SELECT family_code FROM households WHERE id = ? LIMIT 1", [$householdId]);
+        if ($hh && !empty(trim((string)($hh['family_code'] ?? '')))) {
+            $db->query("UPDATE residents SET family_code = ? WHERE id = ?", [$hh['family_code'], $residentId]);
+        }
+    }
+
+    $allowedHouseholdTypes = ['Family Household', 'Couple Only', 'Single Inhabitant', 'Non-Relative Household (Shared / Boarders)', 'Other (Specify)'];
+    $appHouseholdType = trim((string)($app['household_type'] ?? ''));
+    if ($appHouseholdType !== '' && isset($householdCols['household_type']) && in_array($appHouseholdType, $allowedHouseholdTypes, true)) {
+        $db->query("UPDATE households SET household_type = ? WHERE id = ?", [$appHouseholdType, $householdId]);
+    }
+
+    if (tableExists($db, 'household_members') && columnExists($db, 'household_members', 'resident_id')) {
+        try {
+            $dateCol = columnExists($db, 'household_members', 'date_of_birth') ? 'date_of_birth' : 'dob';
+            $resident = $db->fetchOne("SELECT birth_date, gender, civil_status FROM residents WHERE id = ?", [$residentId]);
+            $dob = $resident['birth_date'] ?? '1990-01-01';
+            $gender = strtolower((string)($resident['gender'] ?? 'other'));
+            $civilStatus = strtolower((string)($resident['civil_status'] ?? 'single'));
+            $db->query(
+                "INSERT INTO household_members (household_id, resident_id, relationship_to_head, {$dateCol}, gender, civil_status)
+                 VALUES (?, ?, 'Head', ?, ?, ?)",
+                [$householdId, $residentId, $dob, $gender, $civilStatus]
+            );
+        } catch (Exception $e) {
+            error_log('Household member insert (join co-head): ' . $e->getMessage());
+        }
+    }
+
+    $countRow = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$householdId]);
+    if ($countRow && isset($countRow['c'])) {
+        $db->query("UPDATE households SET total_members = ? WHERE id = ?", [(int)$countRow['c'], $householdId]);
+    }
+
+    if (tableExists($db, 'household_history_logs')) {
+        $userId = getCurrentUserId();
+        $db->query(
+            "INSERT INTO household_history_logs (household_id, action, performed_by, target_resident_id, details)
+             VALUES (?, 'Head Changed', ?, ?, ?)",
+            [$householdId, $userId, $residentId, 'Approved head joined existing household at same address as co-head']
+        );
+    }
+
+    return $householdId;
+}
+
+/**
+ * Automatically create a household when officials approve a head of household application.
+ * The new resident becomes the household head and is linked to the created household.
+ */
+function createHouseholdForApprovedHead($db, $residentId, $app) {
+    $houseCols = array_flip(getTableColumns($db, 'households'));
+    $headColumn = isset($houseCols['family_head_id']) ? 'family_head_id' : 'head_id';
+
+    // Build address from application data
+    $addrParts = array_filter([
+        $app['house_number'] ?? null,
+        $app['street'] ?? null,
+        $app['purok_sitio'] ?? null,
+        $app['barangay'] ?? null,
+        $app['city'] ?? null,
+        $app['province'] ?? null
+    ]);
+    $address = implode(', ', $addrParts) ?: ($app['barangay'] ?? 'Barangay 219');
+
+    $houseNumber = $app['house_number'] ?? null;
+    $street = $app['street'] ?? ($app['house_number'] ?? '');
+    $barangay = $app['barangay'] ?? 'Barangay 219';
+    $city = $app['city'] ?? 'Manila';
+    $province = $app['province'] ?? 'Metro Manila';
+
+    $insertCols = [$headColumn, 'address', 'total_members', 'registration_date'];
+    $insertVals = [$residentId, $address, 1, date('Y-m-d')];
+
+    if (isset($houseCols['house_number'])) {
+        $insertCols[] = 'house_number';
+        $insertVals[] = $houseNumber;
+    }
+    if (isset($houseCols['street'])) {
+        $insertCols[] = 'street';
+        $insertVals[] = $street;
+    }
+    if (isset($houseCols['barangay'])) {
+        $insertCols[] = 'barangay';
+        $insertVals[] = $barangay;
+    }
+    if (isset($houseCols['city'])) {
+        $insertCols[] = 'city';
+        $insertVals[] = $city;
+    }
+    if (isset($houseCols['province'])) {
+        $insertCols[] = 'province';
+        $insertVals[] = $province;
+    }
+    if (isset($houseCols['purok_sitio'])) {
+        $insertCols[] = 'purok_sitio';
+        $insertVals[] = $app['purok_sitio'] ?? null;
+    }
+    $allowedHouseholdTypes = ['Family Household', 'Couple Only', 'Single Inhabitant', 'Non-Relative Household (Shared / Boarders)', 'Other (Specify)'];
+    $appHouseholdType = trim((string)($app['household_type'] ?? ''));
+    if (isset($houseCols['household_type']) && $appHouseholdType !== '' && in_array($appHouseholdType, $allowedHouseholdTypes, true)) {
+        $insertCols[] = 'household_type';
+        $insertVals[] = $appHouseholdType;
+    }
+    if (isset($houseCols['family_code'])) {
+        $familyCode = generateUniqueFamilyCode($db);
+        $insertCols[] = 'family_code';
+        $insertVals[] = $familyCode;
+    }
+    if (isset($houseCols['head_id']) && $headColumn !== 'head_id') {
+        $insertCols[] = 'head_id';
+        $insertVals[] = $residentId;
+    }
+    if (isset($houseCols['family_head_id']) && $headColumn !== 'family_head_id') {
+        $insertCols[] = 'family_head_id';
+        $insertVals[] = $residentId;
+    }
+
+    $colSql = '`' . implode('`,`', $insertCols) . '`';
+    $placeholders = implode(', ', array_fill(0, count($insertVals), '?'));
+    $db->query("INSERT INTO households ({$colSql}) VALUES ({$placeholders})", $insertVals);
+    $householdId = (int)$db->lastInsertId();
+
+    // Generate household_id_code if column exists
+    if (isset($houseCols['household_id_code'])) {
+        $hhCode = generateUniqueHouseholdCode($db);
+        $db->query("UPDATE households SET household_id_code = ? WHERE id = ?", [$hhCode, $householdId]);
+    }
+
+    // Link resident to household
+    $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $residentId]);
+
+    if (columnExists($db, 'residents', 'relationship_to_head')) {
+        $db->query("UPDATE residents SET relationship_to_head = 'Head' WHERE id = ?", [$residentId]);
+    }
+
+    // Add to household_members if table exists and has resident_id column
+    if (tableExists($db, 'household_members') && columnExists($db, 'household_members', 'resident_id')) {
+        try {
+            $dateCol = columnExists($db, 'household_members', 'date_of_birth') ? 'date_of_birth' : 'dob';
+            $resident = $db->fetchOne("SELECT birth_date, gender, civil_status FROM residents WHERE id = ?", [$residentId]);
+            $dob = $resident['birth_date'] ?? '1990-01-01';
+            $gender = strtolower((string)($resident['gender'] ?? 'other'));
+            $civilStatus = strtolower((string)($resident['civil_status'] ?? 'single'));
+            $db->query(
+                "INSERT INTO household_members (household_id, resident_id, relationship_to_head, {$dateCol}, gender, civil_status)
+                 VALUES (?, ?, 'Head', ?, ?, ?)",
+                [$householdId, $residentId, $dob, $gender, $civilStatus]
+            );
+        } catch (Exception $e) {
+            error_log('Household member insert (approved head): ' . $e->getMessage());
+            // Household and resident link are already created; member record is optional
+        }
+    }
+
+    // Log household creation
+    if (tableExists($db, 'household_history_logs')) {
+        $userId = getCurrentUserId();
+        $db->query(
+            "INSERT INTO household_history_logs (household_id, action, performed_by, target_resident_id, details)
+             VALUES (?, 'Head Changed', ?, ?, ?)",
+            [$householdId, $userId, $residentId, 'Household auto-created from approved head of household application']
+        );
+    }
+
+    return $householdId;
+}
+
 function tableExists($db, $table) {
     $row = $db->fetchOne(
         "SELECT COUNT(*) AS cnt
@@ -619,9 +889,19 @@ function approveApplication() {
             );
         }
 
-        // NOTE: Household records and member linking are now managed explicitly
-        // via the Households module and the "Assign Household" action.
-        // Approving an application will no longer auto-create or auto-attach households.
+        // When officials approve a head of household, check for existing household at same address.
+        // If found, join as co-head; otherwise create a new household.
+        $householdId = null;
+        $joinedExisting = false;
+        if ($isHead && tableExists($db, 'households')) {
+            $existingId = findExistingHouseholdByAddress($db, $app['house_number'] ?? '', $app['street'] ?? '', $app['purok_sitio'] ?? '', $app);
+            if ($existingId) {
+                $householdId = joinHeadToExistingHousehold($db, (int)$residentId, $existingId, $app);
+                $joinedExisting = true;
+            } else {
+                $householdId = createHouseholdForApprovedHead($db, (int)$residentId, $app);
+            }
+        }
 
         // Create user account with Resident ID as username, placeholder password until activation
         $activationToken = bin2hex(random_bytes(32));
@@ -684,12 +964,20 @@ function approveApplication() {
 
         $db->commit();
 
-        sendResponse(true, 'Application approved. Resident ID generated.', [
+        $responseData = [
             'resident_code' => $residentCode,
             'resident_id' => (int)$residentId,
             'activation_token' => $activationToken,
             'activation_link' => BASE_URL . 'activate-account.php?token=' . $activationToken
-        ]);
+        ];
+        if ($householdId !== null) {
+            $responseData['household_id'] = (int)$householdId;
+        }
+        $successMsg = 'Application approved. Resident ID generated.';
+        if ($isHead) {
+            $successMsg = $joinedExisting ? 'Application approved. Resident joined existing household as co-head.' : 'Application approved. Resident and household created.';
+        }
+        sendResponse(true, $successMsg, $responseData);
     } catch (Exception $e) {
         if (isset($db)) $db->rollback();
         error_log('Approve application: ' . $e->getMessage());
