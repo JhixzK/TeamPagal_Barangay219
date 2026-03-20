@@ -553,7 +553,6 @@ $barangay219_purok_options = [
                                                 <option value="">Select</option>
                                                 <option value="Member of Household">Member of Household</option>
                                                 <option value="Head of Household">Head of Household</option>
-                                                <option value="Landlord">Landlord</option>
                                             </select>
                                         </div>
                                     </div>
@@ -597,24 +596,7 @@ $barangay219_purok_options = [
                                                 <option value="owned">Owned</option>
                                                 <option value="rented">Rented</option>
                                             </select>
-                                            <small class="text-muted">Select ownership status. Landlords are automatically set to Owned.</small>
-                                        </div>
-                                    </div>
-                                    <div class="row g-3" id="householdIncomeRow" style="display:none;">
-                                        <div class="col-md-4 mb-3">
-                                            <label>Total Household Income (Monthly) <span class="text-danger">*</span></label>
-                                            <input type="text" id="household_income" name="household_income" class="form-control" inputmode="decimal" placeholder="e.g., 25,000">
-                                            <small class="text-muted">Total monthly income in PHP. Commas are added automatically.</small>
-                                        </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label>Income per Family Member</label>
-                                            <input type="text" id="income_per_member" name="income_per_member" class="form-control" readonly placeholder="Computed value">
-                                            <small class="text-muted">Auto-computed.</small>
-                                        </div>
-                                        <div class="col-md-4 mb-2">
-                                            <label class="d-block">Economic Classification</label>
-                                            <input type="text" id="economic_classification" name="economic_classification" class="form-control mt-2" readonly placeholder="Classification">
-                                            <small class="text-muted d-block mt-1">Below PHP 12,000/member = Indigent.</small>
+                                            <small class="text-muted">Select ownership status.</small>
                                         </div>
                                     </div>
                                     <hr>
@@ -1207,16 +1189,13 @@ function toggleHouseholdTypeField() {
     const houseOwnershipField = document.getElementById('house_ownership');
     const householdMembersRow = document.getElementById('householdMembersRow');
     const householdMembersField = document.querySelector('input[name="household_members"]');
-    const householdIncomeRow = document.getElementById('householdIncomeRow');
-    const householdIncomeField = document.getElementById('household_income');
 
-    if (!householdRoleField || !householdTypeRow || !householdTypeField || !houseTypeField || !houseOwnershipField || !householdMembersRow || !householdMembersField || !householdIncomeRow || !householdIncomeField) {
+    if (!householdRoleField || !householdTypeRow || !householdTypeField || !houseTypeField || !houseOwnershipField || !householdMembersRow || !householdMembersField) {
         return;
     }
 
     const isHeadOfHousehold = householdRoleField.value === 'Head of Household';
-    const isLandlord = householdRoleField.value === 'Landlord';
-    const showHouseholdFields = isHeadOfHousehold || isLandlord;
+    const showHouseholdFields = isHeadOfHousehold;
     const civilStatusField = document.getElementById('civil_status');
     const civilStatus = (civilStatusField?.value || '').toLowerCase().trim();
     const isSingleHeadOfHousehold = civilStatus === 'single' && isHeadOfHousehold;
@@ -1234,17 +1213,8 @@ function toggleHouseholdTypeField() {
     } else {
         householdMembersField.readOnly = false;
     }
-    householdIncomeRow.style.display = showHouseholdFields ? 'flex' : 'none';
-    householdIncomeField.required = showHouseholdFields;
 
-    if (isLandlord) {
-        householdTypeField.innerHTML = '<option value="Non-Relative Household (Shared / Boarders)">Non-Relative Household (Shared / Boarders)</option>';
-        householdTypeField.value = 'Non-Relative Household (Shared / Boarders)';
-        householdTypeField.readOnly = false;
-        houseOwnershipField.value = 'owned';
-        houseOwnershipField.disabled = true;
-        houseOwnershipField.classList.remove('is-invalid');
-    } else if (isHeadOfHousehold) {
+    if (isHeadOfHousehold) {
         houseOwnershipField.disabled = false;
         filterHouseholdTypesByCivilStatus();
     } else {
@@ -1257,51 +1227,7 @@ function toggleHouseholdTypeField() {
         houseOwnershipField.classList.remove('is-invalid');
         householdMembersField.value = '';
         householdMembersField.classList.remove('is-invalid');
-        householdIncomeField.value = '';
-        householdIncomeField.classList.remove('is-invalid');
-        const incomePerMemberField = document.getElementById('income_per_member');
-        const economicClassificationField = document.getElementById('economic_classification');
-        if (incomePerMemberField) incomePerMemberField.value = '';
-        if (economicClassificationField) economicClassificationField.value = '';
     }
-
-    computeHouseholdIncomeClassification();
-}
-
-function computeHouseholdIncomeClassification() {
-    const threshold = 12000;
-    const householdRoleField = document.querySelector('select[name="household_role"]');
-    const membersField = document.getElementById('household_members');
-    const incomeField = document.getElementById('household_income');
-    const incomePerMemberField = document.getElementById('income_per_member');
-    const economicClassificationField = document.getElementById('economic_classification');
-
-    if (!householdRoleField || !membersField || !incomeField || !incomePerMemberField || !economicClassificationField) {
-        return;
-    }
-
-    if (householdRoleField.value !== 'Head of Household' && householdRoleField.value !== 'Landlord') {
-        incomePerMemberField.value = '';
-        economicClassificationField.value = '';
-        return;
-    }
-
-    const membersRaw = String(membersField.value || '').trim();
-    const incomeRaw = String(incomeField.value || '').trim().replace(/,/g, '');
-    const members = Number(membersRaw);
-    const totalIncome = Number(incomeRaw);
-
-    if (!Number.isFinite(members) || members <= 0 || !Number.isFinite(totalIncome) || totalIncome < 0) {
-        incomePerMemberField.value = '';
-        economicClassificationField.value = '';
-        return;
-    }
-
-    const incomePerMember = totalIncome / members;
-    const classification = incomePerMember < threshold ? 'Indigent' : 'Non-Indigent';
-
-    incomePerMemberField.value = `PHP ${incomePerMember.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    economicClassificationField.value = classification;
 }
 
 const householdRoleField = document.querySelector('select[name="household_role"]');
@@ -1318,48 +1244,6 @@ if (civilStatusField) {
         }
         toggleHouseholdTypeField();
     });
-}
-
-const householdIncomeField = document.getElementById('household_income');
-
-function formatHouseholdIncomeInput(raw) {
-    const cleaned = String(raw || '').replace(/[^0-9.]/g, '');
-    if (!cleaned) return '';
-
-    const firstDot = cleaned.indexOf('.');
-    const normalized = firstDot === -1
-        ? cleaned
-        : cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
-
-    const parts = normalized.split('.');
-    const integerPart = (parts[0] || '').replace(/^0+(?=\d)/, '');
-    const formattedInteger = (integerPart || '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-
-    if (parts.length === 1) return formattedInteger;
-    const decimalPart = parts[1].slice(0, 2);
-    return decimalPart.length ? `${formattedInteger}.${decimalPart}` : `${formattedInteger}.`;
-}
-
-function applyHouseholdIncomeFormatting(field) {
-    if (!field) return;
-    const formatted = formatHouseholdIncomeInput(field.value);
-    if (field.value !== formatted) {
-        field.value = formatted;
-    }
-}
-
-if (householdMembersField) {
-    householdMembersField.addEventListener('input', computeHouseholdIncomeClassification);
-    householdMembersField.addEventListener('change', computeHouseholdIncomeClassification);
-    householdMembersField.addEventListener('blur', computeHouseholdIncomeClassification);
-}
-if (householdIncomeField) {
-    householdIncomeField.addEventListener('input', function () {
-        applyHouseholdIncomeFormatting(this);
-    });
-    householdIncomeField.addEventListener('input', computeHouseholdIncomeClassification);
-    householdIncomeField.addEventListener('change', computeHouseholdIncomeClassification);
-    householdIncomeField.addEventListener('blur', computeHouseholdIncomeClassification);
 }
 
 // Step navigation
@@ -1493,7 +1377,7 @@ function validateStep(step) {
     const householdTypeField = document.getElementById('household_type');
     const houseTypeField = document.getElementById('house_type');
     const houseOwnershipField = document.getElementById('house_ownership');
-    if (roleField && householdTypeField && houseTypeField && houseOwnershipField && (roleField.value === 'Head of Household' || roleField.value === 'Landlord')) {
+    if (roleField && householdTypeField && houseTypeField && houseOwnershipField && roleField.value === 'Head of Household') {
         if (!householdTypeField.value.trim()) {
             householdTypeField.classList.add('is-invalid');
             isValid = false;
@@ -1516,7 +1400,6 @@ function validateStep(step) {
         }
 
         const householdMembersFieldForValidation = document.querySelector('input[name="household_members"]');
-        const householdIncomeFieldForValidation = document.getElementById('household_income');
         const civilStatusForValidation = (document.getElementById('civil_status')?.value || '').toLowerCase().trim();
         const isSingleHeadForValidation = civilStatusForValidation === 'single' && roleField?.value === 'Head of Household';
         if (householdMembersFieldForValidation) {
@@ -1533,16 +1416,6 @@ function validateStep(step) {
                 }
             }
         }
-        if (householdIncomeFieldForValidation) {
-            const incomeValue = parseFloat(String(householdIncomeFieldForValidation.value || '').replace(/,/g, ''));
-            if (!Number.isFinite(incomeValue) || incomeValue < 0) {
-                householdIncomeFieldForValidation.classList.add('is-invalid');
-                isValid = false;
-            } else {
-                householdIncomeFieldForValidation.classList.remove('is-invalid');
-            }
-        }
-        computeHouseholdIncomeClassification();
     }
 
     return isValid;
@@ -1575,7 +1448,7 @@ function populateReview() {
         });
 
         const roleOriginal = document.querySelector('[name="household_role"]');
-        const isHead = roleOriginal && (roleOriginal.value === 'Head of Household' || roleOriginal.value === 'Landlord');
+        const isHead = roleOriginal && roleOriginal.value === 'Head of Household';
 
         const setReviewFieldVisibility = (fieldName, shouldShow) => {
             const field = reviewContent.querySelector(`.review-edit-field[data-field="${fieldName}"]`);
@@ -1589,9 +1462,6 @@ function populateReview() {
         setReviewFieldVisibility('house_type', !!isHead);
         setReviewFieldVisibility('house_ownership', !!isHead);
         setReviewFieldVisibility('household_members', !!isHead);
-        setReviewFieldVisibility('household_income', !!isHead);
-        setReviewFieldVisibility('income_per_member', !!isHead);
-        setReviewFieldVisibility('economic_classification', !!isHead);
     };
 
     const reviewSections = [
@@ -1616,10 +1486,7 @@ function populateReview() {
                 { name: 'household_type', label: 'Household Type' },
                 { name: 'house_type', label: 'House Type' },
                 { name: 'house_ownership', label: 'House Ownership' },
-                { name: 'household_members', label: 'No. of Household Members' },
-                { name: 'household_income', label: 'Total Household Income (Monthly)' },
-                { name: 'income_per_member', label: 'Income per Family Member' },
-                { name: 'economic_classification', label: 'Economic Classification' }
+                { name: 'household_members', label: 'No. of Household Members' }
             ]
         },
         {
@@ -1678,10 +1545,6 @@ function populateReview() {
             // Sync edits back to the original form field
             ['input', 'change'].forEach(evt => {
                 cloned.addEventListener(evt, function () {
-                    if (this.dataset.field === 'household_income') {
-                        applyHouseholdIncomeFormatting(this);
-                    }
-
                     const orig = document.querySelector(`[name="${this.dataset.field}"]`);
                     if (orig) orig.value = this.value;
                     if (this.dataset.field === 'residency_start_date') {
@@ -1689,9 +1552,6 @@ function populateReview() {
                     }
                     if (this.dataset.field === 'household_role') {
                         toggleHouseholdTypeField();
-                    }
-                    if (this.dataset.field === 'household_members' || this.dataset.field === 'household_income') {
-                        computeHouseholdIncomeClassification();
                     }
                     syncReviewFieldsFromOriginal();
                 });
