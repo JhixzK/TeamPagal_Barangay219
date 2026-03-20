@@ -192,7 +192,7 @@ function resolveHouseholdTypeForDisplay($db, $household) {
     if ($headId <= 0 || !columnExists($db, 'residents', 'household_role')) return null;
     $headRow = $db->fetchOne("SELECT household_role FROM residents WHERE id = ? LIMIT 1", [$headId]);
     $role = strtolower(trim((string)($headRow['household_role'] ?? '')));
-    return $role === 'landlord' ? 'Non-Relative Household (Shared / Boarders)' : null;
+    return null;
 }
 
 function householdAddressLabel($household) {
@@ -405,7 +405,7 @@ function handleGetHouseholdInfo($residentId) {
         $isDesignatedHead = (int)($member['resident_id'] ?? 0) === $designatedHeadId;
         $resHouseholdRole = trim((string)($member['household_role'] ?? ''));
         $displayRel = ($isDesignatedHead || $isHeadByRole || $isHeadByFhc)
-            ? (strtolower($resHouseholdRole) === 'landlord' ? 'Landlord' : 'Head')
+            ? 'Head'
             : ($rel !== '' ? $rel : 'Member');
         $mappedMembers[] = [
             'id' => (int)$member['id'],
@@ -463,7 +463,7 @@ function handleGetHouseholdInfo($residentId) {
         $isHeadLinked = $isDesignatedLinked || ($fhcLinked !== '' && $fhcLinked !== '-');
         $linkedRole = trim((string)($residentRow['household_role'] ?? ''));
         $linkedDisplayRel = $isHeadLinked
-            ? (strtolower($linkedRole) === 'landlord' ? 'Landlord' : 'Head')
+            ? 'Head'
             : 'Member';
         $mappedMembers[] = [
             'id' => 0,
