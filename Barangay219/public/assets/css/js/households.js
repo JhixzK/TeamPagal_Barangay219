@@ -621,6 +621,25 @@ function editHousehold(id) {
         document.getElementById('address').value = toTitleCase(h.address || '');
         document.getElementById('total_members').value = (h.total_members === null || typeof h.total_members === 'undefined') ? 0 : h.total_members;
         document.getElementById('registration_date').value = h.registration_date || '';
+        const householdTypeSel = document.getElementById('household_type');
+        if (householdTypeSel) {
+            const storedType = (h.household_type || '').toString().trim();
+            if (storedType) {
+                const hasOption = Array.from(householdTypeSel.options).some(o => o.value === storedType);
+                if (hasOption) {
+                    householdTypeSel.value = storedType;
+                } else {
+                    const opt = document.createElement('option');
+                    opt.value = storedType;
+                    opt.textContent = storedType;
+                    householdTypeSel.appendChild(opt);
+                    householdTypeSel.value = storedType;
+                }
+            }
+            const hasHeadFromRegistration = !!(h.family_head_id && Number(h.family_head_id) > 0);
+            householdTypeSel.disabled = hasHeadFromRegistration;
+            householdTypeSel.title = hasHeadFromRegistration ? 'Household type is from the head\'s registration' : '';
+        }
         document.getElementById('householdModalTitle').textContent = 'Edit Household';
         const totalMembersGroup = document.getElementById('totalMembersGroup');
         if (totalMembersGroup) totalMembersGroup.style.display = '';
@@ -650,6 +669,11 @@ function resetForm() {
     if (sel) {
         sel.innerHTML = '<option value="">-- Select resident to add --</option>';
         delete sel.dataset.householdId;
+    }
+    const householdTypeSel = document.getElementById('household_type');
+    if (householdTypeSel) {
+        householdTypeSel.disabled = false;
+        householdTypeSel.title = '';
     }
     const totalMembersGroup = document.getElementById('totalMembersGroup');
     if (totalMembersGroup) totalMembersGroup.style.display = '';
