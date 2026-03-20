@@ -440,6 +440,8 @@ $place_of_birth = sanitize($_POST['place_of_birth'] ?? '');
 $family_code = sanitize($_POST['family_code'] ?? '');
 $household_role = sanitize($_POST['household_role'] ?? '');
 $household_type = sanitize($_POST['household_type'] ?? '');
+$house_type = sanitize($_POST['house_type'] ?? '');
+$house_ownership = sanitize($_POST['house_ownership'] ?? '');
 $relationship_to_head = sanitize($_POST['relationship_to_head'] ?? ($household_role ?? ''));
 $household_members = isset($_POST['household_members']) ? (int)$_POST['household_members'] : null;
 $household_income_raw = trim((string)($_POST['household_income'] ?? ''));
@@ -520,6 +522,23 @@ if ($household_role === 'Head of Household' || $household_role === 'Landlord') {
         $errors[] = 'Invalid household type selected.';
     }
 
+    $allowed_house_types = ['Concrete', 'Semi-Concrete', 'Light Materials', 'Apartment / Boarding House', 'Townhouse / Row House', 'Informal / Improvised'];
+    if ($house_type === '') {
+        $errors[] = 'House type is required when household role is ' . $household_role . '.';
+    } elseif (!in_array($house_type, $allowed_house_types, true)) {
+        $errors[] = 'Invalid house type selected.';
+    }
+
+    if ($household_role === 'Landlord') {
+        $house_ownership = 'owned';
+    }
+    $allowed_house_ownership = ['owned', 'rented'];
+    if ($house_ownership === '') {
+        $errors[] = 'House ownership is required when household role is ' . $household_role . '.';
+    } elseif (!in_array($house_ownership, $allowed_house_ownership, true)) {
+        $errors[] = 'Invalid house ownership selected.';
+    }
+
     if ($civil_status === 'single' && $household_role === 'Head of Household') {
         $household_members = 1;
     }
@@ -587,6 +606,8 @@ try {
     addColumnIfMissing($db, 'resident_applications', 'economic_classification', "VARCHAR(30) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'length_of_residency', "VARCHAR(40) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'verification_status', "VARCHAR(30) NOT NULL DEFAULT 'pending'");
+    addColumnIfMissing($db, 'resident_applications', 'house_type', "VARCHAR(80) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'house_ownership', "VARCHAR(50) DEFAULT NULL");
 
     $existingCols = array_flip(getTableColumns($db, 'resident_applications'));
 
@@ -607,6 +628,8 @@ try {
         'relationship_to_head' => $relationship_to_head ?: null,
         'household_role' => ($household_role ?: $relationship_to_head) ?: null,
         'household_type' => $household_type ?: null,
+        'house_type' => $house_type ?: null,
+        'house_ownership' => $house_ownership ?: null,
         'household_members' => ($household_members !== null && $household_members > 0) ? $household_members : null,
         'household_income' => ($household_income !== null && $household_income >= 0) ? $household_income : null,
         'income_per_member' => ($income_per_member !== null && $income_per_member >= 0) ? $income_per_member : null,
