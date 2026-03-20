@@ -176,6 +176,25 @@ function normalizeMemberStatus($residentStatus, $verificationStatus) {
     return 'Active';
 }
 
+function householdTypeForResponse($val) {
+    $v = trim((string)($val ?? ''));
+    if ($v === '') return null;
+    $legacy = ['nuclear', 'extended', 'single_parent', 'others'];
+    if (in_array(strtolower($v), $legacy, true)) return null;
+    $register = ['Family Household', 'Couple Only', 'Single Inhabitant', 'Non-Relative Household (Shared / Boarders)', 'Other (Specify)'];
+    return in_array($v, $register, true) ? $v : null;
+}
+
+function resolveHouseholdTypeForDisplay($db, $household) {
+    $val = householdTypeForResponse($household['household_type'] ?? null);
+    if ($val !== null) return $val;
+    $headId = (int)($household['family_head_id'] ?? 0);
+    if ($headId <= 0 || !columnExists($db, 'residents', 'household_role')) return null;
+    $headRow = $db->fetchOne("SELECT household_role FROM residents WHERE id = ? LIMIT 1", [$headId]);
+    $role = strtolower(trim((string)($headRow['household_role'] ?? '')));
+    return $role === 'landlord' ? 'Non-Relative Household (Shared / Boarders)' : null;
+}
+
 function householdAddressLabel($household) {
     $parts = array_filter([
         $household['house_number'] ?? null,
@@ -542,7 +561,7 @@ function handleGetHouseholdInfo($residentId) {
             'barangay' => $household['barangay'],
             'city' => $household['city'],
             'province' => $household['province'],
-            'household_type' => (string)($household['household_type'] ?? 'nuclear'),
+            'household_type' => resolveHouseholdTypeForDisplay($db, $household),
             'housing_status' => (string)($household['housing_status'] ?? 'owned'),
             'years_of_residency' => (int)($household['years_of_residency'] ?? 0),
             'total_members' => $stats['total'],
@@ -608,7 +627,7 @@ function createHeadHousehold($residentId, $data) {
     $barangay = sanitizeInput((string)($data['barangay'] ?? 'Barangay 219'));
     $city = sanitizeInput((string)($data['city'] ?? 'Manila'));
     $province = sanitizeInput((string)($data['province'] ?? 'Metro Manila'));
-    $householdType = strtolower(sanitizeInput((string)($data['household_type'] ?? 'nuclear')));
+    $householdType = trim(sanitizeInput((string)($data['household_type'] ?? '')));
     $housingStatus = strtolower(sanitizeInput((string)($data['housing_status'] ?? 'owned')));
     $yearsResidency = max(0, (int)($data['years_of_residency'] ?? 0));
 
@@ -619,9 +638,12 @@ function createHeadHousehold($residentId, $data) {
         householdJsonResponse(false, null, 'Address fields are required for head of household', 400);
     }
 
-    $allowedHouseholdType = ['nuclear', 'extended', 'single_parent', 'others'];
-    if (!in_array($householdType, $allowedHouseholdType, true)) {
-        $householdType = 'nuclear';
+    $allowedHouseholdType = ['Family Household', 'Couple Only', 'Single Inhabitant', 'Non-Relative Household (Shared / Boarders)', 'Other (Specify)'];
+    if ($householdType !== '' && !in_array($householdType, $allowedHouseholdType, true)) {
+        $householdType = null;
+    }
+    if ($householdType === '') {
+        $householdType = null;
     }
 
     $allowedHousing = ['owned', 'renting', 'informal_settler', 'government_housing'];
@@ -645,7 +667,7 @@ function createHeadHousehold($residentId, $data) {
 
         $houseCols = getColumnsMap('households');
         $insertCols = [$headColumn, 'house_number', 'street', 'barangay', 'city', 'province', 'household_type', 'housing_status', 'years_of_residency'];
-        $insertVals = [$residentId, $houseNumber ?: null, $street, $barangay, $city, $province, $householdType, $housingStatus, $yearsResidency];
+        $insertVals = [$residentId, $houseNumber ?: null, $street, $barangay, $city, $province, $householdType ?: null, $housingStatus, $yearsResidency];
         if (isset($houseCols['family_code'])) {
             $insertCols[] = 'family_code';
             $insertVals[] = $familyCode;
@@ -890,22 +912,28 @@ function updateHouseholdMeta($residentId, $data) {
     }
 
     $householdId = (int)$context['household_id'];
-    $householdType = strtolower(sanitizeInput((string)($data['household_type'] ?? '')));
+    $householdType = trim(sanitizeInput((string)($data['household_type'] ?? '')));
     $housingStatus = strtolower(sanitizeInput((string)($data['housing_status'] ?? '')));
     $yearsResidency = $data['years_of_residency'] ?? null;
     $emergencyName = sanitizeInput((string)($data['emergency_contact_name'] ?? ''));
     $emergencyRelationship = sanitizeInput((string)($data['emergency_contact_relationship'] ?? ''));
     $emergencyNumber = sanitizeInput((string)($data['emergency_contact_number'] ?? ''));
 
-    $allowedType = ['nuclear', 'extended', 'single_parent', 'others'];
+    $allowedType = ['Family Household', 'Couple Only', 'Single Inhabitant', 'Non-Relative Household (Shared / Boarders)', 'Other (Specify)'];
+    $legacyType = ['nuclear', 'extended', 'single_parent', 'others'];
     $allowedHousing = ['owned', 'renting', 'informal_settler', 'government_housing'];
 
     $updates = [];
     $params = [];
 
-    if ($householdType !== '' && in_array($householdType, $allowedType, true)) {
-        $updates[] = 'household_type = ?';
-        $params[] = $householdType;
+    if (array_key_exists('household_type', $data)) {
+        if ($householdType !== '' && in_array($householdType, $allowedType, true)) {
+            $updates[] = 'household_type = ?';
+            $params[] = $householdType;
+        } else {
+            $updates[] = 'household_type = ?';
+            $params[] = null;
+        }
     }
 
     if ($housingStatus !== '' && in_array($housingStatus, $allowedHousing, true)) {
