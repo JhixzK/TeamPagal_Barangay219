@@ -508,13 +508,9 @@ $allowed_household_types = [
     'Other (Specify)'
 ];
 
-if ($household_role === 'Head of Household' || $household_role === 'Landlord') {
+if ($household_role === 'Head of Household') {
     $family_code = generateFamilyCode($db);
     $relationship_to_head = 'Head';
-
-    if ($household_role === 'Landlord') {
-        $household_type = 'Non-Relative Household (Shared / Boarders)';
-    }
 
     if ($household_type === '') {
         $errors[] = 'Household type is required when household role is ' . $household_role . '.';
@@ -529,9 +525,6 @@ if ($household_role === 'Head of Household' || $household_role === 'Landlord') {
         $errors[] = 'Invalid house type selected.';
     }
 
-    if ($household_role === 'Landlord') {
-        $house_ownership = 'owned';
-    }
     $allowed_house_ownership = ['owned', 'rented'];
     if ($house_ownership === '') {
         $errors[] = 'House ownership is required when household role is ' . $household_role . '.';
@@ -544,10 +537,6 @@ if ($household_role === 'Head of Household' || $household_role === 'Landlord') {
     }
     if ($household_members === null || $household_members < 1) {
         $errors[] = 'Number of household members must be at least 1.';
-    }
-
-    if ($household_income === null || $household_income < 0) {
-        $errors[] = 'Total household income is required and must be non-negative.';
     }
 } elseif ($household_role === 'Member of Household') {
     // Family code is optional during registration.
@@ -573,13 +562,8 @@ if ($household_role === 'Head of Household' || $household_role === 'Landlord') {
     $errors[] = 'Please select a valid household role.';
 }
 
-if (($household_role === 'Head of Household' || $household_role === 'Landlord') && $household_members !== null && $household_members > 0 && $household_income !== null && $household_income >= 0) {
-    $income_per_member = round($household_income / $household_members, 2);
-    $economic_classification = $income_per_member < 12000 ? 'Indigent' : 'Non-Indigent';
-} else {
-    $income_per_member = null;
-    $economic_classification = '';
-}
+$income_per_member = null;
+$economic_classification = '';
 
 // Senior citizen auto-validation (60+)
 $age = (int)date('Y') - (int)date('Y', strtotime($birth_date));
