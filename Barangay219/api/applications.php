@@ -87,8 +87,8 @@ function generateUniqueHouseholdCode($db) {
     throw new Exception('Unable to generate unique household code.');
 }
 
-function generateUniqueFamilyHeadCode($db, $isLandlord = false) {
-    $prefix = $isLandlord ? 'LL-' : 'FH-';
+function generateUniqueFamilyHeadCode($db) {
+    $prefix = 'FH-';
     if (!columnExists($db, 'households', 'family_head_code')) {
         return $prefix . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
     }
@@ -102,10 +102,9 @@ function generateUniqueFamilyHeadCode($db, $isLandlord = false) {
     throw new Exception('Unable to generate unique family head code.');
 }
 
-// Generate a unique FH-XXXXX or LL-XXXXX code stored on the residents table.
-// Use $isLandlord = true for Landlord accounts (LL-XXXXX).
-function generateResidentFamilyHeadCode($db, $isLandlord = false) {
-    $prefix = $isLandlord ? 'LL-' : 'FH-';
+// Generate a unique FH-XXXXX code stored on the residents table.
+function generateResidentFamilyHeadCode($db) {
+    $prefix = 'FH-';
     if (!tableExists($db, 'residents') || !columnExists($db, 'residents', 'family_head_code')) {
         return $prefix . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
     }
@@ -487,7 +486,6 @@ function isHeadRoleValue($value) {
         'household head',
         'head of household',
         'head of the family',
-        'landlord',
     ];
 
     if (in_array($v, $allowedHeadRoles, true)) {
@@ -604,18 +602,17 @@ function approveApplication() {
 
         $residentId = $db->lastInsertId();
 
-        // If this application indicates a head of family role, generate a per-resident Family Head Code (FH-XXXXX or LL-XXXXX for Landlord).
+        // If this application indicates a head of family role, generate a per-resident Family Head Code (FH-XXXXX).
         // Exception: Single + Head of Household does NOT get a family head code.
         $relationshipRaw = trim((string)($app['relationship_to_head'] ?? ''));
         $householdRoleRaw = trim((string)($app['household_role'] ?? ''));
         $civilStatusRaw = strtolower(trim((string)($app['civil_status'] ?? '')));
         $roleRaw = $relationshipRaw !== '' ? $relationshipRaw : $householdRoleRaw;
         $isHead = isHeadRoleValue($roleRaw);
-        $isLandlord = strtolower($householdRoleRaw) === 'landlord';
         $isSingleHeadOfHousehold = ($civilStatusRaw === 'single') && (strtolower($householdRoleRaw) === 'head of household');
         $shouldGenerateFamilyHeadCode = $isHead && !$isSingleHeadOfHousehold && columnExists($db, 'residents', 'family_head_code');
         if ($shouldGenerateFamilyHeadCode) {
-            $headCode = generateResidentFamilyHeadCode($db, $isLandlord);
+            $headCode = generateResidentFamilyHeadCode($db);
             $db->query(
                 "UPDATE residents SET family_head_code = ? WHERE id = ?",
                 [$headCode, $residentId]
@@ -874,11 +871,9 @@ function assignHouseholdToApprovedResident() {
             }
             $appHouseholdRole = strtolower(trim((string)($app['household_role'] ?? '')));
             $civilStatusRaw = strtolower(trim((string)($app['civil_status'] ?? '')));
-            $isLandlord = $appHouseholdRole === 'landlord';
             $isSingleHeadOfHousehold = ($civilStatusRaw === 'single') && ($appHouseholdRole === 'head of household');
             if (columnExists($db, 'residents', 'household_role')) {
-                $roleValue = $isLandlord ? 'Landlord' : 'Head';
-                $db->query("UPDATE residents SET household_role = ? WHERE id = ?", [$roleValue, $residentId]);
+                $db->query("UPDATE residents SET household_role = 'Head' WHERE id = ?", [$residentId]);
             }
             // Generate head/household codes if missing (schema tolerant).
             // Exception: Single + Head of Household does NOT get a family head code.
@@ -900,12 +895,12 @@ function assignHouseholdToApprovedResident() {
                     $headRow = $db->fetchOne("SELECT family_head_code FROM residents WHERE id = ? LIMIT 1", [$residentId]);
                     $residentHeadCode = $headRow['family_head_code'] ?? null;
                     if ($isMissingCode($residentHeadCode)) {
-                        $residentHeadCode = generateResidentFamilyHeadCode($db, $isLandlord);
+                        $residentHeadCode = generateResidentFamilyHeadCode($db);
                         $db->query("UPDATE residents SET family_head_code = ? WHERE id = ?", [$residentHeadCode, $residentId]);
                     }
                 }
                 if ($currentHeadIdVal <= 0) {
-                    $fallbackCode = generateUniqueFamilyHeadCode($db, $isLandlord);
+                    $fallbackCode = generateUniqueFamilyHeadCode($db);
                     $db->query(
                         "UPDATE households SET family_head_code = ? WHERE id = ?",
                         [!$isMissingCode($residentHeadCode) ? $residentHeadCode : $fallbackCode, $householdId]
