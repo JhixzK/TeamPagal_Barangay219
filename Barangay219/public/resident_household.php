@@ -185,6 +185,17 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
                 <label for="householdProvince">Province *</label>
                 <input type="text" id="householdProvince" placeholder="e.g., Metro Manila" value="Metro Manila" required>
               </div>
+              <div class="form-group">
+                <label for="headFormHouseholdType">Household Type *</label>
+                <select id="headFormHouseholdType" required>
+                  <option value="">Select Household Type</option>
+                  <option value="Family Household">Family Household</option>
+                  <option value="Couple Only">Couple Only</option>
+                  <option value="Single Inhabitant">Single Inhabitant</option>
+                  <option value="Non-Relative Household (Shared / Boarders)">Non-Relative Household (Shared / Boarders)</option>
+                  <option value="Other (Specify)">Other (Specify)</option>
+                </select>
+              </div>
             </form>
           </div>
           <div class="modal-footer">
@@ -206,12 +217,14 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
             <form id="overviewFormContainer">
               <div class="form-row">
                 <div class="form-group">
-                  <label for="overviewHouseholdType">Household Type *</label>
-                  <select id="overviewHouseholdType" required>
-                    <option value="nuclear">Nuclear</option>
-                    <option value="extended">Extended</option>
-                    <option value="single_parent">Single Parent</option>
-                    <option value="others">Others</option>
+                  <label for="overviewHouseholdType">Household Type</label>
+                  <select id="overviewHouseholdType">
+                    <option value="">Select Household Type</option>
+                    <option value="Family Household">Family Household</option>
+                    <option value="Couple Only">Couple Only</option>
+                    <option value="Single Inhabitant">Single Inhabitant</option>
+                    <option value="Non-Relative Household (Shared / Boarders)">Non-Relative Household (Shared / Boarders)</option>
+                    <option value="Other (Specify)">Other (Specify)</option>
                   </select>
                 </div>
                 <div class="form-group">
