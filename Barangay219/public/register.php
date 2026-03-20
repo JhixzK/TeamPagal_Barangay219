@@ -1207,12 +1207,22 @@ function toggleHouseholdTypeField() {
     const isHeadOfHousehold = householdRoleField.value === 'Head of Household';
     const isLandlord = householdRoleField.value === 'Landlord';
     const showHouseholdFields = isHeadOfHousehold || isLandlord;
+    const civilStatusField = document.getElementById('civil_status');
+    const civilStatus = (civilStatusField?.value || '').toLowerCase().trim();
+    const isSingleHeadOfHousehold = civilStatus === 'single' && isHeadOfHousehold;
 
     householdTypeRow.style.display = showHouseholdFields ? 'flex' : 'none';
     householdTypeField.required = showHouseholdFields;
     houseTypeField.required = showHouseholdFields;
     householdMembersRow.style.display = showHouseholdFields ? 'flex' : 'none';
     householdMembersField.required = showHouseholdFields;
+    if (isSingleHeadOfHousehold) {
+        householdMembersField.value = '1';
+        householdMembersField.readOnly = true;
+        householdMembersField.classList.remove('is-invalid');
+    } else {
+        householdMembersField.readOnly = false;
+    }
     householdIncomeRow.style.display = showHouseholdFields ? 'flex' : 'none';
     householdIncomeField.required = showHouseholdFields;
 
@@ -1288,6 +1298,7 @@ if (civilStatusField) {
         if (householdRoleField && householdRoleField.value === 'Head of Household') {
             filterHouseholdTypesByCivilStatus();
         }
+        toggleHouseholdTypeField();
     });
 }
 
@@ -1480,13 +1491,20 @@ function validateStep(step) {
 
         const householdMembersFieldForValidation = document.querySelector('input[name="household_members"]');
         const householdIncomeFieldForValidation = document.getElementById('household_income');
+        const civilStatusForValidation = (document.getElementById('civil_status')?.value || '').toLowerCase().trim();
+        const isSingleHeadForValidation = civilStatusForValidation === 'single' && roleField?.value === 'Head of Household';
         if (householdMembersFieldForValidation) {
-            const membersValue = parseInt(householdMembersFieldForValidation.value, 10);
-            if (!Number.isFinite(membersValue) || membersValue <= 0) {
-                householdMembersFieldForValidation.classList.add('is-invalid');
-                isValid = false;
-            } else {
+            if (isSingleHeadForValidation) {
+                householdMembersFieldForValidation.value = '1';
                 householdMembersFieldForValidation.classList.remove('is-invalid');
+            } else {
+                const membersValue = parseInt(householdMembersFieldForValidation.value, 10);
+                if (!Number.isFinite(membersValue) || membersValue <= 0) {
+                    householdMembersFieldForValidation.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    householdMembersFieldForValidation.classList.remove('is-invalid');
+                }
             }
         }
         if (householdIncomeFieldForValidation) {
