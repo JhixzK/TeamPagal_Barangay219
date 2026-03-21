@@ -117,10 +117,6 @@ include __DIR__ . '/../includes/sidebar.php';
     color: #475569;
 }
 
-.users-page .users-actions-col {
-    min-width: 176px;
-}
-
 .users-page .users-actions {
     white-space: nowrap;
 }
@@ -229,7 +225,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <th class="text-center">Role</th>
                             <th class="text-center">Status</th>
                             <th class="text-center">Created</th>
-                            <th class="text-center users-actions-col">Actions</th>
+                            <th class="text-center users-actions-col actions-col-wide">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="usersTableBody">
