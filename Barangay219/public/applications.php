@@ -72,7 +72,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <th class="text-center">Purpose</th>
                         <th class="text-center">Date Requested</th>
                         <th class="text-center">Status</th>
-                        <th class="text-center apps-actions-col">Actions</th>
+                        <th class="text-center apps-actions-col actions-col-wide">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="applicationsTableBody">
@@ -315,10 +315,6 @@ include __DIR__ . '/../includes/sidebar.php';
     background: #fff1f3;
     border-color: #f6ccd3;
     color: #9f2f3e;
-}
-
-.apps-page .apps-actions-col {
-    min-width: 176px;
 }
 
 .app-detail-grid {
