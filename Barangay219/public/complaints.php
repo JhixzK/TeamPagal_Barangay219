@@ -63,9 +63,9 @@ include __DIR__ . '/../includes/sidebar.php';
             <li class="nav-item"><a class="nav-link" href="#" data-status="dismissed">Dismissed</a></li>
         </ul>
 
-        <div class="data-table">
+        <div class="data-table complaints-table-wrap">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover complaints-table align-middle">
                     <thead>
                         <tr>
                             <th class="text-center">ID</th>
@@ -74,7 +74,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <th class="text-center">Resident</th>
                             <th class="text-center">Date</th>
                             <th class="text-center">Status</th>
-                            <th class="text-center">Actions</th>
+                            <th class="text-center complaints-actions-col">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="complaintsTableBody"><tr><td colspan="7" class="text-center">Loading...</td></tr></tbody>
@@ -89,6 +89,7 @@ include __DIR__ . '/../includes/sidebar.php';
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.45rem;
+    border-bottom: 0;
 }
 
 .complaints-page .app-tabs .nav-item {
@@ -98,11 +99,170 @@ include __DIR__ . '/../includes/sidebar.php';
 .complaints-page .app-tabs .nav-link {
     width: 100%;
     text-align: center;
+    border: 1px solid #dbe3ee;
+    border-radius: 999px;
+    color: #475569;
+    font-weight: 600;
+    padding: 0.5rem 0.8rem;
+    background: #ffffff;
+}
+
+.complaints-page .app-tabs .nav-link.active {
+    color: #1d4ed8;
+    background: #e8f0ff;
+    border-color: #bfdbfe;
+}
+
+.complaints-page .complaints-table-wrap {
+    border: 1px solid #e7ecf3;
+    border-radius: 14px;
+    background: #fff;
+    padding: 0.35rem;
+}
+
+.complaints-page .complaints-table {
+    margin-bottom: 0;
+}
+
+.complaints-page .complaints-table > :not(caption) > * > * {
+    border-bottom: 1px solid #edf1f6;
+    padding: 0.9rem 0.85rem;
+    vertical-align: middle;
+}
+
+.complaints-page .complaints-table thead th {
+    border-bottom: 1px solid #dfe6ef;
+    color: #4b5563;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: #f9fbfd;
+}
+
+.complaints-page .complaints-table tbody td {
+    color: #1f2937;
+    font-size: 0.94rem;
+}
+
+.complaints-page .complaints-table tbody tr:hover {
+    background: #f8fbff;
+}
+
+.complaints-page .complaints-secondary {
+    color: #6b7280;
+    font-size: 0.86rem;
+}
+
+.complaints-page .complaints-code-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.28rem 0.55rem;
+    border-radius: 999px;
+    background: #f2f5fa;
+    border: 1px solid #e2e8f0;
+    color: #465468;
+    font-size: 0.76rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.complaints-page .complaints-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 110px;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.complaints-page .complaints-pill.status-pending {
+    background: #fff4e8;
+    color: #9a5b11;
+}
+
+.complaints-page .complaints-pill.status-under-review,
+.complaints-page .complaints-pill.status-under-investigation {
+    background: #eaf6ff;
+    color: #1f5f8b;
+}
+
+.complaints-page .complaints-pill.status-scheduled-for-mediation {
+    background: #edf2ff;
+    color: #4c46b7;
+}
+
+.complaints-page .complaints-pill.status-referred,
+.complaints-page .complaints-pill.status-referred-to-other-barangay {
+    background: #eef2f7;
+    color: #4b5563;
+}
+
+.complaints-page .complaints-pill.status-resolved {
+    background: #e9f8ef;
+    color: #1f7a3f;
+}
+
+.complaints-page .complaints-pill.status-dismissed {
+    background: #ffecee;
+    color: #a53a44;
+}
+
+.complaints-page .complaints-pill.status-unknown {
+    background: #f1f3f6;
+    color: #374151;
+}
+
+.complaints-page .complaints-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+
+.complaints-page .action-icon-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e6ebf2;
+    background: #ffffff;
+    color: #5b6678;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.complaints-page .action-icon-btn:hover,
+.complaints-page .action-icon-btn:focus-visible {
+    background: #f5f9ff;
+    border-color: #d6e4ff;
+    color: #2f4f95;
+    transform: translateY(-1px);
+}
+
+.complaints-page .action-icon-btn.action-delete:hover,
+.complaints-page .action-icon-btn.action-delete:focus-visible {
+    background: #fff1f3;
+    border-color: #f6ccd3;
+    color: #9f2f3e;
+}
+
+.complaints-page .complaints-actions-col {
+    min-width: 130px;
 }
 
 @media (max-width: 768px) {
     .complaints-page .app-tabs {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .complaints-page .complaints-table > :not(caption) > * > * {
+        padding: 0.75rem 0.6rem;
     }
 }
 </style>
