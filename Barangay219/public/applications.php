@@ -61,8 +61,8 @@ include __DIR__ . '/../includes/sidebar.php';
             <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
         </ul>
 
-        <div class="table-responsive data-table">
-            <table class="table table-hover">
+        <div class="table-responsive data-table apps-table-wrap">
+            <table class="table table-hover apps-table align-middle">
                 <thead>
                     <tr>
                         <th class="text-center">Ref #</th>
@@ -72,7 +72,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <th class="text-center">Purpose</th>
                         <th class="text-center">Date Requested</th>
                         <th class="text-center">Status</th>
-                        <th class="text-center">Actions</th>
+                        <th class="text-center apps-actions-col">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="applicationsTableBody">
@@ -143,11 +143,148 @@ include __DIR__ . '/../includes/sidebar.php';
     vertical-align: middle;
 }
 
+.apps-page .apps-table-wrap {
+    border: 1px solid #e7ecf3;
+    border-radius: 14px;
+    background: #fff;
+    padding: 0.35rem;
+}
+
+.apps-page .apps-table {
+    margin-bottom: 0;
+}
+
+.apps-page .apps-table > :not(caption) > * > * {
+    border-bottom: 1px solid #edf1f6;
+    padding: 0.9rem 0.85rem;
+    vertical-align: middle;
+}
+
+.apps-page .apps-table thead th {
+    border-bottom: 1px solid #dfe6ef;
+    color: #4b5563;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: #f9fbfd;
+}
+
+.apps-page .apps-table tbody td {
+    color: #1f2937;
+    font-size: 0.94rem;
+}
+
+.apps-page .apps-table tbody tr:hover {
+    background: #f8fbff;
+}
+
+.apps-page .apps-secondary {
+    color: #6b7280;
+    font-size: 0.86rem;
+}
+
 .apps-page .data-table code {
     background: #f1f5f9;
     color: #0f172a;
     padding: 0.1rem 0.35rem;
     border-radius: 6px;
+}
+
+.apps-page .apps-code-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.28rem 0.55rem;
+    border-radius: 999px;
+    background: #f2f5fa;
+    border: 1px solid #e2e8f0;
+    color: #465468;
+    font-size: 0.76rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.apps-page .apps-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 106px;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.apps-page .apps-pill.status-pending {
+    background: #fff4e8;
+    color: #9a5b11;
+}
+
+.apps-page .apps-pill.status-approved {
+    background: #eaf6ff;
+    color: #1f5f8b;
+}
+
+.apps-page .apps-pill.status-ready-for-pickup {
+    background: #edf2ff;
+    color: #4c46b7;
+}
+
+.apps-page .apps-pill.status-released,
+.apps-page .apps-pill.status-issued {
+    background: #e9f8ef;
+    color: #1f7a3f;
+}
+
+.apps-page .apps-pill.status-rejected {
+    background: #ffecee;
+    color: #a53a44;
+}
+
+.apps-page .apps-pill.status-unknown {
+    background: #eef2f7;
+    color: #4b5563;
+}
+
+.apps-page .apps-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+
+.apps-page .action-icon-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e6ebf2;
+    background: #ffffff;
+    color: #5b6678;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.apps-page .action-icon-btn:hover,
+.apps-page .action-icon-btn:focus-visible {
+    background: #f5f9ff;
+    border-color: #d6e4ff;
+    color: #2f4f95;
+    transform: translateY(-1px);
+}
+
+.apps-page .action-icon-btn.action-reject:hover,
+.apps-page .action-icon-btn.action-reject:focus-visible {
+    background: #fff1f3;
+    border-color: #f6ccd3;
+    color: #9f2f3e;
+}
+
+.apps-page .apps-actions-col {
+    min-width: 180px;
 }
 
 .app-detail-grid {
@@ -253,6 +390,10 @@ include __DIR__ . '/../includes/sidebar.php';
 @media (max-width: 992px) {
     .apps-page .app-tabs {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .apps-page .apps-table > :not(caption) > * > * {
+        padding: 0.75rem 0.6rem;
     }
 }
 
@@ -462,26 +603,28 @@ include __DIR__ . '/../includes/sidebar.php';
                 } else {
                       tbody.innerHTML = apps.map(a => `
                           <tr>
-                              <td class="text-center"><code>${esc(a.application_ref || 'APP-'+a.id)}</code></td>
-                              <td class="text-center"><code>${esc(a.control_number || '-')}</code></td>
-                              <td class="text-center">${esc(toTitleCase(a.resident_name || '-'))}</td>
+                              <td class="text-center"><span class="apps-code-badge">${esc(a.application_ref || 'APP-'+a.id)}</span></td>
+                              <td class="text-center">${a.control_number ? `<span class="apps-code-badge">${esc(a.control_number)}</span>` : '<span class="apps-secondary">-</span>'}</td>
+                              <td class="text-center fw-semibold">${esc(toTitleCase(a.resident_name || '-'))}</td>
                               <td class="text-center">${esc(toTitleCase((a.certificate_type || '').replace(/_/g, ' ')))}</td>
-                              <td class="text-center">${esc(toTitleCase((a.purpose || '').substring(0,20)))}${(a.purpose||'').length>20?'...':''}</td>
-                              <td class="text-center">${formatDate(a.created_at)}</td>
-                              <td class="text-center"><span class="badge bg-${getStatusColor(a.status)}">${getStatusLabel(a.status)}</span></td>
+                              <td class="text-center"><span class="apps-secondary">${esc(toTitleCase((a.purpose || '').substring(0,20)))}${(a.purpose||'').length>20?'...':''}</span></td>
+                              <td class="text-center"><span class="apps-secondary">${formatDate(a.created_at)}</span></td>
+                              <td class="text-center"><span class="apps-pill ${getStatusColor(a.status)}">${getStatusLabel(a.status)}</span></td>
                               <td class="text-center">
-                                ${['ready_for_pickup', 'released'].includes(a.status) ? `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print / PDF" aria-label="Print / PDF">Print / PDF</a>` : ''}
-                                <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewApp(${a.id})"><i class="bi bi-eye"></i></button>
+                                <div class="apps-actions">
+                                ${['ready_for_pickup', 'released'].includes(a.status) ? `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="action-icon-btn" title="Print / PDF" aria-label="Print / PDF"><i class="bi bi-printer"></i></a>` : ''}
+                                <button class="action-icon-btn" title="View" aria-label="View" onclick="viewApp(${a.id})"><i class="bi bi-eye"></i></button>
                                   ${APP_PERMS.canEdit && a.status === 'pending' ? `
-                                      <button class="btn btn-sm btn-success" title="Approve" aria-label="Approve" onclick="updateStatus(${a.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
-                                      <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="rejectApp(${a.id})"><i class="bi bi-x-lg"></i></button>
+                                      <button class="action-icon-btn" title="Approve" aria-label="Approve" onclick="updateStatus(${a.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
+                                      <button class="action-icon-btn action-reject" title="Reject" aria-label="Reject" onclick="rejectApp(${a.id})"><i class="bi bi-x-lg"></i></button>
                                   ` : ''}
                                   ${APP_PERMS.canEdit && a.status === 'approved' ? `
-                                          <button class="btn btn-sm btn-info" title="Prepare for Pickup" aria-label="Prepare for Pickup" onclick="updateStatus(${a.id}, 'ready_for_pickup')"><i class="bi bi-bag-check"></i></button>
+                                          <button class="action-icon-btn" title="Prepare for Pickup" aria-label="Prepare for Pickup" onclick="updateStatus(${a.id}, 'ready_for_pickup')"><i class="bi bi-bag-check"></i></button>
                                   ` : ''}
                                   ${APP_PERMS.canEdit && a.status === 'ready_for_pickup' ? `
-                                      <button class="btn btn-sm btn-success" title="Mark Released" aria-label="Mark Released" onclick="updateStatus(${a.id}, 'released')"><i class="bi bi-box-arrow-up-right"></i></button>
+                                      <button class="action-icon-btn" title="Mark Released" aria-label="Mark Released" onclick="updateStatus(${a.id}, 'released')"><i class="bi bi-box-arrow-up-right"></i></button>
                                   ` : ''}
+                                  </div>
                               </td>
                           </tr>
                       `).join('');
@@ -570,14 +713,14 @@ include __DIR__ . '/../includes/sidebar.php';
 
     function getStatusColor(s) {
         const c = {
-            'pending':'warning',
-            'approved':'info',
-            'ready_for_pickup':'primary',
-            'released':'success',
-            'rejected':'danger',
-            'issued':'success'
+            'pending':'status-pending',
+            'approved':'status-approved',
+            'ready_for_pickup':'status-ready-for-pickup',
+            'released':'status-released',
+            'rejected':'status-rejected',
+            'issued':'status-issued'
         };
-        return c[s] || 'secondary';
+        return c[s] || 'status-unknown';
     }
 
     function getStatusLabel(status) {
