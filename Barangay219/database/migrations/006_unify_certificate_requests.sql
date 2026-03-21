@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS `certificate_requests` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE `certificate_requests`
+  ADD COLUMN IF NOT EXISTS `purpose_option` VARCHAR(120) DEFAULT NULL AFTER `purpose`,
+  ADD COLUMN IF NOT EXISTS `purpose_other` TEXT DEFAULT NULL AFTER `purpose_option`,
+  ADD COLUMN IF NOT EXISTS `purpose_details` TEXT DEFAULT NULL AFTER `purpose_other`,
   ADD COLUMN IF NOT EXISTS `attachment` VARCHAR(255) DEFAULT NULL AFTER `purpose`,
   ADD COLUMN IF NOT EXISTS `reference_number` VARCHAR(50) DEFAULT NULL AFTER `attachment`,
   ADD COLUMN IF NOT EXISTS `cert_name` VARCHAR(255) DEFAULT NULL AFTER `status`,

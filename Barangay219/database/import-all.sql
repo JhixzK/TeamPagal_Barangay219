@@ -139,6 +139,7 @@ CREATE TABLE `certificate_requests` (
   `requested_by` INT(11) NOT NULL,
   `certificate_type` ENUM('barangay_clearance', 'certificate_indigency', 'certificate_residency', 'transfer_request') NOT NULL,
   `purpose` TEXT DEFAULT NULL,
+  `purpose_details` TEXT DEFAULT NULL,
   `status` ENUM('pending', 'approved', 'rejected', 'issued') DEFAULT 'pending',
   `issued_date` DATE DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
