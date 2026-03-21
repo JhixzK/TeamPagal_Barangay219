@@ -320,6 +320,78 @@ body {
     box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.35);
 }
 
+.module-page .search-bar .form-control,
+.module-page .search-bar .form-select {
+    min-height: 40px;
+}
+
+.module-page .search-bar .btn {
+    min-height: 40px;
+    border-radius: 10px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.42rem;
+}
+
+.module-page .search-bar .btn i {
+    font-size: 0.92rem;
+    line-height: 1;
+}
+
+.module-page .action-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+}
+
+.module-page .action-icon-btn i {
+    font-size: 0.92rem;
+    line-height: 1;
+}
+
+.module-page th[class$='-actions-col'],
+.module-page td[class$='-actions-col'] {
+    white-space: nowrap;
+}
+
+.module-page .users-actions,
+.module-page .resident-actions,
+.module-page .resident-apps-actions,
+.module-page .households-actions,
+.module-page .blotter-actions,
+.module-page .complaints-actions,
+.module-page .announcements-actions,
+.module-page .apps-actions,
+.module-page .official-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+}
+
+.module-page .resident-pill,
+.module-page .resident-apps-pill,
+.module-page .blotter-pill,
+.module-page .apps-pill,
+.module-page .complaints-pill,
+.module-page .announcement-pill,
+.module-page .user-pill,
+.module-page .official-pill,
+.module-page .vacant-pill {
+    min-height: 28px;
+    padding: 0.33rem 0.62rem;
+    font-size: 0.75rem;
+    line-height: 1.1;
+}
+
 .module-page .app-tabs {
     border-bottom: 0;
     gap: 0.35rem;
