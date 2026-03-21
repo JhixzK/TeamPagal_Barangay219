@@ -672,6 +672,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $bindValues[] = ($formData['purpose'] === 'Others') ? $formData['purpose_other'] : null;
         }
 
+        if (rcColumnExists($mysqli, 'certificate_requests', 'purpose_details')) {
+          $insertColumns[] = 'purpose_details';
+          $placeholders[] = '?';
+          $bindTypes .= 's';
+          $bindValues[] = ($formData['purpose'] === 'Others') ? $formData['purpose_other'] : null;
+        }
+
         if (rcColumnExists($mysqli, 'certificate_requests', 'application_ref')) {
           $insertColumns[] = 'application_ref';
           $placeholders[] = '?';
