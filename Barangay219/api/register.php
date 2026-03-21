@@ -491,6 +491,7 @@ if (!$residency_start_date || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $residency_st
 $educational_attainment = sanitize($_POST['educational_attainment'] ?? '');
 $employment_status = sanitize($_POST['employment_status'] ?? '');
 $occupation = sanitize($_POST['occupation'] ?? '');
+$voter_status = sanitize($_POST['voter_status'] ?? '');
 $is_senior = isset($_POST['is_senior_citizen']) && $_POST['is_senior_citizen'] === '1';
 $is_pwd = isset($_POST['is_pwd']) && $_POST['is_pwd'] === '1';
 $pwd_id_number = $is_pwd ? sanitize($_POST['pwd_id_number'] ?? '') : null;
@@ -507,6 +508,20 @@ $allowed_household_types = [
     'Non-Relative Household (Shared / Boarders)',
     'Other (Specify)'
 ];
+
+$allowed_voter_statuses = [
+    'Registered Voter (This Barangay)',
+    'Registered Voter (Other Barangay)',
+    'Not a Registered Voter',
+    'Not Eligible to Vote (Minor / Below 18)'
+];
+
+if ($voter_status !== '' && !in_array($voter_status, $allowed_voter_statuses, true)) {
+    $errors[] = 'Invalid voter status selected.';
+}
+if ($voter_status === '') {
+    $errors[] = 'Voter status is required.';
+}
 
 if ($household_role === 'Head of Household') {
     $family_code = generateFamilyCode($db);
@@ -592,6 +607,7 @@ try {
     addColumnIfMissing($db, 'resident_applications', 'verification_status', "VARCHAR(30) NOT NULL DEFAULT 'pending'");
     addColumnIfMissing($db, 'resident_applications', 'house_type', "VARCHAR(80) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'house_ownership', "VARCHAR(50) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'voter_status', "VARCHAR(80) DEFAULT NULL");
 
     $existingCols = array_flip(getTableColumns($db, 'resident_applications'));
 
@@ -632,6 +648,7 @@ try {
         'emergency_contact_name' => $emergency_contact_name,
         'emergency_contact_number' => $emergency_contact_number,
         'emergency_contact_relationship' => $emergency_contact_relationship,
+        'voter_status' => $voter_status !== '' ? $voter_status : null,
         'educational_attainment' => $educational_attainment ?: null,
         'employment_status' => $employment_status ?: null,
         'occupation' => $occupation ?: null,
