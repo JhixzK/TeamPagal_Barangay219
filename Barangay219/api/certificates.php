@@ -148,6 +148,7 @@ function ensureCertificateWorkflowSchema() {
     $addColumn('cert_body', "TEXT NULL");
     $addColumn('purpose_option', "VARCHAR(120) NULL");
     $addColumn('purpose_other', "TEXT NULL");
+    $addColumn('purpose_details', "TEXT NULL");
     $addColumn('rejection_reason', "TEXT NULL");
     $addColumn('date_issued', "DATE NULL");
     $addColumn('issued_date', "DATE NULL");
@@ -189,6 +190,15 @@ function ensureCertificateWorkflowSchema() {
         $year = date('Y', strtotime($row['created_at'] ?: 'now'));
         $appRef = 'APP-' . $year . '-' . str_pad((string)$id, 5, '0', STR_PAD_LEFT);
         $db->query("UPDATE certificate_requests SET application_ref = ? WHERE id = ?", [$appRef, $id]);
+    }
+
+    // Keep both legacy/new columns in sync for purpose details.
+    if (isset($map['purpose_other']) && isset($map['purpose_details'])) {
+        $db->query("UPDATE certificate_requests
+                    SET purpose_details = COALESCE(NULLIF(purpose_details, ''), purpose_other)
+                    WHERE (purpose_details IS NULL OR purpose_details = '')
+                      AND purpose_other IS NOT NULL
+                      AND purpose_other <> ''");
     }
 }
 
@@ -550,6 +560,10 @@ function submitResidentCertificateRequest() {
         );
 
         $id = (int)$db->lastInsertId();
+
+        if ($purposeOther !== '') {
+            $db->query("UPDATE certificate_requests SET purpose_details = ? WHERE id = ?", [$purposeOther, $id]);
+        }
         $appRef = generateApplicationRefForId($id);
         $refNo = generateReferenceNumberForId($id);
 
@@ -625,6 +639,10 @@ function createCertificateByAdmin() {
         );
 
         $id = (int)$db->lastInsertId();
+
+        if ($purposeOther !== '') {
+            $db->query("UPDATE certificate_requests SET purpose_details = ? WHERE id = ?", [$purposeOther, $id]);
+        }
         $appRef = generateApplicationRefForId($id);
         $refNo = generateReferenceNumberForId($id);
 
@@ -742,24 +760,7 @@ function saveCertificateDraft() {
         $params = [];
 
         if ($certName !== '' || $certAddress !== '' || $certPurpose !== '') {
-            if ($currentStatus !== 'approved') {
-                sendResponse(false, 'Only approved requests can be edited before finalization', null, 400);
-            }
-
-            if ($certName !== '') {
-                $updates[] = 'cert_name = ?';
-                $params[] = $certName;
-            }
-            if ($certAddress !== '') {
-                $updates[] = 'cert_address = ?';
-                $params[] = $certAddress;
-            }
-            if ($certPurpose !== '') {
-                $updates[] = 'cert_purpose = ?';
-                $params[] = $certPurpose;
-                $updates[] = 'purpose = ?';
-                $params[] = $certPurpose;
-            }
+            sendResponse(false, 'Manual certificate field editing is disabled. Use Prepare for Pickup for automatic generation.', null, 400);
         }
 
         if ($remarksProvided) {
@@ -840,21 +841,9 @@ function approveAndPrepareForPickup() {
     }
 
     $id = (int)($_POST['id'] ?? 0);
-    $name = trim((string)($_POST['cert_name'] ?? $_POST['name'] ?? ''));
-    $age = (int)($_POST['cert_age'] ?? $_POST['age'] ?? 0);
-    $address = trim((string)($_POST['cert_address'] ?? $_POST['address'] ?? ''));
-    $purposeOption = trim((string)($_POST['purpose'] ?? $_POST['cert_purpose'] ?? ''));
-    $purposeOther = trim((string)($_POST['purpose_other'] ?? ''));
-
     if ($id <= 0) {
         sendResponse(false, 'ID required', null, 400);
     }
-
-    if (strtolower($purposeOption) === 'others' && $purposeOther === '') {
-        sendResponse(false, 'Purpose details are required when Others is selected', null, 400);
-    }
-
-    $purpose = resolvePurpose($purposeOption, $purposeOther);
 
     try {
         $db = Database::getInstance();
@@ -862,11 +851,11 @@ function approveAndPrepareForPickup() {
 
         $row = $db->fetchOne(
             "SELECT resident_id, certificate_type, status, cert_body, cert_name, cert_age, cert_address,
-                    cert_purpose, control_number, date_issued, civil_status, birth_date,
+                  cert_purpose, purpose, control_number, date_issued, civil_status, birth_date,
                     first_name, middle_name, last_name, resident_address
              FROM (
                 SELECT c.resident_id, c.certificate_type, c.status, c.cert_body, c.cert_name, c.cert_age,
-                       c.cert_address, c.cert_purpose, c.control_number, c.date_issued,
+                  c.cert_address, c.cert_purpose, c.purpose, c.control_number, c.date_issued,
                        r.civil_status, r.birth_date, r.first_name, r.middle_name, r.last_name,
                        r.address AS resident_address
                 FROM certificate_requests c
@@ -885,16 +874,22 @@ function approveAndPrepareForPickup() {
             sendResponse(false, 'Only approved requests can be prepared for pickup', null, 400);
         }
 
-        $resolvedName = $name !== '' ? $name : trim(
+        $resolvedName = trim(
             (string)($row['cert_name'] ?? '') !== ''
                 ? (string)$row['cert_name']
                 : ((string)($row['first_name'] ?? '') . ' '
                     . ((string)($row['middle_name'] ?? '') !== '' ? (string)$row['middle_name'] . ' ' : '')
                     . (string)($row['last_name'] ?? ''))
         );
-        $resolvedAddress = $address !== '' ? $address : trim((string)($row['cert_address'] ?? $row['resident_address'] ?? ''));
-        $resolvedPurpose = $purpose !== '' ? $purpose : trim((string)($row['cert_purpose'] ?? 'legal purpose'));
-        $resolvedAge = $age > 0 ? $age : (int)($row['cert_age'] ?? 0);
+        $resolvedAddress = trim((string)($row['cert_address'] ?? $row['resident_address'] ?? ''));
+        $resolvedPurpose = trim((string)($row['cert_purpose'] ?? ''));
+        if ($resolvedPurpose === '') {
+            $resolvedPurpose = trim((string)($row['purpose'] ?? ''));
+        }
+        if ($resolvedPurpose === '') {
+            $resolvedPurpose = 'legal purpose';
+        }
+        $resolvedAge = (int)($row['cert_age'] ?? 0);
         if ($resolvedAge <= 0) {
             $birthDateRaw = trim((string)($row['birth_date'] ?? ''));
             if ($birthDateRaw !== '') {
@@ -908,16 +903,13 @@ function approveAndPrepareForPickup() {
         }
 
         $civilStatus = trim((string)($row['civil_status'] ?? getResidentCivilStatus((int)$row['resident_id'])));
-        $issueDate = trim((string)($_POST['date_issued'] ?? $row['date_issued'] ?? ''));
-        if ($issueDate === '') {
-            $issueDate = date('Y-m-d');
-        }
+        $issueDate = date('Y-m-d');
         $controlNumber = trim((string)($row['control_number'] ?? ''));
         if ($controlNumber === '') {
             $controlNumber = generateControlNumber();
         }
 
-        $generatedBody = trim((string)($_POST['cert_body'] ?? ''));
+        $generatedBody = '';
         if ($generatedBody === '') {
             $generatedBody = buildCertificateBody(
                 (string)$row['certificate_type'],
