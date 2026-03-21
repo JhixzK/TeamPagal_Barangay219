@@ -66,16 +66,17 @@ include __DIR__ . '/../includes/sidebar.php';
                 <thead>
                     <tr>
                         <th class="text-center">Ref #</th>
+                        <th class="text-center">Control #</th>
                         <th class="text-center">Resident</th>
                         <th class="text-center">Type</th>
                         <th class="text-center">Purpose</th>
-                        <th class="text-center">Date</th>
+                        <th class="text-center">Date Requested</th>
                         <th class="text-center">Status</th>
                         <th class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="applicationsTableBody">
-                    <tr><td colspan="7" class="text-center py-4">Loading...</td></tr>
+                    <tr><td colspan="8" class="text-center py-4">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -437,7 +438,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
     function loadApplications() {
         const tbody = document.getElementById('applicationsTableBody');
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border"></div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="spinner-border"></div></td></tr>';
         const params = new URLSearchParams({
             action: 'list',
             page: currentPage.toString()
@@ -452,19 +453,20 @@ include __DIR__ . '/../includes/sidebar.php';
             .then(r => r.json())
             .then(data => {
                 if (!data.success) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-danger">' + (data.message || 'Error') + '</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-danger">' + (data.message || 'Error') + '</td></tr>';
                     return;
                 }
                 const apps = data.data.certificates || data.data || [];
                 if (apps.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No applications found.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No applications found.</td></tr>';
                 } else {
                       tbody.innerHTML = apps.map(a => `
                           <tr>
                               <td class="text-center"><code>${esc(a.application_ref || 'APP-'+a.id)}</code></td>
+                              <td class="text-center"><code>${esc(a.control_number || '-')}</code></td>
                               <td class="text-center">${esc(toTitleCase(a.resident_name || '-'))}</td>
                               <td class="text-center">${esc(toTitleCase((a.certificate_type || '').replace(/_/g, ' ')))}</td>
-                              <td class="text-center">${esc(toTitleCase((a.purpose || '').substring(0,30)))}${(a.purpose||'').length>30?'...':''}</td>
+                              <td class="text-center">${esc(toTitleCase((a.purpose || '').substring(0,20)))}${(a.purpose||'').length>20?'...':''}</td>
                               <td class="text-center">${formatDate(a.created_at)}</td>
                               <td class="text-center"><span class="badge bg-${getStatusColor(a.status)}">${getStatusLabel(a.status)}</span></td>
                               <td class="text-center">
@@ -480,7 +482,6 @@ include __DIR__ . '/../includes/sidebar.php';
                                   ${APP_PERMS.canEdit && a.status === 'ready_for_pickup' ? `
                                       <button class="btn btn-sm btn-success" title="Mark Released" aria-label="Mark Released" onclick="updateStatus(${a.id}, 'released')"><i class="bi bi-box-arrow-up-right"></i></button>
                                   ` : ''}
-                                  ${['ready_for_pickup', 'released'].includes(a.status) ? (a.control_number ? `<small>${esc(a.control_number)}</small>` : '') : ''}
                               </td>
                           </tr>
                       `).join('');
@@ -488,7 +489,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 const totalPages = data.data.total_pages || 1;
                 renderPagination(totalPages, data.data.page || 1);
             })
-            .catch(() => { tbody.innerHTML = '<tr><td colspan="7" class="text-danger">Failed to load.</td></tr>'; });
+                .catch(() => { tbody.innerHTML = '<tr><td colspan="8" class="text-danger">Failed to load.</td></tr>'; });
     }
 
     function renderPagination(totalPages, page) {
