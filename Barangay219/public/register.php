@@ -532,6 +532,94 @@ $barangay219_purok_options = [
                                             <input type="text" name="citizenship" class="form-control" value="Filipino" maxlength="30" readonly tabindex="-1">
                                         </div>
                                     </div>
+                                    <hr>
+                                    <h6 class="text-secondary mb-3">Socio-Economic Information</h6>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label>Voter Status <span class="text-danger">*</span></label>
+                                            <select name="voter_status" id="voter_status" class="form-select" required>
+                                                <option value="">Select Voter Status</option>
+                                                <option value="Registered Voter (This Barangay)">Registered Voter (This Barangay)</option>
+                                                <option value="Registered Voter (Other Barangay)">Registered Voter (Other Barangay)</option>
+                                                <option value="Not a Registered Voter">Not a Registered Voter</option>
+                                                <option value="Not Eligible to Vote (Minor / Below 18)">Not Eligible to Vote (Minor / Below 18)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3" id="precinctNumberWrapper" style="display:none;">
+                                            <label>Precinct Number</label>
+                                            <input type="text" name="precinct_number" class="form-control" maxlength="50" placeholder="Enter precinct number (optional)">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label>Educational Attainment <span class="text-danger">*</span></label>
+                                            <select name="educational_attainment" class="form-select" required>
+                                                <option value="">Select Educational Attainment</option>
+                                                <option value="No Formal Education">No Formal Education</option>
+                                                <option value="Elementary Level">Elementary Level</option>
+                                                <option value="Elementary Graduate">Elementary Graduate</option>
+                                                <option value="High School Level (Junior High)">High School Level (Junior High)</option>
+                                                <option value="High School Graduate (Junior High)">High School Graduate (Junior High)</option>
+                                                <option value="Senior High School Level">Senior High School Level</option>
+                                                <option value="Senior High School Graduate">Senior High School Graduate</option>
+                                                <option value="Vocational / Technical Course">Vocational / Technical Course</option>
+                                                <option value="College Level">College Level</option>
+                                                <option value="College Graduate">College Graduate</option>
+                                                <option value="Postgraduate (Master's Degree)">Postgraduate (Master's Degree)</option>
+                                                <option value="Doctorate Degree (PhD, etc.)">Doctorate Degree (PhD, etc.)</option>
+                                                <option value="ALS (Alternative Learning System) Graduate">ALS (Alternative Learning System) Graduate</option>
+                                                <option value="Others (Please Specify)">Others (Please Specify)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label>Occupation <span class="text-danger">*</span></label>
+                                            <select name="occupation" class="form-select" id="occupation" required>
+                                                <option value="">Select Occupation</option>
+                                                <option value="Student">Student</option>
+                                                <option value="Unemployed">Unemployed</option>
+                                                <option value="Self-Employed / Entrepreneur">Self-Employed / Entrepreneur</option>
+                                                <option value="Office Worker / Clerk">Office Worker / Clerk</option>
+                                                <option value="Call Center Agent (BPO)">Call Center Agent (BPO)</option>
+                                                <option value="Teacher / Educator">Teacher / Educator</option>
+                                                <option value="Healthcare Worker (Nurse, Midwife, etc.)">Healthcare Worker (Nurse, Midwife, etc.)</option>
+                                                <option value="Construction Worker">Construction Worker</option>
+                                                <option value="Driver (Jeepney, Tricycle, Taxi, Delivery)">Driver (Jeepney, Tricycle, Taxi, Delivery)</option>
+                                                <option value="Vendor / Market Seller">Vendor / Market Seller</option>
+                                                <option value="Factory Worker">Factory Worker</option>
+                                                <option value="Security Guard">Security Guard</option>
+                                                <option value="Domestic Helper (Kasambahay)">Domestic Helper (Kasambahay)</option>
+                                                <option value="Overseas Filipino Worker (OFW)">Overseas Filipino Worker (OFW)</option>
+                                                <option value="Farmer">Farmer</option>
+                                                <option value="Fisherman">Fisherman</option>
+                                                <option value="Technician (Electrician, Mechanic, etc.)">Technician (Electrician, Mechanic, etc.)</option>
+                                                <option value="IT / Software Professional">IT / Software Professional</option>
+                                                <option value="Salesperson / Retail Staff">Salesperson / Retail Staff</option>
+                                                <option value="Government Employee">Government Employee</option>
+                                                <option value="Police / Military Personnel">Police / Military Personnel</option>
+                                                <option value="Barangay Official / Staff">Barangay Official / Staff</option>
+                                                <option value="Freelancer (Online Jobs)">Freelancer (Online Jobs)</option>
+                                                <option value="Others (Please Specify)">Others (Please Specify)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label>Employment Status <span class="text-danger">*</span></label>
+                                            <select name="employment_status" class="form-select" required>
+                                                <option value="">Select Status</option>
+                                                <option value="Employed">Employed</option>
+                                                <option value="Unemployed">Unemployed</option>
+                                                <option value="Self-Employed">Self-Employed</option>
+                                                <option value="Student">Student</option>
+                                                <option value="Retired">Retired</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3" id="monthlyIncomeWrapper">
+                                            <label>Monthly Income (PHP) <span class="text-danger">*</span></label>
+                                            <input type="number" name="household_income" class="form-control" min="0" step="0.01" inputmode="decimal" placeholder="e.g., 15000" required>
+                                            <small class="text-muted">Enter your exact monthly salary/income amount.</small>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -576,7 +664,7 @@ $barangay219_purok_options = [
                                             </select>
                                             <small class="text-muted">Select your household setup.</small>
                                         </div>
-                                        <div class="col-md-6 mb-3">
+                                        <div class="col-md-4 mb-3">
                                             <label>House Type <span class="text-danger">*</span></label>
                                             <select name="house_type" id="house_type" class="form-select">
                                                 <option value="">Select House Type</option>
@@ -703,14 +791,8 @@ $barangay219_purok_options = [
                                             <label>Date of Residency Start <span class="text-danger">*</span></label>
                                             <input type="text" name="residency_start_date" id="residency_start_date" class="form-control" placeholder="Select date" required>
                                             <small class="text-muted">Minimum residency requirement is 6 months.</small>
+                                            <small class="text-muted d-block mt-1" id="computed_residency_display">Computed length of residency will appear here.</small>
                                             <div class="invalid-feedback">Valid residency start date is required (minimum 6 months ago).</div>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label>Computed Length of Residency</label>
-                                            <input type="text" id="computed_residency_display" class="form-control" readonly placeholder="Computed value">
-                                            <small class="text-muted">Years and months calculated from residency start date.</small>
                                         </div>
                                     </div>
                                     <input type="hidden" name="length_of_residency_years" id="length_of_residency_years" value="">
@@ -1103,7 +1185,7 @@ function computeResidencyDuration(startDateStr) {
     if (!startDateStr || startDateStr.trim() === '') {
         hiddenYears.value = '';
         hiddenResidency.value = '';
-        displayField.value = '';
+        displayField.textContent = 'Computed length of residency will appear here.';
         startDateField.classList.remove('is-valid', 'is-invalid');
         return;
     }
@@ -1113,7 +1195,7 @@ function computeResidencyDuration(startDateStr) {
     if (isNaN(startDate.getTime())) {
         hiddenYears.value = '';
         hiddenResidency.value = '';
-        displayField.value = 'Invalid date';
+        displayField.textContent = 'Invalid date';
         startDateField.classList.add('is-invalid');
         return;
     }
@@ -1122,7 +1204,7 @@ function computeResidencyDuration(startDateStr) {
     if (startDate > new Date()) {
         hiddenYears.value = '';
         hiddenResidency.value = '';
-        displayField.value = 'Date cannot be in the future';
+        displayField.textContent = 'Date cannot be in the future';
         startDateField.classList.remove('is-valid');
         startDateField.classList.add('is-invalid');
         return;
@@ -1159,7 +1241,7 @@ function computeResidencyDuration(startDateStr) {
     hiddenResidency.value = `${yLabel} ${mLabel}`;
 
     // Update display field
-    displayField.value = `${yLabel} ${mLabel}`;
+    displayField.textContent = `Computed length of residency: ${yLabel} ${mLabel}`;
 
     // Update validation state
     if (isValidResidency) {
@@ -1244,6 +1326,55 @@ if (civilStatusField) {
         }
         toggleHouseholdTypeField();
     });
+}
+
+function toggleMonthlyIncomeField() {
+    const occupationField = document.getElementById('occupation');
+    const monthlyIncomeWrapper = document.getElementById('monthlyIncomeWrapper');
+    const monthlyIncomeField = document.querySelector('input[name="household_income"]');
+
+    if (!occupationField || !monthlyIncomeWrapper || !monthlyIncomeField) {
+        return;
+    }
+
+    const isStudent = occupationField.value === 'Student';
+    monthlyIncomeWrapper.style.display = isStudent ? 'none' : 'block';
+    monthlyIncomeField.required = !isStudent;
+
+    if (isStudent) {
+        monthlyIncomeField.value = '';
+        monthlyIncomeField.classList.remove('is-invalid');
+    }
+}
+
+function togglePrecinctNumberField() {
+    const voterStatusField = document.getElementById('voter_status');
+    const precinctNumberWrapper = document.getElementById('precinctNumberWrapper');
+    const precinctNumberField = document.querySelector('input[name="precinct_number"]');
+
+    if (!voterStatusField || !precinctNumberWrapper || !precinctNumberField) {
+        return;
+    }
+
+    const shouldShow = voterStatusField.value === 'Registered Voter (This Barangay)';
+    precinctNumberWrapper.style.display = shouldShow ? 'block' : 'none';
+
+    if (!shouldShow) {
+        precinctNumberField.value = '';
+        precinctNumberField.classList.remove('is-invalid');
+    }
+}
+
+const occupationField = document.getElementById('occupation');
+if (occupationField) {
+    occupationField.addEventListener('change', toggleMonthlyIncomeField);
+    toggleMonthlyIncomeField();
+}
+
+const voterStatusField = document.getElementById('voter_status');
+if (voterStatusField) {
+    voterStatusField.addEventListener('change', togglePrecinctNumberField);
+    togglePrecinctNumberField();
 }
 
 // Step navigation
@@ -1476,7 +1607,13 @@ function populateReview() {
                 { name: 'birth_date', label: 'Date of Birth' },
                 { name: 'place_of_birth', label: 'Place of Birth' },
                 { name: 'civil_status', label: 'Civil Status' },
-                { name: 'citizenship', label: 'Citizenship' }
+                { name: 'citizenship', label: 'Citizenship' },
+                { name: 'voter_status', label: 'Voter Status' },
+                { name: 'precinct_number', label: 'Precinct Number' },
+                { name: 'educational_attainment', label: 'Educational Attainment' },
+                { name: 'occupation', label: 'Occupation' },
+                { name: 'employment_status', label: 'Employment Status' },
+                { name: 'household_income', label: 'Monthly Income (PHP)' }
             ]
         },
         {
