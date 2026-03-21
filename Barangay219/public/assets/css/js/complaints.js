@@ -45,16 +45,18 @@ function loadComplaints() {
                 const list = d.data.complaints || d.data || [];
                 tbody.innerHTML = list.map(c => `
                     <tr>
-                        <td class="text-center">${c.id}</td>
-                        <td class="text-center">${escapeHtml(toTitleCase(c.title || c.complaint_title || '-'))}</td>
-                        <td class="text-center">${escapeHtml(toTitleCase(c.complainant_name || '-'))}</td>
-                        <td class="text-center">${escapeHtml(toTitleCase(c.resident_name || '-'))}</td>
-                        <td class="text-center">${formatDate(c.date_submitted || c.filing_date)}</td>
-                        <td class="text-center"><span class="badge bg-${getStatusColor(c.status)}">${escapeHtml(formatComplaintStatus(c.status))}</span></td>
+                        <td class="text-center"><span class="complaints-code-badge">#${c.id}</span></td>
+                        <td class="text-center fw-semibold">${escapeHtml(toTitleCase(c.title || c.complaint_title || '-'))}</td>
+                        <td class="text-center"><span class="complaints-secondary">${escapeHtml(toTitleCase(c.complainant_name || '-'))}</span></td>
+                        <td class="text-center"><span class="complaints-secondary">${escapeHtml(toTitleCase(c.resident_name || '-'))}</span></td>
+                        <td class="text-center"><span class="complaints-secondary">${formatDate(c.date_submitted || c.filing_date)}</span></td>
+                        <td class="text-center"><span class="complaints-pill ${getStatusColor(c.status)}">${escapeHtml(formatComplaintStatus(c.status))}</span></td>
                         <td class="text-center">
-                            <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewComplaint(${c.id})"><i class="bi bi-eye"></i></button>
-                            ${COMPLAINT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editComplaint(${c.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
-                            ${COMPLAINT_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteComplaint(${c.id})"><i class="bi bi-trash"></i></button>` : ''}
+                            <div class="complaints-actions">
+                            <button class="action-icon-btn" title="View" aria-label="View" onclick="viewComplaint(${c.id})"><i class="bi bi-eye"></i></button>
+                            ${COMPLAINT_PERMS.canEdit ? `<button class="action-icon-btn" title="Edit" aria-label="Edit" onclick="editComplaint(${c.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
+                            ${COMPLAINT_PERMS.canDelete ? `<button class="action-icon-btn action-delete" title="Delete" aria-label="Delete" onclick="deleteComplaint(${c.id})"><i class="bi bi-trash"></i></button>` : ''}
+                            </div>
                         </td>
                     </tr>
                 `).join('');
@@ -132,7 +134,7 @@ function viewComplaint(id) {
                 <strong>Respondent:</strong> ${escapeHtml(toTitleCase(c.respondent_name || '-'))}<br>
                 <strong>Type:</strong> ${escapeHtml(toTitleCase(c.category || c.complaint_type || '-'))}<br>
                 <strong>Date:</strong> ${formatDate(c.date_submitted || c.filing_date)}<br>
-                <strong>Status:</strong> <span class="badge bg-${getStatusColor(c.status)}">${escapeHtml(formatComplaintStatus(c.status))}</span><br>
+                <strong>Status:</strong> <span class="complaints-pill ${getStatusColor(c.status)}">${escapeHtml(formatComplaintStatus(c.status))}</span><br>
                 <strong>Narrative:</strong><br>${escapeHtml(toTitleCase(c.description || c.narrative || '-'))}<br>
                 ${c.remarks ? '<strong>Remarks:</strong><br>' + escapeHtml(toTitleCase(c.remarks)) : ''}
             `;
@@ -201,18 +203,19 @@ function deleteComplaint(id) {
 
 function getStatusColor(status) {
     const colors = {
-        'pending': 'warning',
-        'Pending Review': 'warning',
-        'under_review': 'info',
-        'Under Investigation': 'info',
-        'Scheduled for Mediation': 'primary',
-        'Referred to Other Barangay': 'secondary',
-        'resolved': 'success',
-        'Resolved': 'success',
-        'dismissed': 'danger',
-        'Dismissed': 'danger'
+        'pending': 'status-pending',
+        'Pending Review': 'status-pending',
+        'under_review': 'status-under-review',
+        'Under Investigation': 'status-under-investigation',
+        'Scheduled for Mediation': 'status-scheduled-for-mediation',
+        'referred': 'status-referred',
+        'Referred to Other Barangay': 'status-referred-to-other-barangay',
+        'resolved': 'status-resolved',
+        'Resolved': 'status-resolved',
+        'dismissed': 'status-dismissed',
+        'Dismissed': 'status-dismissed'
     };
-    return colors[status] || 'secondary';
+    return colors[status] || 'status-unknown';
 }
 function formatComplaintStatus(status) {
     const labels = {
