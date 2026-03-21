@@ -75,7 +75,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <th class="text-center">Family Head Code</th>
                             <th class="text-center">Verification</th>
                             <th class="text-center">Status</th>
-                            <th class="text-center residents-actions-col">Actions</th>
+                            <th class="text-center residents-actions-col actions-col-wide">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="residentsTableBody">
@@ -295,10 +295,6 @@ include __DIR__ . '/../includes/sidebar.php';
     color: #9f2f3e;
 }
 
-.residents-page .residents-actions-col {
-    min-width: 176px;
-}
-
 @media (max-width: 768px) {
     .residents-page .app-tabs {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -308,9 +304,6 @@ include __DIR__ . '/../includes/sidebar.php';
         padding: 0.75rem 0.6rem;
     }
 
-    .residents-page .residents-actions-col {
-        min-width: 140px;
-    }
 }
 </style>
 
