@@ -17,6 +17,10 @@ switch ($action) {
         requireModuleAccess('dashboard');
         getRecentActivities();
         break;
+    case 'dashboard_charts':
+        requireModuleAccess('dashboard');
+        getDashboardCharts();
+        break;
     case 'module_stats':
         $module = sanitizeInput($_GET['module'] ?? $_POST['module'] ?? '');
         getModuleStats($module);
@@ -469,6 +473,110 @@ function getActivityLogsReport() {
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
     }
+}
+
+function getDashboardCharts() {
+    // ── DUMMY DATA MODE ──
+    // Replace this function body with real DB queries when ready.
+    // Each dataset uses the {label, value} format the frontend expects.
+
+    $months = [];
+    for ($i = 11; $i >= 0; $i--) {
+        $months[] = date('M Y', strtotime("-$i months"));
+    }
+
+    $days = [];
+    for ($i = 29; $i >= 0; $i--) {
+        $days[] = date('M d', strtotime("-$i days"));
+    }
+
+    $charts = [
+        'gender_distribution' => [
+            ['label' => 'Male',   'value' => 1245],
+            ['label' => 'Female', 'value' => 1382],
+            ['label' => 'Other',  'value' => 18],
+        ],
+
+        'civil_status_distribution' => [
+            ['label' => 'Single',    'value' => 980],
+            ['label' => 'Married',   'value' => 1120],
+            ['label' => 'Widowed',   'value' => 185],
+            ['label' => 'Separated', 'value' => 95],
+            ['label' => 'Divorced',  'value' => 32],
+        ],
+
+        'age_groups' => [
+            ['label' => '0-17',  'value' => 620],
+            ['label' => '18-30', 'value' => 845],
+            ['label' => '31-45', 'value' => 560],
+            ['label' => '46-60', 'value' => 390],
+            ['label' => '60+',   'value' => 230],
+        ],
+
+        'population_by_purok' => [
+            ['label' => 'Purok 1',  'value' => 342],
+            ['label' => 'Purok 2',  'value' => 285],
+            ['label' => 'Purok 3',  'value' => 410],
+            ['label' => 'Purok 4',  'value' => 198],
+            ['label' => 'Purok 5',  'value' => 265],
+            ['label' => 'Purok 6',  'value' => 320],
+            ['label' => 'Purok 7',  'value' => 175],
+            ['label' => 'Zone A',   'value' => 150],
+        ],
+
+        'request_status' => [
+            ['label' => 'Pending',          'value' => 42],
+            ['label' => 'Approved',         'value' => 156],
+            ['label' => 'Released',         'value' => 310],
+            ['label' => 'Rejected',         'value' => 18],
+            ['label' => 'Ready for pickup', 'value' => 25],
+        ],
+
+        'request_types' => [
+            ['label' => 'Barangay Clearance',       'value' => 215],
+            ['label' => 'Certificate of Indigency',  'value' => 128],
+            ['label' => 'Certificate of Residency',  'value' => 97],
+            ['label' => 'Transfer Request',           'value' => 34],
+            ['label' => 'Business Permit',            'value' => 62],
+        ],
+
+        'requests_over_time' => array_map(function ($m) {
+            return ['label' => $m, 'value' => rand(18, 65)];
+        }, $months),
+
+        'household_types' => [
+            ['label' => 'Family Household',                         'value' => 320],
+            ['label' => 'Single Inhabitant',                        'value' => 85],
+            ['label' => 'Couple Only',                              'value' => 62],
+            ['label' => 'Non-Relative Household (Shared / Boarders)', 'value' => 48],
+            ['label' => 'Unspecified',                              'value' => 30],
+        ],
+
+        'household_trends' => array_map(function ($m) {
+            return ['label' => $m, 'value' => rand(5, 28)];
+        }, $months),
+
+        'new_registrations_today' => 7,
+        'approved_today' => 12,
+
+        'daily_logins' => array_map(function ($d) {
+            return ['label' => $d, 'value' => rand(3, 22)];
+        }, $days),
+
+        'user_registrations' => array_map(function ($m) {
+            return ['label' => $m, 'value' => rand(2, 15)];
+        }, $months),
+
+        'special_categories' => [
+            ['label' => 'Senior Citizens',   'value' => 186],
+            ['label' => 'PWD',               'value' => 54],
+            ['label' => 'Solo Parents',      'value' => 73],
+            ['label' => '4Ps Beneficiaries', 'value' => 142],
+            ['label' => 'IP Members',        'value' => 29],
+        ],
+    ];
+
+    sendResponse(true, 'Dashboard charts data (dummy)', $charts);
 }
 
 function sendResponse($success, $message, $data = null, $httpCode = 200) {
