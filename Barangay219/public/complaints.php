@@ -74,7 +74,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <th class="text-center">Resident</th>
                             <th class="text-center">Date</th>
                             <th class="text-center">Status</th>
-                            <th class="text-center complaints-actions-col">Actions</th>
+                            <th class="text-center complaints-actions-col actions-col-compact">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="complaintsTableBody"><tr><td colspan="7" class="text-center">Loading...</td></tr></tbody>
@@ -284,10 +284,6 @@ include __DIR__ . '/../includes/sidebar.php';
     background: #fff1f3;
     border-color: #f6ccd3;
     color: #9f2f3e;
-}
-
-.complaints-page .complaints-actions-col {
-    min-width: 140px;
 }
 
 @media (max-width: 768px) {
