@@ -501,14 +501,6 @@ $is_ip = isset($_POST['is_ip_member']) && $_POST['is_ip_member'] === '1';
 $ip_group = $is_ip ? sanitize($_POST['ip_group'] ?? '') : null;
 $is_4ps = isset($_POST['is_4ps_beneficiary']) && $_POST['is_4ps_beneficiary'] === '1';
 
-$allowed_household_types = [
-    'Family Household',
-    'Couple Only',
-    'Single Inhabitant',
-    'Non-Relative Household (Shared / Boarders)',
-    'Other (Specify)'
-];
-
 $allowed_voter_statuses = [
     'Registered Voter (This Barangay)',
     'Registered Voter (Other Barangay)',
@@ -527,12 +519,6 @@ if ($household_role === 'Head of Household') {
     $family_code = generateFamilyCode($db);
     $relationship_to_head = 'Head';
 
-    if ($household_type === '') {
-        $errors[] = 'Household type is required when household role is ' . $household_role . '.';
-    } elseif (!in_array($household_type, $allowed_household_types, true)) {
-        $errors[] = 'Invalid household type selected.';
-    }
-
     $allowed_house_types = ['Concrete', 'Semi-Concrete', 'Light Materials', 'Apartment / Boarding House', 'Townhouse / Row House', 'Informal / Improvised'];
     if ($house_type === '') {
         $errors[] = 'House type is required when household role is ' . $household_role . '.';
@@ -547,12 +533,6 @@ if ($household_role === 'Head of Household') {
         $errors[] = 'Invalid house ownership selected.';
     }
 
-    if ($civil_status === 'single' && $household_role === 'Head of Household') {
-        $household_members = 1;
-    }
-    if ($household_members === null || $household_members < 1) {
-        $errors[] = 'Number of household members must be at least 1.';
-    }
 } elseif ($household_role === 'Member of Household') {
     // Family code is optional during registration.
     // If provided, validate format and (optionally) ensure it matches a valid household head code.
