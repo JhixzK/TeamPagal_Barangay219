@@ -15,6 +15,165 @@ requireModuleAccess('users');
 include __DIR__ . '/../includes/sidebar.php';
 ?>
 
+<style>
+.users-page .users-table-wrap {
+    border: 1px solid #e7ecf3;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+}
+
+.users-page .users-table {
+    margin-bottom: 0;
+}
+
+.users-page .users-table thead th {
+    border: 0;
+    border-bottom: 1px solid #e9eef5;
+    background: #f8fafc;
+    color: #4b5563;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    padding: 0.85rem 0.75rem;
+    white-space: nowrap;
+}
+
+.users-page .users-table tbody td {
+    border: 0;
+    border-bottom: 1px solid #eef2f7;
+    padding: 0.95rem 0.75rem;
+    vertical-align: middle;
+}
+
+.users-page .users-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.users-page .users-main-text {
+    color: #1f2937;
+    font-weight: 500;
+}
+
+.users-page .users-subtext {
+    color: #6b7280;
+    font-size: 0.82rem;
+}
+
+.users-page .users-code-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem 0.52rem;
+    border-radius: 999px;
+    background: #f3f6fb;
+    border: 1px solid #e2e8f0;
+    color: #1f2937;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.users-page .user-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.22rem 0.56rem;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+.users-page .role-pill {
+    background: #e8f3ff;
+    border-color: #cfe5ff;
+    color: #1d4f91;
+}
+
+.users-page .status-active {
+    background: #eafaf2;
+    border-color: #c9f0dc;
+    color: #1f7a4f;
+}
+
+.users-page .status-inactive {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #4b5563;
+}
+
+.users-page .status-suspended {
+    background: #fff1f2;
+    border-color: #ffd7dd;
+    color: #b4233f;
+}
+
+.users-page .status-unknown {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #475569;
+}
+
+.users-page .users-actions-col {
+    width: 138px;
+}
+
+.users-page .users-actions {
+    white-space: nowrap;
+}
+
+.users-page .action-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid #dbe3ee;
+    background: #ffffff;
+    color: #4b5563;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 2px;
+    transition: all 0.16s ease;
+}
+
+.users-page .action-icon-btn:hover {
+    border-color: #c2cfdf;
+    background: #f8fafc;
+    color: #1f2937;
+}
+
+.users-page .action-icon-btn.btn-activate {
+    color: #1f7a4f;
+    border-color: #c9f0dc;
+    background: #f3fcf7;
+}
+
+.users-page .action-icon-btn.btn-activate:hover {
+    background: #e8f8f0;
+    border-color: #aadfca;
+}
+
+.users-page .action-icon-btn.btn-suspend {
+    color: #9a3412;
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+
+.users-page .action-icon-btn.btn-suspend:hover {
+    background: #ffedd5;
+    border-color: #fdba74;
+}
+
+.users-page .action-icon-btn.btn-delete:hover {
+    border-color: #f0a9b4;
+    background: #fff1f2;
+    color: #b4233f;
+}
+</style>
+
 <div class="main-content module-page users-page">
     <div class="container-fluid">
         <div class="module-hero card border-0 shadow-sm mb-4">
@@ -59,9 +218,9 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <!-- Users Table -->
-        <div class="data-table">
+        <div class="data-table users-table-wrap">
             <div class="table-responsive users-table-scroll">
-                <table class="table table-hover">
+                <table class="table table-hover users-table align-middle mb-0">
                     <thead>
                         <tr>
                             <th class="text-center">ID</th>
@@ -71,7 +230,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <th class="text-center">Role</th>
                             <th class="text-center">Status</th>
                             <th class="text-center">Created</th>
-                            <th class="text-center">Actions</th>
+                            <th class="text-center users-actions-col">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="usersTableBody">
