@@ -293,6 +293,41 @@ function computeHouseholdTypeFromMembers($db, $householdId) {
     return $type;
 }
 
+function computeHouseholdTypeFromFilteredMembers($mappedMembers, $currentResidentId) {
+    $rels = [];
+    foreach ($mappedMembers as $m) {
+        $mid = (int)($m['resident_id'] ?? 0);
+        if ($mid === $currentResidentId) continue; // skip the head themselves
+        $r = strtolower(trim((string)($m['relationship_to_head'] ?? '')));
+        if ($r !== '' && $r !== 'member' && strpos($r, 'head') === false) {
+            $rels[] = $r;
+        }
+    }
+
+    if (empty($rels)) return 'Single Inhabitant';
+
+    $hasSpouse = false;
+    $hasFamily = false;
+    $hasNonRelative = false;
+    foreach ($rels as $r) {
+        if (strpos($r, 'spouse') !== false || strpos($r, 'wife') !== false || strpos($r, 'husband') !== false) $hasSpouse = true;
+        if (strpos($r, 'son') !== false || strpos($r, 'daughter') !== false || strpos($r, 'child') !== false ||
+            strpos($r, 'parent') !== false || strpos($r, 'mother') !== false || strpos($r, 'father') !== false ||
+            strpos($r, 'sibling') !== false || strpos($r, 'brother') !== false || strpos($r, 'sister') !== false ||
+            strpos($r, 'grandchild') !== false || strpos($r, 'grandparent') !== false ||
+            strpos($r, 'nephew') !== false || strpos($r, 'niece') !== false ||
+            strpos($r, 'uncle') !== false || strpos($r, 'aunt') !== false || strpos($r, 'cousin') !== false ||
+            strpos($r, 'in-law') !== false) $hasFamily = true;
+        if (strpos($r, 'boarder') !== false || strpos($r, 'helper') !== false || strpos($r, 'non-relative') !== false ||
+            strpos($r, 'tenant') !== false || strpos($r, 'shared') !== false) $hasNonRelative = true;
+    }
+
+    if ($hasFamily || ($hasSpouse && count($rels) > 1)) return 'Family Household';
+    if ($hasSpouse && count($rels) === 1) return 'Couple Only';
+    if ($hasNonRelative && !$hasFamily && !$hasSpouse) return 'Non-Relative Household (Shared / Boarders)';
+    return 'Family Household';
+}
+
 function householdAddressLabel($household) {
     $parts = array_filter([
         $household['house_number'] ?? null,
@@ -688,18 +723,82 @@ function handleGetHouseholdInfo($residentId) {
         }
     }
 
-    // For members: show only their family group (their head + themselves + members under that head)
-    // Filter by our head's id OR ourselves OR same family_code members—exclude other heads in the household
-    if (!$context['is_head'] && ($myHeadResidentId > 0 || $memberFamilyCode !== '')) {
-        $mappedMembers = array_filter($mappedMembers, function ($m) use ($residentId, $myHeadResidentId, $memberFamilyCode) {
+    // For heads in multi-head households: get this head's family code so we can filter
+    $myFamilyCode = $memberFamilyCode;
+    if ($context['is_head'] && $myFamilyCode === '' && columnExists($db, 'residents', 'family_code')) {
+        $myFcRow = $db->fetchOne("SELECT family_code FROM residents WHERE id = ? LIMIT 1", [$residentId]);
+        $myFamilyCode = trim((string)($myFcRow['family_code'] ?? ''));
+    }
+
+    // Identify all head resident IDs in this household using multiple indicators
+    $allHeadIds = [];
+    // 1. Residents with family_head_code
+    if (columnExists($db, 'residents', 'family_head_code')) {
+        $headRows = $db->fetchAll(
+            "SELECT id FROM residents WHERE household_id = ? AND family_head_code IS NOT NULL AND TRIM(family_head_code) <> '' AND family_head_code <> '-'",
+            [$householdId]
+        );
+        foreach ($headRows as $hr) {
+            $allHeadIds[(int)$hr['id']] = true;
+        }
+    }
+    // 2. Residents with relationship_to_head containing "head"
+    if (columnExists($db, 'residents', 'relationship_to_head')) {
+        $relHeadRows = $db->fetchAll(
+            "SELECT id FROM residents WHERE household_id = ? AND LOWER(TRIM(COALESCE(relationship_to_head,''))) LIKE '%head%'",
+            [$householdId]
+        );
+        foreach ($relHeadRows as $rh) {
+            $allHeadIds[(int)$rh['id']] = true;
+        }
+    }
+    // 3. household_members with relationship containing "head"
+    try {
+        $hmHasResidentId = columnExists($db, 'household_members', 'resident_id');
+        if ($hmHasResidentId) {
+            $hmHeadRows = $db->fetchAll(
+                "SELECT resident_id FROM household_members WHERE household_id = ? AND LOWER(TRIM(COALESCE(relationship_to_head,''))) LIKE '%head%'",
+                [$householdId]
+            );
+            foreach ($hmHeadRows as $hm) {
+                $rid = (int)($hm['resident_id'] ?? 0);
+                if ($rid > 0) $allHeadIds[$rid] = true;
+            }
+        }
+    } catch (Exception $ignore) {}
+    // 4. Always include the designated head
+    if ($designatedHeadId > 0) {
+        $allHeadIds[$designatedHeadId] = true;
+    }
+    $headCount = count($allHeadIds);
+
+    // Filter to show only the current resident's family group
+    // Applies to: (a) non-head members, (b) heads in multi-head households
+    $shouldFilter = false;
+    if (!$context['is_head'] && ($myHeadResidentId > 0 || $myFamilyCode !== '')) {
+        $shouldFilter = true;
+    } elseif ($context['is_head'] && $headCount > 1) {
+        $shouldFilter = true;
+        $myHeadResidentId = $residentId;
+    }
+
+    if ($shouldFilter) {
+        $mappedMembers = array_filter($mappedMembers, function ($m) use ($residentId, $myHeadResidentId, $myFamilyCode, $allHeadIds, $db) {
             $mid = (int)($m['resident_id'] ?? 0);
             $fc = trim((string)($m['family_code'] ?? ''));
-            $rel = strtolower((string)($m['relationship_to_head'] ?? ''));
-            $fhc = trim((string)($m['family_head_code'] ?? ''));
-            $isHead = ($rel !== '' && strpos($rel, 'head') !== false) || ($fhc !== '' && $fhc !== '-');
+            $isOtherHead = isset($allHeadIds[$mid]) && $mid !== $residentId && $mid !== $myHeadResidentId;
+
             if ($mid === $residentId) return true;
             if ($myHeadResidentId > 0 && $mid === $myHeadResidentId) return true;
-            if ($memberFamilyCode !== '' && $fc === $memberFamilyCode && !$isHead) return true;
+            if ($isOtherHead) return false;
+            if (columnExists($db, 'residents', 'family_head_resident_id')) {
+                $ref = $db->fetchOne("SELECT family_head_resident_id FROM residents WHERE id = ? LIMIT 1", [$mid]);
+                $refId = (int)($ref['family_head_resident_id'] ?? 0);
+                if ($refId === $residentId) return true;
+                if ($myHeadResidentId > 0 && $refId === $myHeadResidentId) return true;
+                if ($refId > 0 && isset($allHeadIds[$refId])) return false;
+            }
+            if ($myFamilyCode !== '' && $fc === $myFamilyCode) return true;
             return false;
         });
         $mappedMembers = array_values($mappedMembers);
@@ -737,7 +836,9 @@ function handleGetHouseholdInfo($residentId) {
             'barangay' => $household['barangay'],
             'city' => $household['city'],
             'province' => $household['province'],
-            'household_type' => resolveHouseholdTypeForDisplay($db, $household),
+            'household_type' => ($shouldFilter
+                ? computeHouseholdTypeFromFilteredMembers($mappedMembers, $residentId)
+                : resolveHouseholdTypeForDisplay($db, $household)),
             'housing_status' => (string)($household['housing_status'] ?? 'owned'),
             'years_of_residency' => (int)($household['years_of_residency'] ?? 0),
             'total_members' => $stats['total'],
@@ -1076,17 +1177,11 @@ function joinAsMember($residentId, $data) {
  * Recalculate household_type from member relationships and persist it.
  */
 function recalcHouseholdType($db, $householdId) {
-    if (!columnExists($db, 'households', 'household_type')) {
-        error_log("[recalcHH] household_type column not found");
-        return;
-    }
+    if (!columnExists($db, 'households', 'household_type')) return;
 
     $headColumn = householdHeadColumn();
     $hh = $db->fetchOne("SELECT `{$headColumn}` AS family_head_id FROM households WHERE id = ? LIMIT 1", [$householdId]);
-    if (!$hh) {
-        error_log("[recalcHH] household not found for id=$householdId");
-        return;
-    }
+    if (!$hh) return;
     $headId = (int)($hh['family_head_id'] ?? 0);
 
     // Query non-head members from residents
@@ -1125,8 +1220,6 @@ function recalcHouseholdType($db, $householdId) {
         if ($r !== '') $rels[] = $r;
     }
 
-    error_log("[recalcHH] householdId=$householdId headId=$headId memberCount=" . count($members) . " rels=" . json_encode($rels) . " hmMap=" . json_encode($hmMap));
-
     if (empty($rels)) {
         $type = 'Single Inhabitant';
     } else {
@@ -1157,7 +1250,6 @@ function recalcHouseholdType($db, $householdId) {
         }
     }
 
-    error_log("[recalcHH] Setting type='$type' for householdId=$householdId");
     $db->query("UPDATE households SET household_type = ? WHERE id = ?", [$type, $householdId]);
 }
 
