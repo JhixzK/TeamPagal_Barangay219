@@ -293,10 +293,6 @@ include __DIR__ . '/../includes/sidebar.php';
                     <label class="form-label">Purpose</label>
                     <input type="text" class="form-control" id="createPurpose" placeholder="e.g., Employment, Scholarship">
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Remarks</label>
-                    <textarea class="form-control" id="createRemarks" rows="2"></textarea>
-                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -479,7 +475,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                       <button class="btn btn-sm btn-outline-danger" title="Reject" aria-label="Reject" onclick="rejectApp(${a.id})"><i class="bi bi-x-lg"></i></button>
                                   ` : ''}
                                   ${APP_PERMS.canEdit && a.status === 'approved' ? `
-                                      <button class="btn btn-sm btn-info" title="Finalize for Pickup" aria-label="Finalize for Pickup" onclick="openRelease(${a.id})"><i class="bi bi-bag-check"></i></button>
+                                          <button class="btn btn-sm btn-info" title="Prepare for Pickup" aria-label="Prepare for Pickup" onclick="updateStatus(${a.id}, 'ready_for_pickup')"><i class="bi bi-bag-check"></i></button>
                                   ` : ''}
                                   ${APP_PERMS.canEdit && a.status === 'ready_for_pickup' ? `
                                       <button class="btn btn-sm btn-success" title="Mark Released" aria-label="Mark Released" onclick="updateStatus(${a.id}, 'released')"><i class="bi bi-box-arrow-up-right"></i></button>
@@ -868,7 +864,7 @@ include __DIR__ . '/../includes/sidebar.php';
         let footer = '';
         const closeAndRefresh = "bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();";
 
-        if (!APP_PERMS.canEdit || a.status === 'pending') {
+        if (!APP_PERMS.canEdit) {
             return '<button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>';
         }
 
@@ -876,15 +872,12 @@ include __DIR__ . '/../includes/sidebar.php';
             footer += `<button class="btn btn-success" onclick="updateStatus(${a.id}, 'approved'); ${closeAndRefresh}">Approve</button>`;
             footer += `<button class="btn btn-outline-danger" onclick="rejectApp(${a.id}); ${closeAndRefresh}">Reject</button>`;
         } else if (a.status === 'approved') {
-            footer += `<button class="btn btn-info" onclick="openRelease(${a.id}); ${closeAndRefresh}">Finalize for Pickup</button>`;
+            footer += `<button class="btn btn-info" onclick="updateStatus(${a.id}, 'ready_for_pickup'); ${closeAndRefresh}">Prepare for Pickup</button>`;
         } else if (a.status === 'ready_for_pickup') {
-            footer += `<button class="btn btn-outline-secondary" onclick="notifyResident(${a.id}, 'Ready for pickup notification sent.')">Notify Resident</button>`;
             footer += `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-outline-primary">Print / PDF</a>`;
             footer += `<button class="btn btn-success" onclick="updateStatus(${a.id}, 'released'); ${closeAndRefresh}">Mark as Released</button>`;
         } else if (a.status === 'released') {
             footer += `<a href="<?php echo BASE_URL; ?>certificate-print.php?id=${a.id}" target="_blank" class="btn btn-primary">View Certificate Copy</a>`;
-        } else if (a.status === 'rejected') {
-            footer += `<button class="btn btn-outline-secondary" onclick="notifyResident(${a.id}, 'Rejection notice sent to resident.')">Notify Resident</button>`;
         }
 
         footer += '<button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>';
@@ -905,10 +898,8 @@ include __DIR__ . '/../includes/sidebar.php';
                 const certName = a.cert_name || a.resident_name || '';
                 const certAddress = a.cert_address || residentAddress || '';
                 const certPurpose = a.cert_purpose || a.purpose || '';
-                const isEditable = getEditableStatus(a.status);
-                const canEditCertPurpose = isEditable && isPurposeOthers(a.purpose || certPurpose);
-                const isReadOnly = a.status === 'pending';
-                const canEditNotes = canEditViewNotes(a.status);
+                const submittedPurpose = a.purpose_option || a.purpose || '';
+                const purposeDetails = (a.purpose_details || a.purpose_other || '').trim();
                 currentViewStatus = a.status || '';
 
                 const html = `
@@ -924,10 +915,11 @@ include __DIR__ . '/../includes/sidebar.php';
                         <section class="app-detail-card">
                             <h6><i class="bi bi-file-earmark-text me-1"></i> Certificate Info</h6>
                             <div class="detail-row"><span>Type</span><strong>${esc(toTitleCase((a.certificate_type || '').replace(/_/g, ' ')))}</strong></div>
-                            <div class="detail-row"><span>Certificate Name</span><strong>${isEditable ? `<input class="form-control form-control-sm" id="editCertName" value="${esc(certName)}">` : esc(certName || '-')}</strong></div>
-                            <div class="detail-row"><span>Certificate Address</span><strong>${isEditable ? `<textarea class="form-control form-control-sm" id="editCertAddress" rows="2">${esc(certAddress)}</textarea>` : esc(certAddress || '-')}</strong></div>
-                            <div class="detail-row"><span>Certificate Purpose</span><strong>${canEditCertPurpose ? `<input class="form-control form-control-sm" id="editCertPurpose" value="${esc(certPurpose)}">` : esc(formatPurposeDisplay(certPurpose))}</strong></div>
-                            ${isEditable ? `<div class="notes-actions"><button class="btn btn-sm btn-outline-primary" onclick="saveApplicationDraft(${a.id})">Save Draft Details</button></div>` : ''}
+                            <div class="detail-row"><span>Submitted Purpose</span><strong>${esc(formatPurposeDisplay(submittedPurpose))}</strong></div>
+                            <div class="detail-row"><span>Purpose Details</span><strong>${esc(purposeDetails || '-')}</strong></div>
+                            <div class="detail-row"><span>Certificate Name</span><strong>${esc(certName || '-')}</strong></div>
+                            <div class="detail-row"><span>Certificate Address</span><strong>${esc(certAddress || '-')}</strong></div>
+                            <div class="detail-row"><span>Certificate Purpose</span><strong>${esc(formatPurposeDisplay(certPurpose))}</strong></div>
                         </section>
 
                         <section class="app-detail-card">
@@ -947,14 +939,6 @@ include __DIR__ . '/../includes/sidebar.php';
                         </section>
                     </div>
 
-                    <section class="app-detail-card mt-3">
-                        <h6><i class="bi bi-journal-text me-1"></i> Admin Notes</h6>
-                        <textarea class="notes-box" id="adminNotesInput" placeholder="${canEditNotes ? 'Add notes with timestamps...' : 'Notes are locked while the application is still submitted.'}" ${isReadOnly ? 'readonly' : ''}>${esc(a.remarks || '')}</textarea>
-                        ${isReadOnly ? '<small class="text-muted">Notes can be added once the application is under review.</small>' : `<div class="notes-actions">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="addTimestampedNote(${a.id})">Add Timestamped Note</button>
-                            <button class="btn btn-sm btn-primary" onclick="saveAdminNotes(${a.id})">Save Notes</button>
-                        </div>`}
-                    </section>
                 `;
 
                 document.getElementById('viewModalBody').innerHTML = html;
@@ -964,113 +948,25 @@ include __DIR__ . '/../includes/sidebar.php';
     };
 
     window.saveApplicationDraft = function(id) {
-        if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
-        if (currentViewStatus === 'pending') { alert('Submitted applications are read-only in the view window.'); return; }
-        const certName = (document.getElementById('editCertName')?.value || '').trim();
-        const certAddress = (document.getElementById('editCertAddress')?.value || '').trim();
-        const certPurpose = (document.getElementById('editCertPurpose')?.value || '').trim();
-        const fd = new FormData();
-        fd.append('action', 'update');
-        fd.append('id', id);
-        if (certName) fd.append('cert_name', certName);
-        if (certAddress) fd.append('cert_address', certAddress);
-        if (certPurpose) fd.append('cert_purpose', certPurpose);
-        fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
-            .then(r => r.json())
-            .then(d => {
-                if (d.success) {
-                    alert('Draft details saved.');
-                    loadApplications();
-                } else {
-                    alert(d.message || 'Unable to save details.');
-                }
-            });
-    };
-
-    window.saveAdminNotes = function(id) {
-        if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
-        if (!canEditViewNotes(currentViewStatus)) { alert('Submitted applications are read-only in the view window.'); return; }
-        const notes = (document.getElementById('adminNotesInput')?.value || '').trim();
-        if (!notes) {
-            alert('No notes to save.');
-            return;
-        }
-        const fd = new FormData();
-        fd.append('action', 'update');
-        fd.append('id', id);
-        fd.append('remarks', notes);
-        fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
-            .then(r => r.json())
-            .then(d => {
-                if (d.success) {
-                    alert('Admin notes saved.');
-                    loadApplications();
-                } else {
-                    alert(d.message || 'Unable to save notes.');
-                }
-            });
-    };
-
-    window.addTimestampedNote = function(id) {
-        if (!canEditViewNotes(currentViewStatus)) {
-            alert('Submitted applications are read-only in the view window.');
-            return;
-        }
-        const box = document.getElementById('adminNotesInput');
-        if (!box) return;
-        const stamp = new Date().toLocaleString();
-        const next = box.value.trim();
-        box.value = `${next ? next + '\n' : ''}[${stamp}] `;
-        box.focus();
-    };
-
-    window.requestMoreInfo = function(id) {
-        if (!canEditViewNotes(currentViewStatus)) {
-            alert('Submitted applications are read-only in the view window.');
-            return;
-        }
-        const note = prompt('Enter the information needed from the resident:');
-        if (!note) return;
-        const box = document.getElementById('adminNotesInput');
-        const stamp = new Date().toLocaleString();
-        if (box) {
-            box.value = `${box.value.trim()}${box.value.trim() ? '\n' : ''}[${stamp}] Requested more information: ${note}`;
-            saveAdminNotes(id);
-        }
-    };
-
-    window.notifyResident = function(id, messageText) {
-        if (!canEditViewNotes(currentViewStatus)) {
-            alert('Submitted applications are read-only in the view window.');
-            return;
-        }
-        const box = document.getElementById('adminNotesInput');
-        const stamp = new Date().toLocaleString();
-        if (box) {
-            box.value = `${box.value.trim()}${box.value.trim() ? '\n' : ''}[${stamp}] ${messageText}`;
-            saveAdminNotes(id);
-        } else {
-            alert('Notification logged: ' + messageText);
-        }
-    };
-
-    window.logDeliveryConfirmation = function(id) {
-        if (!canEditViewNotes(currentViewStatus)) {
-            alert('Submitted applications are read-only in the view window.');
-            return;
-        }
-        const receiver = prompt('Enter receiver name for delivery confirmation:');
-        if (!receiver) return;
-        const box = document.getElementById('adminNotesInput');
-        const stamp = new Date().toLocaleString();
-        if (box) {
-            box.value = `${box.value.trim()}${box.value.trim() ? '\n' : ''}[${stamp}] Delivery confirmed to: ${receiver}`;
-            saveAdminNotes(id);
-        }
+        alert('Manual certificate editing is disabled. Use Approve, Prepare for Pickup, Reject, and Mark as Released actions.');
     };
 
     window.updateStatus = function(id, status) {
         if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
+
+        let promptMessage = '';
+        if (status === 'approved') {
+            promptMessage = 'Approve this request?';
+        } else if (status === 'ready_for_pickup') {
+            promptMessage = 'Prepare this certificate for pickup now? Control number and issued date will be generated automatically.';
+        } else if (status === 'released') {
+            promptMessage = 'Mark this certificate as released? Make sure resident ID has been verified.';
+        }
+
+        if (promptMessage && !confirm(promptMessage)) {
+            return;
+        }
+
         const fd = new FormData();
         fd.append('action', 'update');
         fd.append('id', id);
@@ -1272,14 +1168,12 @@ include __DIR__ . '/../includes/sidebar.php';
         const residentId = document.getElementById('createResidentId').value;
         const certType = document.getElementById('createCertType').value;
         const purpose = document.getElementById('createPurpose').value;
-        const remarks = document.getElementById('createRemarks').value;
         if (!residentId || !certType) { alert('Resident and certificate type required'); return; }
         const fd = new FormData();
         fd.append('action', 'create');
         fd.append('resident_id', residentId);
         fd.append('certificate_type', certType);
         fd.append('purpose', toTitleCase(purpose));
-        fd.append('remarks', toTitleCase(remarks));
         this.disabled = true;
         fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
             .then(r => r.json())
@@ -1290,7 +1184,6 @@ include __DIR__ . '/../includes/sidebar.php';
                     document.getElementById('createResidentId').value = '';
                     document.getElementById('createCertType').value = '';
                     document.getElementById('createPurpose').value = '';
-                    document.getElementById('createRemarks').value = '';
                     alert('Application created. Ref: ' + (d.data?.application_ref || d.data?.id));
                     loadApplications();
                 } else alert(d.message || 'Error');
