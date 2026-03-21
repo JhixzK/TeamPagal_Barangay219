@@ -931,7 +931,7 @@ $heroSlides = [
                 <div class="hero-text">
                     <h1>Barangay 219 e-Portal</h1>
                     <p>
-                        Access barangay services, announcements, at community updates sa isang official at madaling gamitin na platform para sa bawat residente.
+                        Access barangay services, announcements, and community updates through an official and user-friendly platform for every resident.
                     </p>
                     <div class="hero-actions">
                         <?php if ($isLoggedIn): ?>
