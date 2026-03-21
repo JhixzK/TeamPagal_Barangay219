@@ -1005,6 +1005,12 @@ function leaveHousehold($residentId) {
         if (columnExists($db, 'residents', 'family_head_resident_id')) {
             $db->query('UPDATE residents SET family_head_resident_id = NULL WHERE id = ?', [$residentId]);
         }
+        if (columnExists($db, 'residents', 'family_head_code')) {
+            $db->query('UPDATE residents SET family_head_code = NULL WHERE id = ?', [$residentId]);
+        }
+        if (columnExists($db, 'residents', 'family_code')) {
+            $db->query('UPDATE residents SET family_code = NULL WHERE id = ?', [$residentId]);
+        }
         logHouseholdHistory($householdId, 'Member Removed', 'Resident left household', $residentId);
         $db->commit();
         householdJsonResponse(true, null, 'You have left the household successfully');
