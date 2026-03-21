@@ -62,7 +62,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <th class="text-center">Created</th>
                             <th class="text-center">Expires</th>
                             <th class="text-center">Views</th>
-                            <th class="text-center announcements-actions-col">Actions</th>
+                            <th class="text-center announcements-actions-col actions-col-wide">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="announcementsTableBody"><tr><td colspan="8" class="text-center">Loading...</td></tr></tbody>
@@ -267,10 +267,6 @@ include __DIR__ . '/../includes/sidebar.php';
     background: #fff1f3;
     border-color: #f6ccd3;
     color: #9f2f3e;
-}
-
-.announcements-page .announcements-actions-col {
-    min-width: 176px;
 }
 
 @media (max-width: 768px) {
