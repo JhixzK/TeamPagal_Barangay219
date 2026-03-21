@@ -499,13 +499,19 @@ async function submitMemberJoin(e) {
     showErrorMessage("Please enter the Family Head Code.");
     return;
   }
+  const relationship = (document.getElementById("joinRelationshipSelect")?.value || "").trim();
+  if (!relationship) {
+    showErrorMessage("Please select your relationship to the head.");
+    return;
+  }
 
   try {
     await requestJson(`${HOUSEHOLD_API}/info.php`, {
       method: "POST",
       body: JSON.stringify({
         action: "join_household",
-        family_head_code: familyHeadCode
+        family_head_code: familyHeadCode,
+        relationship_to_head: relationship
       })
     });
     showSuccessMessage("You have successfully joined the household.");
