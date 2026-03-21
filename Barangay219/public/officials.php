@@ -45,6 +45,91 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </div>
 
+<style>
+.officials-page .officials-group {
+    background: #ffffff;
+    border: 1px solid #e7ecf3;
+    box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.35);
+}
+
+.officials-page .official-tile {
+    border: 1px solid #edf1f6 !important;
+}
+
+.officials-page .official-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 82px;
+    padding: 0.32rem 0.62rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.officials-page .official-pill.status-active {
+    background: #e9f8ef;
+    color: #1f7a3f;
+}
+
+.officials-page .official-pill.status-inactive {
+    background: #eef2f7;
+    color: #4b5563;
+}
+
+.officials-page .official-pill.position-pill {
+    background: #eaf6ff;
+    color: #1f5f8b;
+}
+
+.officials-page .official-pill.vacant-pill {
+    background: #f1f3f6;
+    color: #4b5563;
+}
+
+.officials-page .official-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+
+.officials-page .action-icon-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e6ebf2;
+    background: #ffffff;
+    color: #5b6678;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.officials-page .action-icon-btn:hover,
+.officials-page .action-icon-btn:focus-visible {
+    background: #f5f9ff;
+    border-color: #d6e4ff;
+    color: #2f4f95;
+    transform: translateY(-1px);
+}
+
+.officials-page .action-icon-btn.action-delete:hover,
+.officials-page .action-icon-btn.action-delete:focus-visible {
+    background: #fff1f3;
+    border-color: #f6ccd3;
+    color: #9f2f3e;
+}
+
+.officials-page .action-icon-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+}
+</style>
+
 <!-- Official Modal -->
 <div class="modal fade" id="officialModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
