@@ -58,7 +58,7 @@ include __DIR__ . '/../includes/sidebar.php';
             <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
         </ul>
 
-        <div class="table-responsive data-table resident-apps-table-wrap">
+        <div class="table-responsive data-table resident-apps-table-wrap resident-apps-table-scroll">
             <table class="table table-hover resident-apps-table align-middle">
                 <thead>
                     <tr>
@@ -149,6 +149,40 @@ include __DIR__ . '/../includes/sidebar.php';
 
 .resident-apps-page .resident-apps-table {
     margin-bottom: 0;
+}
+
+.resident-apps-page .resident-apps-table-scroll {
+    max-height: min(62vh, 640px);
+    overflow-y: auto;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.resident-apps-page .resident-apps-table-scroll::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.resident-apps-page .resident-apps-table-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 999px;
+}
+
+.resident-apps-page .resident-apps-table-scroll::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 999px;
+    border: 2px solid #f1f5f9;
+}
+
+.resident-apps-page .resident-apps-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+.resident-apps-page .resident-apps-table-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
 
 .resident-apps-page .resident-apps-table > :not(caption) > * > * {
