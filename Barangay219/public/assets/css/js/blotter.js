@@ -123,18 +123,18 @@ function loadBlotters() {
                         const incidentLocation = b.incident_location ? escapeHtml(toTitleCase(b.incident_location)) : '-';
                         return `
                         <tr>
-                            <td class="text-center">${b.id}</td>
-                            <td class="text-center">${escapeHtml(toTitleCase(b.case_title || ''))}</td>
-                            <td class="text-center">${escapeHtml(comp)}</td>
+                            <td class="text-center"><span class="blotter-secondary">#${b.id}</span></td>
+                            <td class="text-center fw-semibold">${escapeHtml(toTitleCase(b.case_title || ''))}</td>
+                            <td class="text-center"><span class="blotter-secondary">${escapeHtml(comp)}</span></td>
                             <td class="text-center">${incidentType}</td>
-                            <td class="text-center">${incidentLocation}</td>
-                            <td class="text-center">${formatDate(b.incident_date)}</td>
-                            <td class="text-center"><span class="badge bg-${getStatusColor(b.status)}">${b.status}</span></td>
+                            <td class="text-center"><span class="blotter-secondary">${incidentLocation}</span></td>
+                            <td class="text-center"><span class="blotter-secondary">${formatDate(b.incident_date)}</span></td>
+                            <td class="text-center"><span class="blotter-pill ${getStatusColor(b.status)}">${formatStatusLabel(b.status)}</span></td>
                             <td class="text-center">
-                                <div class="d-flex flex-wrap gap-1" role="group">
-                                    <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewBlotter(${b.id})"><i class="bi bi-eye"></i></button>
-                                    ${BLOTTER_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editBlotter(${b.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
-                                    ${BLOTTER_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteBlotter(${b.id})"><i class="bi bi-trash"></i></button>` : ''}
+                                <div class="blotter-actions" role="group">
+                                    <button class="action-icon-btn" title="View" aria-label="View" onclick="viewBlotter(${b.id})"><i class="bi bi-eye"></i></button>
+                                    ${BLOTTER_PERMS.canEdit ? `<button class="action-icon-btn" title="Edit" aria-label="Edit" onclick="editBlotter(${b.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
+                                    ${BLOTTER_PERMS.canDelete ? `<button class="action-icon-btn action-delete" title="Delete" aria-label="Delete" onclick="deleteBlotter(${b.id})"><i class="bi bi-trash"></i></button>` : ''}
                                 </div>
                             </td>
                         </tr>`;
@@ -394,8 +394,24 @@ function editBlotter(id) {
 }
 
 function getStatusColor(status) {
-    const colors = { 'pending': 'warning', 'resolved': 'success', 'settled': 'info' };
-    return colors[status] || 'secondary';
+    const normalized = String(status || '').toLowerCase().trim();
+    const colors = {
+        pending: 'status-pending',
+        under_investigation: 'status-under-investigation',
+        resolved: 'status-resolved',
+        settled: 'status-settled',
+        referred: 'status-referred'
+    };
+    return colors[normalized] || 'status-unknown';
+}
+
+function formatStatusLabel(status) {
+    const normalized = String(status || '').toLowerCase().trim();
+    if (!normalized) return 'Unknown';
+    return normalized
+        .split('_')
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
 }
 
 function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
