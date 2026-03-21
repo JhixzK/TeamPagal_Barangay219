@@ -203,13 +203,94 @@ function householdTypeForResponse($val) {
 }
 
 function resolveHouseholdTypeForDisplay($db, $household) {
-    $val = householdTypeForResponse($household['household_type'] ?? null);
-    if ($val !== null) return $val;
-    $headId = (int)($household['family_head_id'] ?? 0);
-    if ($headId <= 0 || !columnExists($db, 'residents', 'household_role')) return null;
-    $headRow = $db->fetchOne("SELECT household_role FROM residents WHERE id = ? LIMIT 1", [$headId]);
-    $role = strtolower(trim((string)($headRow['household_role'] ?? '')));
-    return null;
+    // Always compute from actual member relationships so it stays in sync
+    $householdId = (int)($household['id'] ?? 0);
+    if ($householdId > 0) {
+        $computed = computeHouseholdTypeFromMembers($db, $householdId);
+        if ($computed !== null) return $computed;
+    }
+
+    // Fallback to stored value
+    return householdTypeForResponse($household['household_type'] ?? null);
+}
+
+function computeHouseholdTypeFromMembers($db, $householdId) {
+    $headColumn = householdHeadColumn();
+    $hh = $db->fetchOne("SELECT `{$headColumn}` AS family_head_id FROM households WHERE id = ? LIMIT 1", [$householdId]);
+    if (!$hh) return null;
+    $headId = (int)($hh['family_head_id'] ?? 0);
+
+    $rels = [];
+
+    // Get relationships from household_members
+    try {
+        $hmRows = $db->fetchAll(
+            "SELECT resident_id, relationship_to_head FROM household_members WHERE household_id = ?",
+            [$householdId]
+        );
+        foreach ($hmRows as $hm) {
+            $rid = (int)($hm['resident_id'] ?? 0);
+            if ($rid > 0 && $rid !== $headId) {
+                $r = strtolower(trim((string)($hm['relationship_to_head'] ?? '')));
+                if ($r !== '' && $r !== 'member' && strpos($r, 'head') === false) {
+                    $rels[] = $r;
+                }
+            }
+        }
+    } catch (Exception $ignore) {}
+
+    // Fallback: also check residents.relationship_to_head
+    if (empty($rels) && columnExists($db, 'residents', 'relationship_to_head')) {
+        $resRows = $db->fetchAll(
+            "SELECT id, relationship_to_head FROM residents WHERE household_id = ? AND id <> ?",
+            [$householdId, $headId]
+        );
+        foreach ($resRows as $m) {
+            $r = strtolower(trim((string)($m['relationship_to_head'] ?? '')));
+            if ($r !== '' && $r !== 'member' && strpos($r, 'head') === false) {
+                $rels[] = $r;
+            }
+        }
+    }
+
+    if (empty($rels)) {
+        $type = 'Single Inhabitant';
+    } else {
+        $hasSpouse = false;
+        $hasFamily = false;
+        $hasNonRelative = false;
+        foreach ($rels as $r) {
+            if (strpos($r, 'spouse') !== false || strpos($r, 'wife') !== false || strpos($r, 'husband') !== false) $hasSpouse = true;
+            if (strpos($r, 'son') !== false || strpos($r, 'daughter') !== false || strpos($r, 'child') !== false ||
+                strpos($r, 'parent') !== false || strpos($r, 'mother') !== false || strpos($r, 'father') !== false ||
+                strpos($r, 'sibling') !== false || strpos($r, 'brother') !== false || strpos($r, 'sister') !== false ||
+                strpos($r, 'grandchild') !== false || strpos($r, 'grandparent') !== false ||
+                strpos($r, 'nephew') !== false || strpos($r, 'niece') !== false ||
+                strpos($r, 'uncle') !== false || strpos($r, 'aunt') !== false || strpos($r, 'cousin') !== false ||
+                strpos($r, 'in-law') !== false) $hasFamily = true;
+            if (strpos($r, 'boarder') !== false || strpos($r, 'helper') !== false || strpos($r, 'non-relative') !== false ||
+                strpos($r, 'tenant') !== false || strpos($r, 'shared') !== false) $hasNonRelative = true;
+        }
+
+        if ($hasFamily || ($hasSpouse && count($rels) > 1)) {
+            $type = 'Family Household';
+        } elseif ($hasSpouse && count($rels) === 1) {
+            $type = 'Couple Only';
+        } elseif ($hasNonRelative && !$hasFamily && !$hasSpouse) {
+            $type = 'Non-Relative Household (Shared / Boarders)';
+        } else {
+            $type = 'Family Household';
+        }
+    }
+
+    // Persist for future reads
+    if (columnExists($db, 'households', 'household_type')) {
+        try {
+            $db->query("UPDATE households SET household_type = ? WHERE id = ?", [$type, $householdId]);
+        } catch (Exception $ignore) {}
+    }
+
+    return $type;
 }
 
 function householdAddressLabel($household) {
@@ -976,6 +1057,8 @@ function joinAsMember($residentId, $data) {
 
         logHouseholdHistory($householdId, 'Member Added', 'Resident joined household via family code', $residentId);
 
+        recalcHouseholdType($db, $householdId);
+
         $db->commit();
         householdJsonResponse(true, [
             'household_id' => $householdId,
@@ -987,6 +1070,95 @@ function joinAsMember($residentId, $data) {
         $db->rollback();
         throw $e;
     }
+}
+
+/**
+ * Recalculate household_type from member relationships and persist it.
+ */
+function recalcHouseholdType($db, $householdId) {
+    if (!columnExists($db, 'households', 'household_type')) {
+        error_log("[recalcHH] household_type column not found");
+        return;
+    }
+
+    $headColumn = householdHeadColumn();
+    $hh = $db->fetchOne("SELECT `{$headColumn}` AS family_head_id FROM households WHERE id = ? LIMIT 1", [$householdId]);
+    if (!$hh) {
+        error_log("[recalcHH] household not found for id=$householdId");
+        return;
+    }
+    $headId = (int)($hh['family_head_id'] ?? 0);
+
+    // Query non-head members from residents
+    $hasRelCol = columnExists($db, 'residents', 'relationship_to_head');
+    $resSelect = $hasRelCol ? 'id, relationship_to_head' : 'id';
+    $members = $db->fetchAll(
+        "SELECT {$resSelect} FROM residents WHERE household_id = ? AND id <> ?",
+        [$householdId, $headId]
+    );
+
+    // Also include household_members relationships as fallback
+    $hmMembers = [];
+    try {
+        $hmMembers = $db->fetchAll(
+            "SELECT resident_id, relationship_to_head FROM household_members WHERE household_id = ?",
+            [$householdId]
+        );
+    } catch (Exception $ignore) {}
+    $hmMap = [];
+    foreach ($hmMembers as $hm) {
+        $rid = (int)($hm['resident_id'] ?? 0);
+        if ($rid > 0 && $rid !== $headId) {
+            $hmMap[$rid] = strtolower(trim((string)($hm['relationship_to_head'] ?? '')));
+        }
+    }
+
+    $rels = [];
+    foreach ($members as $m) {
+        $r = $hasRelCol ? strtolower(trim((string)($m['relationship_to_head'] ?? ''))) : '';
+        if ($r === '' || $r === 'member') {
+            $mid = (int)($m['id'] ?? 0);
+            if (isset($hmMap[$mid]) && $hmMap[$mid] !== '' && $hmMap[$mid] !== 'member') {
+                $r = $hmMap[$mid];
+            }
+        }
+        if ($r !== '') $rels[] = $r;
+    }
+
+    error_log("[recalcHH] householdId=$householdId headId=$headId memberCount=" . count($members) . " rels=" . json_encode($rels) . " hmMap=" . json_encode($hmMap));
+
+    if (empty($rels)) {
+        $type = 'Single Inhabitant';
+    } else {
+        $hasSpouse = false;
+        $hasFamily = false;
+        $hasNonRelative = false;
+        foreach ($rels as $r) {
+            if (strpos($r, 'spouse') !== false || strpos($r, 'wife') !== false || strpos($r, 'husband') !== false) $hasSpouse = true;
+            if (strpos($r, 'son') !== false || strpos($r, 'daughter') !== false || strpos($r, 'child') !== false ||
+                strpos($r, 'parent') !== false || strpos($r, 'mother') !== false || strpos($r, 'father') !== false ||
+                strpos($r, 'sibling') !== false || strpos($r, 'brother') !== false || strpos($r, 'sister') !== false ||
+                strpos($r, 'grandchild') !== false || strpos($r, 'grandparent') !== false ||
+                strpos($r, 'nephew') !== false || strpos($r, 'niece') !== false ||
+                strpos($r, 'uncle') !== false || strpos($r, 'aunt') !== false || strpos($r, 'cousin') !== false ||
+                strpos($r, 'in-law') !== false) $hasFamily = true;
+            if (strpos($r, 'boarder') !== false || strpos($r, 'helper') !== false || strpos($r, 'non-relative') !== false ||
+                strpos($r, 'tenant') !== false || strpos($r, 'shared') !== false) $hasNonRelative = true;
+        }
+
+        if ($hasFamily || ($hasSpouse && count($rels) > 1)) {
+            $type = 'Family Household';
+        } elseif ($hasSpouse && count($rels) === 1) {
+            $type = 'Couple Only';
+        } elseif ($hasNonRelative && !$hasFamily && !$hasSpouse) {
+            $type = 'Non-Relative Household (Shared / Boarders)';
+        } else {
+            $type = 'Family Household';
+        }
+    }
+
+    error_log("[recalcHH] Setting type='$type' for householdId=$householdId");
+    $db->query("UPDATE households SET household_type = ? WHERE id = ?", [$type, $householdId]);
 }
 
 function leaveHousehold($residentId) {
@@ -1015,6 +1187,7 @@ function leaveHousehold($residentId) {
             $db->query('UPDATE residents SET family_code = NULL WHERE id = ?', [$residentId]);
         }
         logHouseholdHistory($householdId, 'Member Removed', 'Resident left household', $residentId);
+        recalcHouseholdType($db, $householdId);
         $db->commit();
         householdJsonResponse(true, null, 'You have left the household successfully');
     } catch (Exception $e) {
