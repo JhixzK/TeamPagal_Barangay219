@@ -270,7 +270,7 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .announcements-page .announcements-actions-col {
-    min-width: 170px;
+    min-width: 176px;
 }
 
 @media (max-width: 768px) {
