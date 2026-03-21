@@ -64,7 +64,7 @@ include __DIR__ . '/../includes/sidebar.php';
         </ul>
 
         <div class="data-table complaints-table-wrap">
-            <div class="table-responsive">
+            <div class="table-responsive complaints-table-scroll">
                 <table class="table table-hover complaints-table align-middle">
                     <thead>
                         <tr>
@@ -122,6 +122,40 @@ include __DIR__ . '/../includes/sidebar.php';
 
 .complaints-page .complaints-table {
     margin-bottom: 0;
+}
+
+.complaints-page .complaints-table-scroll {
+    max-height: min(62vh, 640px);
+    overflow-y: auto;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.complaints-page .complaints-table-scroll::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.complaints-page .complaints-table-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 999px;
+}
+
+.complaints-page .complaints-table-scroll::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 999px;
+    border: 2px solid #f1f5f9;
+}
+
+.complaints-page .complaints-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+.complaints-page .complaints-table-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
 
 .complaints-page .complaints-table > :not(caption) > * > * {
