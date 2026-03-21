@@ -287,7 +287,7 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .complaints-page .complaints-actions-col {
-    min-width: 130px;
+    min-width: 140px;
 }
 
 @media (max-width: 768px) {
