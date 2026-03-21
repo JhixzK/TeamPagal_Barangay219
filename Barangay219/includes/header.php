@@ -70,16 +70,6 @@ $userInfo = getUserInfo();
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav"></div>
-            <?php if (canSwitchToResidentView()): ?>
-            <div class="view-switch ms-auto" role="group" aria-label="View mode switch">
-                <span class="view-label">Official</span>
-                <label class="switch">
-                    <input type="checkbox" data-view-mode-toggle <?php echo isResidentView() ? 'checked' : ''; ?>>
-                    <span class="slider"></span>
-                </label>
-                <span class="view-label">Resident</span>
-            </div>
-            <?php endif; ?>
         </div>
     </nav>
     <script src="<?php echo ASSETS_URL; ?>css/js/view-mode-switch.js?v=<?php echo time(); ?>"></script>
