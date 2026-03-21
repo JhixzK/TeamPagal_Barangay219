@@ -13,6 +13,13 @@
     --light-color: #f8fafc;
     --dark-color: #0f172a;
     --module-bg-image: url('img/barangay_logo2.png');
+    --ui-border-soft: #e6ebf2;
+    --ui-border-hover: #d6e4ff;
+    --ui-bg-soft: #ffffff;
+    --ui-bg-soft-hover: #f5f9ff;
+    --ui-text-muted: #5b6678;
+    --ui-text-hover: #2f4f95;
+    --ui-pill-radius: 999px;
 }
 
 body {
@@ -335,6 +342,42 @@ body {
     gap: 0.42rem;
 }
 
+.module-page .btn-action-primary {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+}
+
+.module-page .btn-action-primary:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+    color: #fff;
+}
+
+.module-page .btn-action-secondary {
+    background: #fff;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+.module-page .btn-action-secondary:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #334155;
+}
+
+.module-page .btn-action-danger {
+    background: #fff1f2;
+    border-color: #fecdd3;
+    color: #be123c;
+}
+
+.module-page .btn-action-danger:hover {
+    background: #ffe4e6;
+    border-color: #fda4af;
+    color: #9f1239;
+}
+
 .module-page .search-bar .btn i {
     font-size: 0.92rem;
     line-height: 1;
@@ -344,11 +387,21 @@ body {
     width: 32px;
     height: 32px;
     border-radius: 8px;
+    border: 1px solid var(--ui-border-soft);
+    background: var(--ui-bg-soft);
+    color: var(--ui-text-muted);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0;
     line-height: 1;
+}
+
+.module-page .action-icon-btn:hover,
+.module-page .action-icon-btn:focus-visible {
+    background: var(--ui-bg-soft-hover);
+    border-color: var(--ui-border-hover);
+    color: var(--ui-text-hover);
 }
 
 .module-page .action-icon-btn i {
@@ -359,6 +412,24 @@ body {
 .module-page th[class$='-actions-col'],
 .module-page td[class$='-actions-col'] {
     white-space: nowrap;
+}
+
+.module-page .actions-col-compact {
+    width: 140px !important;
+    min-width: 140px !important;
+}
+
+.module-page .actions-col-wide {
+    width: 176px !important;
+    min-width: 176px !important;
+}
+
+@media (max-width: 768px) {
+    .module-page .actions-col-compact,
+    .module-page .actions-col-wide {
+        width: 140px !important;
+        min-width: 140px !important;
+    }
 }
 
 .module-page .users-actions,
@@ -390,6 +461,7 @@ body {
     padding: 0.33rem 0.62rem;
     font-size: 0.75rem;
     line-height: 1.1;
+    border-radius: var(--ui-pill-radius);
 }
 
 .module-page .app-tabs {
