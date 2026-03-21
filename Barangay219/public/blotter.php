@@ -50,9 +50,9 @@ include __DIR__ . '/../includes/sidebar.php';
             <li class="nav-item"><a class="nav-link" href="#" data-status="settled">Settled</a></li>
         </ul>
 
-        <div class="data-table mt-2">
+        <div class="data-table mt-2 blotter-table-wrap">
             <div class="table-responsive">
-            <table class="table">
+            <table class="table table-hover blotter-table align-middle">
                 <thead>
                     <tr>
                         <th class="text-center">ID</th>
@@ -62,7 +62,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <th class="text-center">Incident Location</th>
                         <th class="text-center">Date</th>
                         <th class="text-center">Status</th>
-                        <th class="text-center">Actions</th>
+                        <th class="text-center blotter-actions-col">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="blotterTableBody"><tr><td colspan="8" class="text-center">Loading...</td></tr></tbody>
@@ -393,9 +393,131 @@ include __DIR__ . '/../includes/sidebar.php';
         border-color: #bfdbfe;
     }
 
+    .blotter-page .blotter-table-wrap {
+        border: 1px solid #e7ecf3;
+        border-radius: 14px;
+        background: #fff;
+        padding: 0.35rem;
+    }
+
+    .blotter-page .blotter-table {
+        margin-bottom: 0;
+    }
+
+    .blotter-page .blotter-table > :not(caption) > * > * {
+        border-bottom: 1px solid #edf1f6;
+        padding: 0.9rem 0.85rem;
+        vertical-align: middle;
+    }
+
+    .blotter-page .blotter-table thead th {
+        border-bottom: 1px solid #dfe6ef;
+        color: #4b5563;
+        font-size: 0.82rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        background: #f9fbfd;
+    }
+
+    .blotter-page .blotter-table tbody td {
+        color: #1f2937;
+        font-size: 0.94rem;
+    }
+
+    .blotter-page .blotter-table tbody tr:hover {
+        background: #f8fbff;
+    }
+
+    .blotter-page .blotter-secondary {
+        color: #6b7280;
+        font-size: 0.86rem;
+    }
+
+    .blotter-page .blotter-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 96px;
+        padding: 0.35rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+    }
+
+    .blotter-page .blotter-pill.status-pending {
+        background: #fff4e8;
+        color: #9a5b11;
+    }
+
+    .blotter-page .blotter-pill.status-under-investigation {
+        background: #eaf6ff;
+        color: #1f5f8b;
+    }
+
+    .blotter-page .blotter-pill.status-resolved,
+    .blotter-page .blotter-pill.status-settled {
+        background: #e9f8ef;
+        color: #1f7a3f;
+    }
+
+    .blotter-page .blotter-pill.status-referred {
+        background: #eef2f7;
+        color: #4b5563;
+    }
+
+    .blotter-page .blotter-pill.status-unknown {
+        background: #f1f3f6;
+        color: #374151;
+    }
+
+    .blotter-page .blotter-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+    }
+
+    .blotter-page .action-icon-btn {
+        width: 32px;
+        height: 32px;
+        border: 1px solid #e6ebf2;
+        background: #ffffff;
+        color: #5b6678;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+
+    .blotter-page .action-icon-btn:hover,
+    .blotter-page .action-icon-btn:focus-visible {
+        background: #f5f9ff;
+        border-color: #d6e4ff;
+        color: #2f4f95;
+        transform: translateY(-1px);
+    }
+
+    .blotter-page .action-icon-btn.action-delete:hover,
+    .blotter-page .action-icon-btn.action-delete:focus-visible {
+        background: #fff1f3;
+        border-color: #f6ccd3;
+        color: #9f2f3e;
+    }
+
+    .blotter-page .blotter-actions-col {
+        min-width: 140px;
+    }
+
     @media (max-width: 768px) {
         .blotter-page .app-tabs {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .blotter-page .blotter-table > :not(caption) > * > * {
+            padding: 0.75rem 0.6rem;
         }
     }
 </style>
