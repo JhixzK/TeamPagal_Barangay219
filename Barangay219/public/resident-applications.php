@@ -58,8 +58,8 @@ include __DIR__ . '/../includes/sidebar.php';
             <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
         </ul>
 
-        <div class="table-responsive data-table">
-            <table class="table table-hover">
+        <div class="table-responsive data-table resident-apps-table-wrap">
+            <table class="table table-hover resident-apps-table align-middle">
                 <thead>
                     <tr>
                         <th class="text-center">Ref #</th>
@@ -69,7 +69,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <th class="text-center">Submitted</th>
                         <th class="text-center" style="width: 140px;">Household Role</th>
                         <th class="text-center">Status</th>
-                        <th class="text-center">VIEW</th>
+                        <th class="text-center resident-apps-actions-col">View</th>
                     </tr>
                 </thead>
                 <tbody id="applicationsTableBody">
@@ -140,9 +140,147 @@ include __DIR__ . '/../includes/sidebar.php';
     vertical-align: middle;
 }
 
+.resident-apps-page .resident-apps-table-wrap {
+    border: 1px solid #e7ecf3;
+    border-radius: 14px;
+    background: #fff;
+    padding: 0.35rem;
+}
+
+.resident-apps-page .resident-apps-table {
+    margin-bottom: 0;
+}
+
+.resident-apps-page .resident-apps-table > :not(caption) > * > * {
+    border-bottom: 1px solid #edf1f6;
+    padding: 0.9rem 0.85rem;
+    vertical-align: middle;
+}
+
+.resident-apps-page .resident-apps-table thead th {
+    border-bottom: 1px solid #dfe6ef;
+    color: #4b5563;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: #f9fbfd;
+}
+
+.resident-apps-page .resident-apps-table tbody td {
+    color: #1f2937;
+    font-size: 0.94rem;
+}
+
+.resident-apps-page .resident-apps-table tbody tr:hover {
+    background: #f8fbff;
+}
+
+.resident-apps-page .resident-apps-secondary {
+    color: #6b7280;
+    font-size: 0.86rem;
+}
+
+.resident-apps-page .resident-apps-code-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.28rem 0.55rem;
+    border-radius: 999px;
+    background: #f2f5fa;
+    border: 1px solid #e2e8f0;
+    color: #465468;
+    font-size: 0.76rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.resident-apps-page .resident-apps-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 86px;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.resident-apps-page .resident-apps-pill.status-pending {
+    background: #fff4e8;
+    color: #9a5b11;
+}
+
+.resident-apps-page .resident-apps-pill.status-approved {
+    background: #e9f8ef;
+    color: #1f7a3f;
+}
+
+.resident-apps-page .resident-apps-pill.status-rejected {
+    background: #ffecee;
+    color: #a53a44;
+}
+
+.resident-apps-page .resident-apps-pill.status-unknown {
+    background: #eef2f7;
+    color: #4b5563;
+}
+
+.resident-apps-page .resident-apps-pill.role-head {
+    background: #e8f0ff;
+    color: #1f4f8b;
+}
+
+.resident-apps-page .resident-apps-pill.role-member {
+    background: #eef2f7;
+    color: #4b5563;
+}
+
+.resident-apps-page .resident-apps-pill.role-unassigned {
+    background: #fff4e8;
+    color: #9a5b11;
+}
+
+.resident-apps-page .resident-apps-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+
+.resident-apps-page .action-icon-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e6ebf2;
+    background: #ffffff;
+    color: #5b6678;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.resident-apps-page .action-icon-btn:hover,
+.resident-apps-page .action-icon-btn:focus-visible {
+    background: #f5f9ff;
+    border-color: #d6e4ff;
+    color: #2f4f95;
+    transform: translateY(-1px);
+}
+
+.resident-apps-page .resident-apps-actions-col {
+    min-width: 130px;
+}
+
 @media (max-width: 768px) {
     .resident-apps-page .app-tabs {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .resident-apps-page .resident-apps-table > :not(caption) > * > * {
+        padding: 0.75rem 0.6rem;
     }
 }
 </style>
