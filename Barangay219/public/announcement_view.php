@@ -4,39 +4,21 @@ require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
 
-$currentRole = getCurrentUserRole();
-if (normalizeRole($currentRole) !== normalizeRole(ROLE_RESIDENT)) {
+if (!isResidentView()) {
     header('Location: ' . BASE_URL . 'dashboard.php');
     exit();
 }
 
 $announcementId = (int)($_GET['id'] ?? 0);
-$username = $_SESSION['username'] ?? 'Resident';
-$residentId = $_SESSION['resident_id'] ?? null;
-
-$db = Database::getInstance();
-$residentName = $username;
-if ($residentId) {
-    $resident = $db->fetchOne("SELECT first_name, middle_name, last_name FROM residents WHERE id = ?", [$residentId]);
-    if ($resident) {
-        $residentName = trim($resident['first_name'] . ' ' . ($resident['middle_name'] ? $resident['middle_name'] . ' ' : '') . $resident['last_name']);
-    }
-}
+$page_title = 'Announcement Details';
+require_once __DIR__ . '/../includes/header.php';
+include __DIR__ . '/../includes/sidebar.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Announcement Details | E-Barangay Information Management System</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
-  <link rel="stylesheet" href="resident_dashboard.css">
-  <style>
-    .announcement-view-container {
-      max-width: 900px;
+
+<link rel="stylesheet" href="<?php echo BASE_URL; ?>resident_dashboard.css?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_dashboard.css')); ?>">
+<style>
+    .announcement-view-shell {
+      max-width: 980px;
       margin: 0 auto;
     }
 
@@ -206,288 +188,198 @@ if ($residentId) {
       }
     }
   </style>
-</head>
-<body>
-  <header class="top-header">
-    <div class="header-left">
-      <button class="menu-toggle" id="menuToggle" aria-label="Toggle sidebar">
-        <i class="fa-solid fa-bars"></i>
-      </button>
-      <div class="logo-wrap" aria-hidden="true">
-        <i class="fa-solid fa-shield-halved"></i>
-      </div>
-      <div class="system-text">
-        <h1>E-Barangay Information Management System</h1>
-        <p>Barangay 219, Tondo, Manila</p>
-      </div>
-    </div>
 
-    <div class="header-right">
-      <span class="date-badge" id="topDateBadge"><?php echo date('F d, Y'); ?></span>
-      <button class="icon-btn" aria-label="Notifications">
-        <i class="fa-regular fa-bell"></i>
-      </button>
-      <div class="profile-dropdown" id="profileDropdown">
-        <button class="profile-trigger" id="profileTrigger" aria-haspopup="true" aria-expanded="false">
-          <img src="https://i.pravatar.cc/100?img=12" alt="Resident avatar">
-          <i class="fa-solid fa-chevron-down"></i>
-        </button>
-        <div class="dropdown-menu" id="dropdownMenu" role="menu">
-          <a href="resident_profile.php" role="menuitem">View Profile</a>
-          <a href="#" role="menuitem">Account Settings</a>
-          <a href="../api/auth.php?action=logout" role="menuitem">Logout</a>
+<div class="main-content module-page" id="mainContent">
+  <div class="container-fluid">
+    <div class="module-hero card border-0 shadow-sm mb-4">
+      <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
+        <div>
+          <p class="module-kicker text-uppercase small mb-1">Resident Portal</p>
+          <h2 class="mb-1"><i class="bi bi-megaphone me-2"></i>Announcement Details</h2>
+          <p class="module-subtitle mb-0">Read the full community update and related information.</p>
         </div>
       </div>
     </div>
-  </header>
 
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-profile">
-      <img src="https://i.pravatar.cc/120?img=12" alt="Resident profile image">
-      <div class="profile-meta label">
-        <h3><?php echo htmlspecialchars($residentName); ?></h3>
-        <p>Resident</p>
-      </div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <div class="nav-group">
-        <p class="group-title label">ACCOUNT</p>
-        <a class="nav-item" href="<?php echo BASE_URL; ?>resident_profile.php">
-          <i class="fa-regular fa-user"></i>
-          <span class="label">My Profile</span>
-        </a>
-      </div>
-
-      <div class="nav-group">
-        <p class="group-title label">MAIN</p>
-        <a class="nav-item" href="<?php echo BASE_URL; ?>resident_dashboard.php">
-          <i class="fa-solid fa-gauge-high"></i>
-          <span class="label">Dashboard</span>
-        </a>
-      </div>
-
-      <div class="nav-group">
-        <p class="group-title label">SERVICES</p>
-        <a class="nav-item" href="<?php echo BASE_URL; ?>request_certificate.php">
-          <i class="fa-regular fa-file-lines"></i>
-          <span class="label">Request Certificate</span>
-        </a>
-        <a class="nav-item" href="<?php echo BASE_URL; ?>my_requests.php">
-          <i class="fa-solid fa-list-check"></i>
-          <span class="label">My Requests</span>
-        </a>
-      </div>
-
-      <div class="nav-group">
-        <p class="group-title label">HOUSEHOLD</p>
-        <a class="nav-item" href="<?php echo BASE_URL; ?>resident_household.php">
-          <i class="fa-solid fa-house-user"></i>
-          <span class="label">Household Information</span>
-        </a>
-      </div>
-
-      <div class="nav-group">
-        <p class="group-title label">COMMUNITY</p>
-        <a class="nav-item active" href="<?php echo BASE_URL; ?>resident_announcements.php">
-          <i class="fa-regular fa-newspaper"></i>
-          <span class="label">Announcements</span>
-        </a>
-        <a class="nav-item" href="<?php echo BASE_URL; ?>complaints/my_complaints.php">
-          <i class="fa-regular fa-comment-dots"></i>
-          <span class="label">Complaints / Reports</span>
-        </a>
-      </div>
-    </nav>
-
-    <div class="sidebar-bottom">
-      <a class="nav-item logout" href="../api/auth.php?action=logout">
-        <i class="fa-solid fa-arrow-right-from-bracket"></i>
-        <span class="label">Logout</span>
-      </a>
-    </div>
-  </aside>
-
-  <main class="main-content" id="mainContent">
-    <section class="announcement-view-container">
+    <section class="announcement-view-shell">
       <a href="resident_announcements.php" class="announcement-back-link">
-        <i class="fa-solid fa-arrow-left"></i> Back to Announcements
+        <i class="bi bi-arrow-left"></i> Back to Announcements
       </a>
 
       <div id="announcementViewRoot" class="announcement-view-empty">
         Loading announcement...
       </div>
     </section>
-  </main>
-
-  <div id="imageLightbox" class="image-lightbox" aria-hidden="true">
-    <div class="lightbox-content" role="dialog" aria-modal="true" aria-label="Announcement image preview">
-      <button id="lightboxClose" class="lightbox-close" aria-label="Close full image">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-      <img id="lightboxImage" class="lightbox-image" src="" alt="Full announcement image">
-      <span class="lightbox-hint">Press Esc or click outside to close</span>
-    </div>
   </div>
+</div>
 
-  <script src="resident_dashboard.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_dashboard.js')); ?>"></script>
-  <script>
-    (function () {
-      const id = <?php echo (int)$announcementId; ?>;
-      const root = document.getElementById('announcementViewRoot');
-      const apiUrl = '/TeamPagal_Barangay219/Barangay219/api/announcements.php';
-      const lightbox = document.getElementById('imageLightbox');
-      const lightboxImage = document.getElementById('lightboxImage');
-      const lightboxClose = document.getElementById('lightboxClose');
+<div id="imageLightbox" class="image-lightbox" aria-hidden="true">
+  <div class="lightbox-content" role="dialog" aria-modal="true" aria-label="Announcement image preview">
+    <button id="lightboxClose" class="lightbox-close" aria-label="Close full image">
+      <i class="bi bi-x-lg"></i>
+    </button>
+    <img id="lightboxImage" class="lightbox-image" src="" alt="Full announcement image">
+    <span class="lightbox-hint">Press Esc or click outside to close</span>
+  </div>
+</div>
 
-      function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = String(text || '');
-        return div.innerHTML;
+<script>
+  (function () {
+    const id = <?php echo (int)$announcementId; ?>;
+    const root = document.getElementById('announcementViewRoot');
+    const apiUrl = '/TeamPagal_Barangay219/Barangay219/api/announcements.php';
+    const lightbox = document.getElementById('imageLightbox');
+    const lightboxImage = document.getElementById('lightboxImage');
+    const lightboxClose = document.getElementById('lightboxClose');
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = String(text || '');
+      return div.innerHTML;
+    }
+
+    function parseDate(rawValue) {
+      if (!rawValue) return null;
+      const raw = String(rawValue).trim();
+      const normalized = raw.includes(' ') && !raw.includes('T') ? raw.replace(' ', 'T') : raw;
+      const parsed = new Date(normalized);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    function formatDate(rawValue) {
+      const parsed = parseDate(rawValue);
+      if (!parsed) return 'Unknown Date';
+      return parsed.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+
+    function categoryClass(category) {
+      const normalized = String(category || '').toLowerCase();
+      if (normalized === 'event') return 'category-event';
+      if (normalized === 'advisory') return 'category-advisory';
+      if (normalized === 'emergency') return 'category-emergency';
+      return 'category-general';
+    }
+
+    function resolveImagePath(rawPath) {
+      if (!rawPath) return 'assets/default-announcement.jpg';
+      const value = String(rawPath).trim();
+      if (!value) return 'assets/default-announcement.jpg';
+      if (/^https?:\/\//i.test(value)) return value;
+
+      const normalized = value.replace(/\\/g, '/').replace(/^\/+/, '');
+      if (normalized.startsWith('uploads/')) return `../${normalized}`;
+      if (normalized.startsWith('public/')) return normalized.replace(/^public\//, '');
+      return normalized;
+    }
+
+    async function incrementViews(announcementId) {
+      try {
+        const fd = new FormData();
+        fd.append('action', 'increment-views');
+        fd.append('id', announcementId);
+        await fetch(apiUrl, { method: 'POST', body: fd });
+      } catch (error) {
+        console.error('Error incrementing views:', error);
+      }
+    }
+
+    async function loadAnnouncement() {
+      if (!id) {
+        root.innerHTML = 'Announcement not found.';
+        return;
       }
 
-      function parseDate(rawValue) {
-        if (!rawValue) return null;
-        const raw = String(rawValue).trim();
-        const normalized = raw.includes(' ') && !raw.includes('T') ? raw.replace(' ', 'T') : raw;
-        const parsed = new Date(normalized);
-        return Number.isNaN(parsed.getTime()) ? null : parsed;
-      }
+      try {
+        const response = await fetch(`${apiUrl}?action=get&id=${encodeURIComponent(id)}`);
+        const data = await response.json();
 
-      function formatDate(rawValue) {
-        const parsed = parseDate(rawValue);
-        if (!parsed) return 'Unknown Date';
-        return parsed.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-      }
-
-      function categoryClass(category) {
-        const normalized = String(category || '').toLowerCase();
-        if (normalized === 'event') return 'category-event';
-        if (normalized === 'advisory') return 'category-advisory';
-        if (normalized === 'emergency') return 'category-emergency';
-        return 'category-general';
-      }
-
-      function resolveImagePath(rawPath) {
-        if (!rawPath) return 'assets/default-announcement.jpg';
-        const value = String(rawPath).trim();
-        if (!value) return 'assets/default-announcement.jpg';
-        if (/^https?:\/\//i.test(value)) return value;
-
-        const normalized = value.replace(/\\/g, '/').replace(/^\/+/, '');
-        if (normalized.startsWith('uploads/')) return `../${normalized}`;
-        if (normalized.startsWith('public/')) return normalized.replace(/^public\//, '');
-        return normalized;
-      }
-
-      async function incrementViews(announcementId) {
-        try {
-          const fd = new FormData();
-          fd.append('action', 'increment-views');
-          fd.append('id', announcementId);
-          await fetch(apiUrl, { method: 'POST', body: fd });
-        } catch (error) {
-          console.error('Error incrementing views:', error);
-        }
-      }
-
-      async function loadAnnouncement() {
-        if (!id) {
-          root.innerHTML = 'Announcement not found.';
+        if (!response.ok || !data.success || !data.data) {
+          root.innerHTML = 'Announcement not found or no longer available.';
           return;
         }
 
-        try {
-          const response = await fetch(`${apiUrl}?action=get&id=${encodeURIComponent(id)}`);
-          const data = await response.json();
+        const a = data.data;
+        const badgeClass = categoryClass(a.category);
+        const imageSrc = resolveImagePath(a.image_path);
 
-          if (!response.ok || !data.success || !data.data) {
-            root.innerHTML = 'Announcement not found or no longer available.';
-            return;
-          }
-
-          const a = data.data;
-          const badgeClass = categoryClass(a.category);
-          const imageSrc = resolveImagePath(a.image_path);
-
-          root.className = 'announcement-view-card';
-          root.innerHTML = `
-            <img
-              id="announcementMainImage"
-              class="announcement-view-image"
-              src="${escapeHtml(imageSrc)}"
-              alt="${escapeHtml(a.title || 'Announcement image')}"
-              loading="lazy"
-              onerror="this.onerror=null;this.src='assets/default-announcement.jpg';"
-            >
-            <div class="announcement-view-body">
-              <div class="announcement-meta">
-                <span class="badge-category ${badgeClass}">${escapeHtml(a.category || 'General')}</span>
-                <span class="announcement-date">Posted: ${formatDate(a.created_at)}</span>
-              </div>
-              <h1 class="announcement-view-title">${escapeHtml(a.title || 'Announcement')}</h1>
-              <div class="announcement-view-content">${escapeHtml(a.content || '').replace(/\n/g, '<br>')}</div>
+        root.className = 'announcement-view-card';
+        root.innerHTML = `
+          <img
+            id="announcementMainImage"
+            class="announcement-view-image"
+            src="${escapeHtml(imageSrc)}"
+            alt="${escapeHtml(a.title || 'Announcement image')}"
+            loading="lazy"
+            onerror="this.onerror=null;this.src='assets/default-announcement.jpg';"
+          >
+          <div class="announcement-view-body">
+            <div class="announcement-meta">
+              <span class="badge-category ${badgeClass}">${escapeHtml(a.category || 'General')}</span>
+              <span class="announcement-date">Posted: ${formatDate(a.created_at)}</span>
             </div>
-          `;
+            <h1 class="announcement-view-title">${escapeHtml(a.title || 'Announcement')}</h1>
+            <div class="announcement-view-content">${escapeHtml(a.content || '').replace(/\n/g, '<br>')}</div>
+          </div>
+        `;
 
-          attachLightboxToMainImage();
+        attachLightboxToMainImage();
 
-          incrementViews(id);
-        } catch (error) {
-          console.error(error);
-          root.innerHTML = 'Unable to load announcement details.';
-        }
+        incrementViews(id);
+      } catch (error) {
+        console.error(error);
+        root.innerHTML = 'Unable to load announcement details.';
       }
+    }
 
-      function openLightbox(imageSrc, imageAlt) {
-        if (!lightbox || !lightboxImage) return;
-        lightboxImage.src = imageSrc;
-        lightboxImage.alt = imageAlt || 'Full announcement image';
-        lightbox.classList.add('open');
-        lightbox.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
-      }
+    function openLightbox(imageSrc, imageAlt) {
+      if (!lightbox || !lightboxImage) return;
+      lightboxImage.src = imageSrc;
+      lightboxImage.alt = imageAlt || 'Full announcement image';
+      lightbox.classList.add('open');
+      lightbox.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
 
-      function closeLightbox() {
-        if (!lightbox || !lightboxImage) return;
-        lightbox.classList.remove('open');
-        lightbox.setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
-        lightboxImage.src = '';
-      }
+    function closeLightbox() {
+      if (!lightbox || !lightboxImage) return;
+      lightbox.classList.remove('open');
+      lightbox.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      lightboxImage.src = '';
+    }
 
-      function attachLightboxToMainImage() {
-        const mainImage = document.getElementById('announcementMainImage');
-        if (!mainImage) return;
-        mainImage.addEventListener('click', () => {
-          openLightbox(mainImage.getAttribute('src') || '', mainImage.getAttribute('alt') || 'Announcement image');
-        });
-      }
+    function attachLightboxToMainImage() {
+      const mainImage = document.getElementById('announcementMainImage');
+      if (!mainImage) return;
+      mainImage.addEventListener('click', () => {
+        openLightbox(mainImage.getAttribute('src') || '', mainImage.getAttribute('alt') || 'Announcement image');
+      });
+    }
 
-      if (lightboxClose) {
-        lightboxClose.addEventListener('click', closeLightbox);
-      }
+    if (lightboxClose) {
+      lightboxClose.addEventListener('click', closeLightbox);
+    }
 
-      if (lightbox) {
-        lightbox.addEventListener('click', (event) => {
-          if (event.target === lightbox) {
-            closeLightbox();
-          }
-        });
-      }
-
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && lightbox && lightbox.classList.contains('open')) {
+    if (lightbox) {
+      lightbox.addEventListener('click', (event) => {
+        if (event.target === lightbox) {
           closeLightbox();
         }
       });
+    }
 
-      loadAnnouncement();
-    })();
-  </script>
-</body>
-</html>
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && lightbox && lightbox.classList.contains('open')) {
+        closeLightbox();
+      }
+    });
+
+    loadAnnouncement();
+  })();
+</script>
+
+<?php include __DIR__ . '/../includes/footer.php'; ?>
