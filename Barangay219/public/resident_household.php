@@ -143,7 +143,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
       <!-- Role Selection Modal -->
       <div id="roleSelectionModal" class="modal custom-modal" style="display: none;">
         <div class="modal-backdrop"></div>
-        <div class="modal-content modal-lg">
+        <div class="modal-content">
           <div class="modal-header">
             <h3>Join Household</h3>
             <button class="modal-close" data-action="closeRoleModal">&times;</button>
@@ -293,6 +293,34 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
                 <label for="familyHeadCodeInput">Family Head Code *</label>
                 <input type="text" id="familyHeadCodeInput" placeholder="FH-01234" maxlength="9" required>
                 <p class="form-hint">Ask your household head for the Family Head Code.</p>
+              </div>
+              <div class="form-group">
+                <label for="joinRelationshipSelect">Relationship to Head *</label>
+                <select id="joinRelationshipSelect" required>
+                  <option value="">Select Relationship</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Son">Son</option>
+                  <option value="Daughter">Daughter</option>
+                  <option value="Mother">Mother</option>
+                  <option value="Father">Father</option>
+                  <option value="Brother">Brother</option>
+                  <option value="Sister">Sister</option>
+                  <option value="Grandchild">Grandchild</option>
+                  <option value="Grandparent">Grandparent</option>
+                  <option value="Son-in-Law">Son-in-Law</option>
+                  <option value="Daughter-in-Law">Daughter-in-Law</option>
+                  <option value="Sibling-in-Law">Sibling-in-Law</option>
+                  <option value="Nephew">Nephew</option>
+                  <option value="Niece">Niece</option>
+                  <option value="Uncle">Uncle</option>
+                  <option value="Aunt">Aunt</option>
+                  <option value="Cousin">Cousin</option>
+                  <option value="Boarder">Boarder</option>
+                  <option value="Tenant">Tenant</option>
+                  <option value="Helper">Helper</option>
+                  <option value="Non-Relative">Non-Relative</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
             </form>
           </div>
