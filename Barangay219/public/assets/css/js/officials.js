@@ -221,19 +221,19 @@ function renderOfficials(rows) {
 function renderOfficialTile(o) {
     const term = (o.term_start || o.term_end) ? `${o.term_start || '—'} to ${o.term_end || '—'}` : '—';
     const isActive = String(o.status || '').toLowerCase() === 'active';
-    const statusBadge = isActive ? 'bg-success' : 'bg-secondary';
+    const statusBadge = isActive ? 'status-active' : 'status-inactive';
     const icon = getPositionIcon(o.position);
     const isCaptain = String(o.position || '').toLowerCase() === 'barangay_captain';
     const isSuper = isSuperAdminClient();
     const deleteButton = isCaptain
         ? (isSuper
-            ? `<button class="btn btn-sm btn-outline-danger" title="Remove (Super Admin only)" aria-label="Remove" onclick="deleteOfficial(${o.id})">
+            ? `<button class="action-icon-btn action-delete" title="Remove (Super Admin only)" aria-label="Remove" onclick="deleteOfficial(${o.id})">
                     <i class="bi bi-trash"></i>
                </button>`
-            : `<button class="btn btn-sm btn-outline-secondary" title="Protected (Super Admin only)" aria-label="Protected" disabled>
+            : `<button class="action-icon-btn" title="Protected (Super Admin only)" aria-label="Protected" disabled>
                     <i class="bi bi-shield-lock"></i>
                </button>`)
-        : `<button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="deleteOfficial(${o.id})">
+        : `<button class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="deleteOfficial(${o.id})">
                 <i class="bi bi-trash"></i>
            </button>`;
     return `
@@ -247,16 +247,16 @@ function renderOfficialTile(o) {
                         <div class="official-meta">
                             <div class="d-flex align-items-center gap-2 flex-wrap">
                                 <h5 class="official-name mb-0">${escapeHtml(o.full_name || '')}</h5>
-                                <span class="badge ${statusBadge}">${escapeHtml(formatStatus(o.status))}</span>
+                                <span class="official-pill ${statusBadge}">${escapeHtml(formatStatus(o.status))}</span>
                             </div>
                             <div class="official-sub text-muted">
-                                <span class="badge bg-info-subtle text-info-emphasis me-1">${escapeHtml(formatPosition(o.position || ''))}</span>
+                                <span class="official-pill position-pill me-1">${escapeHtml(formatPosition(o.position || ''))}</span>
                                 <span class="official-term"><i class="bi bi-calendar2-week me-1"></i>${escapeHtml(term)}</span>
                             </div>
                         </div>
                     </div>
                     <div class="official-actions text-nowrap">
-                        <button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editOfficial(${o.id})">
+                        <button class="action-icon-btn" title="Edit" aria-label="Edit" onclick="editOfficial(${o.id})">
                             <i class="bi bi-pencil-square"></i>
                         </button>
                         ${deleteButton}
@@ -276,10 +276,10 @@ function renderVacantTile(positionKey, positionTitle, slotNo) {
     const slotLabel = positionKey === 'kagawad' ? `Slot ${slotNo}` : 'Vacant';
     const lockedCaptain = positionKey === 'barangay_captain' && !isSuperAdminClient();
     const actionBtn = lockedCaptain
-        ? `<button class="btn btn-sm btn-outline-secondary" title="Restricted" aria-label="Restricted" disabled>
+        ? `<button class="action-icon-btn" title="Restricted" aria-label="Restricted" disabled>
                 <i class="bi bi-lock"></i>
            </button>`
-        : `<button class="btn btn-sm btn-primary" title="Add" aria-label="Add" data-bs-toggle="modal" data-bs-target="#officialModal" onclick="resetOfficialForm(); setFixedPosition('${escapeHtml(String(positionKey))}');">
+        : `<button class="action-icon-btn" title="Add" aria-label="Add" data-bs-toggle="modal" data-bs-target="#officialModal" onclick="resetOfficialForm(); setFixedPosition('${escapeHtml(String(positionKey))}');">
                 <i class="bi bi-plus"></i>
            </button>`;
     return `
@@ -293,10 +293,10 @@ function renderVacantTile(positionKey, positionTitle, slotNo) {
                         <div class="official-meta">
                             <div class="d-flex align-items-center gap-2 flex-wrap">
                                 <h5 class="official-name mb-0">${escapeHtml(slotLabel)}</h5>
-                                <span class="badge bg-light text-secondary border">Vacant</span>
+                                <span class="official-pill vacant-pill">Vacant</span>
                             </div>
                             <div class="official-sub text-muted">
-                                <span class="badge bg-info-subtle text-info-emphasis me-1">${escapeHtml(positionTitle)}</span>
+                                <span class="official-pill position-pill me-1">${escapeHtml(positionTitle)}</span>
                                 <span class="official-term"><i class="bi bi-plus-circle me-1"></i>Add an official</span>
                             </div>
                         </div>
