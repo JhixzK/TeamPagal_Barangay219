@@ -40,10 +40,21 @@ switch ($action) {
 function listAnnouncements() {
     try {
         $db = Database::getInstance();
+        $columns = getAnnouncementColumns($db);
+        $expiryExpr = getAnnouncementExpiryExpression($columns);
+        $createdExpr = getAnnouncementCreatedExpression($columns);
         $search = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
-        
-        $where = "WHERE status = 'published' AND (COALESCE(expires_at, expiration_date) IS NULL OR COALESCE(expires_at, expiration_date) >= CURDATE())";
+
+        $where = "WHERE 1=1";
         $params = [];
+
+        if (!empty($columns['status'])) {
+            $where .= " AND status IN ('published', 'active')";
+        }
+
+        if ($expiryExpr !== null) {
+            $where .= " AND ($expiryExpr IS NULL OR $expiryExpr >= CURDATE())";
+        }
         
         if (!empty($search)) {
             $where .= " AND title LIKE ?";
@@ -54,16 +65,16 @@ function listAnnouncements() {
                     id,
                     title,
                     content,
-                    image_path,
-                    category,
-                    priority,
-                    is_pinned,
-                    views,
-                    created_at,
-                    COALESCE(expires_at, expiration_date) AS expires_at
+                    " . (!empty($columns['image_path']) ? "image_path" : "NULL") . " AS image_path,
+                    " . (!empty($columns['category']) ? "category" : "'General'") . " AS category,
+                    " . (!empty($columns['priority']) ? "priority" : "'normal'") . " AS priority,
+                    " . (!empty($columns['is_pinned']) ? "is_pinned" : "0") . " AS is_pinned,
+                    " . (!empty($columns['views']) ? "views" : "0") . " AS views,
+                    $createdExpr AS created_at,
+                    " . ($expiryExpr !== null ? $expiryExpr : "NULL") . " AS expires_at
                 FROM announcements
                 $where
-                ORDER BY is_pinned DESC, created_at DESC
+                ORDER BY " . (!empty($columns['is_pinned']) ? "is_pinned DESC, " : "") . "$createdExpr DESC
                 LIMIT 50";
         
         $announcements = $db->fetchAll($sql, $params);
@@ -89,22 +100,25 @@ function getAnnouncement() {
         }
         
         $db = Database::getInstance();
+        $columns = getAnnouncementColumns($db);
+        $expiryExpr = getAnnouncementExpiryExpression($columns);
+        $createdExpr = getAnnouncementCreatedExpression($columns);
         
         $sql = "SELECT 
                     id,
                     title,
                     content,
-                    image_path,
-                    category,
-                    priority,
-                    is_pinned,
-                    views,
-                    created_at,
-                    COALESCE(expires_at, expiration_date) AS expires_at
+                " . (!empty($columns['image_path']) ? "image_path" : "NULL") . " AS image_path,
+                " . (!empty($columns['category']) ? "category" : "'General'") . " AS category,
+                " . (!empty($columns['priority']) ? "priority" : "'normal'") . " AS priority,
+                " . (!empty($columns['is_pinned']) ? "is_pinned" : "0") . " AS is_pinned,
+                " . (!empty($columns['views']) ? "views" : "0") . " AS views,
+                $createdExpr AS created_at,
+                " . ($expiryExpr !== null ? $expiryExpr : "NULL") . " AS expires_at
                 FROM announcements
                 WHERE id = ?
-                AND status = 'published'
-                AND (COALESCE(expires_at, expiration_date) IS NULL OR COALESCE(expires_at, expiration_date) >= CURDATE())";
+            " . (!empty($columns['status']) ? "AND status IN ('published', 'active')" : "") . "
+            " . ($expiryExpr !== null ? "AND ($expiryExpr IS NULL OR $expiryExpr >= CURDATE())" : "") . "";
         
         $announcement = $db->fetchOne($sql, [$id]);
         
@@ -133,12 +147,25 @@ function incrementViews() {
         }
         
         $db = Database::getInstance();
+        $columns = getAnnouncementColumns($db);
+        $expiryExpr = getAnnouncementExpiryExpression($columns);
+
+        if (empty($columns['views'])) {
+            // Older schema has no views column; treat as a successful no-op.
+            sendResponse(true, 'Views tracking not enabled');
+            return;
+        }
         
         // Verify announcement exists and is published
-        $announcement = $db->fetchOne(
-            "SELECT id FROM announcements WHERE id = ? AND status = 'published' AND (COALESCE(expires_at, expiration_date) IS NULL OR COALESCE(expires_at, expiration_date) >= CURDATE())",
-            [$id]
-        );
+        $where = "id = ?";
+        if (!empty($columns['status'])) {
+            $where .= " AND status IN ('published', 'active')";
+        }
+        if ($expiryExpr !== null) {
+            $where .= " AND ($expiryExpr IS NULL OR $expiryExpr >= CURDATE())";
+        }
+
+        $announcement = $db->fetchOne("SELECT id FROM announcements WHERE $where", [$id]);
         
         if (!$announcement) {
             sendResponse(false, 'Announcement not found', null, 404);
@@ -176,4 +203,63 @@ function sendResponse($success, $message, $data = null, $httpCode = 200) {
     
     echo json_encode($response);
     exit();
+}
+
+/**
+ * Return announcements table column map (lowercased).
+ * Supports mixed schemas across deployments.
+ */
+function getAnnouncementColumns($db) {
+    static $columns = null;
+
+    if ($columns !== null) {
+        return $columns;
+    }
+
+    $columns = [];
+    $rows = $db->fetchAll("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'announcements'");
+
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            if (!empty($row['COLUMN_NAME'])) {
+                $columns[strtolower($row['COLUMN_NAME'])] = true;
+            }
+        }
+    }
+
+    return $columns;
+}
+
+/**
+ * Build expiration SQL expression only from existing columns.
+ */
+function getAnnouncementExpiryExpression($columns) {
+    $hasExpiresAt = !empty($columns['expires_at']);
+    $hasExpirationDate = !empty($columns['expiration_date']);
+
+    if ($hasExpiresAt && $hasExpirationDate) {
+        return 'COALESCE(expires_at, expiration_date)';
+    }
+    if ($hasExpiresAt) {
+        return 'expires_at';
+    }
+    if ($hasExpirationDate) {
+        return 'expiration_date';
+    }
+
+    return null;
+}
+
+/**
+ * Choose a compatible created date field.
+ */
+function getAnnouncementCreatedExpression($columns) {
+    if (!empty($columns['created_at'])) {
+        return 'created_at';
+    }
+    if (!empty($columns['date_posted'])) {
+        return 'date_posted';
+    }
+
+    return 'NOW()';
 }
