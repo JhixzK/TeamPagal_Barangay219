@@ -51,7 +51,7 @@ include __DIR__ . '/../includes/sidebar.php';
         </ul>
 
         <div class="data-table mt-2 blotter-table-wrap">
-            <div class="table-responsive">
+            <div class="table-responsive blotter-table-scroll">
             <table class="table table-hover blotter-table align-middle">
                 <thead>
                     <tr>
@@ -402,6 +402,40 @@ include __DIR__ . '/../includes/sidebar.php';
 
     .blotter-page .blotter-table {
         margin-bottom: 0;
+    }
+
+    .blotter-page .blotter-table-scroll {
+        max-height: min(62vh, 640px);
+        overflow-y: auto;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #94a3b8 #f1f5f9;
+    }
+
+    .blotter-page .blotter-table-scroll::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    .blotter-page .blotter-table-scroll::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 999px;
+    }
+
+    .blotter-page .blotter-table-scroll::-webkit-scrollbar-thumb {
+        background: #94a3b8;
+        border-radius: 999px;
+        border: 2px solid #f1f5f9;
+    }
+
+    .blotter-page .blotter-table-scroll::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+    }
+
+    .blotter-page .blotter-table-scroll thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
     }
 
     .blotter-page .blotter-table > :not(caption) > * > * {
