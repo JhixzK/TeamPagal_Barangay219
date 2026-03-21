@@ -21,7 +21,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p class="module-subtitle mb-0">Review resident registration requests and process approvals with traceability.</p>
                 </div>
                 <?php if (function_exists('canPerformModulePermission') && canPerformModulePermission('resident_applications', 'can_edit')): ?>
-                <button class="btn btn-primary" onclick="openAssignHeadsModal()">
+                <button class="btn assign-household-btn" onclick="openAssignHeadsModal()">
                     <i class="bi bi-house-check"></i> Assign Household
                 </button>
                 <?php endif; ?>
@@ -34,17 +34,17 @@ include __DIR__ . '/../includes/sidebar.php';
                     <input type="text" class="form-control" id="searchInput" placeholder="Search by name, reference, or contact...">
                 </div>
                 <div class="col-md-2">
-                    <button class="btn btn-primary w-100" onclick="searchApplications()">
+                    <button class="btn btn-primary w-100 search-action-btn" onclick="searchApplications()">
                         <i class="bi bi-search"></i> Search
                     </button>
                 </div>
                 <div class="col-md-2">
-                    <button class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#filterModal">
+                    <button class="btn btn-outline-secondary w-100 filter-action-btn" data-bs-toggle="modal" data-bs-target="#filterModal">
                         <i class="bi bi-funnel"></i> Filter
                     </button>
                 </div>
                 <div class="col-md-2">
-                    <button class="btn btn-secondary w-100" onclick="resetApplications()">
+                    <button class="btn btn-secondary w-100 reset-action-btn" onclick="resetApplications()">
                         <i class="bi bi-arrow-clockwise"></i> Reset
                     </button>
                 </div>
@@ -102,6 +102,55 @@ include __DIR__ . '/../includes/sidebar.php';
     border-radius: 14px;
     border: 1px solid #e2e8f0;
     box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.35);
+}
+
+.resident-apps-page .assign-household-btn,
+.resident-apps-page .search-action-btn,
+.resident-apps-page .filter-action-btn,
+.resident-apps-page .reset-action-btn {
+    min-height: 40px;
+    border-radius: 10px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+}
+
+.resident-apps-page .assign-household-btn,
+.resident-apps-page .search-action-btn {
+    background: #1f6fe8;
+    border-color: #1f6fe8;
+    color: #fff;
+}
+
+.resident-apps-page .assign-household-btn:hover,
+.resident-apps-page .search-action-btn:hover {
+    background: #1a62cf;
+    border-color: #1a62cf;
+}
+
+.resident-apps-page .filter-action-btn {
+    color: #64748b;
+    border-color: #cbd5e1;
+    background: #fff;
+}
+
+.resident-apps-page .filter-action-btn:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #334155;
+}
+
+.resident-apps-page .reset-action-btn {
+    background: #6b7280;
+    border-color: #6b7280;
+    color: #fff;
+}
+
+.resident-apps-page .reset-action-btn:hover {
+    background: #5b6471;
+    border-color: #5b6471;
 }
 
 .resident-apps-page .app-tabs {
@@ -276,11 +325,158 @@ include __DIR__ . '/../includes/sidebar.php';
     color: #9a5b11;
 }
 
+.resident-apps-page #applicationsTableBody .status-pending,
+.resident-apps-page #applicationsTableBody .badge.bg-warning {
+    background: #fff4e8 !important;
+    color: #9a5b11 !important;
+    border-color: #ffe5c4 !important;
+}
+
+.resident-apps-page #applicationsTableBody .status-approved,
+.resident-apps-page #applicationsTableBody .badge.bg-success {
+    background: #e9f8ef !important;
+    color: #1f7a3f !important;
+    border-color: #cbeed9 !important;
+}
+
+.resident-apps-page #applicationsTableBody .status-rejected,
+.resident-apps-page #applicationsTableBody .badge.bg-danger {
+    background: #ffecee !important;
+    color: #a53a44 !important;
+    border-color: #ffd6dc !important;
+}
+
+.resident-apps-page #applicationsTableBody .role-head,
+.resident-apps-page #applicationsTableBody .badge.bg-primary {
+    background: #e8f0ff !important;
+    color: #1f4f8b !important;
+    border-color: #cfe0ff !important;
+}
+
+.resident-apps-page #applicationsTableBody .role-member,
+.resident-apps-page #applicationsTableBody .badge.bg-secondary {
+    background: #eef2f7 !important;
+    color: #4b5563 !important;
+    border-color: #e2e8f0 !important;
+}
+
+.resident-apps-page #applicationsTableBody .status-pending,
+.resident-apps-page #applicationsTableBody .status-approved,
+.resident-apps-page #applicationsTableBody .status-rejected,
+.resident-apps-page #applicationsTableBody .role-head,
+.resident-apps-page #applicationsTableBody .role-member,
+.resident-apps-page #applicationsTableBody .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 0.33rem 0.62rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
 .resident-apps-page .resident-apps-actions {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.35rem;
+}
+
+/* Hard fallback: normalize any bootstrap-styled action controls in the table action cell */
+.resident-apps-page #applicationsTableBody .resident-apps-actions .btn,
+.resident-apps-page #applicationsTableBody .resident-apps-actions a,
+.resident-apps-page #applicationsTableBody .resident-apps-actions button {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    border: 1px solid #e6ebf2 !important;
+    background: #ffffff !important;
+    color: #5b6678 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: none !important;
+    text-decoration: none !important;
+}
+
+.resident-apps-page #applicationsTableBody td.resident-apps-actions-col .btn,
+.resident-apps-page #applicationsTableBody td.resident-apps-actions-col a,
+.resident-apps-page #applicationsTableBody td.resident-apps-actions-col button {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    border: 1px solid #e6ebf2 !important;
+    background: #ffffff !important;
+    color: #5b6678 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: none !important;
+    text-decoration: none !important;
+}
+
+.resident-apps-page .resident-apps-table tbody td:last-child .btn.btn-primary,
+.resident-apps-page .resident-apps-table tbody td:last-child .btn.btn-outline-info,
+.resident-apps-page .resident-apps-table tbody td:last-child .btn.btn-info,
+.resident-apps-page .resident-apps-table tbody td:last-child .btn.btn-outline-primary,
+.resident-apps-page .resident-apps-table tbody td:last-child .btn.btn-outline-secondary {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    border: 1px solid #e6ebf2 !important;
+    background: #ffffff !important;
+    color: #5b6678 !important;
+    box-shadow: none !important;
+}
+
+.resident-apps-page .resident-apps-table tbody td:last-child .btn.btn-primary:hover,
+.resident-apps-page .resident-apps-table tbody td:last-child .btn.btn-outline-info:hover,
+.resident-apps-page .resident-apps-table tbody td:last-child .btn.btn-info:hover,
+.resident-apps-page .resident-apps-table tbody td:last-child .btn.btn-outline-primary:hover,
+.resident-apps-page .resident-apps-table tbody td:last-child .btn.btn-outline-secondary:hover {
+    background: #f5f9ff !important;
+    border-color: #d6e4ff !important;
+    color: #2f4f95 !important;
+}
+
+.resident-apps-page #applicationsTableBody .resident-apps-actions .btn:hover,
+.resident-apps-page #applicationsTableBody .resident-apps-actions .btn:focus-visible,
+.resident-apps-page #applicationsTableBody .resident-apps-actions a:hover,
+.resident-apps-page #applicationsTableBody .resident-apps-actions a:focus-visible,
+.resident-apps-page #applicationsTableBody .resident-apps-actions button:hover,
+.resident-apps-page #applicationsTableBody .resident-apps-actions button:focus-visible {
+    background: #f5f9ff !important;
+    border-color: #d6e4ff !important;
+    color: #2f4f95 !important;
+    transform: translateY(-1px);
+}
+
+.resident-apps-page #applicationsTableBody td.resident-apps-actions-col .btn:hover,
+.resident-apps-page #applicationsTableBody td.resident-apps-actions-col .btn:focus-visible,
+.resident-apps-page #applicationsTableBody td.resident-apps-actions-col a:hover,
+.resident-apps-page #applicationsTableBody td.resident-apps-actions-col a:focus-visible,
+.resident-apps-page #applicationsTableBody td.resident-apps-actions-col button:hover,
+.resident-apps-page #applicationsTableBody td.resident-apps-actions-col button:focus-visible {
+    background: #f5f9ff !important;
+    border-color: #d6e4ff !important;
+    color: #2f4f95 !important;
+    transform: translateY(-1px);
+}
+
+.resident-apps-page #applicationsTableBody .resident-apps-actions i {
+    font-size: 0.92rem;
+    line-height: 1;
 }
 
 .resident-apps-page .action-icon-btn {
@@ -304,8 +500,25 @@ include __DIR__ . '/../includes/sidebar.php';
     transform: translateY(-1px);
 }
 
+/* Safety override: if old cached markup still has action-view/action-link, render like standard buttons */
+.resident-apps-page .action-icon-btn.action-view,
+.resident-apps-page .action-icon-btn.action-link {
+    background: #ffffff !important;
+    border-color: #e6ebf2 !important;
+    color: #5b6678 !important;
+}
+
+.resident-apps-page .action-icon-btn.action-view:hover,
+.resident-apps-page .action-icon-btn.action-view:focus-visible,
+.resident-apps-page .action-icon-btn.action-link:hover,
+.resident-apps-page .action-icon-btn.action-link:focus-visible {
+    background: #f5f9ff !important;
+    border-color: #d6e4ff !important;
+    color: #2f4f95 !important;
+}
+
 .resident-apps-page .resident-apps-actions-col {
-    min-width: 130px;
+    min-width: 140px;
 }
 
 @media (max-width: 768px) {
