@@ -252,16 +252,17 @@ if (empty($avatar_path)) {
 
 <style>
 .sidebar {
-    width: 78px;
+    width: 82px;
     height: calc(100vh - 56px);
-    background-color: #f8f9fa;
-    border-right: 1px solid #dee2e6;
+    background: linear-gradient(180deg, #f8fbff 0%, #f2f6fb 100%);
+    border-right: 1px solid #dce5f1;
     position: fixed;
     left: 0;
     top: 56px;
     overflow-y: auto;
     z-index: 1000;
-    transition: width 0.25s ease, left 0.25s ease;
+    box-shadow: 10px 0 24px -24px rgba(15, 23, 42, 0.5);
+    transition: width 0.25s ease, left 0.25s ease, box-shadow 0.25s ease;
     scrollbar-width: none;
 }
 
@@ -272,26 +273,37 @@ if (empty($avatar_path)) {
 
 body.sidebar-expanded .sidebar {
     width: 250px;
+    box-shadow: 14px 0 30px -24px rgba(15, 23, 42, 0.45);
 }
 
 .sidebar-content {
-    padding: 1rem 0;
+    padding: 0.9rem 0.6rem 1rem;
 }
 
 .sidebar .sidebar-toggle-wrap {
     display: flex;
     justify-content: center;
-    padding: 0 0.75rem 0.65rem;
+    padding: 0 0.2rem 0.7rem;
 }
 
 .sidebar .sidebar-toggle-btn {
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     border-radius: 10px;
+    border-color: #cdd9ea;
+    color: #42648f;
+    background: #ffffff;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0;
+}
+
+.sidebar .sidebar-toggle-btn:hover,
+.sidebar .sidebar-toggle-btn:focus-visible {
+    border-color: #bad0ee;
+    background: #eff5ff;
+    color: #254b84;
 }
 
 body.sidebar-expanded .sidebar .sidebar-toggle-wrap {
@@ -300,12 +312,17 @@ body.sidebar-expanded .sidebar .sidebar-toggle-wrap {
 }
 
 .sidebar .sidebar-profile {
-    padding-left: 0.8rem !important;
-    padding-right: 0.8rem !important;
+    padding: 0.6rem !important;
+    margin-bottom: 0.7rem !important;
 }
 
 .sidebar .sidebar-profile a {
     justify-content: center;
+    border-radius: 12px;
+    border: 1px solid #dde6f3;
+    background: #ffffff;
+    padding: 0.5rem;
+    box-shadow: 0 8px 16px -18px rgba(15, 23, 42, 0.55);
 }
 
 .sidebar .sidebar-profile .profile-meta {
@@ -328,13 +345,15 @@ body.sidebar-expanded .sidebar .sidebar-profile .profile-meta {
 }
 
 .sidebar .nav-link {
-    color: #495057;
-    padding: 0.75rem 1.5rem;
+    color: #4b5563;
+    padding: 0.62rem 0.72rem;
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    transition: all 0.3s;
-    border-left: 3px solid transparent;
+    transition: all 0.2s ease;
+    border-radius: 10px;
+    margin: 0.13rem 0;
+    border: 1px solid transparent;
 }
 
 .sidebar .nav-link span {
@@ -351,30 +370,33 @@ body.sidebar-expanded .sidebar .nav-link span {
 }
 
 .sidebar .nav-link:hover {
-    background-color: #e9ecef;
-    color: #0d6efd;
-    border-left-color: #0d6efd;
+    background-color: #edf4ff;
+    color: #22508f;
+    border-color: #d1e2f9;
+    transform: translateX(1px);
 }
 
 .sidebar .nav-link.active {
-    background-color: #e7f1ff;
-    color: #0d6efd;
-    border-left-color: #0d6efd;
+    background-color: #e8f1ff;
+    color: #1d4f91;
+    border-color: #c5daf9;
     font-weight: 600;
+    box-shadow: 0 8px 16px -18px rgba(37, 99, 235, 0.75);
 }
 
 .sidebar .nav-link i {
-    font-size: 1.1rem;
+    font-size: 1rem;
     width: 20px;
     flex: 0 0 20px;
+    text-align: center;
 }
 
 .sidebar .nav-section-title {
     font-size: 0.72rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #6c757d;
-    padding: 0.65rem 1.5rem 0.35rem;
+    color: #7a8798;
+    padding: 0.72rem 0.72rem 0.28rem;
     font-weight: 700;
 }
 
@@ -395,17 +417,17 @@ body.sidebar-expanded .sidebar .nav-divider {
 }
 
 body.sidebar-expanded .sidebar .nav-divider {
-    margin: 0.45rem 1rem;
+    margin: 0.55rem 0.6rem;
 }
 
 .sidebar .nav-divider {
-    margin: 0.45rem 1rem;
-    border-top: 1px solid #dee2e6;
+    margin: 0.55rem 0.6rem;
+    border-top: 1px solid #dbe4ef;
     list-style: none;
 }
 
 .main-content {
-    margin-left: 78px;
+    margin-left: 82px;
     padding: 2rem;
     min-height: calc(100vh - 56px);
     overflow-x: auto;
@@ -423,9 +445,10 @@ body.sidebar-expanded .main-content {
         height: calc(100vh - 56px);
         top: 56px;
         transition: left 0.25s ease;
-        border-right: 1px solid #dee2e6;
+        border-right: 1px solid #dce5f1;
         border-bottom: 0;
         overflow-y: auto;
+        box-shadow: 16px 0 30px -22px rgba(15, 23, 42, 0.6);
     }
 
     body.sidebar-expanded .sidebar {
