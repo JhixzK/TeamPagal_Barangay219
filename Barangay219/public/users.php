@@ -118,7 +118,7 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .users-page .users-actions-col {
-    width: 138px;
+    min-width: 176px;
 }
 
 .users-page .users-actions {
@@ -135,7 +135,6 @@ include __DIR__ . '/../includes/sidebar.php';
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin: 0 2px;
     transition: all 0.16s ease;
 }
 
