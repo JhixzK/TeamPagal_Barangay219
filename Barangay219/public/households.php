@@ -410,7 +410,6 @@ include __DIR__ . '/../includes/sidebar.php';
             <div class="modal-body">
                 <div id="viewHouseholdInfo"></div>
                 <hr>
-                <h6>Members</h6>
                 <div id="viewHouseholdMembers"></div>
             </div>
         </div>
