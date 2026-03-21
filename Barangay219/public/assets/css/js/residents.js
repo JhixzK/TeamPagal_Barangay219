@@ -206,7 +206,9 @@ function displayResidents(residents) {
         const rawFullName = `${resident.first_name || ''} ${resident.middle_name || ''} ${resident.last_name || ''} ${resident.suffix || ''}`.trim();
         const fullName = escapeHtml(toTitleCase(rawFullName));
         const age = calculateAge(resident.birth_date);
-        const residentCode = resident.resident_code ? escapeHtml(resident.resident_code) : '<span class="text-muted">N/A</span>';
+        const residentCode = resident.resident_code
+            ? `<span class="resident-code-badge">${escapeHtml(resident.resident_code)}</span>`
+            : '<span class="resident-secondary">N/A</span>';
         const verificationStatus = normalizeVerificationStatus(resident);
         const hasIdUpload = !!(resident.id_document_path && String(resident.id_document_path).trim() !== '');
         const canVerifyNow = RESIDENT_PERMS.canEdit && hasIdUpload && verificationStatus !== 'verified';
@@ -214,29 +216,31 @@ function displayResidents(residents) {
         
         const isHead = String(resident.is_household_head) === '1';
         const householdCode = resident.household_code
-            ? `<span class="badge bg-light text-dark border">${escapeHtml(String(resident.household_code))}</span>`
-            : '<span class="text-muted">-</span>';
+            ? `<span class="resident-code-badge">${escapeHtml(String(resident.household_code))}</span>`
+            : '<span class="resident-secondary">-</span>';
         const familyHeadCode = resident.family_head_code
-            ? `<span class="badge bg-light text-dark border">${escapeHtml(String(resident.family_head_code))}</span>`
-            : '<span class="text-muted">-</span>';
+            ? `<span class="resident-code-badge">${escapeHtml(String(resident.family_head_code))}</span>`
+            : '<span class="resident-secondary">-</span>';
         return `
             <tr>
                 <td class="text-center">${residentCode}</td>
-                <td class="text-center">${fullName}</td>
-                <td class="text-center">${formatDate(resident.birth_date)} (${age} yrs)</td>
+                <td class="text-center fw-semibold">${fullName}</td>
+                <td class="text-center"><span class="resident-secondary">${formatDate(resident.birth_date)} (${age} yrs)</span></td>
                 <td class="text-center">${formatGender(resident.gender)}</td>
-                <td class="text-center">${escapeHtml(formatTitleCaseTruncate(resident.address || '', 40))}${(resident.address||'').length>40?'...':''}</td>
-                <td class="text-center">${escapeHtml(formatPhoneNumber(resident.contact_number) || '-')}</td>
+                <td class="text-center"><span class="resident-secondary">${escapeHtml(formatTitleCaseTruncate(resident.address || '', 40))}${(resident.address||'').length>40?'...':''}</span></td>
+                <td class="text-center"><span class="resident-secondary">${escapeHtml(formatPhoneNumber(resident.contact_number) || '-')}</span></td>
                 <td class="text-center">${householdCode}</td>
                 <td class="text-center">${familyHeadCode}</td>
                 <td class="text-center">${getVerificationBadge(verificationStatus)}</td>
-                <td class="text-center"><span class="badge ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
+                <td class="text-center"><span class="resident-pill ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
                 <td class="text-center">
-                    ${RESIDENT_PERMS.canEdit ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editResident(${resident.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
-                    <button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewResident(${resident.id})"><i class="bi bi-eye"></i></button>
-                    ${canVerifyNow ? `<button class="btn btn-sm btn-success" title="Verify ID" aria-label="Verify ID" onclick="verifyResidentId(${resident.id}, 'verified')"><i class="bi bi-patch-check"></i></button>` : ''}
-                    ${canRejectNow ? `<button class="btn btn-sm btn-warning" title="Reject ID" aria-label="Reject ID" onclick="verifyResidentId(${resident.id}, 'rejected')"><i class="bi bi-patch-exclamation"></i></button>` : ''}
-                    ${RESIDENT_PERMS.canDelete ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteResident(${resident.id})"><i class="bi bi-trash"></i></button>` : ''}
+                    <div class="resident-actions">
+                        ${RESIDENT_PERMS.canEdit ? `<button class="action-icon-btn" title="Edit" aria-label="Edit" onclick="editResident(${resident.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
+                        <button class="action-icon-btn" title="View" aria-label="View" onclick="viewResident(${resident.id})"><i class="bi bi-eye"></i></button>
+                        ${canVerifyNow ? `<button class="action-icon-btn" title="Verify ID" aria-label="Verify ID" onclick="verifyResidentId(${resident.id}, 'verified')"><i class="bi bi-patch-check"></i></button>` : ''}
+                        ${canRejectNow ? `<button class="action-icon-btn" title="Reject ID" aria-label="Reject ID" onclick="verifyResidentId(${resident.id}, 'rejected')"><i class="bi bi-patch-exclamation"></i></button>` : ''}
+                        ${RESIDENT_PERMS.canDelete ? `<button class="action-icon-btn action-delete" title="Delete" aria-label="Delete" onclick="deleteResident(${resident.id})"><i class="bi bi-trash"></i></button>` : ''}
+                    </div>
                 </td>
             </tr>
         `;
@@ -409,7 +413,7 @@ function viewResident(id) {
                     <tr><td><strong>Verification</strong></td><td>${getVerificationBadge(verificationStatus)}</td></tr>
                     <tr><td><strong>Uploaded ID</strong></td><td>${idDocLink}</td></tr>
                     <tr><td><strong>Certificates</strong></td><td>${r.certificates_count || 0} issued</td></tr>
-                    <tr><td><strong>Status</strong></td><td><span class="badge ${getStatusClass(r.status)}">${formatStatus(r.status)}</span></td></tr>
+                    <tr><td><strong>Status</strong></td><td><span class="resident-pill ${getStatusClass(r.status)}">${formatStatus(r.status)}</span></td></tr>
                 </table>
                 ${RESIDENT_PERMS.canEdit && r.id_document_path ? `
                     <div class="d-flex gap-2 justify-content-end">
@@ -557,12 +561,12 @@ function formatStatus(status) {
 
 function getStatusClass(status) {
     const classes = {
-        'active': 'bg-success',
-        'inactive': 'bg-secondary',
-        'deceased': 'bg-dark',
-        'transferred': 'bg-info'
+        'active': 'status-active',
+        'inactive': 'status-inactive',
+        'deceased': 'status-deceased',
+        'transferred': 'status-transferred'
     };
-    return classes[status] || 'bg-secondary';
+    return classes[status] || 'status-inactive';
 }
 
 function normalizeVerificationStatus(row) {
@@ -574,12 +578,12 @@ function normalizeVerificationStatus(row) {
 
 function getVerificationBadge(status) {
     if (status === 'verified') {
-        return '<span class="badge bg-success">Verified</span>';
+        return '<span class="resident-pill verify-verified">Verified</span>';
     }
     if (status === 'rejected') {
-        return '<span class="badge bg-danger">Rejected</span>';
+        return '<span class="resident-pill verify-rejected">Rejected</span>';
     }
-    return '<span class="badge bg-warning text-dark">Pending</span>';
+    return '<span class="resident-pill verify-pending">Pending</span>';
 }
 
 function buildResidentFileLink(path, label) {
