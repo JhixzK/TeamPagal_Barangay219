@@ -970,6 +970,9 @@ function joinAsMember($residentId, $data) {
         if ($selectedHeadResidentId > 0 && columnExists($db, 'residents', 'family_head_resident_id')) {
             $db->query('UPDATE residents SET family_head_resident_id = ? WHERE id = ?', [$selectedHeadResidentId, $residentId]);
         }
+        if (columnExists($db, 'residents', 'relationship_to_head') && $relationship !== '') {
+            $db->query('UPDATE residents SET relationship_to_head = ? WHERE id = ?', [$relationship, $residentId]);
+        }
 
         logHouseholdHistory($householdId, 'Member Added', 'Resident joined household via family code', $residentId);
 
