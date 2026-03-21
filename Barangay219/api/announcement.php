@@ -55,6 +55,7 @@ switch ($action) {
 function listAnnouncements() {
     try {
         $db = Database::getInstance();
+        $columns = getAnnouncementColumns($db);
         $status = $_GET['status'] ?? '';
         $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
         $where = "1=1";
@@ -68,16 +69,27 @@ function listAnnouncements() {
         
         if (in_array($status, ['draft', 'published'])) {
             $where .= " AND a.status = ?";
-            $params[] = $status;
+            $params[] = mapApiStatusToDbStatus($status, $columns);
         }
+
+        $authorColumn = !empty($columns['created_by']) ? 'created_by' : (!empty($columns['posted_by']) ? 'posted_by' : null);
+        $authorJoin = $authorColumn ? "LEFT JOIN users u ON a.$authorColumn = u.id" : "";
+        $authorSelect = $authorColumn ? ", u.username as created_by_name" : ", NULL as created_by_name";
+        $orderBy = !empty($columns['is_pinned']) ? "a.is_pinned DESC, " : "";
+        $orderBy .= !empty($columns['created_at']) ? "a.created_at DESC" : "a.date_posted DESC";
         
-        $sql = "SELECT a.*, u.username as created_by_name 
+        $sql = "SELECT a.* $authorSelect
                 FROM announcements a 
-                LEFT JOIN users u ON a.created_by = u.id 
+                $authorJoin
                 WHERE $where 
-                ORDER BY a.is_pinned DESC, a.created_at DESC";
-        
-        sendResponse(true, 'Retrieved', $db->fetchAll($sql, $params));
+                ORDER BY $orderBy";
+
+        $rows = $db->fetchAll($sql, $params);
+        $rows = array_map(function ($row) use ($columns) {
+            return normalizeAnnouncementRowForApi($row, $columns);
+        }, $rows ?: []);
+
+        sendResponse(true, 'Retrieved', $rows);
     } catch (Exception $e) {
         error_log('[Announcements] Error listing: ' . $e->getMessage());
         sendResponse(false, 'Error', null, 500);
@@ -103,13 +115,20 @@ function getAnnouncement() {
     }
     try {
         $db = Database::getInstance();
+        $columns = getAnnouncementColumns($db);
+        $authorColumn = !empty($columns['created_by']) ? 'created_by' : (!empty($columns['posted_by']) ? 'posted_by' : null);
+        $authorJoin = $authorColumn ? "LEFT JOIN users u ON a.$authorColumn = u.id" : "";
+        $authorSelect = $authorColumn ? ", u.username as created_by_name" : ", NULL as created_by_name";
         $a = $db->fetchOne(
-            "SELECT a.*, u.username as created_by_name 
+            "SELECT a.* $authorSelect
              FROM announcements a 
-             LEFT JOIN users u ON a.created_by = u.id 
+             $authorJoin
              WHERE a.id = ?", 
             [$id]
         );
+        if ($a) {
+            $a = normalizeAnnouncementRowForApi($a, $columns);
+        }
         sendResponse($a ? true : false, $a ? 'Found' : 'Not found', $a);
     } catch (Exception $e) {
         error_log('[Announcements] Error getting: ' . $e->getMessage());
@@ -133,15 +152,63 @@ function createAnnouncement() {
         sendResponse(false, 'Title and content required', null, 400); 
         return; 
     }
+
+    if ($status === 'published' && isPastDate($expires_at)) {
+        sendResponse(false, 'Expiration date cannot be in the past for published announcements', null, 400);
+        return;
+    }
     
     try {
         $imagePath = processAnnouncementImageUpload('photo');
 
         $db = Database::getInstance();
+        $columns = getAnnouncementColumns($db);
+        $dbStatus = mapApiStatusToDbStatus($status, $columns);
+
+        $insertColumns = ['title', 'content'];
+        $insertValues = [$title, $content];
+
+        if (!empty($columns['category'])) {
+            $insertColumns[] = 'category';
+            $insertValues[] = $category;
+        }
+        if (!empty($columns['priority'])) {
+            $insertColumns[] = 'priority';
+            $insertValues[] = $priority;
+        }
+        if (!empty($columns['status'])) {
+            $insertColumns[] = 'status';
+            $insertValues[] = $dbStatus;
+        }
+        if (!empty($columns['expires_at'])) {
+            $insertColumns[] = 'expires_at';
+            $insertValues[] = $expires_at;
+        }
+        if (!empty($columns['expiration_date'])) {
+            $insertColumns[] = 'expiration_date';
+            $insertValues[] = $expires_at;
+        }
+        if (!empty($columns['image_path'])) {
+            $insertColumns[] = 'image_path';
+            $insertValues[] = $imagePath;
+        }
+        if (!empty($columns['created_by'])) {
+            $insertColumns[] = 'created_by';
+            $insertValues[] = getCurrentUserId();
+        }
+        if (!empty($columns['posted_by'])) {
+            $insertColumns[] = 'posted_by';
+            $insertValues[] = getCurrentUserId();
+        }
+        if (!empty($columns['date_posted'])) {
+            $insertColumns[] = 'date_posted';
+            $insertValues[] = date('Y-m-d');
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($insertColumns), '?'));
         $db->query(
-            "INSERT INTO announcements (title, content, category, priority, status, expires_at, expiration_date, image_path, created_by) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-            [$title, $content, $category, $priority, $status, $expires_at, $expires_at, $imagePath, getCurrentUserId()]
+            "INSERT INTO announcements (" . implode(', ', $insertColumns) . ") VALUES (" . $placeholders . ")",
+            $insertValues
         );
         logActivity('create', 'announcements', $db->lastInsertId());
         sendResponse(true, 'Created', ['id' => $db->lastInsertId()]);
@@ -162,8 +229,30 @@ function updateAnnouncement() {
         return; 
     }
     
+    $db = Database::getInstance();
+    $columns = getAnnouncementColumns($db);
     $updates = [];
     $params = [];
+
+    $current = $db->fetchOne("SELECT status, expiration_date" . (!empty($columns['expires_at']) ? ", expires_at" : "") . " FROM announcements WHERE id = ?", [$id]);
+    if (!$current) {
+        sendResponse(false, 'Announcement not found', null, 404);
+        return;
+    }
+
+    $requestedStatus = isset($_POST['status']) && in_array($_POST['status'], ['draft', 'published'])
+        ? $_POST['status']
+        : mapDbStatusToApiStatus($current['status'] ?? 'draft');
+
+    $currentExpires = $current['expires_at'] ?? ($current['expiration_date'] ?? null);
+    $requestedExpires = array_key_exists('expires_at', $_POST)
+        ? normalizeAnnouncementDate($_POST['expires_at'])
+        : $currentExpires;
+
+    if ($requestedStatus === 'published' && isPastDate($requestedExpires)) {
+        sendResponse(false, 'Expiration date cannot be in the past for published announcements', null, 400);
+        return;
+    }
     
     $allowedFields = ['title', 'content', 'category', 'priority', 'expires_at', 'status'];
     foreach ($allowedFields as $field) {
@@ -176,10 +265,26 @@ function updateAnnouncement() {
             
             if ($field === 'expires_at') {
                 $normalizedDate = normalizeAnnouncementDate($value);
-                $updates[] = "expires_at = ?";
-                $params[] = $normalizedDate;
-                $updates[] = "expiration_date = ?";
-                $params[] = $normalizedDate;
+                if (!empty($columns['expires_at'])) {
+                    $updates[] = "expires_at = ?";
+                    $params[] = $normalizedDate;
+                }
+                if (!empty($columns['expiration_date'])) {
+                    $updates[] = "expiration_date = ?";
+                    $params[] = $normalizedDate;
+                }
+                continue;
+            }
+
+            if ($field === 'status') {
+                if (!empty($columns['status'])) {
+                    $updates[] = "status = ?";
+                    $params[] = mapApiStatusToDbStatus($value, $columns);
+                }
+                continue;
+            }
+
+            if (empty($columns[$field])) {
                 continue;
             }
 
@@ -191,12 +296,13 @@ function updateAnnouncement() {
     $existingImagePath = null;
     $newImagePath = null;
     try {
-        $db = Database::getInstance();
-        $existingRow = $db->fetchOne("SELECT image_path FROM announcements WHERE id = ?", [$id]);
-        $existingImagePath = $existingRow['image_path'] ?? null;
+        if (!empty($columns['image_path'])) {
+            $existingRow = $db->fetchOne("SELECT image_path FROM announcements WHERE id = ?", [$id]);
+            $existingImagePath = $existingRow['image_path'] ?? null;
+        }
 
         $newImagePath = processAnnouncementImageUpload('photo');
-        if (!empty($newImagePath)) {
+        if (!empty($newImagePath) && !empty($columns['image_path'])) {
             $updates[] = "image_path = ?";
             $params[] = $newImagePath;
         }
@@ -213,7 +319,6 @@ function updateAnnouncement() {
     $params[] = $id;
     
     try {
-        $db = Database::getInstance();
         $db->query("UPDATE announcements SET " . implode(', ', $updates) . " WHERE id = ?", $params);
 
         if (!empty($newImagePath) && !empty($existingImagePath) && $newImagePath !== $existingImagePath) {
@@ -239,7 +344,10 @@ function deleteAnnouncement() {
     }
     try {
         $db = Database::getInstance();
-        $existing = $db->fetchOne("SELECT image_path FROM announcements WHERE id = ?", [$id]);
+        $columns = getAnnouncementColumns($db);
+        $existing = !empty($columns['image_path'])
+            ? $db->fetchOne("SELECT image_path FROM announcements WHERE id = ?", [$id])
+            : ['image_path' => null];
         $db->query("DELETE FROM announcements WHERE id = ?", [$id]);
         if (!empty($existing['image_path'])) {
             deleteAnnouncementImageFile($existing['image_path']);
@@ -265,6 +373,12 @@ function pinAnnouncement() {
     
     try {
         $db = Database::getInstance();
+        $columns = getAnnouncementColumns($db);
+
+        if (empty($columns['is_pinned'])) {
+            sendResponse(true, 'Pinning is not enabled in this database schema');
+            return;
+        }
         
         // Check if announcement exists
         $announcement = $db->fetchOne("SELECT is_pinned FROM announcements WHERE id = ?", [$id]);
@@ -311,7 +425,9 @@ function updateStatus($newStatus) {
     
     try {
         $db = Database::getInstance();
-        $db->query("UPDATE announcements SET status = ? WHERE id = ?", [$newStatus, $id]);
+        $columns = getAnnouncementColumns($db);
+        $dbStatus = mapApiStatusToDbStatus($newStatus, $columns);
+        $db->query("UPDATE announcements SET status = ? WHERE id = ?", [$dbStatus, $id]);
         sendResponse(true, 'Status updated to ' . $newStatus);
     } catch (Exception $e) {
         error_log('[Announcements] Error updating status: ' . $e->getMessage());
@@ -504,4 +620,72 @@ function deleteAnnouncementImageFile($path) {
     if (is_file($fullPath)) {
         @unlink($fullPath);
     }
+}
+
+function getAnnouncementColumns($db) {
+    static $columns = null;
+
+    if ($columns !== null) {
+        return $columns;
+    }
+
+    $columns = [];
+    $rows = $db->fetchAll("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'announcements'");
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            if (!empty($row['COLUMN_NAME'])) {
+                $columns[strtolower($row['COLUMN_NAME'])] = true;
+            }
+        }
+    }
+
+    return $columns;
+}
+
+function mapApiStatusToDbStatus($status, $columns) {
+    $status = ($status === 'published') ? 'published' : 'draft';
+
+    // Old schemas typically use active/inactive.
+    if (!empty($columns['status']) && isset($columns['created_by'])) {
+        return $status;
+    }
+
+    return $status === 'published' ? 'active' : 'inactive';
+}
+
+function mapDbStatusToApiStatus($status) {
+    $normalized = strtolower((string)$status);
+    if ($normalized === 'published' || $normalized === 'active') {
+        return 'published';
+    }
+    return 'draft';
+}
+
+function normalizeAnnouncementRowForApi($row, $columns) {
+    $row['category'] = $row['category'] ?? 'General';
+    $row['priority'] = $row['priority'] ?? 'normal';
+    $row['is_pinned'] = isset($row['is_pinned']) ? (int)$row['is_pinned'] : 0;
+    $row['views'] = isset($row['views']) ? (int)$row['views'] : 0;
+
+    if (empty($row['created_at']) && !empty($row['date_posted'])) {
+        $row['created_at'] = $row['date_posted'];
+    }
+
+    if (empty($row['expires_at']) && !empty($row['expiration_date'])) {
+        $row['expires_at'] = $row['expiration_date'];
+    }
+
+    $row['status'] = mapDbStatusToApiStatus($row['status'] ?? 'draft');
+
+    return $row;
+}
+
+function isPastDate($dateValue) {
+    if ($dateValue === null || trim((string)$dateValue) === '') {
+        return false;
+    }
+
+    $dateOnly = substr((string)$dateValue, 0, 10);
+    $today = date('Y-m-d');
+    return $dateOnly < $today;
 }
