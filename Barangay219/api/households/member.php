@@ -108,6 +108,25 @@ function addHouseholdMember($residentId) {
         }
 
         $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$householdId, $targetResidentId]);
+        // Clear stale head-level fields so member is not misidentified as a head
+        if (columnExists($db, 'residents', 'family_head_code')) {
+            $db->query("UPDATE residents SET family_head_code = NULL WHERE id = ?", [$targetResidentId]);
+        }
+        // Sync family_code to match the head's family_code
+        $houseCols = getColumnsMap('households');
+        $headCol = isset($houseCols['family_head_id']) ? 'family_head_id' : 'head_id';
+        $headIdRow = $db->fetchOne("SELECT `{$headCol}` AS hid FROM households WHERE id = ? LIMIT 1", [$householdId]);
+        $headResidentId = (int)($headIdRow['hid'] ?? 0);
+        if ($headResidentId > 0 && columnExists($db, 'residents', 'family_code')) {
+            $headFcRow = $db->fetchOne("SELECT family_code FROM residents WHERE id = ? LIMIT 1", [$headResidentId]);
+            $headFc = trim((string)($headFcRow['family_code'] ?? ''));
+            if ($headFc !== '') {
+                $db->query("UPDATE residents SET family_code = ? WHERE id = ?", [$headFc, $targetResidentId]);
+            }
+        }
+        if ($headResidentId > 0 && columnExists($db, 'residents', 'family_head_resident_id')) {
+            $db->query("UPDATE residents SET family_head_resident_id = ? WHERE id = ?", [$headResidentId, $targetResidentId]);
+        }
         logMemberHistory($householdId, 'Member Added', 'Member linked to household', $targetResidentId);
         $db->commit();
 
@@ -254,6 +273,15 @@ function deleteHouseholdMember($residentId) {
             $db->query("DELETE FROM household_members WHERE id = ?", [(int)$row['id']]);
         }
         $db->query("UPDATE residents SET household_id = NULL WHERE id = ?", [(int)$row['resident_id']]);
+        if (columnExists($db, 'residents', 'family_head_code')) {
+            $db->query("UPDATE residents SET family_head_code = NULL WHERE id = ?", [(int)$row['resident_id']]);
+        }
+        if (columnExists($db, 'residents', 'family_code')) {
+            $db->query("UPDATE residents SET family_code = NULL WHERE id = ?", [(int)$row['resident_id']]);
+        }
+        if (columnExists($db, 'residents', 'family_head_resident_id')) {
+            $db->query("UPDATE residents SET family_head_resident_id = NULL WHERE id = ?", [(int)$row['resident_id']]);
+        }
         logMemberHistory((int)$row['household_id'], 'Member Removed', 'Member removed from household', (int)$row['resident_id']);
         $db->commit();
 
@@ -418,6 +446,32 @@ function assignHouseholdHead($residentId, $data) {
             if ($currentDesignatedId === $oldHeadResidentId && isset($houseCols['family_head_code'])) {
                 $db->query('UPDATE households SET family_head_code = ? WHERE id = ?', [$oldFhc, $householdId]);
             }
+        }
+
+        // Sync family_code for all members to match the new head
+        if (columnExists($db, 'residents', 'family_code')) {
+            $newFcRow = $db->fetchOne('SELECT family_code FROM residents WHERE id = ? LIMIT 1', [$newHeadResidentId]);
+            $newFc = trim((string)($newFcRow['family_code'] ?? ''));
+            if ($newFc !== '') {
+                $db->query(
+                    'UPDATE residents SET family_code = ? WHERE household_id = ? AND id <> ?',
+                    [$newFc, $householdId, $newHeadResidentId]
+                );
+            }
+        }
+        // Ensure non-head members don't retain stale family_head_code
+        if (columnExists($db, 'residents', 'family_head_code')) {
+            $db->query(
+                "UPDATE residents SET family_head_code = NULL WHERE household_id = ? AND id <> ? AND family_head_code IS NOT NULL AND TRIM(family_head_code) <> ''",
+                [$householdId, $newHeadResidentId]
+            );
+        }
+        // Point all members' family_head_resident_id to the new head
+        if (columnExists($db, 'residents', 'family_head_resident_id')) {
+            $db->query(
+                'UPDATE residents SET family_head_resident_id = ? WHERE household_id = ? AND id <> ?',
+                [$newHeadResidentId, $householdId, $newHeadResidentId]
+            );
         }
 
         logMemberHistory($householdId, 'Head Changed', 'Household head reassigned. Reason: ' . $reason, $newHeadResidentId);
