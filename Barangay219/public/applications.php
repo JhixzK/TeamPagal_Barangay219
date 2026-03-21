@@ -318,7 +318,7 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .apps-page .apps-actions-col {
-    min-width: 180px;
+    min-width: 176px;
 }
 
 .app-detail-grid {
