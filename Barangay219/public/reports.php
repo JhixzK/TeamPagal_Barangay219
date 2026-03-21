@@ -40,6 +40,17 @@ include __DIR__ . '/../includes/sidebar.php';
     border-radius: 999px;
     padding: 6px 16px;
 }
+.reports-page .report-filter-btn {
+    border-radius: 999px;
+    border-color: #dbe3ee;
+    color: #475569;
+    background: #fff;
+}
+.reports-page .report-filter-btn:hover {
+    background: #f5f9ff;
+    border-color: #d6e4ff;
+    color: #2f4f95;
+}
 .reports-page .report-result {
     border-radius: 16px;
     border: 1px solid #e7ecf3;
@@ -47,8 +58,46 @@ include __DIR__ . '/../includes/sidebar.php';
 .reports-page .report-result .card-header {
     background: linear-gradient(135deg, #f6f9ff 0%, #ffffff 100%);
 }
-.report-table th {
+.reports-page .report-summary-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.32rem 0.65rem;
+    border-radius: 999px;
+    background: #eaf6ff;
+    color: #1f5f8b;
+    font-weight: 600;
+    font-size: 0.82rem;
+}
+.reports-page .report-table-wrap {
+    border: 1px solid #e7ecf3;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+}
+.reports-page .report-table {
+    margin-bottom: 0;
+}
+.reports-page .report-table > :not(caption) > * > * {
+    border-bottom: 1px solid #edf1f6;
+    padding: 0.75rem 0.8rem;
+    vertical-align: middle;
+}
+.reports-page .report-table thead th {
     text-transform: capitalize;
+    border-bottom: 1px solid #dfe6ef;
+    color: #4b5563;
+    font-size: 0.81rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: #f9fbfd;
+}
+.reports-page .report-table tbody td {
+    color: #334155;
+    font-size: 0.92rem;
+}
+.reports-page .report-table tbody tr:hover {
+    background: #f8fbff;
 }
 .print-header {
     display: none;
@@ -93,7 +142,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <input type="date" class="form-control" id="filterTo">
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-outline-secondary" onclick="applyFilter()">Apply</button>
+                        <button class="btn report-filter-btn" onclick="applyFilter()">Apply</button>
                     </div>
                 </div>
             </div>
