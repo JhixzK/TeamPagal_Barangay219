@@ -165,7 +165,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <input type="date" class="form-control" id="filterTo">
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn report-filter-btn" onclick="applyFilter()">Apply</button>
+                        <button class="btn report-filter-btn" onclick="applyFilter()"><i class="bi bi-funnel"></i> Apply</button>
                     </div>
                 </div>
             </div>
