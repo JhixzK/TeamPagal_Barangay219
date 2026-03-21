@@ -836,7 +836,7 @@ function handleGetHouseholdInfo($residentId) {
             'barangay' => $household['barangay'],
             'city' => $household['city'],
             'province' => $household['province'],
-            'household_type' => ($shouldFilter
+            'household_type' => ($shouldFilter && $context['is_head'] && $headCount > 1
                 ? computeHouseholdTypeFromFilteredMembers($mappedMembers, $residentId)
                 : resolveHouseholdTypeForDisplay($db, $household)),
             'housing_status' => (string)($household['housing_status'] ?? 'owned'),
