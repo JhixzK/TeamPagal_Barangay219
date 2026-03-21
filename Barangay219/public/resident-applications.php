@@ -69,7 +69,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <th class="text-center">Submitted</th>
                         <th class="text-center" style="width: 140px;">Household Role</th>
                         <th class="text-center">Status</th>
-                        <th class="text-center resident-apps-actions-col">View</th>
+                        <th class="text-center resident-apps-actions-col actions-col-compact">View</th>
                     </tr>
                 </thead>
                 <tbody id="applicationsTableBody">
@@ -515,10 +515,6 @@ include __DIR__ . '/../includes/sidebar.php';
     background: #f5f9ff !important;
     border-color: #d6e4ff !important;
     color: #2f4f95 !important;
-}
-
-.resident-apps-page .resident-apps-actions-col {
-    min-width: 140px;
 }
 
 @media (max-width: 768px) {
