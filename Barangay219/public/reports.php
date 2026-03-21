@@ -72,8 +72,28 @@ include __DIR__ . '/../includes/sidebar.php';
 .reports-page .report-table-wrap {
     border: 1px solid #e7ecf3;
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: min(62vh, 640px);
     background: #fff;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
+}
+.reports-page .report-table-wrap::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+.reports-page .report-table-wrap::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 999px;
+}
+.reports-page .report-table-wrap::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 999px;
+    border: 2px solid #f1f5f9;
+}
+.reports-page .report-table-wrap::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
 }
 .reports-page .report-table {
     margin-bottom: 0;
@@ -91,6 +111,9 @@ include __DIR__ . '/../includes/sidebar.php';
     font-weight: 600;
     letter-spacing: 0.02em;
     background: #f9fbfd;
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
 .reports-page .report-table tbody td {
     color: #334155;
