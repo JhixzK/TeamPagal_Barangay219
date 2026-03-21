@@ -644,27 +644,8 @@ $barangay219_purok_options = [
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="row" id="householdMembersRow" style="display:none;">
-                                        <div class="col-md-6 mb-3">
-                                            <label>Number of Household Members</label>
-                                            <input type="number" id="household_members" name="household_members" class="form-control" min="1" max="99" step="1" inputmode="numeric">
-                                            <small class="text-muted">Total household members, including you.</small>
-                                        </div>
-                                    </div>
                                     <div class="row g-3" id="householdTypeRow" style="display:none;">
-                                        <div class="col-md-4 mb-3">
-                                            <label>Household Type <span class="text-danger">*</span></label>
-                                            <select name="household_type" id="household_type" class="form-select">
-                                                <option value="">Select Household Type</option>
-                                                <option value="Family Household">Family Household</option>
-                                                <option value="Couple Only">Couple Only</option>
-                                                <option value="Single Inhabitant">Single Inhabitant</option>
-                                                <option value="Non-Relative Household (Shared / Boarders)">Non-Relative Household (Shared / Boarders)</option>
-                                                <option value="Other (Specify)">Other (Specify)</option>
-                                            </select>
-                                            <small class="text-muted">Select your household setup.</small>
-                                        </div>
-                                        <div class="col-md-4 mb-3">
+                                        <div class="col-md-6 mb-3">
                                             <label>House Type <span class="text-danger">*</span></label>
                                             <select name="house_type" id="house_type" class="form-select">
                                                 <option value="">Select House Type</option>
@@ -677,7 +658,7 @@ $barangay219_purok_options = [
                                             </select>
                                             <small class="text-muted">Select your dwelling type.</small>
                                         </div>
-                                        <div class="col-md-4 mb-3">
+                                        <div class="col-md-6 mb-3">
                                             <label>House Ownership <span class="text-danger">*</span></label>
                                             <select name="house_ownership" id="house_ownership" class="form-select">
                                                 <option value="">Select Ownership</option>
@@ -1023,46 +1004,6 @@ function initRegisterTitleCase() {
     });
 }
 
-// Civil status -> allowed household types (Single, Couple, Family, Shared/Renters)
-const civilStatusToHouseholdTypes = {
-    single: ['Single Inhabitant', 'Non-Relative Household (Shared / Boarders)'],
-    married: ['Couple Only', 'Family Household', 'Non-Relative Household (Shared / Boarders)'],
-    widowed: ['Single Inhabitant', 'Family Household', 'Non-Relative Household (Shared / Boarders)'],
-    divorced: ['Single Inhabitant', 'Non-Relative Household (Shared / Boarders)'],
-    separated: ['Single Inhabitant', 'Family Household', 'Non-Relative Household (Shared / Boarders)'],
-    annulled: ['Single Inhabitant', 'Family Household', 'Non-Relative Household (Shared / Boarders)'],
-    live_in: ['Couple Only', 'Family Household', 'Non-Relative Household (Shared / Boarders)']
-};
-
-function filterHouseholdTypesByCivilStatus() {
-    const civilStatusEl = document.getElementById('civil_status');
-    const householdTypeEl = document.getElementById('household_type');
-    if (!civilStatusEl || !householdTypeEl) return;
-    const civilStatus = (civilStatusEl.value || '').trim().toLowerCase();
-    const allowed = civilStatusToHouseholdTypes[civilStatus] || [];
-    const currentVal = householdTypeEl.value;
-    householdTypeEl.innerHTML = '<option value="">Select Household Type</option>';
-    allowed.forEach(opt => {
-        const o = document.createElement('option');
-        o.value = opt;
-        o.textContent = opt;
-        if (opt === currentVal) o.selected = true;
-        householdTypeEl.appendChild(o);
-    });
-    if (!allowed.includes(currentVal)) householdTypeEl.value = '';
-}
-
-// Household members - digits only, max 2 digits
-const householdMembersField = document.querySelector('input[name="household_members"]');
-if (householdMembersField) {
-    householdMembersField.addEventListener('input', function() {
-        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 2);
-        if (this.value !== '' && Number(this.value) < 1) {
-            this.value = '1';
-        }
-    });
-}
-
 // Professional ID field validation - Letters, numbers, hyphens, slashes, spaces, periods
 const idFields = ['valid_id_number', 'pwd_id_number', 'solo_parent_id_number'];
 idFields.forEach(fieldName => {
@@ -1266,49 +1207,26 @@ initializeResidencyDatePicker();
 function toggleHouseholdTypeField() {
     const householdRoleField = document.querySelector('select[name="household_role"]');
     const householdTypeRow = document.getElementById('householdTypeRow');
-    const householdTypeField = document.getElementById('household_type');
     const houseTypeField = document.getElementById('house_type');
     const houseOwnershipField = document.getElementById('house_ownership');
-    const householdMembersRow = document.getElementById('householdMembersRow');
-    const householdMembersField = document.querySelector('input[name="household_members"]');
 
-    if (!householdRoleField || !householdTypeRow || !householdTypeField || !houseTypeField || !houseOwnershipField || !householdMembersRow || !householdMembersField) {
+    if (!householdRoleField || !householdTypeRow || !houseTypeField || !houseOwnershipField) {
         return;
     }
 
     const isHeadOfHousehold = householdRoleField.value === 'Head of Household';
     const showHouseholdFields = isHeadOfHousehold;
-    const civilStatusField = document.getElementById('civil_status');
-    const civilStatus = (civilStatusField?.value || '').toLowerCase().trim();
-    const isSingleHeadOfHousehold = civilStatus === 'single' && isHeadOfHousehold;
 
     householdTypeRow.style.display = showHouseholdFields ? 'flex' : 'none';
-    householdTypeField.required = showHouseholdFields;
     houseTypeField.required = showHouseholdFields;
     houseOwnershipField.required = showHouseholdFields;
-    householdMembersRow.style.display = showHouseholdFields ? 'flex' : 'none';
-    householdMembersField.required = showHouseholdFields;
-    if (isSingleHeadOfHousehold) {
-        householdMembersField.value = '1';
-        householdMembersField.readOnly = true;
-        householdMembersField.classList.remove('is-invalid');
-    } else {
-        householdMembersField.readOnly = false;
-    }
 
-    if (isHeadOfHousehold) {
-        houseOwnershipField.disabled = false;
-        filterHouseholdTypesByCivilStatus();
-    } else {
-        householdTypeField.value = '';
-        householdTypeField.classList.remove('is-invalid');
+    if (!isHeadOfHousehold) {
         houseTypeField.value = '';
         houseTypeField.classList.remove('is-invalid');
         houseOwnershipField.value = '';
         houseOwnershipField.disabled = false;
         houseOwnershipField.classList.remove('is-invalid');
-        householdMembersField.value = '';
-        householdMembersField.classList.remove('is-invalid');
     }
 }
 
@@ -1321,9 +1239,6 @@ if (householdRoleField) {
 const civilStatusField = document.getElementById('civil_status');
 if (civilStatusField) {
     civilStatusField.addEventListener('change', function() {
-        if (householdRoleField && householdRoleField.value === 'Head of Household') {
-            filterHouseholdTypesByCivilStatus();
-        }
         toggleHouseholdTypeField();
     });
 }
@@ -1423,10 +1338,7 @@ function showStep(step) {
     });
 
     if (step === 2) {
-        const roleField = document.querySelector('select[name="household_role"]');
-        if (roleField && roleField.value === 'Head of Household') {
-            filterHouseholdTypesByCivilStatus();
-        }
+        toggleHouseholdTypeField();
     }
 
     currentStep = step;
@@ -1505,17 +1417,9 @@ function validateStep(step) {
     }
 
     const roleField = document.querySelector('select[name="household_role"]');
-    const householdTypeField = document.getElementById('household_type');
     const houseTypeField = document.getElementById('house_type');
     const houseOwnershipField = document.getElementById('house_ownership');
-    if (roleField && householdTypeField && houseTypeField && houseOwnershipField && roleField.value === 'Head of Household') {
-        if (!householdTypeField.value.trim()) {
-            householdTypeField.classList.add('is-invalid');
-            isValid = false;
-        } else {
-            householdTypeField.classList.remove('is-invalid');
-        }
-
+    if (roleField && houseTypeField && houseOwnershipField && roleField.value === 'Head of Household') {
         if (!houseTypeField.value.trim()) {
             houseTypeField.classList.add('is-invalid');
             isValid = false;
@@ -1528,24 +1432,6 @@ function validateStep(step) {
             isValid = false;
         } else {
             houseOwnershipField.classList.remove('is-invalid');
-        }
-
-        const householdMembersFieldForValidation = document.querySelector('input[name="household_members"]');
-        const civilStatusForValidation = (document.getElementById('civil_status')?.value || '').toLowerCase().trim();
-        const isSingleHeadForValidation = civilStatusForValidation === 'single' && roleField?.value === 'Head of Household';
-        if (householdMembersFieldForValidation) {
-            if (isSingleHeadForValidation) {
-                householdMembersFieldForValidation.value = '1';
-                householdMembersFieldForValidation.classList.remove('is-invalid');
-            } else {
-                const membersValue = parseInt(householdMembersFieldForValidation.value, 10);
-                if (!Number.isFinite(membersValue) || membersValue <= 0) {
-                    householdMembersFieldForValidation.classList.add('is-invalid');
-                    isValid = false;
-                } else {
-                    householdMembersFieldForValidation.classList.remove('is-invalid');
-                }
-            }
         }
     }
 
@@ -1589,10 +1475,8 @@ function populateReview() {
             col.style.display = shouldShow ? '' : 'none';
         };
 
-        setReviewFieldVisibility('household_type', !!isHead);
         setReviewFieldVisibility('house_type', !!isHead);
         setReviewFieldVisibility('house_ownership', !!isHead);
-        setReviewFieldVisibility('household_members', !!isHead);
     };
 
     const reviewSections = [
@@ -1620,10 +1504,8 @@ function populateReview() {
             title: 'Family Background',
             fields: [
                 { name: 'household_role', label: 'Household Role' },
-                { name: 'household_type', label: 'Household Type' },
                 { name: 'house_type', label: 'House Type' },
-                { name: 'house_ownership', label: 'House Ownership' },
-                { name: 'household_members', label: 'No. of Household Members' }
+                { name: 'house_ownership', label: 'House Ownership' }
             ]
         },
         {
