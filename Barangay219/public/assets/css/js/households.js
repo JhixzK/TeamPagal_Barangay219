@@ -123,8 +123,9 @@ function loadHouseholds() {
             if (d.success && data.length) {
                 tiles.innerHTML = data.map(h => {
                     const id = Number(h.id);
-                    const headNames = (h.family_head_names || h.family_head_name || '').toString().trim();
-                    const head = toTitleCase(headNames || '');
+                    const headName = (h.family_head_name || '').toString().trim();
+                    const allHeadNames = (h.family_head_names || headName).toString().trim();
+                    const head = toTitleCase(headName || allHeadNames || '');
                     const address = toTitleCase(h.address || '');
                     const members = Number((h.total_members ?? 0));
                     const reg = formatDate(h.registration_date);
@@ -142,12 +143,6 @@ function loadHouseholds() {
                     const addrDisplay = address ? formatTitleCaseTruncate(address, 70) : '(no address)';
                     const householdIdLabel = '<small class="text-muted d-block">Household ID</small>';
                     const householdIdBadge = `<span class="badge bg-white text-dark border">${escapeHtml(hhCode || '-')}</span>`;
-                    const isOccupied = members > 0 || (h.family_head_id && Number(h.family_head_id) > 0);
-                    const householdTypeLabel = (h.household_type || '').toString().trim();
-                    const householdTypeDisplay = isOccupied
-                        ? `<div class="mt-1"><small class="text-muted d-block">Household Type</small><span class="badge bg-light text-dark border">${escapeHtml(householdTypeLabel || '--')}</span></div>`
-                        : '';
-
                     return `
                         <div class="household-tile card shadow-sm">
                             <div class="tile-top">
@@ -157,7 +152,6 @@ function loadHouseholds() {
                                         <p class="tile-name mb-0">Household ${id}</p>
                                         <p class="tile-sub">${escapeHtml(subtitle)}</p>
                                         <div class="mt-1">${householdIdLabel}${householdIdBadge}</div>
-                                        ${householdTypeDisplay}
                                     </div>
                                 </div>
                                 <span class="badge bg-success">Members: ${members}</span>
@@ -339,109 +333,200 @@ function viewHousehold(id) {
                 if (hmHead === 1 || hmHead === true || hmHead === '1') return true;
                 const rel = (m.relationship_to_head ?? m.hm_relationship_to_head ?? '').toString().toLowerCase();
                 if (rel.includes('head')) return true;
-                const fhc = (m.family_head_code ?? '').toString().trim();
-                return fhc !== '' && fhc !== '-';
+                return false;
             };
 
             const heads = members.filter(isHead);
-            // Put designated head first so shared members appear under the primary head
             if (designatedHeadId > 0) {
                 heads.sort((a, b) => (Number(b.id) === designatedHeadId ? 1 : 0) - (Number(a.id) === designatedHeadId ? 1 : 0));
             }
             const memberList = members.filter(m => !isHead(m));
-            const familyHeadNames = heads.length
-                ? heads.map(m => toName(m)).join(', ')
-                : (h.family_head_name ? toTitleCase(h.family_head_name) : '-');
 
             const householdTypeVal = (h.household_type || '').toString().trim();
-            const householdTypeRow = householdTypeVal
-                ? `<p><strong>Household Type:</strong> ${escapeHtml(householdTypeVal)}</p>`
-                : '';
+
+            // Derive household type from a head's family group composition
+            const deriveHouseholdType = (head, groupMembers) => {
+                // Check registration type first
+                const regType = (head.registration_household_type ?? '').toString().trim();
+                if (regType) return regType;
+
+                if (!groupMembers || groupMembers.length === 0) return 'Single Inhabitant';
+
+                const rels = groupMembers.map(m =>
+                    (m.relationship_to_head ?? m.hm_relationship_to_head ?? '').toString().toLowerCase()
+                );
+                const hasSpouse = rels.some(r => r.includes('spouse') || r.includes('wife') || r.includes('husband'));
+                const hasFamily = rels.some(r =>
+                    r.includes('son') || r.includes('daughter') || r.includes('child') ||
+                    r.includes('parent') || r.includes('mother') || r.includes('father') ||
+                    r.includes('sibling') || r.includes('brother') || r.includes('sister') ||
+                    r.includes('grandchild') || r.includes('grandparent')
+                );
+                const hasNonRelative = rels.some(r =>
+                    r.includes('boarder') || r.includes('helper') || r.includes('non-relative') ||
+                    r.includes('tenant') || r.includes('shared')
+                );
+
+                if (hasFamily || (hasSpouse && groupMembers.length > 1)) return 'Family Household';
+                if (hasSpouse && groupMembers.length === 1) return 'Couple Only';
+                if (hasNonRelative && !hasFamily && !hasSpouse) return 'Non-Relative Household (Shared / Boarders)';
+                if (groupMembers.length > 0) return 'Family Household';
+                return householdTypeVal || '--';
+            };
+
+            const firstHead = heads.length > 0 ? heads[0] : null;
+            const firstHeadName = firstHead ? toName(firstHead) : (h.family_head_name ? toTitleCase(h.family_head_name) : '-');
+
             document.getElementById('viewHouseholdInfo').innerHTML = `
                 <p><strong>Household ID Code:</strong> ${escapeHtml((h.household_id_code || '-'))}</p>
-                <p><strong>Family Head(s):</strong> ${escapeHtml(familyHeadNames)}</p>
-                ${householdTypeRow}
+                <p><strong>Family Head:</strong> <span id="viewInfoHeadName">${escapeHtml(firstHeadName)}</span></p>
+                <p><strong>Household Type:</strong> <span id="viewInfoHouseholdType">--</span></p>
                 <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
                 <p><strong>Total Members:</strong> ${members.length}</p>
                 <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
             `;
 
-            // Group members by family_code (members share same family_code as their head)
-            // Each member is shown only once—under the designated head when multiple heads share the same family_code
             const getFamilyCode = (m) => (m.family_code ?? '').toString().trim();
-            const designatedHeadFc = designatedHeadId > 0 ? getFamilyCode(members.find(m => Number(m.id) === designatedHeadId) || {}) : '';
+            const getMemberHeadRef = (m) => Number(m.family_head_resident_id || 0);
             const shownMemberIds = new Set();
 
-            let membersHtml = '';
-            heads.forEach(head => {
-                const fhc = ((head.family_head_code ?? '').toString().trim() || householdFhCode);
-                const headFc = getFamilyCode(head) || (Number(head.id) === designatedHeadId ? designatedHeadFc : null);
-                const headMembers = headFc
-                    ? memberList.filter(m => {
-                        if (getFamilyCode(m) !== headFc) return false;
-                        if (shownMemberIds.has(Number(m.id))) return false;
-                        shownMemberIds.add(Number(m.id));
-                        return true;
-                      })
-                    : [];
-                const removeBtn = allowEditMembers ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${head.id})"><i class="bi bi-person-dash"></i></button>` : '';
-                membersHtml += `
-                    <div class="household-head-group mb-3">
-                        <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1 bg-light">
-                            <div>
-                                <span class="fw-semibold">${escapeHtml(toName(head))}</span>
-                                <span class="badge bg-primary ms-2">Head</span>
-                                <small class="text-muted ms-2">(${escapeHtml(fhc)})</small>
-                            </div>
-                            <div>${removeBtn}</div>
-                        </div>
-                        ${headMembers.map(m => {
-                            const mTransferBtn = allowEditMembers ? ` <button class="btn btn-sm btn-outline-primary" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${head.id})"><i class="bi bi-person-badge"></i></button>` : '';
-                            const mRemoveBtn = allowEditMembers
-                                ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>`
-                                : '';
-                            return `
-                                <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1 ms-3" style="border-left: 3px solid var(--bs-primary) !important;">
-                                    <div>
-                                        <span>${escapeHtml(toName(m))}</span>
-                                        <span class="badge bg-light text-dark border ms-2">Member</span>
-                                        <small class="text-muted ms-1">(joined via ${escapeHtml(fhc)})</small>
-                                    </div>
-                                    <div>${mTransferBtn}${mRemoveBtn}</div>
-                                </div>`;
-                        }).join('')}
-                    </div>
-                `;
-            });
-            // Ungrouped members (no matching family_code head)
-            const groupedIds = new Set(heads.flatMap(head => {
-                const headFc = getFamilyCode(head) || (Number(head.id) === designatedHeadId ? designatedHeadFc : null);
-                if (!headFc) return [];
-                return memberList.filter(m => getFamilyCode(m) === headFc).map(m => m.id);
-            }));
-            const ungrouped = memberList.filter(m => !groupedIds.has(m.id));
-            if (ungrouped.length > 0) {
-                membersHtml += `<div class="household-head-group mb-3"><div class="small text-muted mb-1 px-2">Other members</div>`;
-                ungrouped.forEach(m => {
-                    const mTransferBtn = (allowEditMembers && designatedHeadId > 0) ? ` <button class="btn btn-sm btn-outline-primary" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${designatedHeadId})"><i class="bi bi-person-badge"></i></button>` : '';
-                    const mRemoveBtn = allowEditMembers
-                        ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>`
-                        : '';
-                    membersHtml += `
-                        <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1">
-                            <div>
-                                <span>${escapeHtml(toName(m))}</span>
-                                <span class="badge bg-light text-dark border ms-2">Member</span>
-                            </div>
-                            <div>${mTransferBtn}${mRemoveBtn}</div>
-                        </div>`;
+            const headGroups = heads.map((head, idx) => {
+                const headResidentId = Number(head.id);
+                const headOwnFhc = (head.family_head_code ?? '').toString().trim();
+                const headDisplayCode = (headOwnFhc !== '' && headOwnFhc !== '-') ? headOwnFhc : householdFhCode;
+                const headFc = getFamilyCode(head);
+                const headMembers = memberList.filter(m => {
+                    if (shownMemberIds.has(Number(m.id))) return false;
+                    const ref = getMemberHeadRef(m);
+                    if (ref > 0) {
+                        if (ref === headResidentId) { shownMemberIds.add(Number(m.id)); return true; }
+                        return false;
+                    }
+                    if (headFc && getFamilyCode(m) === headFc) { shownMemberIds.add(Number(m.id)); return true; }
+                    return false;
                 });
-                membersHtml += `</div>`;
+                const isPrimary = Number(head.id) === designatedHeadId;
+                return { head, idx, headDisplayCode, headMembers, isPrimary, headResidentId };
+            });
+
+            // Members not matched to any head go under the designated head (first group)
+            const remainingMembers = memberList.filter(m => !shownMemberIds.has(Number(m.id)));
+            if (remainingMembers.length > 0 && headGroups.length > 0) {
+                const primaryGroup = headGroups.find(g => g.isPrimary) || headGroups[0];
+                remainingMembers.forEach(m => {
+                    primaryGroup.headMembers.push(m);
+                    shownMemberIds.add(Number(m.id));
+                });
+            }
+            const ungrouped = memberList.filter(m => !shownMemberIds.has(Number(m.id)));
+
+            // Set initial household type for the first head now that groups are built
+            if (headGroups.length > 0) {
+                const initType = deriveHouseholdType(headGroups[0].head, headGroups[0].headMembers);
+                const typeEl = document.getElementById('viewInfoHouseholdType');
+                if (typeEl) typeEl.textContent = initType;
+            } else {
+                const typeEl = document.getElementById('viewInfoHouseholdType');
+                if (typeEl) typeEl.textContent = householdTypeVal || '--';
             }
 
-            document.getElementById('viewHouseholdMembers').innerHTML = members.length
-                ? membersHtml
-                : '<p class="text-muted">No members yet.</p>';
+            if (!members.length) {
+                document.getElementById('viewHouseholdMembers').innerHTML = '<p class="text-muted">No members yet.</p>';
+            } else if (heads.length <= 1) {
+                // Single head — simple flat layout, no tabs needed
+                let html = '<h6 class="mb-3">Members</h6>';
+                if (headGroups.length === 1) {
+                    const g = headGroups[0];
+                    const removeBtn = allowEditMembers ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${g.head.id})"><i class="bi bi-person-dash"></i></button>` : '';
+                    html += `
+                        <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-2 bg-light">
+                            <div>
+                                <span class="fw-semibold">${escapeHtml(toName(g.head))}</span>
+                                <span class="badge bg-primary ms-2">Head</span>
+                                <small class="text-muted ms-2">(${escapeHtml(g.headDisplayCode)})</small>
+                            </div>
+                            <div>${removeBtn}</div>
+                        </div>`;
+                    html += buildMemberRows(g.headMembers, g.head.id, allowEditMembers);
+                }
+                html += buildUngroupedRows(ungrouped, designatedHeadId, allowEditMembers);
+                document.getElementById('viewHouseholdMembers').innerHTML = html;
+            } else {
+                // Multiple heads — tabbed layout
+                let tabNav = '<ul class="nav nav-pills nav-fill mb-3" role="tablist">';
+                let tabContent = '<div class="tab-content">';
+
+                headGroups.forEach((g, i) => {
+                    const tabId = 'headTab' + i;
+                    const paneId = 'headPane' + i;
+                    const active = i === 0;
+                    const shortName = (g.head.last_name || g.head.first_name || 'Head ' + (i + 1)).toString().trim();
+                    const memberCount = g.headMembers.length;
+                    const headFullName = toName(g.head);
+                    const headType = deriveHouseholdType(g.head, g.headMembers);
+
+                    tabNav += `
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link${active ? ' active' : ''} px-2 py-2" id="${tabId}" data-bs-toggle="pill" data-bs-target="#${paneId}" type="button" role="tab" aria-controls="${paneId}" aria-selected="${active}" data-head-name="${escapeHtml(headFullName)}" data-head-type="${escapeHtml(headType)}" style="font-size: 0.8rem; line-height:1.3;">
+                                ${escapeHtml(toTitleCase(shortName))}
+                                <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">${memberCount}</span>
+                            </button>
+                        </li>`;
+
+                    const removeBtn = allowEditMembers ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${g.head.id})"><i class="bi bi-person-dash"></i></button>` : '';
+
+                    tabContent += `
+                        <div class="tab-pane fade${active ? ' show active' : ''}" id="${paneId}" role="tabpanel" aria-labelledby="${tabId}">
+                            <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-2 bg-light">
+                                <div>
+                                    <span class="fw-semibold">${escapeHtml(toName(g.head))}</span>
+                                    <span class="badge bg-primary ms-2">Head</span>
+                                    <small class="text-muted ms-2">(${escapeHtml(g.headDisplayCode)})</small>
+                                </div>
+                                <div>${removeBtn}</div>
+                            </div>
+                            ${g.headMembers.length > 0
+                                ? buildMemberRows(g.headMembers, g.head.id, allowEditMembers)
+                                : '<p class="text-muted small ms-3 mb-2">No members under this head.</p>'
+                            }
+                        </div>`;
+                });
+
+                if (ungrouped.length > 0) {
+                    const ugTabId = 'headTabUngrouped';
+                    const ugPaneId = 'headPaneUngrouped';
+                    tabNav += `
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link px-2 py-2" id="${ugTabId}" data-bs-toggle="pill" data-bs-target="#${ugPaneId}" type="button" role="tab" aria-controls="${ugPaneId}" aria-selected="false" style="font-size: 0.85rem;">
+                                Unassigned
+                                <span class="badge bg-secondary ms-1" style="font-size: 0.7rem;">${ungrouped.length}</span>
+                            </button>
+                        </li>`;
+                    tabContent += `
+                        <div class="tab-pane fade" id="${ugPaneId}" role="tabpanel" aria-labelledby="${ugTabId}">
+                            <p class="text-muted small mb-2">Members not yet assigned to a specific head.</p>
+                            ${buildUngroupedRows(ungrouped, designatedHeadId, allowEditMembers)}
+                        </div>`;
+                }
+
+                tabNav += '</ul>';
+                tabContent += '</div>';
+
+                document.getElementById('viewHouseholdMembers').innerHTML =
+                    `<h6 class="mb-2">Family Groups <span class="badge bg-secondary">${heads.length} heads</span></h6>`
+                    + tabNav + tabContent;
+
+                // When a head tab is clicked, update the info section dynamically
+                document.querySelectorAll('#viewHouseholdMembers .nav-link[data-head-name]').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const nameEl = document.getElementById('viewInfoHeadName');
+                        const typeEl = document.getElementById('viewInfoHouseholdType');
+                        if (nameEl) nameEl.textContent = this.getAttribute('data-head-name') || '-';
+                        if (typeEl) typeEl.textContent = this.getAttribute('data-head-type') || '--';
+                    });
+                });
+            }
+
             const viewModalEl = document.getElementById('viewHouseholdModal');
             let viewModalInstance = bootstrap.Modal.getInstance(viewModalEl);
             if (!viewModalInstance) {
@@ -457,6 +542,43 @@ function viewHousehold(id) {
             viewModalInstance.show();
         })
         .catch(() => alert('Error loading household'));
+}
+
+function buildMemberRows(memberArr, headId, allowEdit) {
+    if (!memberArr.length) return '';
+    return memberArr.map(m => {
+        const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
+        const transferBtn = allowEdit ? ` <button class="btn btn-sm btn-outline-primary" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${headId})"><i class="bi bi-person-badge"></i></button>` : '';
+        const removeBtn = allowEdit ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : '';
+        return `
+            <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1 ms-3" style="border-left: 3px solid var(--bs-primary) !important;">
+                <div>
+                    <span>${escapeHtml(toTitleCase(name))}</span>
+                    <span class="badge bg-light text-dark border ms-2">Member</span>
+                </div>
+                <div>${transferBtn}${removeBtn}</div>
+            </div>`;
+    }).join('');
+}
+
+function buildUngroupedRows(ungroupedArr, designatedHeadId, allowEdit) {
+    if (!ungroupedArr.length) return '';
+    let html = '<div class="mt-2"><div class="small text-muted mb-1 px-2">Unassigned members</div>';
+    ungroupedArr.forEach(m => {
+        const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
+        const transferBtn = (allowEdit && designatedHeadId > 0) ? ` <button class="btn btn-sm btn-outline-primary" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${designatedHeadId})"><i class="bi bi-person-badge"></i></button>` : '';
+        const removeBtn = allowEdit ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : '';
+        html += `
+            <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1">
+                <div>
+                    <span>${escapeHtml(toTitleCase(name))}</span>
+                    <span class="badge bg-light text-dark border ms-2">Member</span>
+                </div>
+                <div>${transferBtn}${removeBtn}</div>
+            </div>`;
+    });
+    html += '</div>';
+    return html;
 }
 
 function loadResidentsForAddMember(householdId, excludeIds) {
