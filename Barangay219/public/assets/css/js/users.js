@@ -140,7 +140,7 @@ function displayUsers(users) {
             <td class="text-center"><span class="user-pill role-pill">${formatRole(user.role)}</span></td>
             <td class="text-center"><span class="user-pill ${getStatusClass(user.status)}">${formatStatus(user.status)}</span></td>
             <td class="text-center"><span class="users-subtext">${formatDate(user.created_at)}</span></td>
-            <td class="text-center users-actions-col users-actions">
+            <td class="text-center users-actions-col users-actions actions-col-wide">
                 ${USER_MANAGEMENT_PERMS.canEdit ? `
                     <button class="action-icon-btn" title="Edit" aria-label="Edit" onclick="editUser(${user.id})">
                         <i class="bi bi-pencil-square"></i>
