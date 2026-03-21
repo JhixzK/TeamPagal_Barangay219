@@ -59,16 +59,16 @@ function updatePrintHeader(title, rangeText) {
 
 function formatReportData(type, data) {
     if (type === 'population') {
-        let html = '<div class="mb-3"><strong>Total Residents:</strong> ' + (data.total || 0) + '</div>';
+        let html = '<div class="mb-3"><span class="report-summary-pill">Total Residents: ' + (data.total || 0) + '</span></div>';
         if (data.by_gender && data.by_gender.length) {
-            html += '<h6 class="mt-3">By Gender</h6><table class="table table-sm table-striped report-table"><thead><tr><th>Gender</th><th>Count</th></tr></thead><tbody>';
+            html += '<h6 class="mt-3">By Gender</h6><div class="report-table-wrap"><table class="table table-sm report-table"><thead><tr><th>Gender</th><th>Count</th></tr></thead><tbody>';
             data.by_gender.forEach(r => { html += '<tr><td>' + r.gender + '</td><td>' + r.count + '</td></tr>'; });
-            html += '</tbody></table>';
+            html += '</tbody></table></div>';
         }
         if (data.by_civil_status && data.by_civil_status.length) {
-            html += '<h6 class="mt-3">By Civil Status</h6><table class="table table-sm table-striped report-table"><thead><tr><th>Civil Status</th><th>Count</th></tr></thead><tbody>';
+            html += '<h6 class="mt-3">By Civil Status</h6><div class="report-table-wrap"><table class="table table-sm report-table"><thead><tr><th>Civil Status</th><th>Count</th></tr></thead><tbody>';
             data.by_civil_status.forEach(r => { html += '<tr><td>' + (r.civil_status || '-') + '</td><td>' + r.count + '</td></tr>'; });
-            html += '</tbody></table>';
+            html += '</tbody></table></div>';
         }
         return html;
     }
@@ -76,7 +76,7 @@ function formatReportData(type, data) {
         if (!Array.isArray(data) || data.length === 0) {
             return '<p class="text-muted">No data found for the selected filters.</p>';
         }
-        let html = '<table class="table table-sm table-striped report-table"><thead><tr>';
+        let html = '<div class="report-table-wrap"><table class="table table-sm report-table"><thead><tr>';
         html += '<th>Date</th><th>User</th><th>Action</th><th>Module</th><th>IP</th>';
         html += '</tr></thead><tbody>';
         data.forEach(row => {
@@ -89,12 +89,12 @@ function formatReportData(type, data) {
             html += '<td>' + (row.ip_address || '-') + '</td>';
             html += '</tr>';
         });
-        html += '</tbody></table>';
+        html += '</tbody></table></div>';
         return html;
     }
     if (Array.isArray(data) && data.length > 0) {
         const keys = Object.keys(data[0]);
-        let html = '<table class="table table-sm table-striped report-table"><thead><tr>';
+        let html = '<div class="report-table-wrap"><table class="table table-sm report-table"><thead><tr>';
         keys.forEach(k => { html += '<th>' + k.replace(/_/g, ' ') + '</th>'; });
         html += '</tr></thead><tbody>';
         data.forEach(row => {
@@ -102,7 +102,7 @@ function formatReportData(type, data) {
             keys.forEach(k => { html += '<td>' + (row[k] ?? '-') + '</td>'; });
             html += '</tr>';
         });
-        html += '</tbody></table>';
+        html += '</tbody></table></div>';
         return html;
     }
     return '<p class="text-muted">No data found for the selected filters.</p>';
