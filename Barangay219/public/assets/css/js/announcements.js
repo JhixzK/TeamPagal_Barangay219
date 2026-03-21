@@ -55,43 +55,35 @@ function loadAnnouncements() {
             if (d.success && d.data && Array.isArray(d.data)) {
                 tbody.innerHTML = d.data.map(a => `
                     <tr>
-                        <td class="text-center"><strong>${escapeHtml(toTitleCase(a.title || '-'))}</strong></td>
-                        <td class="text-center">${escapeHtml(toTitleCase(a.category || 'General'))}</td>
+                        <td class="text-center fw-semibold">${escapeHtml(toTitleCase(a.title || '-'))}</td>
+                        <td class="text-center"><span class="announcement-pill ${getCategoryPillClass(a.category)}">${escapeHtml(toTitleCase(a.category || 'General'))}</span></td>
+                        <td class="text-center"><span class="announcement-pill ${getPriorityPillClass(a.priority)}">${getPriorityLabel(a.priority)}</span></td>
+                        <td class="text-center"><span class="announcement-pill ${getStatusPillClass(a.status)}">${getStatusLabel(a.status)}</span></td>
+                        <td class="text-center"><span class="announcements-secondary">${formatDate(a.created_at)}</span></td>
+                        <td class="text-center"><span class="announcements-secondary">${a.expires_at ? formatDate(a.expires_at) : '-'}</span></td>
+                        <td class="text-center"><span class="announcement-pill views-pill">${a.views || 0}</span></td>
                         <td class="text-center">
-                            <span class="badge ${a.priority === 'urgent' ? 'bg-danger' : 'bg-secondary'}">
-                                ${a.priority === 'urgent' ? '🚨 Urgent' : 'Normal'}
-                            </span>
-                        </td>
-                        <td class="text-center">
-                            <span class="badge bg-${a.status === 'published' ? 'success' : 'warning'}">
-                                ${a.status === 'published' ? 'Published' : 'Draft'}
-                            </span>
-                        </td>
-                        <td class="text-center">${formatDate(a.created_at)}</td>
-                        <td class="text-center">${a.expires_at ? formatDate(a.expires_at) : '-'}</td>
-                        <td class="text-center"><span class="badge bg-info">${a.views || 0}</span></td>
-                        <td class="text-center">
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button class="btn btn-outline-primary" title="Edit" onclick="editAnnouncement(${a.id})">
+                            <div class="announcements-actions" role="group">
+                                <button class="action-icon-btn" title="Edit" onclick="editAnnouncement(${a.id})">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 ${a.is_pinned ? 
-                                    `<button class="btn btn-outline-warning" title="Unpin" onclick="pinAnnouncement(${a.id})">
+                                    `<button class="action-icon-btn" title="Unpin" onclick="pinAnnouncement(${a.id})">
                                         <i class="bi bi-pin-fill"></i>
                                     </button>` :
-                                    `<button class="btn btn-outline-secondary" title="Pin" onclick="pinAnnouncement(${a.id})">
+                                    `<button class="action-icon-btn" title="Pin" onclick="pinAnnouncement(${a.id})">
                                         <i class="bi bi-pin"></i>
                                     </button>`
                                 }
                                 ${a.status === 'published' ?
-                                    `<button class="btn btn-outline-secondary" title="Unpublish" onclick="updateStatus(${a.id}, 'draft')">
+                                    `<button class="action-icon-btn" title="Unpublish" onclick="updateStatus(${a.id}, 'draft')">
                                         <i class="bi bi-eye-slash"></i>
                                     </button>` :
-                                    `<button class="btn btn-outline-success" title="Publish" onclick="updateStatus(${a.id}, 'published')">
+                                    `<button class="action-icon-btn" title="Publish" onclick="updateStatus(${a.id}, 'published')">
                                         <i class="bi bi-eye"></i>
                                     </button>`
                                 }
-                                <button class="btn btn-outline-danger" title="Delete" onclick="deleteAnnouncement(${a.id})">
+                                <button class="action-icon-btn action-delete" title="Delete" onclick="deleteAnnouncement(${a.id})">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
@@ -136,49 +128,72 @@ function syncAnnouncementStatusTabs() {
 function buildTableRow(a) {
     return `
         <tr>
-            <td class="text-center"><strong>${escapeHtml(toTitleCase(a.title || '-'))}</strong></td>
-            <td class="text-center">${escapeHtml(toTitleCase(a.category || 'General'))}</td>
+            <td class="text-center fw-semibold">${escapeHtml(toTitleCase(a.title || '-'))}</td>
+            <td class="text-center"><span class="announcement-pill ${getCategoryPillClass(a.category)}">${escapeHtml(toTitleCase(a.category || 'General'))}</span></td>
+            <td class="text-center"><span class="announcement-pill ${getPriorityPillClass(a.priority)}">${getPriorityLabel(a.priority)}</span></td>
+            <td class="text-center"><span class="announcement-pill ${getStatusPillClass(a.status)}">${getStatusLabel(a.status)}</span></td>
+            <td class="text-center"><span class="announcements-secondary">${formatDate(a.created_at)}</span></td>
+            <td class="text-center"><span class="announcements-secondary">${a.expires_at ? formatDate(a.expires_at) : '-'}</span></td>
+            <td class="text-center"><span class="announcement-pill views-pill">${a.views || 0}</span></td>
             <td class="text-center">
-                <span class="badge ${a.priority === 'urgent' ? 'bg-danger' : 'bg-secondary'}">
-                    ${a.priority === 'urgent' ? '🚨 Urgent' : 'Normal'}
-                </span>
-            </td>
-            <td class="text-center">
-                <span class="badge bg-${a.status === 'published' ? 'success' : 'warning'}">
-                    ${a.status === 'published' ? 'Published' : 'Draft'}
-                </span>
-            </td>
-            <td class="text-center">${formatDate(a.created_at)}</td>
-            <td class="text-center">${a.expires_at ? formatDate(a.expires_at) : '-'}</td>
-            <td class="text-center"><span class="badge bg-info">${a.views || 0}</span></td>
-            <td class="text-center">
-                <div class="btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-primary" title="Edit" onclick="editAnnouncement(${a.id})">
+                <div class="announcements-actions" role="group">
+                    <button class="action-icon-btn" title="Edit" onclick="editAnnouncement(${a.id})">
                         <i class="bi bi-pencil"></i>
                     </button>
                     ${a.is_pinned ? 
-                        `<button class="btn btn-outline-warning" title="Unpin" onclick="pinAnnouncement(${a.id})">
+                        `<button class="action-icon-btn" title="Unpin" onclick="pinAnnouncement(${a.id})">
                             <i class="bi bi-pin-fill"></i>
                         </button>` :
-                        `<button class="btn btn-outline-secondary" title="Pin" onclick="pinAnnouncement(${a.id})">
+                        `<button class="action-icon-btn" title="Pin" onclick="pinAnnouncement(${a.id})">
                             <i class="bi bi-pin"></i>
                         </button>`
                     }
                     ${a.status === 'published' ?
-                        `<button class="btn btn-outline-secondary" title="Unpublish" onclick="updateStatus(${a.id}, 'draft')">
+                        `<button class="action-icon-btn" title="Unpublish" onclick="updateStatus(${a.id}, 'draft')">
                             <i class="bi bi-eye-slash"></i>
                         </button>` :
-                        `<button class="btn btn-outline-success" title="Publish" onclick="updateStatus(${a.id}, 'published')">
+                        `<button class="action-icon-btn" title="Publish" onclick="updateStatus(${a.id}, 'published')">
                             <i class="bi bi-eye"></i>
                         </button>`
                     }
-                    <button class="btn btn-outline-danger" title="Delete" onclick="deleteAnnouncement(${a.id})">
+                    <button class="action-icon-btn action-delete" title="Delete" onclick="deleteAnnouncement(${a.id})">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
             </td>
         </tr>
     `;
+}
+
+function normalizeAnnouncementValue(value) {
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+function getCategoryPillClass(category) {
+    const key = normalizeAnnouncementValue(category);
+    const classes = {
+        general: 'category-general',
+        event: 'category-event',
+        advisory: 'category-advisory',
+        emergency: 'category-emergency'
+    };
+    return classes[key] || 'category-general';
+}
+
+function getPriorityPillClass(priority) {
+    return normalizeAnnouncementValue(priority) === 'urgent' ? 'priority-urgent' : 'priority-normal';
+}
+
+function getPriorityLabel(priority) {
+    return normalizeAnnouncementValue(priority) === 'urgent' ? 'Urgent' : 'Normal';
+}
+
+function getStatusPillClass(status) {
+    return normalizeAnnouncementValue(status) === 'published' ? 'status-published' : 'status-draft';
+}
+
+function getStatusLabel(status) {
+    return normalizeAnnouncementValue(status) === 'published' ? 'Published' : 'Draft';
 }
 
 /**
