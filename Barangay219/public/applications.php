@@ -655,6 +655,7 @@ include __DIR__ . '/../includes/sidebar.php';
     function formatPurposeDisplay(value = '') {
         const rawValue = String(value || '').trim();
         if (!rawValue) return '-';
+        if (normalizePurposeText(rawValue) === 'others') return 'Others';
         if (isPurposeOthers(rawValue)) return `Others: ${toTitleCase(rawValue)}`;
         return toTitleCase(rawValue);
     }
@@ -898,8 +899,11 @@ include __DIR__ . '/../includes/sidebar.php';
                 const certName = a.cert_name || a.resident_name || '';
                 const certAddress = a.cert_address || residentAddress || '';
                 const certPurpose = a.cert_purpose || a.purpose || '';
-                const submittedPurpose = a.purpose_option || a.purpose || '';
-                const purposeDetails = (a.purpose_details || a.purpose_other || '').trim();
+                const submittedPurposeRaw = a.purpose_option || a.purpose || '';
+                const submittedPurpose = normalizePurposeText(submittedPurposeRaw) === 'others'
+                    ? (a.purpose_details || a.purpose_other || a.purpose || 'Others')
+                    : submittedPurposeRaw;
+                const rejectionReason = (a.rejection_reason || '').trim();
                 currentViewStatus = a.status || '';
 
                 const html = `
@@ -916,7 +920,6 @@ include __DIR__ . '/../includes/sidebar.php';
                             <h6><i class="bi bi-file-earmark-text me-1"></i> Certificate Info</h6>
                             <div class="detail-row"><span>Type</span><strong>${esc(toTitleCase((a.certificate_type || '').replace(/_/g, ' ')))}</strong></div>
                             <div class="detail-row"><span>Submitted Purpose</span><strong>${esc(formatPurposeDisplay(submittedPurpose))}</strong></div>
-                            <div class="detail-row"><span>Purpose Details</span><strong>${esc(purposeDetails || '-')}</strong></div>
                             <div class="detail-row"><span>Certificate Name</span><strong>${esc(certName || '-')}</strong></div>
                             <div class="detail-row"><span>Certificate Address</span><strong>${esc(certAddress || '-')}</strong></div>
                             <div class="detail-row"><span>Certificate Purpose</span><strong>${esc(formatPurposeDisplay(certPurpose))}</strong></div>
@@ -935,6 +938,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <div class="detail-row"><span>Ready for Pickup</span><strong>${formatDateTime(a.ready_for_pickup_at)}</strong></div>
                             <div class="detail-row"><span>Released</span><strong>${formatDateTime(a.released_at || a.issued_date || a.date_issued)}</strong></div>
                             <div class="detail-row"><span>Rejected</span><strong>${formatDateTime(a.rejected_at)}</strong></div>
+                            <div class="detail-row"><span>Rejection Reason</span><strong>${esc(rejectionReason || '-')}</strong></div>
                             <div class="detail-row"><span>Control Number</span><strong>${esc(a.control_number || '-')}</strong></div>
                         </section>
                     </div>
