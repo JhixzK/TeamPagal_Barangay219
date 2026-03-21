@@ -321,25 +321,111 @@ body {
     color: #64748b;
 }
 
-.module-page .search-bar {
-    border-radius: 14px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.35);
+.module-page .search-bar,
+.users-page .search-bar,
+.residents-page .search-bar,
+.apps-page .search-bar,
+.resident-apps-page .search-bar,
+.blotter-page .search-bar,
+.complaints-page .search-bar,
+.announcements-page .search-bar,
+.households-page .search-bar,
+.reports-page .search-bar {
+    padding: 0.9rem !important;
+    border-radius: 14px !important;
+    border: 1px solid #d7dee8 !important;
+    background: #f2f4f7 !important;
+    box-shadow: 0 12px 24px -24px rgba(15, 23, 42, 0.45) !important;
 }
 
 .module-page .search-bar .form-control,
-.module-page .search-bar .form-select {
-    min-height: 40px;
+.module-page .search-bar .form-select,
+.users-page .search-bar .form-control,
+.users-page .search-bar .form-select,
+.residents-page .search-bar .form-control,
+.residents-page .search-bar .form-select,
+.apps-page .search-bar .form-control,
+.apps-page .search-bar .form-select,
+.resident-apps-page .search-bar .form-control,
+.resident-apps-page .search-bar .form-select,
+.blotter-page .search-bar .form-control,
+.blotter-page .search-bar .form-select,
+.complaints-page .search-bar .form-control,
+.complaints-page .search-bar .form-select,
+.announcements-page .search-bar .form-control,
+.announcements-page .search-bar .form-select,
+.households-page .search-bar .form-control,
+.households-page .search-bar .form-select,
+.reports-page .search-bar .form-control,
+.reports-page .search-bar .form-select {
+    min-height: 42px !important;
+    border-radius: 8px !important;
+    border-color: #cfd8e3 !important;
+    background: #f8fafc !important;
 }
 
-.module-page .search-bar .btn {
-    min-height: 40px;
-    border-radius: 10px;
+.module-page .search-bar .btn,
+.users-page .search-bar .btn,
+.residents-page .search-bar .btn,
+.apps-page .search-bar .btn,
+.resident-apps-page .search-bar .btn,
+.blotter-page .search-bar .btn,
+.complaints-page .search-bar .btn,
+.announcements-page .search-bar .btn,
+.households-page .search-bar .btn,
+.reports-page .search-bar .btn {
+    min-height: 42px !important;
+    border-radius: 10px !important;
     font-weight: 600;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.42rem;
+}
+
+.module-page .search-bar .btn.btn-primary,
+.users-page .search-bar .btn.btn-primary,
+.residents-page .search-bar .btn.btn-primary,
+.apps-page .search-bar .btn.btn-primary,
+.resident-apps-page .search-bar .btn.btn-primary,
+.blotter-page .search-bar .btn.btn-primary,
+.complaints-page .search-bar .btn.btn-primary,
+.announcements-page .search-bar .btn.btn-primary,
+.households-page .search-bar .btn.btn-primary,
+.reports-page .search-bar .btn.btn-primary {
+    background: #1f6feb !important;
+    border-color: #1f6feb !important;
+    color: #ffffff !important;
+}
+
+.module-page .search-bar .btn.btn-outline-secondary,
+.users-page .search-bar .btn.btn-outline-secondary,
+.residents-page .search-bar .btn.btn-outline-secondary,
+.apps-page .search-bar .btn.btn-outline-secondary,
+.resident-apps-page .search-bar .btn.btn-outline-secondary,
+.blotter-page .search-bar .btn.btn-outline-secondary,
+.complaints-page .search-bar .btn.btn-outline-secondary,
+.announcements-page .search-bar .btn.btn-outline-secondary,
+.households-page .search-bar .btn.btn-outline-secondary,
+.reports-page .search-bar .btn.btn-outline-secondary {
+    background: #f8fafc !important;
+    border-color: #8b95a7 !important;
+    color: #5b6576 !important;
+}
+
+.module-page .search-bar .btn.btn-secondary,
+.users-page .search-bar .btn.btn-secondary,
+.residents-page .search-bar .btn.btn-secondary,
+.apps-page .search-bar .btn.btn-secondary,
+.resident-apps-page .search-bar .btn.btn-secondary,
+.blotter-page .search-bar .btn.btn-secondary,
+.complaints-page .search-bar .btn.btn-secondary,
+.announcements-page .search-bar .btn.btn-secondary,
+.households-page .search-bar .btn.btn-secondary,
+.reports-page .search-bar .btn.btn-secondary {
+    background: #6b7280 !important;
+    border-color: #6b7280 !important;
+    color: #f8fafc !important;
 }
 
 .module-page .btn-action-primary {
@@ -464,24 +550,97 @@ body {
     border-radius: var(--ui-pill-radius);
 }
 
-.module-page .app-tabs {
+.module-page .app-tabs,
+.users-page .app-tabs,
+.residents-page .app-tabs,
+.apps-page .app-tabs,
+.resident-apps-page .app-tabs,
+.blotter-page .app-tabs,
+.complaints-page .app-tabs,
+.announcements-page .app-tabs,
+.households-page .app-tabs,
+.reports-page .app-tabs {
     border-bottom: 0;
-    gap: 0.35rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
 }
 
-.module-page .app-tabs .nav-link {
-    border: 1px solid #dbe3ee;
+.module-page .app-tabs .nav-item,
+.users-page .app-tabs .nav-item,
+.residents-page .app-tabs .nav-item,
+.apps-page .app-tabs .nav-item,
+.resident-apps-page .app-tabs .nav-item,
+.blotter-page .app-tabs .nav-item,
+.complaints-page .app-tabs .nav-item,
+.announcements-page .app-tabs .nav-item,
+.households-page .app-tabs .nav-item,
+.reports-page .app-tabs .nav-item {
+    flex: 1 1 160px;
+    margin-bottom: 0;
+}
+
+.module-page .app-tabs .nav-link,
+.users-page .app-tabs .nav-link,
+.residents-page .app-tabs .nav-link,
+.apps-page .app-tabs .nav-link,
+.resident-apps-page .app-tabs .nav-link,
+.blotter-page .app-tabs .nav-link,
+.complaints-page .app-tabs .nav-link,
+.announcements-page .app-tabs .nav-link,
+.households-page .app-tabs .nav-link,
+.reports-page .app-tabs .nav-link {
+    width: 100%;
+    text-align: center;
+    border: 1px solid #ccd6e3 !important;
     border-radius: 999px;
-    color: #475569;
+    color: #4b5565;
     font-weight: 600;
-    padding: 0.4rem 0.85rem;
-    background: #ffffff;
+    padding: 0.56rem 1rem;
+    background: #f2f4f7 !important;
 }
 
-.module-page .app-tabs .nav-link.active {
-    color: #1d4ed8;
-    background: #e8f0ff;
-    border-color: #bfdbfe;
+.module-page .app-tabs .nav-link.active,
+.users-page .app-tabs .nav-link.active,
+.residents-page .app-tabs .nav-link.active,
+.apps-page .app-tabs .nav-link.active,
+.resident-apps-page .app-tabs .nav-link.active,
+.blotter-page .app-tabs .nav-link.active,
+.complaints-page .app-tabs .nav-link.active,
+.announcements-page .app-tabs .nav-link.active,
+.households-page .app-tabs .nav-link.active,
+.reports-page .app-tabs .nav-link.active {
+    color: #1f4ecb !important;
+    background: #dfe8f5 !important;
+    border-color: #adc3e9 !important;
+}
+
+@media (max-width: 768px) {
+    .module-page .search-bar,
+    .users-page .search-bar,
+    .residents-page .search-bar,
+    .apps-page .search-bar,
+    .resident-apps-page .search-bar,
+    .blotter-page .search-bar,
+    .complaints-page .search-bar,
+    .announcements-page .search-bar,
+    .households-page .search-bar,
+    .reports-page .search-bar {
+        padding: 0.75rem !important;
+    }
+
+    .module-page .app-tabs .nav-item,
+    .users-page .app-tabs .nav-item,
+    .residents-page .app-tabs .nav-item,
+    .apps-page .app-tabs .nav-item,
+    .resident-apps-page .app-tabs .nav-item,
+    .blotter-page .app-tabs .nav-item,
+    .complaints-page .app-tabs .nav-item,
+    .announcements-page .app-tabs .nav-item,
+    .households-page .app-tabs .nav-item,
+    .reports-page .app-tabs .nav-item {
+        flex: 1 1 calc(50% - 0.45rem);
+    }
 }
 
 .module-page .data-table .table th,
