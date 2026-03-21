@@ -110,7 +110,7 @@ function displayUsers(users) {
     const tbody = document.getElementById('usersTableBody');
     
     if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No users found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center users-subtext">No users found</td></tr>';
         return;
     }
 
@@ -133,34 +133,34 @@ function displayUsers(users) {
 
     tbody.innerHTML = sortedUsers.map(user => `
         <tr>
-            <td class="text-center">${user.id}</td>
-            <td class="text-center">${escapeHtml(user.username)}</td>
-            <td class="text-center">${escapeHtml(user.full_name || '-')}</td>
-            <td class="text-center">${escapeHtml(user.email || '-')}</td>
-            <td class="text-center"><span class="badge bg-info">${formatRole(user.role)}</span></td>
-            <td class="text-center"><span class="badge ${getStatusClass(user.status)}">${formatStatus(user.status)}</span></td>
-            <td class="text-center">${formatDate(user.created_at)}</td>
-            <td class="text-center">
+            <td class="text-center"><span class="users-code-badge">#${user.id}</span></td>
+            <td class="text-center"><span class="users-code-badge">${escapeHtml(user.username)}</span></td>
+            <td class="text-center"><span class="users-main-text">${escapeHtml(user.full_name || '-')}</span></td>
+            <td class="text-center"><span class="users-subtext">${escapeHtml(user.email || '-')}</span></td>
+            <td class="text-center"><span class="user-pill role-pill">${formatRole(user.role)}</span></td>
+            <td class="text-center"><span class="user-pill ${getStatusClass(user.status)}">${formatStatus(user.status)}</span></td>
+            <td class="text-center"><span class="users-subtext">${formatDate(user.created_at)}</span></td>
+            <td class="text-center users-actions-col users-actions">
                 ${USER_MANAGEMENT_PERMS.canEdit ? `
-                    <button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editUser(${user.id})">
+                    <button class="action-icon-btn" title="Edit" aria-label="Edit" onclick="editUser(${user.id})">
                         <i class="bi bi-pencil-square"></i>
                     </button>
                     ${user.id !== (window.CURRENT_USER_ID || 0) ? (
                         user.status === 'active'
-                            ? `<button class="btn btn-sm btn-warning" title="Suspend" aria-label="Suspend" onclick="suspendUser(${user.id})">
+                            ? `<button class="action-icon-btn btn-suspend" title="Suspend" aria-label="Suspend" onclick="suspendUser(${user.id})">
                                 <i class="bi bi-pause-circle"></i>
                                </button>`
-                            : `<button class="btn btn-sm btn-success" title="Activate" aria-label="Activate" onclick="activateUser(${user.id})">
+                            : `<button class="action-icon-btn btn-activate" title="Activate" aria-label="Activate" onclick="activateUser(${user.id})">
                                 <i class="bi bi-play-circle"></i>
                                </button>`
                     ) : ''}
                 ` : ''}
                 ${USER_MANAGEMENT_PERMS.canDelete && user.id !== (window.CURRENT_USER_ID || 0)
-                    ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteUser(${user.id})">
+                    ? `<button class="action-icon-btn btn-delete" title="Delete" aria-label="Delete" onclick="deleteUser(${user.id})">
                         <i class="bi bi-trash"></i>
                        </button>`
                     : ''}
-                ${!USER_MANAGEMENT_PERMS.canEdit && !USER_MANAGEMENT_PERMS.canDelete ? '<span class="text-muted">View only</span>' : ''}
+                ${!USER_MANAGEMENT_PERMS.canEdit && !USER_MANAGEMENT_PERMS.canDelete ? '<span class="users-subtext">View only</span>' : ''}
             </td>
         </tr>
     `).join('');
@@ -401,16 +401,19 @@ function formatRole(role) {
 }
 
 function formatStatus(status) {
-    return status.charAt(0).toUpperCase() + status.slice(1);
+    const normalized = String(status || '').toLowerCase();
+    if (!normalized) return 'Unknown';
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 function getStatusClass(status) {
+    const normalized = String(status || '').toLowerCase();
     const classes = {
-        'active': 'bg-success',
-        'inactive': 'bg-secondary',
-        'suspended': 'bg-danger'
+        'active': 'status-active',
+        'inactive': 'status-inactive',
+        'suspended': 'status-suspended'
     };
-    return classes[status] || 'bg-secondary';
+    return classes[normalized] || 'status-unknown';
 }
 
 function formatDate(dateString) {
