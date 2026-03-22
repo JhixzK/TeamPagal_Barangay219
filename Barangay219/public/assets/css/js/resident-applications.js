@@ -202,14 +202,7 @@ function renderActions(app) {
         return viewBtn;
     }
     if (app.record_status === 'approved') {
-        const roleInfo = getHouseholdRoleInfo(app);
-        const isHead = (roleInfo.label || '').toLowerCase() === 'head';
-        const canAssign = isHead && app.approved_resident_id && Number(app.approved_resident_id) > 0 && !!app.head_needs_assignment;
-        const assignBtn = canAssign
-            ? `<button class="btn btn-sm btn-outline-secondary" title="Assign Household" aria-label="Assign Household" onclick="openAssignHousehold(${app.id}, ${Number(app.approved_resident_id)}, 1)"><i class="bi bi-house-check"></i></button>`
-            : '';
         return `${viewBtn}
-            ${assignBtn}
             <button class="btn btn-sm btn-outline-info" title="Get Activation Link" aria-label="Get Activation Link" onclick="fetchActivationLink(${app.id})"><i class="bi bi-link-45deg"></i></button>`;
     }
     return viewBtn;
@@ -382,15 +375,12 @@ function openAssignHeadsModal() {
                     ? '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Not Assigned</span>'
                     : '<span class="badge bg-success">Assigned</span>';
                 const householdCell = formatHouseholdCell(h.household_label);
-                const assignBtn = h.head_needs_assignment && h.approved_resident_id > 0
-                    ? `<button class="btn btn-sm btn-outline-primary" onclick="openAssignHousehold(${h.id}, ${h.approved_resident_id}, 1)" title="Assign"><i class="bi bi-house-check"></i> Assign</button>`
-                    : '<span class="text-muted">—</span>';
                 return `<tr class="${h.head_needs_assignment ? 'table-warning' : ''}">
                     <td><code>${esc(h.application_ref || '')}</code></td>
                     <td>${esc(toTitleCase(fullName || '-'))}</td>
                     <td>${statusBadge}</td>
                     <td>${householdCell}</td>
-                    <td class="text-end">${assignBtn}</td>
+                    <td class="text-end"><span class="text-muted">—</span></td>
                 </tr>`;
             }).join('');
         })
@@ -426,15 +416,12 @@ function refreshAssignHeadsTableIfOpen() {
                     ? '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Not Assigned</span>'
                     : '<span class="badge bg-success">Assigned</span>';
                 const householdCell = formatHouseholdCell(h.household_label);
-                const assignBtn = h.head_needs_assignment && h.approved_resident_id > 0
-                    ? `<button class="btn btn-sm btn-outline-primary" onclick="openAssignHousehold(${h.id}, ${h.approved_resident_id}, 1)" title="Assign"><i class="bi bi-house-check"></i> Assign</button>`
-                    : '<span class="text-muted">—</span>';
                 return `<tr class="${h.head_needs_assignment ? 'table-warning' : ''}">
                     <td><code>${esc(h.application_ref || '')}</code></td>
                     <td>${esc(toTitleCase(fullName || '-'))}</td>
                     <td>${statusBadge}</td>
                     <td>${householdCell}</td>
-                    <td class="text-end">${assignBtn}</td>
+                    <td class="text-end"><span class="text-muted">—</span></td>
                 </tr>`;
             }).join('');
         })
@@ -594,19 +581,6 @@ function viewApplication(id) {
                 // Close button (always shown, aligned on the left by default)
                 footerButtons += '<button type="button" class="btn btn-secondary me-auto" data-bs-dismiss="modal">Close</button>';
 
-                // Approved: Assign Household only for family heads not yet assigned
-                const roleInfo = getHouseholdRoleInfo(app);
-                const isHead = (roleInfo.label || '').toLowerCase() === 'head';
-                const headNeedsAssign = !!app.head_needs_assignment;
-                if (RES_APP_PERMS.canEdit && appStatus === 'approved' && isHead && headNeedsAssign) {
-                    footerButtons += `
-                        <button type="button" class="btn btn-outline-primary"
-                            onclick="openAssignHouseholdFromModal()">
-                            <i class="bi bi-house-check"></i> Assign Household
-                        </button>
-                    `;
-                }
-
                 footer.innerHTML = footerButtons;
             }
 
@@ -616,55 +590,6 @@ function viewApplication(id) {
         .catch(err => {
             console.error(err);
             showAlert('error', 'Failed to load application');
-        });
-}
-
-function openAssignHouseholdFromModal() {
-    if (!RES_APP_PERMS.canEdit) {
-        showAlert('error', 'Access denied');
-        return;
-    }
-    if (!currentViewedApplication) {
-        showAlert('error', 'No application is currently loaded.');
-        return;
-    }
-    const app = currentViewedApplication;
-    // Hide the Application Details modal to avoid stacked/overlapping modals
-    const viewModalEl = document.getElementById('viewModal');
-    if (viewModalEl) {
-        const viewInstance = bootstrap.Modal.getInstance(viewModalEl);
-        if (viewInstance) viewInstance.hide();
-    }
-    const roleInfo = getHouseholdRoleInfo(app);
-    const isHead = (roleInfo.label || '').toLowerCase() === 'head';
-    const existingResidentId = Number(app.approved_resident_id || 0);
-
-    // If backend already stored approved_resident_id, use it directly.
-    if (existingResidentId > 0) {
-        openAssignHousehold(app.id, existingResidentId, isHead ? 1 : 0);
-        return;
-    }
-
-    // Otherwise, ask backend to resolve resident for this approved application.
-    fetch(`${window.API_URL}applications.php?action=resolve_resident&id=${app.id}`)
-        .then(r => r.json())
-        .then(data => {
-            if (!data.success || !data.data || !data.data.resident_id) {
-                showAlert('error', data.message || 'Resident record for this application is not found. Make sure the application is approved.');
-                return;
-            }
-            const resolvedId = Number(data.data.resident_id);
-            if (!resolvedId) {
-                showAlert('error', 'Resident record for this application is not found. Make sure the application is approved.');
-                return;
-            }
-            // Cache for this page view so subsequent clicks don't need another call.
-            app.approved_resident_id = resolvedId;
-            openAssignHousehold(app.id, resolvedId, isHead ? 1 : 0);
-        })
-        .catch(err => {
-            console.error(err);
-            showAlert('error', 'Unable to resolve resident record for this application.');
         });
 }
 
