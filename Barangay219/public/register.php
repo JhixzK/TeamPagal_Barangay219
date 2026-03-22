@@ -56,7 +56,7 @@ $barangay219_purok_options = [
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link href="<?php echo ASSETS_URL; ?>style.css" rel="stylesheet">
+    <link href="<?php echo ASSETS_URL; ?>style.css?v=<?php echo time(); ?>" rel="stylesheet">
     <style>
         :root {
             --gov-blue: #1d4ed8;
@@ -809,7 +809,7 @@ $barangay219_purok_options = [
 
                         <!-- Navigation Buttons -->
                         <div class="btn-navigation">
-                            <a href="<?php echo BASE_URL; ?>login.php" class="btn btn-outline-secondary">Cancel</a>
+                            <a href="<?php echo BASE_URL; ?>home.php" class="btn btn-outline-secondary">Cancel</a>
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-outline-secondary" id="prevBtn" style="display: none;">Back</button>
                                 <button type="button" class="btn btn-primary" id="nextBtn">Next</button>
@@ -1590,9 +1590,7 @@ document.getElementById('nextBtn').addEventListener('click', function() {
 });
 
 document.getElementById('prevBtn').addEventListener('click', function() {
-    if (currentStep > 1) {
-        showStep(currentStep - 1);
-    }
+    window.location.href = '<?php echo BASE_URL; ?>home.php';
 });
 
 // Form submission
