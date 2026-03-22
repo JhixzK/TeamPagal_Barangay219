@@ -44,7 +44,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
 ?>
 <link rel="stylesheet" href="<?php echo BASE_URL; ?>resident_household.css?v=<?php echo $cssVersion; ?>">
 
-<div class="main-content module-page resident-household-page">
+<div class="main-content module-page resident-household-page resident-theme">
     <div class="container-fluid">
     <div class="module-hero dashboard-hero card border-0 shadow-sm mb-4">
             <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
