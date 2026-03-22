@@ -25,10 +25,38 @@ function isLoggedIn() {
 }
 
 /**
+ * True when the current script lives under /api/ (JSON APIs must not redirect to HTML on auth failure).
+ */
+function isApiScriptRequest() {
+    $name = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    $file = str_replace('\\', '/', (string)($_SERVER['SCRIPT_FILENAME'] ?? ''));
+    return (strpos($name, '/api/') !== false || strpos($file, '/api/') !== false);
+}
+
+/**
+ * Send JSON error and exit (used by API scripts when login/module checks fail).
+ */
+function sendJsonAuthResponse($httpCode, $message) {
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=UTF-8');
+    }
+    http_response_code((int)$httpCode);
+    echo json_encode([
+        'success' => false,
+        'message' => $message,
+        'data' => null,
+    ]);
+    exit();
+}
+
+/**
  * Require login - redirect to login page if not logged in
  */
 function requireLogin() {
     if (!isLoggedIn()) {
+        if (isApiScriptRequest()) {
+            sendJsonAuthResponse(401, 'Login required');
+        }
         header('Location: ' . BASE_URL . 'index.php');
         exit();
     }
@@ -230,6 +258,9 @@ function canAccessModule($module) {
 function requireModuleAccess($module) {
     requireLogin();
     if (!canAccessModule($module)) {
+        if (isApiScriptRequest()) {
+            sendJsonAuthResponse(403, 'Access denied');
+        }
         // Avoid self-redirect loops on pages that already live at dashboard.php.
         if (isResidentView()) {
             header('Location: ' . BASE_URL . 'resident_dashboard.php?error=access_denied');
