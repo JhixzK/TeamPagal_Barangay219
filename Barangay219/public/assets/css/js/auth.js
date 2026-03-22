@@ -1,20 +1,15 @@
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', function() {
+    const invalidCredentialsMessage = 'Invalid username or password';
     const loginForm = document.getElementById('loginForm');
-    const passwordError = document.getElementById('passwordError');
     const passwordInput = document.getElementById('password');
-    const passwordGroup = passwordInput ? passwordInput.closest('.input-group') : null;
+    const passwordGroup = passwordInput ? passwordInput.closest('.password-field') : null;
     if (!loginForm) {
         console.error('Login form not found');
         return;
     }
 
     function clearInlinePasswordError() {
-        if (!passwordError) {
-            return;
-        }
-        passwordError.textContent = '';
-        passwordError.classList.remove('is-visible');
         if (passwordInput) {
             passwordInput.classList.remove('is-invalid');
             passwordInput.removeAttribute('aria-invalid');
@@ -25,11 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showInlinePasswordError(message) {
-        if (!passwordError) {
-            return;
-        }
-        passwordError.textContent = message;
-        passwordError.classList.add('is-visible');
+        void message;
         if (passwordInput) {
             passwordInput.classList.add('is-invalid');
             passwordInput.setAttribute('aria-invalid', 'true');
@@ -111,7 +102,8 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 const message = d.message || 'Login failed. Please check your credentials.';
                 if (message.toLowerCase().includes('invalid username or password') || message.toLowerCase().includes('wrong username/password')) {
-                    showInlinePasswordError('Wrong username/password. Please try again.');
+                    clearInlinePasswordError();
+                    showAlert('danger', invalidCredentialsMessage);
                 } else {
                     showAlert('danger', message);
                 }
@@ -131,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 errorMessage += '<li>Check browser console (F12) for more details</li>';
                 errorMessage += '</ul>';
             } else if (e.message.includes('HTTP error! status: 401')) {
-                errorMessage = 'Wrong username/password. Please try again.';
+                errorMessage = invalidCredentialsMessage;
             } else if (e.message.includes('HTTP error')) {
                 errorMessage += 'Server error: ' + e.message;
             } else {
@@ -139,8 +131,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (e.message.includes('HTTP error! status: 401')) {
-                showInlinePasswordError('Wrong username/password. Please try again.');
-                showAlert('', '');
+                clearInlinePasswordError();
+                showAlert('danger', invalidCredentialsMessage);
             } else {
                 showAlert('danger', errorMessage);
             }
