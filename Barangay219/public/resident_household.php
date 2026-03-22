@@ -320,7 +320,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
           <div class="modal-header">
             <h3><i class="bi bi-people me-2"></i>Manage Members</h3>
             <div class="d-flex align-items-center gap-2">
-              <button class="btn-primary btn-small" id="btnAddDependent" data-action="openAddDependentModal" style="display:none;">
+              <button type="button" class="btn-primary btn-small" id="btnAddDependent" data-action="openAddDependentModal" style="display:none;">
                 <i class="bi bi-person-plus"></i> Add Family Member
               </button>
               <button class="modal-close" data-action="closeManageMembersModal">&times;</button>
@@ -393,7 +393,8 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
             <button class="modal-close" data-action="closeAddDependentModal">&times;</button>
           </div>
           <div class="modal-body">
-            <form id="addDependentForm">
+            <form id="addDependentForm" novalidate>
+              <div id="addDependentFormError" class="add-dependent-form-error" role="alert"></div>
               <div class="form-row">
                 <div class="form-group">
                   <label for="depFirstName">First Name *</label>
@@ -449,8 +450,8 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
             </form>
           </div>
           <div class="modal-footer">
-            <button class="btn-secondary" data-action="closeAddDependentModal">Cancel</button>
-            <button class="btn-primary" id="submitAddDependentBtn" data-action="submitAddDependent">Add Member</button>
+            <button type="button" class="btn-secondary" data-action="closeAddDependentModal">Cancel</button>
+            <button type="submit" class="btn-primary" id="submitAddDependentBtn" form="addDependentForm">Add Member</button>
           </div>
         </div>
       </div>
