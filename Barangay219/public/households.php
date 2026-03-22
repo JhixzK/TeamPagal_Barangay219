@@ -199,11 +199,119 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .households-page .household-tile .tile-actions {
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
+    display: inline-flex;
+    align-items: center;
     justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.35rem;
     margin-top: auto;
+    margin-left: auto;
+}
+
+.households-page .action-icon-btn,
+#viewHouseholdModal .action-icon-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e6ebf2;
+    background: #ffffff;
+    color: #5b6678;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.households-page .action-icon-btn:hover,
+.households-page .action-icon-btn:focus-visible,
+#viewHouseholdModal .action-icon-btn:hover,
+#viewHouseholdModal .action-icon-btn:focus-visible {
+    background: #f5f9ff;
+    border-color: #d6e4ff;
+    color: #2f4f95;
+    transform: translateY(-1px);
+}
+
+.households-page .action-icon-btn i,
+#viewHouseholdModal .action-icon-btn i {
+    font-size: 0.92rem;
+    line-height: 1;
+}
+
+.households-page .action-icon-btn.action-delete:hover,
+.households-page .action-icon-btn.action-delete:focus-visible,
+#viewHouseholdModal .action-icon-btn.action-delete:hover,
+#viewHouseholdModal .action-icon-btn.action-delete:focus-visible {
+    background: #fff1f3;
+    border-color: #f6ccd3;
+    color: #9f2f3e;
+}
+
+#viewHouseholdModal .household-detail-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+/* Family Groups head tabs — match module app-tabs (outline pills, soft active), not Bootstrap nav-pills fill */
+#viewHouseholdModal .household-head-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 0.45rem;
+    border-bottom: 0;
+    flex-wrap: unset;
+}
+
+#viewHouseholdModal .household-head-tabs .nav-item {
+    margin: 0;
+    min-width: 0;
+}
+
+#viewHouseholdModal .household-head-tabs .nav-link {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border: 1px solid #dbe3ee;
+    border-radius: 999px;
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    line-height: 1.25;
+    padding: 0.45rem 0.75rem;
+    background: #ffffff;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+#viewHouseholdModal .household-head-tabs .nav-link:hover,
+#viewHouseholdModal .household-head-tabs .nav-link:focus-visible {
+    color: #1d4ed8;
+    background: #f8fafc;
+    border-color: #c7d7ee;
+}
+
+#viewHouseholdModal .household-head-tabs .nav-link.active {
+    color: #1d4ed8;
+    background: #e8f0ff;
+    border-color: #bfdbfe;
+}
+
+#viewHouseholdModal .household-head-tabs .household-head-tab-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 576px) {
+    #viewHouseholdModal .household-head-tabs {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 
