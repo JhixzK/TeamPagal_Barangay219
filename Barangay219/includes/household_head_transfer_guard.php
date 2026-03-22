@@ -116,3 +116,52 @@ if (!function_exists('householdHeadMinimumAgeError')) {
         return null;
     }
 }
+
+/**
+ * Relationship label for the former designated head after transferring the role to another member.
+ * Reuses the new head's prior relationship to the old head (e.g. Spouse) when it is not a head role,
+ * so household-type logic still sees a real family tie instead of only generic "Member".
+ */
+if (!function_exists('relationshipForFormerHeadAfterTransfer')) {
+    function relationshipForFormerHeadAfterTransfer($priorNewHeadRelationshipRaw) {
+        $r = trim((string) $priorNewHeadRelationshipRaw);
+        if ($r === '') {
+            return 'Member';
+        }
+        $lower = strtolower($r);
+        if ($lower === 'head' || strpos($lower, 'head') !== false) {
+            return 'Member';
+        }
+        return $r;
+    }
+}
+
+if (!function_exists('fetchResidentRelationshipToHeadBeforeTransfer')) {
+    /**
+     * @param object $db Database::getInstance()
+     */
+    function fetchResidentRelationshipToHeadBeforeTransfer($db, $residentId, $householdId) {
+        $residentId = (int) $residentId;
+        $householdId = (int) $householdId;
+        if ($residentId <= 0) {
+            return '';
+        }
+        if (function_exists('columnExists') && columnExists($db, 'residents', 'relationship_to_head')) {
+            $row = $db->fetchOne('SELECT relationship_to_head FROM residents WHERE id = ? LIMIT 1', [$residentId]);
+            if ($row && trim((string) ($row['relationship_to_head'] ?? '')) !== '') {
+                return trim((string) $row['relationship_to_head']);
+            }
+        }
+        if (function_exists('tableExists') && function_exists('columnExists')
+            && tableExists($db, 'household_members') && columnExists($db, 'household_members', 'resident_id')) {
+            $row = $db->fetchOne(
+                'SELECT relationship_to_head FROM household_members WHERE resident_id = ? AND household_id = ? ORDER BY id DESC LIMIT 1',
+                [$residentId, $householdId]
+            );
+            if ($row && trim((string) ($row['relationship_to_head'] ?? '')) !== '') {
+                return trim((string) $row['relationship_to_head']);
+            }
+        }
+        return '';
+    }
+}
