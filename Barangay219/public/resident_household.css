@@ -1,5 +1,36 @@
 /* Resident Household Module */
 
+/* Toast/validation messages must sit above custom modals (z-index: 1000). */
+#messageContainer {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 420px);
+  z-index: 11000;
+  pointer-events: none;
+}
+
+#messageContainer .alert {
+  pointer-events: auto;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
+
+.add-dependent-form-error {
+  display: none;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 14px;
+}
+
+.add-dependent-form-error.is-visible {
+  display: block;
+}
+
 :root {
   --hh-surface: #ffffff;
   --hh-bg-soft: #f5f7fc;
@@ -278,10 +309,23 @@
   border-color: #c6d8ff;
 }
 
+/* Override Bootstrap .btn-danger solid red — match module palette (outline style). */
+.btn-action.btn-danger {
+  background: #fff !important;
+  border: 1px solid #e2b8bd !important;
+  color: var(--hh-danger) !important;
+  box-shadow: none !important;
+}
+
 .btn-action.btn-danger:hover {
-  background: #ffeef0;
-  border-color: #f2c6cb;
-  color: var(--hh-danger);
+  background: #fdf4f5 !important;
+  border-color: #d49aa2 !important;
+  color: #8b222c !important;
+}
+
+.btn-action.btn-danger:focus-visible {
+  outline: 2px solid rgba(168, 40, 50, 0.35);
+  outline-offset: 2px;
 }
 
 .history-list {
