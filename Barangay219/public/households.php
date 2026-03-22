@@ -24,7 +24,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 <div>
                     <p class="module-kicker text-uppercase small mb-1">Records Module</p>
                     <h2 class="mb-1"><i class="bi bi-house-door me-2"></i>Households Management</h2>
-                    <p class="module-subtitle mb-0">Manage household groups and let residents join selected households.</p>
+                    <p class="module-subtitle mb-0">Manage household groups and add residents to households.</p>
                 </div>
                 <div class="d-flex gap-2 flex-wrap">
                     <button type="button" class="btn btn-primary" id="btnCreateHousehold" onclick="newHouseholdForContext()">
@@ -371,6 +371,16 @@ include __DIR__ . '/../includes/sidebar.php';
         grid-template-columns: 1fr;
     }
 }
+
+/* Add-member block: separate from main form, no oversized empty list */
+#householdModal .hh-add-member-card {
+    background: #f8fafc;
+    border-color: #e2e8f0 !important;
+}
+#householdModal .hh-add-member-card .card-title {
+    font-size: 1rem;
+    font-weight: 600;
+}
 </style>
 
 <div class="modal fade" id="householdModal" tabindex="-1">
@@ -478,18 +488,63 @@ include __DIR__ . '/../includes/sidebar.php';
                     </div>
 
                     <div id="joinHouseholdSection" class="mt-3">
-                        <h6>Join Selected Household</h6>
-                        <div class="input-group mb-2">
-                            <select class="form-select" id="addMemberResidentEdit">
-                                <option value="">-- Select resident to add --</option>
-                            </select>
-                            <button class="btn btn-primary" type="button" id="btnAddMemberEdit">Add</button>
+                        <div class="card hh-add-member-card border shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title mb-2"><i class="bi bi-person-plus me-1"></i> Add resident to household</h6>
+                                <p class="small text-muted mb-3">Only residents who are <strong>not yet assigned to any household</strong> can be added. Members already on this household are excluded.</p>
+                                <p class="small border-start border-primary border-3 ps-2 mb-3 text-body-secondary">
+                                    <strong>Add to household</strong> runs immediately. Use <strong>Save household details</strong> below for address, head, and other fields.
+                                </p>
+                                <label for="addMemberResidentSearch" class="form-label">Find resident</label>
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text bg-white"><i class="bi bi-search" aria-hidden="true"></i></span>
+                                    <input type="search" class="form-control" id="addMemberResidentSearch" placeholder="Search by name or resident code…" autocomplete="off">
+                                </div>
+                                <label for="addMemberResidentEdit" class="form-label">Resident</label>
+                                <select class="form-select mb-3" id="addMemberResidentEdit" aria-label="Choose resident to add">
+                                    <option value="">— Choose a resident —</option>
+                                </select>
+                                <div class="mb-3" id="addMemberRelationshipGroup">
+                                    <label for="addMemberRelationshipToHead" class="form-label">Relationship to head <span class="text-muted small">(optional)</span></label>
+                                    <select class="form-select" id="addMemberRelationshipToHead">
+                                        <option value="">Select relationship</option>
+                                        <option value="Spouse">Spouse</option>
+                                        <option value="Son">Son</option>
+                                        <option value="Daughter">Daughter</option>
+                                        <option value="Mother">Mother</option>
+                                        <option value="Father">Father</option>
+                                        <option value="Brother">Brother</option>
+                                        <option value="Sister">Sister</option>
+                                        <option value="Grandchild">Grandchild</option>
+                                        <option value="Grandparent">Grandparent</option>
+                                        <option value="Son-in-Law">Son-in-Law</option>
+                                        <option value="Daughter-in-Law">Daughter-in-Law</option>
+                                        <option value="Sibling-in-Law">Sibling-in-Law</option>
+                                        <option value="Nephew">Nephew</option>
+                                        <option value="Niece">Niece</option>
+                                        <option value="Uncle">Uncle</option>
+                                        <option value="Aunt">Aunt</option>
+                                        <option value="Cousin">Cousin</option>
+                                        <option value="Boarder">Boarder</option>
+                                        <option value="Tenant">Tenant</option>
+                                        <option value="Helper">Helper</option>
+                                        <option value="Non-Relative">Non-Relative</option>
+                                        <option value="Other">Other</option>
+                                        <option value="Relative">Relative</option>
+                                        <option value="Member">Member</option>
+                                    </select>
+                                    <p class="small text-muted mb-0 mt-1 d-none" id="addMemberRelationshipHeadNote">This resident will be set as the household head; relationship is recorded as Head.</p>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100" id="btnAddMemberEdit">
+                                    <i class="bi bi-person-plus me-1"></i> Add to household
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="submit" class="btn btn-primary">Save household details</button>
                 </div>
             </form>
         </div>
