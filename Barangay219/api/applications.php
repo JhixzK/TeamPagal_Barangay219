@@ -60,6 +60,12 @@ switch ($action) {
         }
         resolveResidentForApplication();
         break;
+    case 'smtp_test':
+        if (!canPerformModulePermission('resident_applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        smtpTestSend();
+        break;
     default:
         sendResponse(false, 'Invalid action', null, 400);
         break;
@@ -964,11 +970,23 @@ function approveApplication() {
 
         $db->commit();
 
+        $activationLink = BASE_URL . 'activate-account.php?token=' . $activationToken;
+        // Same email the applicant entered on public registration (resident_applications.email)
+        $registrationEmail = trim((string)($app['email'] ?? ''));
+        require_once __DIR__ . '/../includes/mail-helper.php';
+        $activationEmailStatus = sendResidentRegistrationActivationEmail(
+            $registrationEmail,
+            trim(($app['first_name'] ?? '') . ' ' . ($app['last_name'] ?? '')),
+            $activationLink,
+            $residentCode
+        );
+
         $responseData = [
             'resident_code' => $residentCode,
             'resident_id' => (int)$residentId,
             'activation_token' => $activationToken,
-            'activation_link' => BASE_URL . 'activate-account.php?token=' . $activationToken
+            'activation_link' => $activationLink,
+            'activation_email' => $activationEmailStatus
         ];
         if ($householdId !== null) {
             $responseData['household_id'] = (int)$householdId;
@@ -976,6 +994,20 @@ function approveApplication() {
         $successMsg = 'Application approved. Resident ID generated.';
         if ($isHead) {
             $successMsg = $joinedExisting ? 'Application approved. Resident joined existing household as co-head.' : 'Application approved. Resident and household created.';
+        }
+        if (!empty($activationEmailStatus['sent'])) {
+            $successMsg .= ' Activation link sent to the email address provided on registration.';
+        } elseif (!empty($activationEmailStatus['skipped'])) {
+            $err = (string)($activationEmailStatus['error'] ?? '');
+            if ($err === 'invalid_or_missing_email') {
+                $successMsg .= ' No valid email on the application; share the activation link manually.';
+            } elseif ($err === 'smtp_disabled') {
+                $successMsg .= ' Enable SMTP in config/email_smtp.php to email the link automatically.';
+            } elseif ($err === 'smtp_credentials_incomplete') {
+                $successMsg .= ' Fill SMTP_USERNAME, SMTP_PASSWORD, and SMTP_FROM_EMAIL in config/email_smtp.php and save the file.';
+            }
+        } else {
+            $successMsg .= ' Approval saved; activation email failed — use the link in the response or copy it from the application tools.';
         }
         sendResponse(true, $successMsg, $responseData);
     } catch (Exception $e) {
@@ -1336,6 +1368,28 @@ function rejectApplication() {
         error_log('Reject application: ' . $e->getMessage());
         sendResponse(false, 'Rejection failed', null, 500);
     }
+}
+
+function smtpTestSend() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'POST required', null, 405);
+    }
+    $to = trim($_POST['test_to'] ?? '');
+    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        sendResponse(false, 'Valid test_to email address is required.', null, 400);
+    }
+    require_once __DIR__ . '/../includes/mail-helper.php';
+    $result = sendHtmlMailToResident(
+        $to,
+        APP_NAME . ' — SMTP test',
+        '<p>If you received this message, outbound SMTP from the barangay system is working.</p>',
+        'If you received this message, outbound SMTP from the barangay system is working.'
+    );
+    if (!empty($result['sent'])) {
+        sendResponse(true, 'Test email sent. Check inbox and spam folder.', $result);
+    }
+    $hint = (string)($result['error'] ?? 'unknown');
+    sendResponse(false, 'Test email was not sent: ' . $hint, $result, 400);
 }
 
 function getActivationLink() {
