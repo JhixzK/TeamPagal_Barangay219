@@ -131,12 +131,12 @@ function loadHouseholds() {
                     const reg = formatDate(h.registration_date);
                     const hhCode = (h.household_id_code || '').trim();
 
+                    const viewBtn = `<button class="action-icon-btn" title="View" aria-label="View" onclick="viewHousehold(${id})"><i class="bi bi-eye"></i></button>`;
                     const editBtn = HOUSEHOLD_PERMS.canEdit
-                        ? `<button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit" onclick="editHousehold(${id})"><i class="bi bi-pencil-square"></i></button>`
+                        ? `<button class="action-icon-btn" title="Edit" aria-label="Edit" onclick="editHousehold(${id})"><i class="bi bi-pencil-square"></i></button>`
                         : '';
-                    const viewBtn = `<button class="btn btn-sm btn-primary" title="View" aria-label="View" onclick="viewHousehold(${id})"><i class="bi bi-eye"></i></button>`;
                     const delBtn = HOUSEHOLD_PERMS.canDelete
-                        ? `<button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete" onclick="deleteHousehold(${id})"><i class="bi bi-trash"></i></button>`
+                        ? `<button class="action-icon-btn action-delete" title="Delete" aria-label="Delete" onclick="deleteHousehold(${id})"><i class="bi bi-trash"></i></button>`
                         : '';
 
                     const subtitle = head ? `Head: ${head}` : 'No head assigned yet';
@@ -168,8 +168,8 @@ function loadHouseholds() {
                                     </div>
                                 </dl>
                                 <div class="tile-actions">
-                                    ${editBtn}
                                     ${viewBtn}
+                                    ${editBtn}
                                     ${delBtn}
                                 </div>
                             </div>
@@ -437,7 +437,7 @@ function viewHousehold(id) {
                 let html = '<h6 class="mb-3">Members</h6>';
                 if (headGroups.length === 1) {
                     const g = headGroups[0];
-                    const removeBtn = allowEditMembers ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${g.head.id})"><i class="bi bi-person-dash"></i></button>` : '';
+                    const removeBtn = allowEditMembers ? `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${g.head.id})"><i class="bi bi-person-dash"></i></button>` : '';
                     html += `
                         <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-2 bg-light">
                             <div>
@@ -445,7 +445,7 @@ function viewHousehold(id) {
                                 <span class="badge bg-primary ms-2">Head</span>
                                 <small class="text-muted ms-2">(${escapeHtml(g.headDisplayCode)})</small>
                             </div>
-                            <div>${removeBtn}</div>
+                            <div class="household-detail-actions">${removeBtn}</div>
                         </div>`;
                     html += buildMemberRows(g.headMembers, g.head.id, allowEditMembers);
                 }
@@ -453,27 +453,24 @@ function viewHousehold(id) {
                 document.getElementById('viewHouseholdMembers').innerHTML = html;
             } else {
                 // Multiple heads — tabbed layout
-                let tabNav = '<ul class="nav nav-pills nav-fill mb-3" role="tablist">';
+                let tabNav = '<ul class="nav household-head-tabs mb-3" role="tablist">';
                 let tabContent = '<div class="tab-content">';
 
                 headGroups.forEach((g, i) => {
                     const tabId = 'headTab' + i;
                     const paneId = 'headPane' + i;
                     const active = i === 0;
-                    const shortName = (g.head.last_name || g.head.first_name || 'Head ' + (i + 1)).toString().trim();
-                    const memberCount = g.headMembers.length;
                     const headFullName = toName(g.head);
                     const headType = deriveHouseholdType(g.head, g.headMembers);
 
                     tabNav += `
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link${active ? ' active' : ''} px-2 py-2" id="${tabId}" data-bs-toggle="pill" data-bs-target="#${paneId}" type="button" role="tab" aria-controls="${paneId}" aria-selected="${active}" data-head-name="${escapeHtml(headFullName)}" data-head-type="${escapeHtml(headType)}" style="font-size: 0.8rem; line-height:1.3;">
-                                ${escapeHtml(toTitleCase(shortName))}
-                                <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">${memberCount}</span>
+                            <button class="nav-link${active ? ' active' : ''}" id="${tabId}" data-bs-toggle="pill" data-bs-target="#${paneId}" type="button" role="tab" aria-controls="${paneId}" aria-selected="${active}" data-head-name="${escapeHtml(headFullName)}" data-head-type="${escapeHtml(headType)}">
+                                <span class="household-head-tab-label">${escapeHtml(headFullName)}</span>
                             </button>
                         </li>`;
 
-                    const removeBtn = allowEditMembers ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${g.head.id})"><i class="bi bi-person-dash"></i></button>` : '';
+                    const removeBtn = allowEditMembers ? `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${g.head.id})"><i class="bi bi-person-dash"></i></button>` : '';
 
                     tabContent += `
                         <div class="tab-pane fade${active ? ' show active' : ''}" id="${paneId}" role="tabpanel" aria-labelledby="${tabId}">
@@ -483,7 +480,7 @@ function viewHousehold(id) {
                                     <span class="badge bg-primary ms-2">Head</span>
                                     <small class="text-muted ms-2">(${escapeHtml(g.headDisplayCode)})</small>
                                 </div>
-                                <div>${removeBtn}</div>
+                                <div class="household-detail-actions">${removeBtn}</div>
                             </div>
                             ${g.headMembers.length > 0
                                 ? buildMemberRows(g.headMembers, g.head.id, allowEditMembers)
@@ -497,9 +494,8 @@ function viewHousehold(id) {
                     const ugPaneId = 'headPaneUngrouped';
                     tabNav += `
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link px-2 py-2" id="${ugTabId}" data-bs-toggle="pill" data-bs-target="#${ugPaneId}" type="button" role="tab" aria-controls="${ugPaneId}" aria-selected="false" style="font-size: 0.85rem;">
-                                Unassigned
-                                <span class="badge bg-secondary ms-1" style="font-size: 0.7rem;">${ungrouped.length}</span>
+                            <button class="nav-link" id="${ugTabId}" data-bs-toggle="pill" data-bs-target="#${ugPaneId}" type="button" role="tab" aria-controls="${ugPaneId}" aria-selected="false">
+                                <span class="household-head-tab-label">Unassigned</span>
                             </button>
                         </li>`;
                     tabContent += `
@@ -548,15 +544,15 @@ function buildMemberRows(memberArr, headId, allowEdit) {
     if (!memberArr.length) return '';
     return memberArr.map(m => {
         const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
-        const transferBtn = allowEdit ? ` <button class="btn btn-sm btn-outline-primary" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${headId})"><i class="bi bi-person-badge"></i></button>` : '';
-        const removeBtn = allowEdit ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : '';
+        const transferBtn = allowEdit ? `<button type="button" class="action-icon-btn" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${headId})"><i class="bi bi-person-badge"></i></button>` : '';
+        const removeBtn = allowEdit ? `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : '';
         return `
             <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1 ms-3" style="border-left: 3px solid var(--bs-primary) !important;">
                 <div>
                     <span>${escapeHtml(toTitleCase(name))}</span>
                     <span class="badge bg-light text-dark border ms-2">Member</span>
                 </div>
-                <div>${transferBtn}${removeBtn}</div>
+                <div class="household-detail-actions">${transferBtn}${removeBtn}</div>
             </div>`;
     }).join('');
 }
@@ -566,15 +562,15 @@ function buildUngroupedRows(ungroupedArr, designatedHeadId, allowEdit) {
     let html = '<div class="mt-2"><div class="small text-muted mb-1 px-2">Unassigned members</div>';
     ungroupedArr.forEach(m => {
         const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
-        const transferBtn = (allowEdit && designatedHeadId > 0) ? ` <button class="btn btn-sm btn-outline-primary" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${designatedHeadId})"><i class="bi bi-person-badge"></i></button>` : '';
-        const removeBtn = allowEdit ? ` <button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : '';
+        const transferBtn = (allowEdit && designatedHeadId > 0) ? `<button type="button" class="action-icon-btn" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${designatedHeadId})"><i class="bi bi-person-badge"></i></button>` : '';
+        const removeBtn = allowEdit ? `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : '';
         html += `
             <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1">
                 <div>
                     <span>${escapeHtml(toTitleCase(name))}</span>
                     <span class="badge bg-light text-dark border ms-2">Member</span>
                 </div>
-                <div>${transferBtn}${removeBtn}</div>
+                <div class="household-detail-actions">${transferBtn}${removeBtn}</div>
             </div>`;
     });
     html += '</div>';
