@@ -240,7 +240,7 @@ function renderMembersTable(members, isHead) {
       const canAssignHead = memberId > 0 && !member.readonly && isHead && !isSelf;
       const roleBadge = isMemberHead
         ? '<span class="badge bg-primary">Head</span>'
-        : '<span class="badge bg-light text-dark border">' + escapeHtml(member.relationship_to_head || "Member") + '</span>';
+        : '<span class="badge bg-light text-dark border">Member</span>';
 
       return `
         <tr>
