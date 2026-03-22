@@ -903,6 +903,19 @@ function handleResidentHouseholdAction($residentId, $data) {
     householdJsonResponse(false, null, 'Invalid household action', 400);
 }
 
+/**
+ * Keep households.total_members aligned with residents.household_id (admin tiles, reports).
+ * Resident join/leave flows must call this; addHouseholdMember in households.php already recounts.
+ */
+function syncHouseholdTotalMembersFromResidents($db, int $householdId): void {
+    if ($householdId <= 0) {
+        return;
+    }
+    $row = $db->fetchOne('SELECT COUNT(*) AS c FROM residents WHERE household_id = ?', [$householdId]);
+    $count = (int)($row['c'] ?? 0);
+    $db->query('UPDATE households SET total_members = ? WHERE id = ?', [$count, $householdId]);
+}
+
 function createHeadHousehold($residentId, $data) {
     $houseNumber = sanitizeInput((string)($data['house_number'] ?? $data['address'] ?? ''));
     $street = sanitizeInput((string)($data['street'] ?? ''));
@@ -983,6 +996,7 @@ function createHeadHousehold($residentId, $data) {
 
         $db->query('UPDATE residents SET household_id = ? WHERE id = ?', [$householdId, $residentId]);
         logHouseholdHistory($householdId, 'Head Changed', 'Household created with resident as head', $residentId);
+        syncHouseholdTotalMembersFromResidents($db, $householdId);
 
         $db->commit();
         householdJsonResponse(true, ['household_id' => $householdId, 'family_code' => $familyCode], 'Household created successfully');
@@ -1159,6 +1173,7 @@ function joinAsMember($residentId, $data) {
         logHouseholdHistory($householdId, 'Member Added', 'Resident joined household via family code', $residentId);
 
         recalcHouseholdType($db, $householdId);
+        syncHouseholdTotalMembersFromResidents($db, $householdId);
 
         $db->commit();
         householdJsonResponse(true, [
@@ -1280,6 +1295,7 @@ function leaveHousehold($residentId) {
         }
         logHouseholdHistory($householdId, 'Member Removed', 'Resident left household', $residentId);
         recalcHouseholdType($db, $householdId);
+        syncHouseholdTotalMembersFromResidents($db, $householdId);
         $db->commit();
         householdJsonResponse(true, null, 'You have left the household successfully');
     } catch (Exception $e) {
