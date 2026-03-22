@@ -739,7 +739,7 @@ $savedValidIdUrl = $hasSavedValidId ? (BASE_URL . ltrim($residentValidIdPath, '/
 ?>
 <link rel="stylesheet" href="<?php echo BASE_URL; ?>request_certificate.css?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/request_certificate.css')); ?>">
 
-<div class="main-content module-page resident-request-page">
+<div class="main-content module-page resident-request-page resident-theme">
   <div class="container-fluid">
   <div class="resident-request-certificate">
     <section class="dashboard-hero card border-0 shadow-sm mb-4">
