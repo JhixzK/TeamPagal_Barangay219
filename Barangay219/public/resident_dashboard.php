@@ -215,13 +215,24 @@ function residentDashboardTrackerClass($status) {
   return 'tracker-submitted';
 }
 
+function residentDashboardAvatarInitials($fullName) {
+  $name = trim(preg_replace('/\s+/', ' ', (string)$fullName));
+  if ($name === '') {
+    return '?';
+  }
+  $parts = explode(' ', $name);
+  if (count($parts) >= 2) {
+    return strtoupper(substr($parts[0], 0, 1) . substr($parts[count($parts) - 1], 0, 1));
+  }
+  return strtoupper(substr($parts[0], 0, min(2, strlen($parts[0]))));
+}
+
 $residentName = $username;
 $residentProfile = [
-  'avatar' => 'https://i.pravatar.cc/160?img=12',
+  'avatar' => '',
   'full_name' => $username,
   'resident_id' => $username,
-  'resident_status' => 'Pending Verification',
-  'household_status' => 'Not Linked'
+  'resident_status' => ''
 ];
 
 $stats = [
@@ -344,7 +355,6 @@ if ($conn && (int)$residentId > 0) {
       if (!empty($residentRow['household_id'])) {
         $householdSnapshot['linked'] = true;
         $householdSnapshot['household_id'] = (int)$residentRow['household_id'];
-        $residentProfile['household_status'] = 'Linked';
       }
     }
   }
@@ -474,7 +484,6 @@ if ($conn && (int)$residentId > 0) {
       }
     } else {
       $householdSnapshot['linked'] = false;
-      $residentProfile['household_status'] = 'Not Linked';
     }
   }
 
@@ -598,26 +607,12 @@ if ($residentProfile['resident_status'] === 'Incomplete Profile') {
   ];
 }
 
-if (!$householdSnapshot['linked']) {
-  $dashboardNotifications[] = [
-    'title' => 'Household Not Linked',
-    'message' => 'Your account is not yet associated with a household record.',
-    'created_at' => date('Y-m-d H:i:s')
-  ];
-}
-
 if (count($dashboardNotifications) > 5) {
   $dashboardNotifications = array_slice($dashboardNotifications, 0, 5);
 }
 
-$residentStatusBadgeClass = 'text-bg-warning';
-if ($residentProfile['resident_status'] === 'Verified') {
-  $residentStatusBadgeClass = 'text-bg-success';
-} elseif ($residentProfile['resident_status'] === 'Incomplete Profile') {
-  $residentStatusBadgeClass = 'text-bg-danger';
-}
-
-$householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ? 'text-bg-primary' : 'text-bg-secondary';
+$residentAvatarUrl = trim((string)($residentProfile['avatar'] ?? ''));
+$residentAvatarInitials = residentDashboardAvatarInitials($residentProfile['full_name'] ?? $username);
 ?>
 <div class="main-content dashboard-page resident-dashboard-page resident-theme" id="mainContent">
   <div class="container-fluid">
@@ -643,16 +638,18 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
     <div class="card dash-panel mb-4">
       <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-3">
-          <img class="resident-avatar" src="<?php echo htmlspecialchars($residentProfile['avatar']); ?>" alt="Resident profile image">
+          <?php if ($residentAvatarUrl !== '') { ?>
+          <img class="resident-avatar" src="<?php echo htmlspecialchars($residentAvatarUrl); ?>" alt="">
+          <?php } else { ?>
+          <div class="resident-avatar resident-avatar-placeholder" role="img" aria-label="Profile placeholder">
+            <span class="resident-avatar-initials"><?php echo htmlspecialchars($residentAvatarInitials); ?></span>
+          </div>
+          <?php } ?>
           <div>
             <h5 class="mb-1"><?php echo htmlspecialchars($residentProfile['full_name']); ?></h5>
             <p class="text-muted mb-1"><?php echo htmlspecialchars($email ?: 'No email on file'); ?></p>
             <p class="mb-0 resident-meta"><strong>Resident ID:</strong> <?php echo htmlspecialchars($residentProfile['resident_id'] ?: $username); ?></p>
           </div>
-        </div>
-        <div class="d-flex flex-wrap align-items-center gap-2">
-          <span class="badge <?php echo $residentStatusBadgeClass; ?> px-3 py-2">Status: <?php echo htmlspecialchars($residentProfile['resident_status']); ?></span>
-          <span class="badge <?php echo $householdStatusBadgeClass; ?> px-3 py-2">Household: <?php echo htmlspecialchars($residentProfile['household_status']); ?></span>
         </div>
       </div>
     </div>
@@ -945,6 +942,24 @@ $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ?
   border-radius: 999px;
   object-fit: cover;
   border: 2px solid #dbeafe;
+  flex-shrink: 0;
+}
+
+.resident-dashboard-page .resident-avatar-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e0e7ff 0%, #dbeafe 100%);
+  border: 2px solid #bfdbfe;
+  object-fit: unset;
+}
+
+.resident-dashboard-page .resident-avatar-initials {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e40af;
+  letter-spacing: 0.02em;
+  line-height: 1;
 }
 
 .resident-dashboard-page .resident-meta {
