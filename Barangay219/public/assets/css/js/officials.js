@@ -7,6 +7,17 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || String(w
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    const tilesRoot = document.getElementById('officialsTiles');
+    if (tilesRoot) {
+        tilesRoot.addEventListener('keydown', function(e) {
+            const tile = e.target.closest('.official-tile-vacant[data-slot-position]');
+            if (!tile) return;
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            const pk = tile.getAttribute('data-slot-position');
+            if (pk) openAddOfficialFromSlot(pk);
+        });
+    }
     loadOfficials();
     initResidentSearch();
     // Captain is locked by backend; UI locks are handled per-slot.
@@ -24,8 +35,26 @@ function isSuperAdminClient() {
 }
 
 function setFixedPosition(positionKey) {
-    const sel = document.getElementById('position');
-    if (sel) sel.value = String(positionKey || '');
+    const hid = document.getElementById('position');
+    const disp = document.getElementById('positionDisplay');
+    const key = String(positionKey || '').trim();
+    if (hid) hid.value = key;
+    if (disp) {
+        disp.textContent = key ? formatPosition(key) : '—';
+    }
+}
+
+function openAddOfficialFromSlot(positionKey) {
+    const key = String(positionKey || '').trim();
+    if (!key) return;
+    resetOfficialForm();
+    setFixedPosition(key);
+    const help = document.getElementById('positionHelp');
+    if (help) help.textContent = 'Position is set from the slot you selected.';
+    const modalEl = document.getElementById('officialModal');
+    if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
 }
 
 function initResidentSearch() {
@@ -132,23 +161,10 @@ function renderOfficials(rows) {
     const container = document.getElementById('officialsTiles');
     if (!container) return;
 
-    if (!rows.length) {
-        container.innerHTML = `
-            <div class="officials-empty card border-0 shadow-sm">
-                <div class="card-body text-center py-5">
-                    <div class="officials-empty-icon mb-2"><i class="bi bi-people"></i></div>
-                    <h5 class="mb-1">No officials yet</h5>
-                    <p class="text-muted mb-3">Add the barangay core officials to appear here.</p>
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#officialModal" onclick="resetOfficialForm()">
-                        <i class="bi bi-plus-circle"></i> Add Official
-                    </button>
-                </div>
-            </div>`;
-        return;
-    }
+    const list = Array.isArray(rows) ? rows : [];
 
     const normalizeStatus = s => String(s || '').toLowerCase() === 'active' ? 'active' : 'inactive';
-    const sorted = [...rows].sort((a, b) => {
+    const sorted = [...list].sort((a, b) => {
         const sa = normalizeStatus(a.status);
         const sb = normalizeStatus(b.status);
         if (sa !== sb) return sa === 'active' ? -1 : 1;
@@ -169,10 +185,10 @@ function renderOfficials(rows) {
 
     const groups = [
         { key: 'barangay_captain', title: 'Punong Barangay (Captain)', slots: 1 },
-        { key: 'kagawad', title: 'Sangguniang Barangay Members (Kagawad)', slots: 7 },
-        { key: 'sk_chairperson', title: 'SK Chairperson', slots: 1 },
         { key: 'secretary', title: 'Secretary', slots: 1 },
-        { key: 'treasurer', title: 'Treasurer', slots: 1 }
+        { key: 'treasurer', title: 'Treasurer', slots: 1 },
+        { key: 'sk_chairperson', title: 'SK Chairperson', slots: 1 },
+        { key: 'kagawad', title: 'Sangguniang Barangay Members (Kagawad)', slots: 7 }
     ];
 
     container.innerHTML = groups.map(g => {
@@ -275,15 +291,18 @@ function renderVacantTile(positionKey, positionTitle, slotNo) {
     const icon = getPositionIcon(positionKey);
     const slotLabel = positionKey === 'kagawad' ? `Slot ${slotNo}` : 'Vacant';
     const lockedCaptain = positionKey === 'barangay_captain' && !isSuperAdminClient();
+    const cardAttrs = lockedCaptain
+        ? ''
+        : ` role="button" tabindex="0" style="cursor:pointer;" data-slot-position="${escapeHtml(String(positionKey))}" onclick="openAddOfficialFromSlot('${escapeHtml(String(positionKey))}')"`;
     const actionBtn = lockedCaptain
-        ? `<button class="action-icon-btn" title="Restricted" aria-label="Restricted" disabled>
+        ? `<button type="button" class="action-icon-btn" title="Restricted" aria-label="Restricted" disabled>
                 <i class="bi bi-lock"></i>
            </button>`
-        : `<button class="action-icon-btn" title="Add" aria-label="Add" data-bs-toggle="modal" data-bs-target="#officialModal" onclick="resetOfficialForm(); setFixedPosition('${escapeHtml(String(positionKey))}');">
+        : `<button type="button" class="action-icon-btn" title="Add" aria-label="Add" tabindex="-1">
                 <i class="bi bi-plus"></i>
            </button>`;
     return `
-        <div class="official-tile official-tile-vacant card border-0 shadow-sm">
+        <div class="official-tile official-tile-vacant card border-0 shadow-sm"${cardAttrs}>
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start gap-3">
                     <div class="d-flex align-items-start gap-3">
@@ -324,6 +343,8 @@ function editOfficial(id) {
                 residentSearch.value = o.full_name || '';
             }
             setFixedPosition(o.position || '');
+            const helpEdit = document.getElementById('positionHelp');
+            if (helpEdit) helpEdit.textContent = 'Assigned position for this record.';
             document.getElementById('term_start').value = o.term_start || '';
             document.getElementById('term_end').value = o.term_end || '';
             document.getElementById('status').value = o.status || 'active';
@@ -345,7 +366,7 @@ function saveOfficial() {
     }
     const position = String(fd.get('position') || '').trim();
     if (!position) {
-        showOfficialsAlert('error', 'Please select a position.');
+        showOfficialsAlert('error', id ? 'Position is missing.' : 'Click a vacant slot to choose a position, then add the official.');
         return;
     }
 
@@ -390,6 +411,8 @@ function resetOfficialForm() {
     const residentId = document.getElementById('resident_id');
     if (residentId) residentId.value = '';
     setFixedPosition('');
+    const help = document.getElementById('positionHelp');
+    if (help) help.textContent = 'Click a vacant slot on this page to set the position.';
     const title = document.getElementById('officialModalTitle');
     if (title) title.textContent = 'Add Official';
 }
