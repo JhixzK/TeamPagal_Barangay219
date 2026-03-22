@@ -235,7 +235,7 @@ function loadResidentsForDropdown() {
     const sel = document.getElementById('family_head_id');
     if (!sel) return;
     const currentVal = sel.value;
-    fetch(window.API_URL + 'resident.php?action=list&limit=500')
+    fetch(window.API_URL + 'resident.php?action=list&limit=500&head_account_only=1')
         .then(r => r.json())
         .then(d => {
             if (d.success && d.data && d.data.residents) {
@@ -735,17 +735,36 @@ function editHousehold(id) {
     if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
     Promise.all([
         fetch(window.API_URL + 'households.php?action=get&id=' + id).then(r => r.json()),
-        fetch(window.API_URL + 'resident.php?action=list&limit=500').then(r => r.json())
-    ]).then(([householdData, residentsData]) => {
+        fetch(window.API_URL + 'resident.php?action=list&limit=500&head_account_only=1').then(r => r.json())
+    ]).then(async ([householdData, residentsData]) => {
         if (!householdData.success) { alert(householdData.message); return; }
         const h = householdData.data;
         const sel = document.getElementById('family_head_id');
-        if (residentsData.success && residentsData.data && residentsData.data.residents) {
+        const residents = (residentsData.success && residentsData.data && residentsData.data.residents)
+            ? residentsData.data.residents
+            : [];
+        if (residents.length) {
             sel.innerHTML = '<option value="">-- Select Resident --</option>' +
-                residentsData.data.residents.map(r => {
+                residents.map(r => {
                     const name = `${r.last_name || ''}, ${r.first_name || ''}`.trim();
                     return `<option value="${r.id}">${escapeHtml(toTitleCase(name))}</option>`;
                 }).join('');
+        }
+        const headId = Number(h.family_head_id || 0);
+        if (headId > 0 && !residents.some(r => Number(r.id) === headId)) {
+            try {
+                const rj = await fetch(window.API_URL + 'resident.php?action=get&id=' + headId).then(r => r.json());
+                if (rj.success && rj.data) {
+                    const r = rj.data;
+                    const name = `${r.last_name || ''}, ${r.first_name || ''} ${r.middle_name || ''}`.trim();
+                    const o = document.createElement('option');
+                    o.value = String(r.id);
+                    o.textContent = toTitleCase(name);
+                    const ph = sel.querySelector('option[value=""]');
+                    if (ph) ph.insertAdjacentElement('afterend', o);
+                    else sel.appendChild(o);
+                }
+            } catch (e) { /* ignore */ }
         }
         document.getElementById('householdId').value = h.id;
         document.getElementById('family_head_id').value = h.family_head_id || '';
