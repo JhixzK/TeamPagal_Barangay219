@@ -104,8 +104,72 @@ if (isLoggedIn()) {
             margin-bottom: 0;
         }
 
+        .password-field {
+            position: relative;
+        }
+
+        .username-field {
+            position: relative;
+        }
+
+        .username-field .form-control,
+        .password-field .form-control {
+            padding-right: 2.85rem;
+            border-radius: 10px !important;
+        }
+
+        .username-field-icon {
+            position: absolute;
+            top: 50%;
+            right: 0.45rem;
+            transform: translateY(-50%);
+            z-index: 3;
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            background: rgba(37, 99, 235, 0.06);
+            border-radius: 999px;
+            pointer-events: none;
+        }
+
         .password-toggle-btn {
-            border-left: 0;
+            position: absolute;
+            top: 50%;
+            right: 0.45rem;
+            transform: translateY(-50%);
+            z-index: 3;
+            width: 34px;
+            height: 34px;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            color: #64748b;
+            box-shadow: none !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+        }
+
+        .password-toggle-btn i {
+            font-size: 1rem;
+            line-height: 1;
+            display: block;
+        }
+
+        .password-toggle-btn i::before {
+            display: block;
+        }
+
+        .password-toggle-btn:hover,
+        .password-toggle-btn:focus {
+            color: #1e3a8a;
+            background: rgba(37, 99, 235, 0.08) !important;
+            border-radius: 999px;
+            outline: none;
         }
 
         .link-no-container,
@@ -158,27 +222,7 @@ if (isLoggedIn()) {
             letter-spacing: 0.01em;
         }
 
-        /* Button styles now inherit from global style.css button system */
-        .register-resident-btn {
-            color: #334155 !important;
-            background: #ffffff !important;
-            border-color: #cbd5e1 !important;
-        }
-
-        .register-resident-btn:hover {
-            border-color: #bfdbfe !important;
-            color: #1e3a8a !important;
-            background: #f1f5f9 !important;
-            transform: scale(1.03);
-        }
-
-        .register-resident-btn:focus,
-        .register-resident-btn:active {
-            color: #ffffff !important;
-            background: #1d4ed8 !important;
-            border-color: #1d4ed8 !important;
-            box-shadow: 0 0 0 0.22rem rgba(29, 78, 216, 0.32) !important;
-        }
+        /* Register button uses shared .btn-outline-secondary states from style.css */
 
         .login-legal-links {
             margin-top: 0.65rem;
@@ -210,13 +254,13 @@ if (isLoggedIn()) {
             display: block;
         }
 
-        .input-group.password-invalid .form-control,
-        .input-group.password-invalid .btn {
+        .password-field.password-invalid .form-control,
+        .password-field.password-invalid .password-toggle-btn {
             border-color: #dc2626;
         }
 
-        .input-group.password-invalid .form-control:focus,
-        .input-group.password-invalid .btn:focus {
+        .password-field.password-invalid .form-control:focus,
+        .password-field.password-invalid .password-toggle-btn:focus {
             border-color: #dc2626;
             box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.18);
         }
@@ -248,17 +292,21 @@ if (isLoggedIn()) {
             <form id="loginForm">
                 <div class="mb-3">
                     <label for="username" class="form-label">Resident ID / Username</label>
-                    <input type="text" class="form-control" id="username" name="username" required autofocus placeholder="BR219-YYYY-NNNNN or username">
+                    <div class="username-field">
+                        <input type="text" class="form-control" id="username" name="username" required autofocus placeholder="BR219-YYYY-NNNNN or username">
+                        <span class="username-field-icon" aria-hidden="true">
+                            <i class="bi bi-person"></i>
+                        </span>
+                    </div>
                 </div>
                 <div class="mb-2">
                     <label for="password" class="form-label">Password</label>
-                    <div class="input-group">
+                    <div class="password-field">
                         <input type="password" class="form-control" id="password" name="password" required placeholder="Enter your password">
-                        <button class="btn btn-outline-secondary password-toggle-btn" type="button" id="togglePassword" aria-label="Show password" aria-pressed="false">
+                        <button class="password-toggle-btn" type="button" id="togglePassword" aria-label="Show password" aria-pressed="false">
                             <i class="bi bi-eye" aria-hidden="true"></i>
                         </button>
                     </div>
-                    <div id="passwordError" class="field-error" aria-live="polite"></div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="form-check mb-0">
@@ -354,8 +402,7 @@ if (isLoggedIn()) {
                 toggleButton.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
 
                 if (icon) {
-                    icon.classList.toggle('bi-eye', showing);
-                    icon.classList.toggle('bi-eye-slash', !showing);
+                    icon.className = showing ? 'bi bi-eye' : 'bi bi-eye-slash';
                 }
             });
         })();
