@@ -128,14 +128,23 @@ if ($residentId) {
     }
 </style>
 
-<div class="main-content module-page" id="mainContent">
+<div class="main-content module-page resident-theme" id="mainContent">
   <div class="container-fluid">
     <div class="module-hero card border-0 shadow-sm mb-4">
       <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
-        <div>
+        <div class="hero-copy">
           <p class="module-kicker text-uppercase small mb-1">Resident Portal</p>
           <h2 class="mb-1"><i class="bi bi-megaphone me-2"></i>Announcements</h2>
           <p class="module-subtitle mb-0">View all community announcements and updates.</p>
+        </div>
+        <div class="text-md-end hero-meta">
+          <span class="hero-date-badge fs-6 px-3 py-2" id="mainDateBadge">
+            <i class="bi bi-calendar3 me-1"></i><?php echo date('F d, Y'); ?>
+          </span>
+          <div class="hero-chips mt-2">
+            <span class="hero-chip"><i class="bi bi-person-check me-1"></i>Resident View</span>
+            <span class="hero-chip"><i class="bi bi-broadcast me-1"></i>Community Updates</span>
+          </div>
         </div>
       </div>
     </div>
