@@ -469,6 +469,7 @@ function listHouseholds() {
             $params[] = $to;
         }
         $sql = "SELECT h.*, 
+                       (SELECT COUNT(*) FROM residents r_cnt WHERE r_cnt.household_id = h.id) AS _live_member_count,
                        CONCAT(r.first_name, ' ', COALESCE(r.middle_name, ''), ' ', r.last_name) as family_head_name,
                        r.contact_number as family_head_contact
                 FROM households h
@@ -477,6 +478,14 @@ function listHouseholds() {
                 ORDER BY h.registration_date DESC, h.id DESC";
         
         $households = $db->fetchAll($sql, $params);
+
+        foreach ($households as &$h) {
+            if (array_key_exists('_live_member_count', $h)) {
+                $h['total_members'] = (int)$h['_live_member_count'];
+                unset($h['_live_member_count']);
+            }
+        }
+        unset($h);
 
         // If some existing households were created before codes were generated,
         // generate household_id_code on-the-fly so the tiles don't show "-".
