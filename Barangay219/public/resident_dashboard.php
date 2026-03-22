@@ -619,7 +619,7 @@ if ($residentProfile['resident_status'] === 'Verified') {
 
 $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ? 'text-bg-primary' : 'text-bg-secondary';
 ?>
-<div class="main-content dashboard-page resident-dashboard-page" id="mainContent">
+<div class="main-content dashboard-page resident-dashboard-page resident-theme" id="mainContent">
   <div class="container-fluid">
     <div class="dashboard-hero card border-0 shadow-sm mb-4">
       <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
