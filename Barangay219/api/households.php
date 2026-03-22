@@ -274,7 +274,8 @@ function computeHouseholdTypeFromResidents($headId, array $members) {
         }
     }
     if (empty($rels)) {
-        return 'Single Inhabitant';
+        // Multiple people but only generic Head/Member roles (e.g. after head transfer) ⇒ still a family household.
+        return count($members) > 1 ? 'Family Household' : 'Single Inhabitant';
     }
     $hasSpouse = false;
     $hasFamily = false;
@@ -2220,6 +2221,9 @@ function assignHeadOfficial() {
             return;
         }
 
+        $priorNewRel = fetchResidentRelationshipToHeadBeforeTransfer($db, $newHeadResidentId, $householdId);
+        $formerHeadRelationship = relationshipForFormerHeadAfterTransfer($priorNewRel);
+
         $db->beginTransaction();
         try {
             if ($designatedHeadId === $oldHeadResidentId) {
@@ -2234,13 +2238,15 @@ function assignHeadOfficial() {
 
             if (tableExists($db, 'household_members')) {
                 $db->query("UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?", ['Head', $newHeadResidentId, $householdId]);
-                $db->query("UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?", ['Member', $oldHeadResidentId, $householdId]);
+                if ($oldHeadResidentId > 0) {
+                    $db->query("UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?", [$formerHeadRelationship, $oldHeadResidentId, $householdId]);
+                }
             }
 
             if (columnExists($db, 'residents', 'relationship_to_head')) {
                 $db->query("UPDATE residents SET relationship_to_head = ? WHERE id = ?", ['Head', $newHeadResidentId]);
                 if ($oldHeadResidentId > 0) {
-                    $db->query("UPDATE residents SET relationship_to_head = ? WHERE id = ?", ['Member', $oldHeadResidentId]);
+                    $db->query("UPDATE residents SET relationship_to_head = ? WHERE id = ?", [$formerHeadRelationship, $oldHeadResidentId]);
                 }
             }
 
