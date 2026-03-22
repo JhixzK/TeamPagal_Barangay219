@@ -21,9 +21,11 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p class="module-subtitle mb-0">Review resident registration requests and process approvals with traceability.</p>
                 </div>
                 <?php if (function_exists('canPerformModulePermission') && canPerformModulePermission('resident_applications', 'can_edit')): ?>
-                <button class="btn assign-household-btn" onclick="openAssignHeadsModal()">
-                    <i class="bi bi-house-check"></i> Assign Household
-                </button>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-secondary" onclick="openSmtpTestModal()" title="Verify config/email_smtp.php">
+                        <i class="bi bi-envelope-check"></i> Test SMTP
+                    </button>
+                </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -52,7 +54,6 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
-            <li class="nav-item"><a class="nav-link" href="#" data-status="">All</a></li>
             <li class="nav-item"><a class="nav-link active" href="#" data-status="pending">Pending</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="approved">Approved</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
@@ -104,7 +105,6 @@ include __DIR__ . '/../includes/sidebar.php';
     box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.35);
 }
 
-.resident-apps-page .assign-household-btn,
 .resident-apps-page .search-action-btn,
 .resident-apps-page .filter-action-btn,
 .resident-apps-page .reset-action-btn {
@@ -117,14 +117,12 @@ include __DIR__ . '/../includes/sidebar.php';
     gap: 0.45rem;
 }
 
-.resident-apps-page .assign-household-btn,
 .resident-apps-page .search-action-btn {
     background: #1f6fe8;
     border-color: #1f6fe8;
     color: #fff;
 }
 
-.resident-apps-page .assign-household-btn:hover,
 .resident-apps-page .search-action-btn:hover {
     background: #1a62cf;
     border-color: #1a62cf;
@@ -155,9 +153,10 @@ include __DIR__ . '/../includes/sidebar.php';
 
 .resident-apps-page .app-tabs {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     border-bottom: 0;
     gap: 0.45rem;
+    width: 100%;
 }
 
 .resident-apps-page .app-tabs .nav-item {
@@ -527,6 +526,27 @@ include __DIR__ . '/../includes/sidebar.php';
     }
 }
 </style>
+
+<!-- SMTP test (staff) -->
+<div class="modal fade" id="smtpTestModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Test outbound email</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2">Sends one message using <code>config/email_smtp.php</code>. Check spam if nothing arrives in the inbox.</p>
+                <label class="form-label">Send test to</label>
+                <input type="email" class="form-control" id="smtpTestTo" placeholder="your.email@example.com">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="btnSmtpTestSend"><i class="bi bi-send"></i> Send test</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- View Modal -->
 <div class="modal fade" id="viewModal" tabindex="-1">

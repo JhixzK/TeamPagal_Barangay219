@@ -121,6 +121,15 @@ function listResidents() {
             $where .= " AND r.residency_start_date >= ?";
             $params[] = $maxDate;
         }
+
+        $headAccountOnly = filter_var(
+            $_GET['head_account_only'] ?? false,
+            FILTER_VALIDATE_BOOLEAN,
+            FILTER_NULL_ON_FAILURE
+        ) === true;
+        if ($headAccountOnly && columnExists($db, 'residents', 'household_role')) {
+            $where .= " AND LOWER(TRIM(COALESCE(r.household_role,''))) IN ('head', 'head of household')";
+        }
         
         // Get total count
         $countSql = "SELECT COUNT(*) as total FROM residents r WHERE $where";
