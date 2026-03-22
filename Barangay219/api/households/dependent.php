@@ -92,6 +92,25 @@ function createDependentMember($residentId, $data) {
     if (isset($resCols['household_id'])) $set('household_id', $householdId);
     if (isset($resCols['status'])) $set('status', 'active');
     if (isset($resCols['record_status'])) $set('record_status', 'active');
+    // Do not assign BR219 resident_code here — official registration / applications issue IDs.
+    if (isset($resCols['relationship_to_head'])) {
+        $set('relationship_to_head', $relationship);
+    }
+    $headId = (int)($house['family_head_id'] ?? 0);
+    if ($headId > 0 && isset($resCols['family_code'])) {
+        $fc = '';
+        $hrow = $db->fetchOne('SELECT family_code FROM residents WHERE id = ? LIMIT 1', [$headId]);
+        $fc = trim((string)($hrow['family_code'] ?? ''));
+        if ($fc === '' && isset($house['family_code'])) {
+            $fc = trim((string)$house['family_code']);
+        }
+        if ($fc !== '') {
+            $set('family_code', $fc);
+        }
+    }
+    if ($headId > 0 && isset($resCols['family_head_resident_id'])) {
+        $set('family_head_resident_id', $headId);
+    }
 
     if (empty($insertCols)) {
         householdJsonResponse(false, null, 'Residents table is not compatible', 500);
@@ -118,6 +137,7 @@ function createDependentMember($residentId, $data) {
         }
 
         logHouseholdHistory($householdId, 'Member Added', 'Family head added a dependent member (no login)', $newResidentId);
+        syncHouseholdTotalMembersFromResidents($db, $householdId);
         $db->commit();
 
         householdJsonResponse(true, ['resident_id' => $newResidentId], 'Family member added');
@@ -126,4 +146,3 @@ function createDependentMember($residentId, $data) {
         throw $e;
     }
 }
-
