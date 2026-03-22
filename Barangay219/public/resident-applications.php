@@ -22,9 +22,6 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
                 <?php if (function_exists('canPerformModulePermission') && canPerformModulePermission('resident_applications', 'can_edit')): ?>
                 <div class="d-flex flex-wrap gap-2">
-                    <button type="button" class="btn assign-household-btn" onclick="openAssignHeadsModal()">
-                        <i class="bi bi-house-check"></i> Assign Household
-                    </button>
                     <button type="button" class="btn btn-outline-secondary" onclick="openSmtpTestModal()" title="Verify config/email_smtp.php">
                         <i class="bi bi-envelope-check"></i> Test SMTP
                     </button>
@@ -57,7 +54,6 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
-            <li class="nav-item"><a class="nav-link" href="#" data-status="">All</a></li>
             <li class="nav-item"><a class="nav-link active" href="#" data-status="pending">Pending</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="approved">Approved</a></li>
             <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
@@ -109,7 +105,6 @@ include __DIR__ . '/../includes/sidebar.php';
     box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.35);
 }
 
-.resident-apps-page .assign-household-btn,
 .resident-apps-page .search-action-btn,
 .resident-apps-page .filter-action-btn,
 .resident-apps-page .reset-action-btn {
@@ -122,14 +117,12 @@ include __DIR__ . '/../includes/sidebar.php';
     gap: 0.45rem;
 }
 
-.resident-apps-page .assign-household-btn,
 .resident-apps-page .search-action-btn {
     background: #1f6fe8;
     border-color: #1f6fe8;
     color: #fff;
 }
 
-.resident-apps-page .assign-household-btn:hover,
 .resident-apps-page .search-action-btn:hover {
     background: #1a62cf;
     border-color: #1a62cf;
@@ -160,9 +153,10 @@ include __DIR__ . '/../includes/sidebar.php';
 
 .resident-apps-page .app-tabs {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     border-bottom: 0;
     gap: 0.45rem;
+    width: 100%;
 }
 
 .resident-apps-page .app-tabs .nav-item {
