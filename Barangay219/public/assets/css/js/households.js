@@ -817,11 +817,20 @@ function viewHousehold(id) {
         .catch(() => alert('Error loading household'));
 }
 
+/** Designated household head must be at least 18 (aligned with API). */
+function residentMeetsMinimumHeadAge(m) {
+    const dob = m.birth_date || m.date_of_birth;
+    if (!dob) return false;
+    const age = calculateAge(dob);
+    return typeof age === 'number' && !Number.isNaN(age) && age >= 18;
+}
+
 function buildMemberRows(memberArr, headId, allowEdit) {
     if (!memberArr.length) return '';
     return memberArr.map(m => {
         const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
-        const transferBtn = allowEdit ? `<button type="button" class="action-icon-btn" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${headId})"><i class="bi bi-person-badge"></i></button>` : '';
+        const canTransfer = allowEdit && residentMeetsMinimumHeadAge(m);
+        const transferBtn = canTransfer ? `<button type="button" class="action-icon-btn" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${headId})"><i class="bi bi-person-badge"></i></button>` : '';
         const removeBtn = allowEdit ? `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : '';
         return `
             <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1 ms-3" style="border-left: 3px solid var(--bs-primary) !important;">
@@ -839,7 +848,8 @@ function buildUngroupedRows(ungroupedArr, designatedHeadId, allowEdit) {
     let html = '<div class="mt-2"><div class="small text-muted mb-1 px-2">Unassigned members</div>';
     ungroupedArr.forEach(m => {
         const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
-        const transferBtn = (allowEdit && designatedHeadId > 0) ? `<button type="button" class="action-icon-btn" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${designatedHeadId})"><i class="bi bi-person-badge"></i></button>` : '';
+        const canTransfer = allowEdit && designatedHeadId > 0 && residentMeetsMinimumHeadAge(m);
+        const transferBtn = canTransfer ? `<button type="button" class="action-icon-btn" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${designatedHeadId})"><i class="bi bi-person-badge"></i></button>` : '';
         const removeBtn = allowEdit ? `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : '';
         html += `
             <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1">
