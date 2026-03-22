@@ -409,6 +409,9 @@ function assignHouseholdHead($residentId, $data) {
         householdJsonResponse(false, null, $ageErr, 400);
     }
 
+    $priorNewRel = fetchResidentRelationshipToHeadBeforeTransfer($db, $newHeadResidentId, $householdId);
+    $formerHeadRelationship = relationshipForFormerHeadAfterTransfer($priorNewRel);
+
     $db->beginTransaction();
     try {
         if ($currentDesignatedId === $oldHeadResidentId) {
@@ -422,11 +425,11 @@ function assignHouseholdHead($residentId, $data) {
         }
 
         $db->query('UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?', ['Head', $newHeadResidentId, $householdId]);
-        $db->query('UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?', ['Member', $oldHeadResidentId, $householdId]);
+        $db->query('UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?', [$formerHeadRelationship, $oldHeadResidentId, $householdId]);
 
         if (columnExists($db, 'residents', 'relationship_to_head')) {
             $db->query('UPDATE residents SET relationship_to_head = ? WHERE id = ?', ['Head', $newHeadResidentId]);
-            $db->query('UPDATE residents SET relationship_to_head = ? WHERE id = ?', ['Member', $oldHeadResidentId]);
+            $db->query('UPDATE residents SET relationship_to_head = ? WHERE id = ?', [$formerHeadRelationship, $oldHeadResidentId]);
         }
 
         // Ensure the new designated head always has a family_head_code; restore from old head or generate.
