@@ -204,15 +204,17 @@ $heroSlides = [
             transform: scaleX(1);
         }
 
+        /* Navigation Buttons (navbar) */
         .btn-nav {
-            border-radius: 9px;
+            border-radius: 10px;
             font-weight: 600;
             padding: 0.5rem 1.1rem;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+            font-family: 'Inter', sans-serif;
         }
 
         .btn-nav:hover {
-            transform: translateY(-1px);
+            transform: scale(1.03);
         }
 
         .btn-register {
@@ -222,8 +224,8 @@ $heroSlides = [
         }
 
         .btn-register:hover {
-            background: rgba(255, 255, 255, 0.12);
-            box-shadow: none;
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(1.03);
         }
 
         .btn-login {
@@ -235,7 +237,7 @@ $heroSlides = [
         .btn-login:hover {
             color: #1e40af;
             background: #eff6ff;
-            box-shadow: none;
+            transform: scale(1.03);
         }
 
         .btn-danger-outline {
@@ -246,6 +248,7 @@ $heroSlides = [
 
         .btn-danger-outline:hover {
             background: #fef2f2;
+            transform: scale(1.03);
             box-shadow: 0 5px 12px rgba(220, 38, 38, 0.15);
         }
 
@@ -353,38 +356,53 @@ $heroSlides = [
             flex-wrap: wrap;
         }
 
+        /* Hero Button Base Styles (extends global .btn system) */
         .btn-hero {
             border-radius: 10px;
             padding: 0.72rem 1.3rem;
             font-weight: 600;
+            font-family: 'Inter', sans-serif;
             border: 1px solid transparent;
             text-decoration: none;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .btn-hero:hover {
-            transform: translateY(-1px);
+            transform: scale(1.03);
         }
 
+        /* Hero Primary Button (Blue with transparency for brightness on dark hero) */
         .btn-hero-primary {
-            background: var(--gov-blue);
-            color: #fff;
+            background: rgba(37, 99, 235, 0.72);
+            color: #ffffff;
+            border-color: rgba(191, 219, 254, 0.95);
         }
 
-        .btn-hero-primary:hover {
-            color: #fff;
-            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+        .btn-hero-primary:hover,
+        .btn-hero-primary:focus {
+            color: #ffffff;
+            background: rgba(59, 130, 246, 0.9);
+            border-color: rgba(191, 219, 254, 0.95);
+            box-shadow: 0 15px 30px rgba(29, 78, 216, 0.3);
         }
 
+        /* Hero Outline Button (White semi-transparent) */
         .btn-hero-outline {
-            background: rgba(255, 255, 255, 0.95);
-            color: #1e40af;
-            border-color: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.22);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.98);
         }
 
-        .btn-hero-outline:hover {
-            color: #1e3a8a;
-            background: #ffffff;
+        .btn-hero-outline:hover,
+        .btn-hero-outline:focus {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.34);
+            border-color: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 15px 30px rgba(255, 255, 255, 0.15);
         }
 
         .hero-seal {
@@ -937,7 +955,7 @@ $heroSlides = [
                         <?php if ($isLoggedIn): ?>
                             <a href="<?php echo BASE_URL; ?>dashboard.php" class="btn-hero btn-hero-primary">Go to Dashboard</a>
                         <?php else: ?>
-                            <a href="<?php echo BASE_URL; ?>register.php" class="btn-hero btn-hero-primary">Register as Resident</a>
+                            <a href="<?php echo BASE_URL; ?>register.php" class="btn-hero btn-hero-primary">Create Account</a>
                         <?php endif; ?>
                         <a href="#services" class="btn-hero btn-hero-outline">Explore Services</a>
                     </div>
@@ -1168,20 +1186,6 @@ $heroSlides = [
                         <p class="official-name">Katrina C. Chuidian</p>
                         <p class="official-role">Barangay Treasurer</p>
                     </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA SECTION -->
-    <section class="section-padding">
-        <div class="container-lg">
-            <div class="cta-panel">
-                <h2>Ready to Get Started?</h2>
-                <p>Mag-register bilang residente at gamitin ang mga barangay services sa isang secure at digital na portal.</p>
-                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                    <a href="<?php echo BASE_URL; ?>register.php" class="btn-hero btn-hero-primary">Register Now</a>
-                    <a href="<?php echo BASE_URL; ?>login.php" class="btn-hero btn-hero-outline">Login</a>
                 </div>
             </div>
         </div>
