@@ -100,30 +100,38 @@ if (isLoggedIn()) {
             letter-spacing: 0.01em;
             margin-bottom: 0;
         }
+        
+        /* Verification Method Selection (Email/SMS) */
         .method-btn {
             flex: 1;
             padding: 12px 10px;
-            border: 2px solid #dee2e6;
+            border: 2px solid #e2e8f0;
             background: white;
-            border-radius: 6px;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.2s ease;
             text-align: center;
             font-size: 0.875rem;
             font-weight: 600;
-            color: #495057;
+            color: #475569;
             line-height: 1.3;
+            font-family: 'Inter', sans-serif;
         }
+        
         .method-btn:hover {
-            border-color: #0d6efd;
-            background: #f0f5ff;
+            border-color: #bfdbfe;
+            background: #f1f5f9;
+            transform: scale(1.02);
         }
+        
         .method-btn.active {
-            border-color: #0d6efd;
-            background: #0d6efd;
+            border-color: #1d4ed8;
+            background: #1d4ed8;
             color: white;
-            box-shadow: 0 4px 14px rgba(13, 110, 253, 0.35);
+            box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
+            transform: scale(1.02);
         }
+        
         .method-btn small {
             display: block;
             font-weight: 400;
@@ -132,6 +140,7 @@ if (isLoggedIn()) {
             opacity: 0.85;
         }
 
+        /* Link Button Reset */
         .link-no-container,
         .link-no-container:hover,
         .link-no-container:focus,
