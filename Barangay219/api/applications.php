@@ -307,6 +307,33 @@ function joinHeadToExistingHousehold($db, $residentId, $householdId, $app) {
 }
 
 /**
+ * Map application house_type (registration label or slug) to households.house_type form slug.
+ */
+function applicationStructureHouseTypeToSlug($raw) {
+    $raw = trim((string)$raw);
+    if ($raw === '') {
+        return '';
+    }
+    $map = [
+        'Concrete' => 'concrete',
+        'Semi-Concrete' => 'semi_concrete',
+        'Light Materials' => 'light_materials',
+        'Apartment / Boarding House' => 'apartment_boarding',
+        'Townhouse / Row House' => 'townhouse_row',
+        'Informal / Improvised' => 'informal_improvised',
+    ];
+    if (isset($map[$raw])) {
+        return $map[$raw];
+    }
+    $known = ['concrete', 'semi_concrete', 'light_materials', 'apartment_boarding', 'townhouse_row', 'informal_improvised'];
+    $norm = strtolower(str_replace(['-', ' '], '_', $raw));
+    if (in_array($norm, $known, true)) {
+        return $norm;
+    }
+    return '';
+}
+
+/**
  * Automatically create a household when officials approve a head of household application.
  * The new resident becomes the household head and is linked to the created household.
  */
@@ -363,6 +390,26 @@ function createHouseholdForApprovedHead($db, $residentId, $app) {
     if (isset($houseCols['household_type']) && $appHouseholdType !== '' && in_array($appHouseholdType, $allowedHouseholdTypes, true)) {
         $insertCols[] = 'household_type';
         $insertVals[] = $appHouseholdType;
+    }
+    if (isset($houseCols['house_type'])) {
+        $structureSlug = applicationStructureHouseTypeToSlug($app['house_type'] ?? '');
+        if ($structureSlug !== '') {
+            $insertCols[] = 'house_type';
+            $insertVals[] = $structureSlug;
+        }
+    }
+    if (isset($houseCols['housing_status'])) {
+        $ownRaw = strtolower(trim((string)($app['house_ownership'] ?? '')));
+        $hs = null;
+        if ($ownRaw === 'owned') {
+            $hs = 'owned';
+        } elseif ($ownRaw === 'rented') {
+            $hs = 'renting';
+        }
+        if ($hs !== null) {
+            $insertCols[] = 'housing_status';
+            $insertVals[] = $hs;
+        }
     }
     if (isset($houseCols['family_code'])) {
         $familyCode = generateUniqueFamilyCode($db);
