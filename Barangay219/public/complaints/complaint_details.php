@@ -24,9 +24,10 @@ $complaint = ($moduleReady && $complaintId) ? residentComplaintsFetchById($db, $
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/resident-official-theme.css?v=<?php echo time(); ?>">
   <link rel="stylesheet" href="<?php echo BASE_URL; ?>resident_dashboard.css">
 </head>
-<body>
+<body class="resident-view">
   <header class="top-header">
     <div class="header-left">
       <button class="menu-toggle" id="menuToggle" aria-label="Toggle sidebar"><i class="fa-solid fa-bars"></i></button>
@@ -60,7 +61,7 @@ $complaint = ($moduleReady && $complaintId) ? residentComplaintsFetchById($db, $
     <div class="sidebar-bottom"><a class="nav-item logout" href="<?php echo BASE_URL; ?>../api/auth.php?action=logout"><i class="fa-solid fa-arrow-right-from-bracket"></i><span class="label">Logout</span></a></div>
   </aside>
 
-  <main class="main-content resident-complaints-page">
+  <main class="main-content resident-complaints-page resident-theme">
     <section class="dashboard-head mb-3">
       <div>
         <p class="portal-tag">RESIDENT PORTAL</p>
