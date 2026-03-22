@@ -156,12 +156,63 @@ function listResidents() {
         } else {
             $familyHeadCodeExpr = 'NULL AS family_head_code,';
         }
+
+        $housingMetaExpr = '';
+        // Registration housing: prefer approved_resident_id link; fall back to name + birth_date when that link is missing.
+        $hasRaHouseType = columnExists($db, 'resident_applications', 'house_type');
+        $hasRaOwnership = columnExists($db, 'resident_applications', 'house_ownership');
+        $hasRaApprovedId = columnExists($db, 'resident_applications', 'approved_resident_id');
+        $hasRaBirth = columnExists($db, 'resident_applications', 'birth_date');
+        $statusCol = columnExists($db, 'resident_applications', 'record_status') ? 'record_status'
+            : (columnExists($db, 'resident_applications', 'status') ? 'status' : null);
+        $birthRef = columnExists($db, 'residents', 'birth_date') ? 'r.birth_date'
+            : (columnExists($db, 'residents', 'date_of_birth') ? 'r.date_of_birth' : null);
+
+        $raMatchParts = [];
+        if ($hasRaApprovedId) {
+            $raMatchParts[] = 'ra.approved_resident_id = r.id';
+        }
+        if ($birthRef !== null && $hasRaBirth) {
+            $raMatchParts[] = '(LOWER(TRIM(ra.first_name)) = LOWER(TRIM(r.first_name)) AND LOWER(TRIM(ra.last_name)) = LOWER(TRIM(r.last_name)) AND ra.birth_date = ' . $birthRef . ')';
+        }
+        $raMatchSql = !empty($raMatchParts) ? '(' . implode(' OR ', $raMatchParts) . ')' : '0';
+        if ($statusCol !== null) {
+            $raWhereSql = "LOWER(TRIM(COALESCE(ra.`{$statusCol}`,''))) = 'approved' AND {$raMatchSql}";
+        } elseif ($hasRaApprovedId) {
+            // No status column: only trust approved_resident_id linkage.
+            $raWhereSql = 'ra.approved_resident_id = r.id';
+        } else {
+            $raWhereSql = '0';
+        }
+        $raOrderBy = $hasRaApprovedId ? '(ra.approved_resident_id = r.id) DESC, ra.id DESC' : 'ra.id DESC';
+
+        if ($hasRaHouseType) {
+            $housingMetaExpr .= "(SELECT ra.house_type FROM resident_applications ra WHERE {$raWhereSql} ORDER BY {$raOrderBy} LIMIT 1) AS registration_house_type, ";
+        } else {
+            $housingMetaExpr .= 'NULL AS registration_house_type, ';
+        }
+        if ($hasRaOwnership) {
+            $housingMetaExpr .= "(SELECT ra.house_ownership FROM resident_applications ra WHERE {$raWhereSql} ORDER BY {$raOrderBy} LIMIT 1) AS registration_house_ownership, ";
+        } else {
+            $housingMetaExpr .= 'NULL AS registration_house_ownership, ';
+        }
+        if (columnExists($db, 'households', 'house_type')) {
+            $housingMetaExpr .= 'h.house_type AS current_household_house_type, ';
+        } else {
+            $housingMetaExpr .= 'NULL AS current_household_house_type, ';
+        }
+        if (columnExists($db, 'households', 'housing_status')) {
+            $housingMetaExpr .= 'h.housing_status AS current_household_housing_status, ';
+        } else {
+            $housingMetaExpr .= 'NULL AS current_household_housing_status, ';
+        }
         
         // Get residents - ordered by ID so new residents appear at the end
         $sql = "SELECT r.*, h.address as household_address, h.total_members, h.family_head_id,
                 CASE WHEN h.family_head_id = r.id THEN 1 ELSE 0 END as is_household_head,
                 $householdCodeExpr
                 $familyHeadCodeExpr
+                $housingMetaExpr
                 (SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count
                 FROM residents r
                 LEFT JOIN households h ON r.household_id = h.id
