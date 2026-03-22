@@ -260,7 +260,9 @@ function computeHouseholdTypeFromMembers($db, $householdId) {
     }
 
     if (empty($rels)) {
-        $type = 'Single Inhabitant';
+        // After head transfer, roles may be only Head/Member; still multiple residents ⇒ not "single inhabitant".
+        $residentCount = (int)($db->fetchOne('SELECT COUNT(*) AS c FROM residents WHERE household_id = ?', [$householdId])['c'] ?? 0);
+        $type = ($residentCount > 1) ? 'Family Household' : 'Single Inhabitant';
     } else {
         $hasSpouse = false;
         $hasFamily = false;
@@ -310,7 +312,15 @@ function computeHouseholdTypeFromFilteredMembers($mappedMembers, $currentResiden
         }
     }
 
-    if (empty($rels)) return 'Single Inhabitant';
+    if (empty($rels)) {
+        $others = 0;
+        foreach ($mappedMembers as $m) {
+            if ((int)($m['resident_id'] ?? 0) !== (int)$currentResidentId) {
+                $others++;
+            }
+        }
+        return $others > 0 ? 'Family Household' : 'Single Inhabitant';
+    }
 
     $hasSpouse = false;
     $hasFamily = false;
