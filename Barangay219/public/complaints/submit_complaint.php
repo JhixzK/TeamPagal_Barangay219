@@ -268,7 +268,7 @@ require_once __DIR__ . '/../../includes/header.php';
 include __DIR__ . '/../../includes/sidebar.php';
 ?>
 
-<div class="main-content module-page resident-complaints-page" id="mainContent">
+<div class="main-content module-page resident-complaints-page resident-theme" id="mainContent">
   <div class="container-fluid">
     <section class="dashboard-head mb-3">
       <div>
