@@ -158,27 +158,26 @@ if (isLoggedIn()) {
             letter-spacing: 0.01em;
         }
 
+        /* Button styles now inherit from global style.css button system */
         .register-resident-btn {
-            border-color: #cbd5e1;
-            color: #475569;
-            background: #ffffff;
+            color: #334155 !important;
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
         }
 
         .register-resident-btn:hover {
-            border-color: #cbd5e1;
-            color: #334155;
-            background: #f8fafc;
+            border-color: #bfdbfe !important;
+            color: #1e3a8a !important;
+            background: #f1f5f9 !important;
+            transform: scale(1.03);
         }
 
         .register-resident-btn:focus,
-        .register-resident-btn:active,
-        .register-resident-btn.active,
-        .register-resident-btn.show,
-        .register-resident-btn:focus:active {
-            color: #ffffff;
-            background: #60a5fa;
-            border-color: #60a5fa;
-            box-shadow: 0 0 0 0.22rem rgba(96, 165, 250, 0.32);
+        .register-resident-btn:active {
+            color: #ffffff !important;
+            background: #1d4ed8 !important;
+            border-color: #1d4ed8 !important;
+            box-shadow: 0 0 0 0.22rem rgba(29, 78, 216, 0.32) !important;
         }
 
         .login-legal-links {
