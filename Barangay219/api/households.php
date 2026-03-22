@@ -14,6 +14,10 @@ require_once __DIR__ . '/../includes/household_head_transfer_guard.php';
 requireLogin();
 requireModuleAccess('households');
 
+// Must load before the switch: getHousehold() calls isRegisterHouseholdType() which uses these globals.
+$REGISTER_HOUSEHOLD_TYPES = ['Family Household', 'Couple Only', 'Single Inhabitant', 'Non-Relative Household (Shared / Boarders)', 'Other (Specify)'];
+$LEGACY_HOUSEHOLD_TYPES = ['nuclear', 'extended', 'single_parent', 'others'];
+
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
@@ -195,9 +199,6 @@ function listFamilyHeads() {
     sendResponse(true, 'Family heads retrieved', $heads);
 }
 
-$REGISTER_HOUSEHOLD_TYPES = ['Family Household', 'Couple Only', 'Single Inhabitant', 'Non-Relative Household (Shared / Boarders)', 'Other (Specify)'];
-$LEGACY_HOUSEHOLD_TYPES = ['nuclear', 'extended', 'single_parent', 'others'];
-
 function isLegacyHouseholdType($val) {
     global $LEGACY_HOUSEHOLD_TYPES;
     return in_array(strtolower(trim((string)$val)), $LEGACY_HOUSEHOLD_TYPES, true);
@@ -206,6 +207,302 @@ function isLegacyHouseholdType($val) {
 function isRegisterHouseholdType($val) {
     global $REGISTER_HOUSEHOLD_TYPES;
     return in_array(trim((string)$val), $REGISTER_HOUSEHOLD_TYPES, true);
+}
+
+/**
+ * Map pre-registration slugs to current labels for admin/API display after legacy rows were cleared.
+ */
+function mapLegacyHouseholdTypeToRegister($val) {
+    $slug = strtolower(trim((string)$val));
+    if ($slug === '') {
+        return null;
+    }
+    $map = [
+        'nuclear' => 'Family Household',
+        'extended' => 'Family Household',
+        'single_parent' => 'Family Household',
+        'others' => 'Other (Specify)',
+    ];
+    return $map[$slug] ?? null;
+}
+
+function resolveHeadIdForHouseholdTypeCompute(array $household, array $members) {
+    $hid = (int)($household['family_head_id'] ?? $household['head_id'] ?? 0);
+    if ($hid > 0) {
+        return $hid;
+    }
+    foreach ($members as $m) {
+        $hmHead = $m['hm_is_head'] ?? null;
+        if ($hmHead === 1 || $hmHead === true || $hmHead === '1') {
+            return (int)($m['id'] ?? 0);
+        }
+    }
+    foreach ($members as $m) {
+        $rel = strtolower(trim((string)($m['relationship_to_head'] ?? $m['hm_relationship_to_head'] ?? '')));
+        if ($rel !== '' && strpos($rel, 'head') !== false) {
+            return (int)($m['id'] ?? 0);
+        }
+    }
+    foreach ($members as $m) {
+        $fhc = trim((string)($m['family_head_code'] ?? ''));
+        if ($fhc !== '' && $fhc !== '-') {
+            return (int)($m['id'] ?? 0);
+        }
+    }
+    return (int)($members[0]['id'] ?? 0);
+}
+
+/**
+ * Infer display household type from residents (aligned with api/households/info.php).
+ */
+function computeHouseholdTypeFromResidents($headId, array $members) {
+    if (empty($members)) {
+        return 'Single Inhabitant';
+    }
+    if ($headId <= 0) {
+        $headId = resolveHeadIdForHouseholdTypeCompute(['family_head_id' => 0, 'head_id' => 0], $members);
+    }
+    $rels = [];
+    foreach ($members as $m) {
+        $rid = (int)($m['id'] ?? 0);
+        if ($rid <= 0 || $rid === $headId) {
+            continue;
+        }
+        $r = strtolower(trim((string)($m['relationship_to_head'] ?? $m['hm_relationship_to_head'] ?? '')));
+        if ($r !== '' && $r !== 'member' && strpos($r, 'head') === false) {
+            $rels[] = $r;
+        }
+    }
+    if (empty($rels)) {
+        return 'Single Inhabitant';
+    }
+    $hasSpouse = false;
+    $hasFamily = false;
+    $hasNonRelative = false;
+    foreach ($rels as $r) {
+        if (strpos($r, 'spouse') !== false || strpos($r, 'wife') !== false || strpos($r, 'husband') !== false) {
+            $hasSpouse = true;
+        }
+        if (strpos($r, 'son') !== false || strpos($r, 'daughter') !== false || strpos($r, 'child') !== false ||
+            strpos($r, 'parent') !== false || strpos($r, 'mother') !== false || strpos($r, 'father') !== false ||
+            strpos($r, 'sibling') !== false || strpos($r, 'brother') !== false || strpos($r, 'sister') !== false ||
+            strpos($r, 'grandchild') !== false || strpos($r, 'grandparent') !== false ||
+            strpos($r, 'nephew') !== false || strpos($r, 'niece') !== false ||
+            strpos($r, 'uncle') !== false || strpos($r, 'aunt') !== false || strpos($r, 'cousin') !== false ||
+            strpos($r, 'in-law') !== false) {
+            $hasFamily = true;
+        }
+        if (strpos($r, 'boarder') !== false || strpos($r, 'helper') !== false || strpos($r, 'non-relative') !== false ||
+            strpos($r, 'tenant') !== false || strpos($r, 'shared') !== false) {
+            $hasNonRelative = true;
+        }
+    }
+    if ($hasFamily || ($hasSpouse && count($rels) > 1)) {
+        return 'Family Household';
+    }
+    if ($hasSpouse && count($rels) === 1) {
+        return 'Couple Only';
+    }
+    if ($hasNonRelative && !$hasFamily && !$hasSpouse) {
+        return 'Non-Relative Household (Shared / Boarders)';
+    }
+    return 'Family Household';
+}
+
+/**
+ * Fill household_type for admin JSON when DB value was cleared (legacy) or never set.
+ */
+function resolveHouseholdTypeForAdminApi(array $household, array $members, $rawBeforeEnrich) {
+    $cur = trim((string)($household['household_type'] ?? ''));
+    if ($cur !== '' && isRegisterHouseholdType($cur)) {
+        return $cur;
+    }
+    $mapped = mapLegacyHouseholdTypeToRegister($rawBeforeEnrich);
+    if ($mapped !== null) {
+        return $mapped;
+    }
+    $headId = resolveHeadIdForHouseholdTypeCompute($household, $members);
+    return computeHouseholdTypeFromResidents($headId, $members);
+}
+
+/**
+ * Map registration / stored house type labels or slugs to households.house_type form slug (see applications.php).
+ */
+function structureHouseTypeToSlug($raw) {
+    $raw = trim((string)$raw);
+    if ($raw === '') {
+        return '';
+    }
+    $map = [
+        'Concrete' => 'concrete',
+        'Semi-Concrete' => 'semi_concrete',
+        'Light Materials' => 'light_materials',
+        'Apartment / Boarding House' => 'apartment_boarding',
+        'Townhouse / Row House' => 'townhouse_row',
+        'Informal / Improvised' => 'informal_improvised',
+    ];
+    if (isset($map[$raw])) {
+        return $map[$raw];
+    }
+    $known = ['concrete', 'semi_concrete', 'light_materials', 'apartment_boarding', 'townhouse_row', 'informal_improvised'];
+    $norm = strtolower(str_replace(['-', '/', ' '], '_', $raw));
+    $norm = preg_replace('/_+/', '_', $norm);
+    $norm = trim($norm, '_');
+    if (in_array($norm, $known, true)) {
+        return $norm;
+    }
+    if ($norm === 'apartment_boarding_house') {
+        return 'apartment_boarding';
+    }
+    if ($norm === 'townhouse_row_house') {
+        return 'townhouse_row';
+    }
+    return '';
+}
+
+/**
+ * Resolve structure house_type from resident_applications for a resident (legacy-friendly).
+ * Tries: approved_resident_id, then name+DOB, then email. Does not require strict status if id match exists.
+ */
+function fetchHouseTypeFromApplicationsForResident($db, $residentId) {
+    $residentId = (int)$residentId;
+    if ($residentId <= 0) {
+        return '';
+    }
+    if (!tableExists($db, 'resident_applications') || !columnExists($db, 'resident_applications', 'house_type')) {
+        return '';
+    }
+
+    try {
+        if (columnExists($db, 'resident_applications', 'approved_resident_id')) {
+            $app = $db->fetchOne(
+                'SELECT house_type FROM resident_applications WHERE approved_resident_id = ? ORDER BY id DESC LIMIT 1',
+                [$residentId]
+            );
+            if ($app) {
+                $ht = trim((string)($app['house_type'] ?? ''));
+                if ($ht !== '') {
+                    return $ht;
+                }
+            }
+        }
+
+        $sel = ['first_name', 'last_name'];
+        if (columnExists($db, 'residents', 'birth_date')) {
+            $sel[] = 'birth_date';
+        }
+        if (columnExists($db, 'residents', 'date_of_birth')) {
+            $sel[] = 'date_of_birth';
+        }
+        if (columnExists($db, 'residents', 'email')) {
+            $sel[] = 'email';
+        }
+        if (columnExists($db, 'residents', 'family_code')) {
+            $sel[] = 'family_code';
+        }
+        $r = $db->fetchOne(
+            'SELECT ' . implode(', ', $sel) . ' FROM residents WHERE id = ? LIMIT 1',
+            [$residentId]
+        );
+        if (!$r) {
+            return '';
+        }
+        $fn = trim((string)($r['first_name'] ?? ''));
+        $ln = trim((string)($r['last_name'] ?? ''));
+        $dob = $r['birth_date'] ?? $r['date_of_birth'] ?? null;
+        if ($fn !== '' && $ln !== '' && $dob) {
+            $dobStr = is_string($dob) ? substr($dob, 0, 10) : $dob;
+            $app = $db->fetchOne(
+                'SELECT house_type FROM resident_applications
+                 WHERE LOWER(TRIM(first_name)) = LOWER(?) AND LOWER(TRIM(last_name)) = LOWER(?)
+                   AND DATE(birth_date) = DATE(?)
+                 ORDER BY id DESC LIMIT 1',
+                [$fn, $ln, $dobStr]
+            );
+            if ($app) {
+                $ht = trim((string)($app['house_type'] ?? ''));
+                if ($ht !== '') {
+                    return $ht;
+                }
+            }
+        }
+
+        if (columnExists($db, 'resident_applications', 'email')) {
+            $email = trim((string)($r['email'] ?? ''));
+            if ($email !== '') {
+                $app = $db->fetchOne(
+                    'SELECT house_type FROM resident_applications WHERE LOWER(TRIM(email)) = LOWER(?) ORDER BY id DESC LIMIT 1',
+                    [$email]
+                );
+                if ($app) {
+                    $ht = trim((string)($app['house_type'] ?? ''));
+                    if ($ht !== '') {
+                        return $ht;
+                    }
+                }
+            }
+        }
+
+        if (columnExists($db, 'resident_applications', 'family_code')) {
+            $fc = trim((string)($r['family_code'] ?? ''));
+            if ($fc !== '' && $fc !== '-') {
+                $app = $db->fetchOne(
+                    'SELECT house_type FROM resident_applications WHERE TRIM(family_code) = ? AND house_type IS NOT NULL AND TRIM(house_type) <> \'\' ORDER BY id DESC LIMIT 1',
+                    [$fc]
+                );
+                if ($app) {
+                    $ht = trim((string)($app['house_type'] ?? ''));
+                    if ($ht !== '') {
+                        return $ht;
+                    }
+                }
+            }
+        }
+
+    } catch (Exception $e) {
+        error_log('fetchHouseTypeFromApplicationsForResident: ' . $e->getMessage());
+    }
+
+    return '';
+}
+
+/**
+ * When households.house_type is empty, fill from applications (head first, then other members).
+ * Works even if households.house_type column is missing (virtual field for API JSON).
+ */
+function enrichStructureHouseTypeFromHeadApplication($db, array $household, array $members = []) {
+    $cur = trim((string)($household['house_type'] ?? ''));
+    if ($cur !== '') {
+        return $household;
+    }
+
+    $headId = (int)($household['family_head_id'] ?? $household['head_id'] ?? 0);
+    $candidateIds = [];
+    if ($headId > 0) {
+        $candidateIds[] = $headId;
+    }
+    foreach ($members as $m) {
+        $rid = (int)($m['id'] ?? 0);
+        if ($rid > 0 && !in_array($rid, $candidateIds, true)) {
+            $candidateIds[] = $rid;
+        }
+    }
+
+    $rawHt = '';
+    foreach ($candidateIds as $rid) {
+        $rawHt = fetchHouseTypeFromApplicationsForResident($db, $rid);
+        if ($rawHt !== '') {
+            break;
+        }
+    }
+
+    if ($rawHt === '') {
+        return $household;
+    }
+
+    $slug = structureHouseTypeToSlug($rawHt);
+    $household['house_type'] = $slug !== '' ? $slug : $rawHt;
+    return $household;
 }
 
 /**
@@ -745,6 +1042,7 @@ function listHouseholds() {
         }
 
         foreach ($households as &$h) {
+            $rawTypeList = trim((string)($h['household_type'] ?? ''));
             try {
                 $h = enrichHouseholdTypeFromHeadApplication($db, $h);
             } catch (Throwable $ex) {
@@ -752,6 +1050,13 @@ function listHouseholds() {
                 $cur = trim((string)($h['household_type'] ?? ''));
                 if (in_array(strtolower($cur), ['nuclear', 'extended', 'single_parent', 'others'], true)) {
                     $h['household_type'] = null;
+                }
+            }
+            $curList = trim((string)($h['household_type'] ?? ''));
+            if ($curList === '' && $rawTypeList !== '') {
+                $mappedList = mapLegacyHouseholdTypeToRegister($rawTypeList);
+                if ($mappedList !== null) {
+                    $h['household_type'] = $mappedList;
                 }
             }
         }
@@ -797,6 +1102,7 @@ function getHousehold() {
         ensureHouseholdCodesAndDetails($db, $id);
         // Reload so UI gets updated code values.
         $household = $db->fetchOne($sql, [$id]);
+        $rawHouseholdTypeForDisplay = trim((string)($household['household_type'] ?? ''));
         try {
             $household = enrichHouseholdTypeFromHeadApplication($db, $household);
         } catch (Throwable $ex) {
@@ -943,10 +1249,12 @@ function getHousehold() {
         }
 
         $household['members'] = $members;
-        
+        $household['household_type'] = resolveHouseholdTypeForAdminApi($household, $members, $rawHouseholdTypeForDisplay);
+        $household = enrichStructureHouseTypeFromHeadApplication($db, $household, $members);
+
         sendResponse(true, 'Household retrieved successfully', $household);
         
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         error_log("Get household error: " . $e->getMessage());
         $msg = defined('DEBUG_MODE') && DEBUG_MODE
             ? ('Error retrieving household: ' . $e->getMessage())
@@ -1618,11 +1926,49 @@ function updateHouseholdStatistics($household_id) {
 }
 
 /**
+ * Map residents.gender / civil_status to household_members ENUM labels (schema uses Title Case).
+ */
+function normalizeHouseholdMemberGenderEnum($raw) {
+    $g = strtolower(trim((string)$raw));
+    if ($g === 'male' || $g === 'm') {
+        return 'Male';
+    }
+    if ($g === 'female' || $g === 'f') {
+        return 'Female';
+    }
+    if (in_array($g, ['other', 'o', 'prefer not to say', ''], true)) {
+        return 'Other';
+    }
+    $t = ucfirst($g);
+    return in_array($t, ['Male', 'Female', 'Other'], true) ? $t : 'Other';
+}
+
+function normalizeHouseholdMemberCivilEnum($raw) {
+    $s = strtolower(trim((string)$raw));
+    $map = [
+        'single' => 'Single',
+        'married' => 'Married',
+        'widowed' => 'Widowed',
+        'divorced' => 'Divorced',
+        'separated' => 'Separated',
+    ];
+    if (isset($map[$s])) {
+        return $map[$s];
+    }
+    $t = ucfirst($s);
+    return in_array($t, ['Single', 'Married', 'Widowed', 'Divorced', 'Separated'], true) ? $t : 'Single';
+}
+
+/**
  * Add resident to household
  */
 function addHouseholdMember() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         sendResponse(false, 'Invalid request method', null, 405);
+        return;
+    }
+    if (!canPerformModulePermission('households', 'can_edit')) {
+        sendResponse(false, 'Access denied', null, 403);
         return;
     }
     $household_id = intval($_POST['household_id'] ?? 0);
@@ -1644,16 +1990,42 @@ function addHouseholdMember() {
             return;
         }
 
+        $hadHead = !empty($household['family_head_id']);
+        $relationship_to_head = trim(sanitizeInput((string)($_POST['relationship_to_head'] ?? '')));
+
         // If this household does not yet have a head, auto-promote this resident as head.
-        if (empty($household['family_head_id'])) {
+        if (!$hadHead) {
+            $relationship_to_head = 'Head';
             $db->query("UPDATE households SET family_head_id = ? WHERE id = ?", [$resident_id, $household_id]);
+        } else {
+            $allowedRel = [
+                'Spouse', 'Son', 'Daughter', 'Mother', 'Father', 'Brother', 'Sister',
+                'Grandchild', 'Grandparent', 'Son-in-Law', 'Daughter-in-Law', 'Sibling-in-Law',
+                'Nephew', 'Niece', 'Uncle', 'Aunt', 'Cousin', 'Boarder', 'Tenant', 'Helper',
+                'Non-Relative', 'Other', 'Relative', 'Member'
+            ];
+            if ($relationship_to_head !== '' && !in_array($relationship_to_head, $allowedRel, true)) {
+                sendResponse(false, 'Invalid relationship to head', null, 400);
+                return;
+            }
         }
 
-        $db->query("UPDATE residents SET household_id = ? WHERE id = ?", [$household_id, $resident_id]);
+        // Residents column is nullable; household_members.relationship_to_head may be NOT NULL — use Member when unspecified.
+        $relForResidents = ($relationship_to_head === '') ? null : $relationship_to_head;
+        $relForHouseholdMembers = ($relationship_to_head === '') ? 'Member' : $relationship_to_head;
+
+        if (columnExists($db, 'residents', 'relationship_to_head')) {
+            $db->query(
+                'UPDATE residents SET household_id = ?, relationship_to_head = ? WHERE id = ?',
+                [$household_id, $relForResidents, $resident_id]
+            );
+        } else {
+            $db->query('UPDATE residents SET household_id = ? WHERE id = ?', [$household_id, $resident_id]);
+        }
 
         // Clear stale household linkage fields so the member doesn't appear as a head
         // from a previous household, and sync family_code to match the current head.
-        $isNewHead = !empty($household['family_head_id']) ? false : true;
+        $isNewHead = !$hadHead;
         if (!$isNewHead && columnExists($db, 'residents', 'family_head_code')) {
             $db->query("UPDATE residents SET family_head_code = NULL WHERE id = ?", [$resident_id]);
         }
@@ -1669,12 +2041,41 @@ function addHouseholdMember() {
             $db->query("UPDATE residents SET family_head_resident_id = ? WHERE id = ?", [$headId, $resident_id]);
         }
 
+        if (tableExists($db, 'household_members') && columnExists($db, 'household_members', 'resident_id')) {
+            try {
+                $resRow = $db->fetchOne('SELECT * FROM residents WHERE id = ? LIMIT 1', [$resident_id]);
+                if ($resRow) {
+                    $dob = $resRow['birth_date'] ?? $resRow['date_of_birth'] ?? '1990-01-01';
+                    $gender = normalizeHouseholdMemberGenderEnum($resRow['gender'] ?? 'other');
+                    $civilStatus = normalizeHouseholdMemberCivilEnum($resRow['civil_status'] ?? 'single');
+                    $hmDateCol = columnExists($db, 'household_members', 'date_of_birth') ? 'date_of_birth' : 'dob';
+                    $existingHm = $db->fetchOne(
+                        'SELECT id FROM household_members WHERE resident_id = ? AND household_id = ? LIMIT 1',
+                        [$resident_id, $household_id]
+                    );
+                    if ($existingHm) {
+                        $db->query(
+                            'UPDATE household_members SET relationship_to_head = ? WHERE resident_id = ? AND household_id = ?',
+                            [$relForHouseholdMembers, $resident_id, $household_id]
+                        );
+                    } else {
+                        $db->query(
+                            "INSERT INTO household_members (household_id, resident_id, relationship_to_head, {$hmDateCol}, gender, civil_status) VALUES (?, ?, ?, ?, ?, ?)",
+                            [$household_id, $resident_id, $relForHouseholdMembers, $dob, $gender, $civilStatus]
+                        );
+                    }
+                }
+            } catch (Throwable $hmEx) {
+                error_log('addHouseholdMember household_members: ' . $hmEx->getMessage());
+            }
+        }
+
         $count = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$household_id])['c'];
         $db->query("UPDATE households SET total_members = ? WHERE id = ?", [$count, $household_id]);
         // Ensure codes and details are generated once a head exists.
         ensureHouseholdCodesAndDetails($db, $household_id);
         sendResponse(true, 'Member added to household');
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         error_log("Add member error: " . $e->getMessage());
         sendResponse(false, 'Error adding member', null, 500);
     }
@@ -1951,7 +2352,11 @@ function sendResponse($success, $message, $data = null, $httpCode = 200) {
     if ($data !== null) {
         $response['data'] = $data;
     }
-    
-    echo json_encode($response);
+
+    $flags = JSON_UNESCAPED_UNICODE;
+    if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+        $flags |= JSON_INVALID_UTF8_SUBSTITUTE;
+    }
+    echo json_encode($response, $flags);
     exit();
 }
