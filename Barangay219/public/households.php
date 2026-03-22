@@ -19,21 +19,30 @@ include __DIR__ . '/../includes/sidebar.php';
                     <h2 class="mb-1"><i class="bi bi-house-door me-2"></i>Households Management</h2>
                     <p class="module-subtitle mb-0">Manage household groups and let residents join selected households.</p>
                 </div>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-primary" id="btnCreateHousehold" onclick="newHousehold()">
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-primary" id="btnNewStreet" onclick="promptNewStreet()">
+                        <i class="bi bi-signpost-2 me-1"></i> New Street
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btnCreateHousehold" onclick="newHouseholdForContext()">
                         <i class="bi bi-plus-circle me-1"></i> New Household
                     </button>
                 </div>
             </div>
         </div>
 
+        <nav aria-label="breadcrumb" class="hh-breadcrumb-bar mb-3">
+            <ol class="breadcrumb mb-0" id="hhBreadcrumb">
+                <li class="breadcrumb-item active" aria-current="page">All Streets</li>
+            </ol>
+        </nav>
+
         <div class="search-bar mb-3">
             <div class="row">
                 <div class="col-md-6">
-                    <input type="text" class="form-control" id="searchHousehold" placeholder="Search by address or family head...">
+                    <input type="text" class="form-control" id="searchHousehold" placeholder="Search streets by name...">
                 </div>
                 <div class="col-md-2">
-                    <button class="btn btn-primary w-100" onclick="searchHouseholds()"><i class="bi bi-search"></i> Search</button>
+                    <button class="btn btn-primary w-100" onclick="runHouseholdSearch()"><i class="bi bi-search"></i> Search</button>
                 </div>
                 <div class="col-md-2">
                     <button class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#filterModal">
@@ -52,9 +61,17 @@ include __DIR__ . '/../includes/sidebar.php';
             <li class="nav-item"><a class="nav-link" href="#" data-range="year">New This Year</a></li>
         </ul>
 
-        <div id="householdTiles" class="household-tiles">
-            <div class="household-tiles-loading text-center py-5">
-                <div class="spinner-border text-primary"></div>
+        <div class="hh-back-row mb-3 d-none d-flex justify-content-end" id="hhBackBtnWrap">
+            <button type="button" class="btn btn-lg btn-outline-primary px-4 hh-back-btn" id="hhBackBtn" onclick="householdNavBack()">
+                <i class="bi bi-arrow-left me-2"></i> Back
+            </button>
+        </div>
+
+        <div id="householdTilesWrap" class="hh-tiles-wrap">
+            <div id="householdTiles" class="household-tiles">
+                <div class="household-tiles-loading text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -111,6 +128,71 @@ include __DIR__ . '/../includes/sidebar.php';
     .households-page .household-tiles {
         grid-template-columns: 1fr;
     }
+}
+
+.households-page .hh-breadcrumb-bar .breadcrumb {
+    background: #f8fafc;
+    border: 1px solid #e6edf7;
+    border-radius: 12px;
+    padding: 0.55rem 1rem;
+    font-weight: 600;
+}
+
+.households-page .hh-breadcrumb-bar .breadcrumb-item + .breadcrumb-item::before {
+    color: #94a3b8;
+}
+
+.households-page .hh-back-btn.btn-outline-primary {
+    color: #1d4ed8;
+    border-color: #93c5fd;
+    background: #f8fbff;
+    font-weight: 600;
+}
+
+.households-page .hh-back-btn.btn-outline-primary:hover,
+.households-page .hh-back-btn.btn-outline-primary:focus-visible {
+    color: #1e40af;
+    border-color: #3b82f6;
+    background: #e8f0ff;
+}
+
+.households-page .hh-tiles-wrap {
+    transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.households-page .hh-tiles-wrap.hh-tiles-dim {
+    opacity: 0.45;
+    transform: translateY(4px);
+    pointer-events: none;
+}
+
+.households-page .street-tile.card {
+    cursor: pointer;
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.households-page .street-tile.card:hover,
+.households-page .street-tile.card:focus-visible {
+    box-shadow: 0 0.5rem 1.25rem rgba(15, 23, 42, 0.08);
+    transform: translateY(-2px);
+    border-color: #bfdbfe;
+}
+
+.households-page .household-tile.card.hh-tile-clickable {
+    cursor: pointer;
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.households-page .household-tile.card.hh-tile-clickable:hover,
+.households-page .household-tile.card.hh-tile-clickable:focus-visible {
+    box-shadow: 0 0.5rem 1.25rem rgba(15, 23, 42, 0.08);
+    transform: translateY(-2px);
+    border-color: #bfdbfe;
+}
+
+.households-page .household-tile .tile-actions .action-icon-btn {
+    position: relative;
+    z-index: 2;
 }
 
 .households-page .household-tile.card {
