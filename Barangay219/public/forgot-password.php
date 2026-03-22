@@ -105,31 +105,59 @@ if (isLoggedIn()) {
         .method-btn {
             flex: 1;
             padding: 12px 10px;
-            border: 2px solid #e2e8f0;
-            background: white;
+            border: 2px solid #cbd5e1;
+            background: #ffffff;
             border-radius: 10px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
             text-align: center;
             font-size: 0.875rem;
             font-weight: 600;
-            color: #475569;
+            color: #334155;
             line-height: 1.3;
             font-family: 'Inter', sans-serif;
         }
         
-        .method-btn:hover {
+        .method-btn:hover,
+        .method-btn:focus,
+        .method-btn:focus-visible {
             border-color: #bfdbfe;
-            background: #f1f5f9;
-            transform: scale(1.02);
+            background: #f8fbff;
+            color: #1e3a8a;
+            transform: scale(1.03);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+        }
+
+        .method-btn:active {
+            background: #eaf2ff;
+            border-color: #93c5fd;
+            color: #1e3a8a;
+            transform: scale(1.01);
+            box-shadow: inset 0 2px 8px rgba(30, 64, 175, 0.12), 0 0 0 0.18rem rgba(191, 219, 254, 0.45);
         }
         
         .method-btn.active {
             border-color: #1d4ed8;
             background: #1d4ed8;
             color: white;
-            box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
-            transform: scale(1.02);
+            box-shadow: 0 10px 24px rgba(29, 78, 216, 0.25);
+            transform: scale(1.03);
+        }
+
+        .method-btn.active:hover,
+        .method-btn.active:focus,
+        .method-btn.active:focus-visible {
+            border-color: #3b82f6;
+            background: #3b82f6;
+            color: #ffffff;
+        }
+
+        .method-btn.active:active {
+            border-color: #60a5fa;
+            background: #60a5fa;
+            color: #ffffff;
+            transform: scale(1.01);
+            box-shadow: inset 0 2px 8px rgba(29, 78, 216, 0.18), 0 0 0 0.18rem rgba(59, 130, 246, 0.2);
         }
         
         .method-btn small {

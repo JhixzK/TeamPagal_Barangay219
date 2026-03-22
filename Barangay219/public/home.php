@@ -50,7 +50,7 @@ $heroSlides = [
     <!-- Google Font: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
-    <link href="<?php echo ASSETS_URL; ?>style.css" rel="stylesheet">
+    <link href="<?php echo ASSETS_URL; ?>style.css?v=<?php echo time(); ?>" rel="stylesheet">
     <style>
         :root {
             --gov-blue: #1d4ed8;
@@ -117,6 +117,14 @@ $heroSlides = [
             background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%);
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 14px 26px -22px rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: box-shadow 0.25s ease, border-color 0.25s ease, background-color 0.25s ease;
+        }
+
+        .navbar-gov.is-scrolled {
+            border-bottom-color: rgba(255, 255, 255, 0.28);
+            box-shadow: 0 16px 30px -18px rgba(15, 23, 42, 0.72);
         }
 
         .navbar-gov .navbar-brand {
@@ -209,23 +217,43 @@ $heroSlides = [
             border-radius: 10px;
             font-weight: 600;
             padding: 0.5rem 1.1rem;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
             font-family: 'Inter', sans-serif;
         }
 
-        .btn-nav:hover {
+        .btn-nav:hover,
+        .btn-nav:focus,
+        .btn-nav:focus-visible {
             transform: scale(1.03);
+            box-shadow: 0 15px 30px rgba(15, 23, 42, 0.18);
+        }
+
+        .btn-nav:active,
+        .btn-nav.active {
+            transform: scale(1.01);
+            box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.16), 0 0 0 0.18rem rgba(191, 219, 254, 0.35);
         }
 
         .btn-register {
             color: #ffffff;
-            border: 1px solid #ffffff;
-            background: transparent;
+            border: 1.5px solid rgba(147, 197, 253, 0.95);
+            background: rgba(37, 99, 235, 0.52);
         }
 
         .btn-register:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: scale(1.03);
+            color: #ffffff;
+            background: rgba(59, 130, 246, 0.72);
+            border-color: rgba(191, 219, 254, 1);
+        }
+
+        .btn-register:active,
+        .btn-register:focus,
+        .btn-register:focus-visible,
+        .btn-register.active {
+            color: #ffffff;
+            background: rgba(96, 165, 250, 0.86);
+            border-color: rgba(147, 197, 253, 1);
+            box-shadow: inset 0 2px 8px rgba(29, 78, 216, 0.2), 0 0 0 0.18rem rgba(147, 197, 253, 0.35);
         }
 
         .btn-login {
@@ -236,8 +264,18 @@ $heroSlides = [
 
         .btn-login:hover {
             color: #1e40af;
-            background: #eff6ff;
-            transform: scale(1.03);
+            background: #f8fbff;
+            border-color: #bfdbfe;
+        }
+
+        .btn-login:active,
+        .btn-login:focus,
+        .btn-login:focus-visible,
+        .btn-login.active {
+            color: #1e3a8a;
+            background: #eaf2ff;
+            border-color: #93c5fd;
+            box-shadow: inset 0 2px 8px rgba(30, 64, 175, 0.12), 0 0 0 0.18rem rgba(191, 219, 254, 0.45);
         }
 
         .btn-danger-outline {
@@ -248,8 +286,17 @@ $heroSlides = [
 
         .btn-danger-outline:hover {
             background: #fef2f2;
-            transform: scale(1.03);
-            box-shadow: 0 5px 12px rgba(220, 38, 38, 0.15);
+            border-color: #fda4af;
+        }
+
+        .btn-danger-outline:active,
+        .btn-danger-outline:focus,
+        .btn-danger-outline:focus-visible,
+        .btn-danger-outline.active {
+            color: #991b1b;
+            background: #fee2e2;
+            border-color: #fb7185;
+            box-shadow: inset 0 2px 8px rgba(185, 28, 28, 0.16), 0 0 0 0.18rem rgba(252, 165, 165, 0.35);
         }
 
         .hero-section {
@@ -360,6 +407,7 @@ $heroSlides = [
         .btn-hero {
             border-radius: 10px;
             padding: 0.72rem 1.3rem;
+            min-height: 46px;
             font-weight: 600;
             font-family: 'Inter', sans-serif;
             border: 1px solid transparent;
@@ -390,6 +438,15 @@ $heroSlides = [
             box-shadow: 0 15px 30px rgba(29, 78, 216, 0.3);
         }
 
+        .btn-hero-primary:active,
+        .btn-hero-primary.active {
+            color: #ffffff;
+            background: rgba(96, 165, 250, 0.95);
+            border-color: rgba(191, 219, 254, 0.95);
+            transform: scale(1.01);
+            box-shadow: inset 0 2px 8px rgba(29, 78, 216, 0.2), 0 0 0 0.18rem rgba(147, 197, 253, 0.35);
+        }
+
         /* Hero Outline Button (White semi-transparent) */
         .btn-hero-outline {
             background: rgba(255, 255, 255, 0.22);
@@ -403,6 +460,15 @@ $heroSlides = [
             background: rgba(255, 255, 255, 0.34);
             border-color: rgba(255, 255, 255, 0.98);
             box-shadow: 0 15px 30px rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-hero-outline:active,
+        .btn-hero-outline.active {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.46);
+            border-color: rgba(255, 255, 255, 0.98);
+            transform: scale(1.01);
+            box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.16), 0 0 0 0.18rem rgba(255, 255, 255, 0.22);
         }
 
         .hero-seal {
@@ -473,7 +539,7 @@ $heroSlides = [
             padding: 1.7rem 1.35rem;
             height: 100%;
             border-top: 3px solid #bfdbfe;
-            transition: transform 0.2s ease, border-color 0.2s ease;
+            transition: transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
             cursor: pointer;
         }
 
@@ -504,6 +570,12 @@ $heroSlides = [
             font-size: 2rem;
             color: var(--gov-blue);
             margin-bottom: 0.8rem;
+            transition: transform 0.22s ease, color 0.22s ease;
+        }
+
+        .service-card:hover .service-icon {
+            transform: translateY(-2px) scale(1.05);
+            color: #2563eb;
         }
 
         .service-card h5 {
@@ -522,7 +594,7 @@ $heroSlides = [
             padding: 1.4rem;
             height: 100%;
             border-top: 3px solid #bfdbfe;
-            transition: transform 0.2s ease, border-color 0.2s ease;
+            transition: transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
             cursor: pointer;
         }
 
@@ -579,6 +651,13 @@ $heroSlides = [
             text-align: center;
             padding: 1.4rem;
             height: 100%;
+            transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+        }
+
+        .official-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 14px 26px rgba(29, 78, 216, 0.12);
+            border-color: #bfdbfe;
         }
 
         .official-avatar {
@@ -770,6 +849,43 @@ $heroSlides = [
             font-size: 0.92rem;
         }
 
+        .scroll-top-btn {
+            position: fixed;
+            right: 18px;
+            bottom: 22px;
+            z-index: 1090;
+            width: 44px;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 1.1rem;
+            border: 1px solid rgba(255, 255, 255, 0.45);
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%);
+            color: #ffffff;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(8px);
+            transition: filter 0.2s ease, transform 0.2s ease, opacity 0.2s ease, visibility 0.2s ease;
+        }
+
+        .scroll-top-btn.is-visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .scroll-top-btn:hover,
+        .scroll-top-btn:focus {
+            filter: brightness(1.08);
+            color: #ffffff;
+            transform: translateY(-1px);
+            outline: none;
+        }
+
         .reveal-on-scroll {
             opacity: 0;
             transform: translateY(18px);
@@ -798,9 +914,39 @@ $heroSlides = [
                 transform: none;
                 transition: none;
             }
+
+            .btn-nav,
+            .btn-hero,
+            .service-card,
+            .news-card,
+            .official-card,
+            .scroll-top-btn {
+                transition: none;
+                transform: none;
+            }
         }
 
         @media (max-width: 991px) {
+            .navbar-gov .navbar-collapse {
+                margin-top: 0.7rem;
+                padding: 0.8rem;
+                border-radius: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.22);
+                background: rgba(15, 23, 42, 0.78);
+                box-shadow: 0 12px 24px rgba(15, 23, 42, 0.3);
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+            }
+
+            .navbar-gov .navbar-nav {
+                gap: 0.2rem;
+                margin-bottom: 0.45rem;
+            }
+
+            .navbar-gov .nav-link {
+                padding: 0.62rem 0.8rem !important;
+            }
+
             .hero-content {
                 grid-template-columns: 1fr;
                 gap: 2.2rem;
@@ -818,6 +964,7 @@ $heroSlides = [
 
             .hero-actions {
                 justify-content: center;
+                gap: 0.6rem;
             }
 
             .navbar-gov .navbar-brand span {
@@ -858,6 +1005,7 @@ $heroSlides = [
             .btn-hero {
                 width: 100%;
                 text-align: center;
+                min-height: 44px;
             }
 
             .hero-actions {
@@ -875,6 +1023,25 @@ $heroSlides = [
 
             .footer-logos {
                 justify-content: center;
+            }
+
+            .scroll-top-btn {
+                width: 40px;
+                height: 40px;
+                right: 14px;
+                bottom: 16px;
+            }
+        }
+
+        @media (hover: none) {
+            .service-card:hover,
+            .card-link:hover .news-card,
+            .official-card:hover {
+                transform: none;
+            }
+
+            .service-card:hover .service-icon {
+                transform: none;
             }
         }
     </style>
@@ -957,7 +1124,7 @@ $heroSlides = [
                         <?php else: ?>
                             <a href="<?php echo BASE_URL; ?>register.php" class="btn-hero btn-hero-primary">Create Account</a>
                         <?php endif; ?>
-                        <a href="#services" class="btn-hero btn-hero-outline">Explore Services</a>
+                        <a href="#services" class="btn-hero btn-hero-outline">View Services</a>
                     </div>
                 </div>
                     <div class="hero-seal">
@@ -1258,6 +1425,10 @@ $heroSlides = [
         </div>
     </footer>
 
+    <button type="button" id="scrollTopBtn" class="scroll-top-btn" aria-label="Scroll to top" title="Back to top">
+        <i class="bi bi-arrow-up"></i>
+    </button>
+
     <!-- Bootstrap JS -->
     <script src="<?php echo ASSETS_URL; ?>js/bootstrap.bundle.min.js"></script>
     <script>
@@ -1284,6 +1455,7 @@ $heroSlides = [
         (function() {
             const navLinks = document.querySelectorAll('.navbar-gov .nav-link');
             const homeLink = document.querySelector('.navbar-gov .nav-link[href$="home.php"]');
+            const navbar = document.querySelector('.navbar-gov');
             const sectionLinks = Array.from(navLinks).filter(link => {
                 const href = link.getAttribute('href') || '';
                 return href.startsWith('#') && document.querySelector(href);
@@ -1305,6 +1477,10 @@ $heroSlides = [
                 const scrollY = window.scrollY;
                 const offset = 140;
                 let active = null;
+
+                if (navbar) {
+                    navbar.classList.toggle('is-scrolled', scrollY > 18);
+                }
 
                 for (const item of sections) {
                     if (!item.section) continue;
@@ -1329,6 +1505,49 @@ $heroSlides = [
             window.addEventListener('scroll', updateActiveNav, { passive: true });
             window.addEventListener('load', updateActiveNav);
             updateActiveNav();
+        })();
+
+        // Close mobile nav after clicking a menu link for smoother small-screen UX
+        (function() {
+            const navMenu = document.getElementById('navbarMenu');
+            if (!navMenu) return;
+
+            const navCollapse = bootstrap.Collapse.getOrCreateInstance(navMenu, { toggle: false });
+            navMenu.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth < 992 && navMenu.classList.contains('show')) {
+                        navCollapse.hide();
+                    }
+                });
+            });
+        })();
+
+        // Floating scroll-to-top button (shown after leaving hero / entering white content sections)
+        (function() {
+            const topBtn = document.getElementById('scrollTopBtn');
+            const heroSection = document.querySelector('.hero-section');
+
+            if (!topBtn) {
+                return;
+            }
+
+            function toggleTopBtn() {
+                const triggerY = heroSection ? Math.max(heroSection.offsetHeight - 220, 260) : 320;
+                if (window.scrollY > triggerY) {
+                    topBtn.classList.add('is-visible');
+                } else {
+                    topBtn.classList.remove('is-visible');
+                }
+            }
+
+            topBtn.addEventListener('click', function() {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+            window.addEventListener('scroll', toggleTopBtn, { passive: true });
+            window.addEventListener('resize', toggleTopBtn);
+            window.addEventListener('load', toggleTopBtn);
+            toggleTopBtn();
         })();
 
         // Smooth reveal animation for sections on first view
