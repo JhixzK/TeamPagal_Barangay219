@@ -490,11 +490,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <div id="joinHouseholdSection" class="mt-3">
                         <div class="card hh-add-member-card border shadow-sm">
                             <div class="card-body">
-                                <h6 class="card-title mb-2"><i class="bi bi-person-plus me-1"></i> Add resident to household</h6>
-                                <p class="small text-muted mb-3">Only residents who are <strong>not yet assigned to any household</strong> can be added. Members already on this household are excluded.</p>
-                                <p class="small border-start border-primary border-3 ps-2 mb-3 text-body-secondary">
-                                    <strong>Add to household</strong> runs immediately. Use <strong>Save household details</strong> below for address, head, and other fields.
-                                </p>
+                                <h6 class="card-title mb-3"><i class="bi bi-person-plus me-1"></i> Add resident to household</h6>
                                 <label for="addMemberResidentSearch" class="form-label">Find resident</label>
                                 <div class="input-group mb-3">
                                     <span class="input-group-text bg-white"><i class="bi bi-search" aria-hidden="true"></i></span>
@@ -505,7 +501,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <option value="">— Choose a resident —</option>
                                 </select>
                                 <div class="mb-3" id="addMemberRelationshipGroup">
-                                    <label for="addMemberRelationshipToHead" class="form-label">Relationship to head <span class="text-muted small">(optional)</span></label>
+                                    <label for="addMemberRelationshipToHead" class="form-label">Relationship to head</label>
                                     <select class="form-select" id="addMemberRelationshipToHead">
                                         <option value="">Select relationship</option>
                                         <option value="Spouse">Spouse</option>
