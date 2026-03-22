@@ -3,13 +3,14 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
 }
 
 let currentViewHouseholdId = null;
-let householdFilters = { q: '', from: '', to: '' };
 
 /** @type {'streets' | 'households'} */
 let householdNavLevel = 'streets';
 /** API filter token: actual street text or "__EMPTY__" */
 let selectedStreetToken = '';
 let selectedStreetLabel = '';
+/** Search text for household list (per-street view only); sent as API `q` */
+let householdListQuery = '';
 
 function showHouseholdToast(message, type) {
     type = type || 'success';
@@ -36,11 +37,9 @@ const HOUSEHOLD_PERMS = {
 
 document.addEventListener('DOMContentLoaded', function() {
     initHouseholdTilesDelegation();
-    updateHouseholdSearchUi();
     renderBreadcrumb();
     loadStreets();
     applyHouseholdPermissions();
-    initHouseholdStatFilters();
     initHouseholdFormFormatting();
     document.getElementById('householdForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -52,6 +51,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const addMemberEditBtn = document.getElementById('btnAddMemberEdit');
     if (addMemberEditBtn) {
         addMemberEditBtn.addEventListener('click', addMemberToHousehold);
+    }
+    const hhSearchInput = document.getElementById('hhHouseholdSearchInput');
+    if (hhSearchInput) {
+        hhSearchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                runHouseholdListSearch();
+            }
+        });
     }
 });
 
@@ -100,23 +108,20 @@ function withTilesTransition(runFetch) {
     Promise.resolve(runFetch()).then(done).catch(done);
 }
 
-function updateHouseholdSearchUi() {
-    const input = document.getElementById('searchHousehold');
-    if (!input) return;
-    if (householdNavLevel === 'streets') {
-        input.placeholder = 'Search streets by name...';
-    } else {
-        input.placeholder = 'Search households (head, address, ID code, street)...';
-    }
+function updateHouseholdToolbarVisibility() {
+    const searchWrap = document.getElementById('hhHouseholdSearchWrap');
+    const backWrap = document.getElementById('hhBackBtnWrap');
+    const show = householdNavLevel === 'households';
+    if (searchWrap) searchWrap.classList.toggle('d-none', !show);
+    if (backWrap) backWrap.classList.toggle('d-none', !show);
 }
 
 function renderBreadcrumb() {
     const ol = document.getElementById('hhBreadcrumb');
-    const backWrap = document.getElementById('hhBackBtnWrap');
     if (!ol) return;
     if (householdNavLevel === 'streets') {
         ol.innerHTML = '<li class="breadcrumb-item active" aria-current="page">All Streets</li>';
-        if (backWrap) backWrap.classList.add('d-none');
+        updateHouseholdToolbarVisibility();
         return;
     }
     const streetEsc = escapeHtml(selectedStreetLabel || 'Street');
@@ -131,14 +136,33 @@ function renderBreadcrumb() {
             householdNavBack();
         });
     }
-    if (backWrap) backWrap.classList.remove('d-none');
+    updateHouseholdToolbarVisibility();
+}
+
+function resetHouseholdListSearchFields() {
+    householdListQuery = '';
+    const input = document.getElementById('hhHouseholdSearchInput');
+    if (input) input.value = '';
+}
+
+function runHouseholdListSearch() {
+    if (householdNavLevel !== 'households') return;
+    const input = document.getElementById('hhHouseholdSearchInput');
+    householdListQuery = (input && input.value) ? input.value.trim() : '';
+    withTilesTransition(() => Promise.resolve(loadHouseholds()));
+}
+
+function clearHouseholdListSearch() {
+    if (householdNavLevel !== 'households') return;
+    resetHouseholdListSearchFields();
+    withTilesTransition(() => Promise.resolve(loadHouseholds()));
 }
 
 function householdNavBack() {
     householdNavLevel = 'streets';
     selectedStreetToken = '';
     selectedStreetLabel = '';
-    updateHouseholdSearchUi();
+    resetHouseholdListSearchFields();
     renderBreadcrumb();
     withTilesTransition(() => Promise.resolve(loadStreets()));
 }
@@ -147,7 +171,7 @@ function openStreet(token, label) {
     selectedStreetToken = token || '';
     selectedStreetLabel = label || '';
     householdNavLevel = 'households';
-    updateHouseholdSearchUi();
+    resetHouseholdListSearchFields();
     renderBreadcrumb();
     withTilesTransition(() => Promise.resolve(loadHouseholds()));
 }
@@ -164,9 +188,6 @@ function loadStreets() {
     if (!tiles) return Promise.resolve();
 
     const params = new URLSearchParams({ action: 'list_streets' });
-    if (householdFilters.q) params.append('q', householdFilters.q);
-    if (householdFilters.from) params.append('from', householdFilters.from);
-    if (householdFilters.to) params.append('to', householdFilters.to);
 
     return fetch(window.API_URL + 'households.php?' + params.toString())
         .then(r => r.json())
@@ -210,7 +231,7 @@ function loadStreets() {
                                         <dd>${barangay ? escapeHtml(toTitleCase(barangay)) : '—'}</dd>
                                     </div>
                                     <div>
-                                        <dt>Filter</dt>
+                                        <dt>Street</dt>
                                         <dd>${keyDd}</dd>
                                     </div>
                                 </dl>
@@ -221,7 +242,7 @@ function loadStreets() {
                 const summary = `<div class="hh-street-summary text-muted small mb-2" style="grid-column: 1 / -1;">Showing <strong>${rows.length}</strong> street${rows.length === 1 ? '' : 's'} · <strong>${totalHH}</strong> household${totalHH === 1 ? '' : 's'} total</div>`;
                 tiles.innerHTML = summary + cards;
             } else if (d.success) {
-                tiles.innerHTML = '<div class="d-flex align-items-center justify-content-center w-100 text-center text-muted py-5" style="min-height:280px;">No streets found. Add a household with a street name, or adjust your search.</div>';
+                tiles.innerHTML = '<div class="d-flex align-items-center justify-content-center w-100 text-center text-muted py-5" style="min-height:280px;">No streets found. Add a household with a street name.</div>';
             } else {
                 tiles.innerHTML = '<div class="d-flex align-items-center justify-content-center w-100 text-center text-danger py-5" style="min-height:280px;">' + escapeHtml(d.message || 'Unable to load streets') + '</div>';
             }
@@ -241,63 +262,11 @@ function newHouseholdForContext() {
     if (totalMembersGroup) totalMembersGroup.style.display = 'none';
     const joinSection = document.getElementById('joinHouseholdSection');
     if (joinSection) joinSection.style.display = 'none';
-    const streetInput = document.getElementById('street');
-    if (streetInput && householdNavLevel === 'households' && selectedStreetToken && selectedStreetToken !== '__EMPTY__') {
-        streetInput.value = toTitleCase(selectedStreetToken);
+    if (householdNavLevel === 'households' && selectedStreetToken && selectedStreetToken !== '__EMPTY__') {
+        setStreetSelectValue(selectedStreetToken);
     }
     new bootstrap.Modal(document.getElementById('householdModal')).show();
     loadResidentsForDropdown();
-}
-
-function promptNewStreet() {
-    if (!HOUSEHOLD_PERMS.canCreate) { alert('Access denied'); return; }
-    const name = window.prompt('Enter the street name to start a household on that street:', '');
-    if (name === null) return;
-    const trimmed = name.trim();
-    resetForm();
-    document.getElementById('householdModalTitle').textContent = 'New Household';
-    const reg = document.getElementById('registration_date');
-    if (reg && !reg.value) reg.value = formatDateInput(new Date());
-    const totalMembersGroup = document.getElementById('totalMembersGroup');
-    if (totalMembersGroup) totalMembersGroup.style.display = 'none';
-    const joinSection = document.getElementById('joinHouseholdSection');
-    if (joinSection) joinSection.style.display = 'none';
-    const streetInput = document.getElementById('street');
-    if (streetInput && trimmed) streetInput.value = toTitleCase(trimmed);
-    new bootstrap.Modal(document.getElementById('householdModal')).show();
-    loadResidentsForDropdown();
-}
-
-function initHouseholdStatFilters() {
-    const tabs = document.querySelectorAll('#rangeTabs .nav-link');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', function(e) {
-            e.preventDefault();
-            tabs.forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-
-            const range = this.getAttribute('data-range') || 'all';
-            const fromInput = document.getElementById('filterFrom');
-            const toInput = document.getElementById('filterTo');
-            const today = new Date();
-            let fromVal = '';
-            let toVal = '';
-
-            if (range === 'month') {
-                fromVal = formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
-                toVal = formatDateInput(today);
-            } else if (range === 'year') {
-                fromVal = formatDateInput(new Date(today.getFullYear(), 0, 1));
-                toVal = formatDateInput(today);
-            }
-
-            householdFilters.from = fromVal;
-            householdFilters.to = toVal;
-            if (fromInput) fromInput.value = fromVal;
-            if (toInput) toInput.value = toVal;
-            withTilesTransition(() => Promise.resolve(refreshCurrentView()));
-        });
-    });
 }
 
 function formatDateInput(date) {
@@ -309,9 +278,7 @@ function formatDateInput(date) {
 
 function applyHouseholdPermissions() {
     const createBtn = document.getElementById('btnCreateHousehold');
-    const streetBtn = document.getElementById('btnNewStreet');
     if (createBtn) createBtn.style.display = HOUSEHOLD_PERMS.canCreate ? '' : 'none';
-    if (streetBtn) streetBtn.style.display = HOUSEHOLD_PERMS.canCreate ? '' : 'none';
     if (!HOUSEHOLD_PERMS.canEdit) {
         const addMemberBtn = document.getElementById('btnAddMemberEdit');
         if (addMemberBtn) addMemberBtn.style.display = 'none';
@@ -324,11 +291,11 @@ function newHousehold() {
 
 function loadHouseholds() {
     const params = new URLSearchParams({ action: 'list' });
-    if (householdFilters.q) params.append('q', householdFilters.q);
-    if (householdFilters.from) params.append('from', householdFilters.from);
-    if (householdFilters.to) params.append('to', householdFilters.to);
     if (householdNavLevel === 'households' && selectedStreetToken !== '') {
         params.append('street', selectedStreetToken);
+    }
+    if (householdListQuery) {
+        params.append('q', householdListQuery);
     }
 
     return fetch(window.API_URL + 'households.php?' + params.toString())
@@ -340,8 +307,11 @@ function loadHouseholds() {
             const data = Array.isArray(d.data) ? d.data : (d.data && typeof d.data === 'object' ? Object.values(d.data) : []);
             if (d.success && data.length) {
                 const onStreet = householdNavLevel === 'households' && selectedStreetToken !== '';
+                const qNote = householdListQuery
+                    ? ` · matching “${escapeHtml(householdListQuery)}”`
+                    : '';
                 const summary = onStreet
-                    ? `<div class="hh-household-summary text-muted small mb-2" style="grid-column: 1 / -1;">${escapeHtml(selectedStreetLabel)} · <strong>${data.length}</strong> household${data.length === 1 ? '' : 's'}</div>`
+                    ? `<div class="hh-household-summary text-muted small mb-2" style="grid-column: 1 / -1;">${escapeHtml(selectedStreetLabel)} · <strong>${data.length}</strong> household${data.length === 1 ? '' : 's'}${qNote}</div>`
                     : '';
                 tiles.innerHTML = summary + data.map(h => {
                     const id = Number(h.id);
@@ -412,62 +382,16 @@ function loadHouseholds() {
                     `;
                 }).join('');
             } else {
-                tiles.innerHTML = '<div class="d-flex align-items-center justify-content-center w-100 text-center text-muted py-5" style="min-height:280px;">No households found</div>';
+                const emptyMsg = householdListQuery
+                    ? 'No households match your search on this street.'
+                    : 'No households found';
+                tiles.innerHTML = '<div class="d-flex align-items-center justify-content-center w-100 text-center text-muted py-5" style="min-height:280px;">' + escapeHtml(emptyMsg) + '</div>';
             }
         })
         .catch(() => {
             const tiles = document.getElementById('householdTiles');
             if (tiles) tiles.innerHTML = '<div class="d-flex align-items-center justify-content-center w-100 text-center text-danger py-5" style="min-height:280px;">Error loading</div>';
         });
-}
-
-function runHouseholdSearch() {
-    const q = document.getElementById('searchHousehold').value.trim();
-    householdFilters.q = q;
-    withTilesTransition(() => Promise.resolve(refreshCurrentView()));
-}
-
-function searchHouseholds() {
-    runHouseholdSearch();
-}
-
-function applyFilters() {
-    householdFilters.from = document.getElementById('filterFrom')?.value || '';
-    householdFilters.to = document.getElementById('filterTo')?.value || '';
-    syncHouseholdRangeTabs();
-    withTilesTransition(() => Promise.resolve(refreshCurrentView()));
-    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
-    if (modal) modal.hide();
-}
-
-function resetHouseholds() {
-    const searchInput = document.getElementById('searchHousehold');
-    if (searchInput) searchInput.value = '';
-    householdFilters = { q: '', from: '', to: '' };
-    const fromInput = document.getElementById('filterFrom');
-    const toInput = document.getElementById('filterTo');
-    if (fromInput) fromInput.value = '';
-    if (toInput) toInput.value = '';
-    syncHouseholdRangeTabs();
-    withTilesTransition(() => Promise.resolve(refreshCurrentView()));
-}
-
-function syncHouseholdRangeTabs() {
-    const today = new Date();
-    const monthFrom = formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
-    const yearFrom = formatDateInput(new Date(today.getFullYear(), 0, 1));
-    const todayVal = formatDateInput(today);
-
-    let activeRange = 'all';
-    if (householdFilters.from === monthFrom && householdFilters.to === todayVal) {
-        activeRange = 'month';
-    } else if (householdFilters.from === yearFrom && householdFilters.to === todayVal) {
-        activeRange = 'year';
-    }
-
-    document.querySelectorAll('#rangeTabs .nav-link').forEach(tab => {
-        tab.classList.toggle('active', (tab.getAttribute('data-range') || 'all') === activeRange);
-    });
 }
 
 function loadResidentsForDropdown() {
@@ -498,6 +422,28 @@ function loadResidentsForDropdown() {
         .catch(() => {});
 }
 
+function setStreetSelectValue(rawStreet) {
+    const streetSel = document.getElementById('street');
+    if (!streetSel || streetSel.tagName !== 'SELECT') return;
+    const v = (rawStreet || '').toString().trim();
+    if (!v) {
+        streetSel.value = '';
+        return;
+    }
+    const match = Array.from(streetSel.options).find(function(o) {
+        return (o.value || '').trim() === v || (o.textContent || '').trim() === v;
+    });
+    if (match) {
+        streetSel.value = match.value;
+        return;
+    }
+    const o = document.createElement('option');
+    o.value = v;
+    o.textContent = toTitleCase(v);
+    streetSel.appendChild(o);
+    streetSel.value = v;
+}
+
 document.addEventListener('change', function (e) {
     const target = e.target;
     if (!target || target.id !== 'family_head_id') return;
@@ -509,15 +455,12 @@ document.addEventListener('change', function (e) {
     const street = selected.getAttribute('data-street') || '';
 
     const houseNumberInput = document.getElementById('house_number');
-    const streetInput = document.getElementById('street');
     const addressTextarea = document.getElementById('address');
 
     if (houseNumberInput) {
         houseNumberInput.value = houseNumber;
     }
-    if (streetInput) {
-        streetInput.value = street;
-    }
+    setStreetSelectValue(street);
     if (addressTextarea) {
         addressTextarea.value = fullAddress;
     }
@@ -1010,24 +953,17 @@ function editHousehold(id) {
         document.getElementById('address').value = toTitleCase(h.address || '');
         document.getElementById('total_members').value = (h.total_members === null || typeof h.total_members === 'undefined') ? 0 : h.total_members;
         document.getElementById('registration_date').value = h.registration_date || '';
-        const householdTypeSel = document.getElementById('household_type');
-        if (householdTypeSel) {
-            const storedType = (h.household_type || '').toString().trim();
-            if (storedType) {
-                const hasOption = Array.from(householdTypeSel.options).some(o => o.value === storedType);
-                if (hasOption) {
-                    householdTypeSel.value = storedType;
-                } else {
-                    const opt = document.createElement('option');
-                    opt.value = storedType;
-                    opt.textContent = storedType;
-                    householdTypeSel.appendChild(opt);
-                    householdTypeSel.value = storedType;
-                }
-            }
-            const hasHeadFromRegistration = !!(h.family_head_id && Number(h.family_head_id) > 0);
-            householdTypeSel.disabled = hasHeadFromRegistration;
-            householdTypeSel.title = hasHeadFromRegistration ? 'Household type is from the head\'s registration' : '';
+        const hn = document.getElementById('house_number');
+        if (hn) hn.value = (h.house_number || '').toString();
+        setStreetSelectValue(h.street || '');
+        const ht = document.getElementById('house_type');
+        if (ht) ht.value = (h.house_type || '').toString();
+        const ho = document.getElementById('house_ownership');
+        if (ho) {
+            const hs = (h.housing_status || '').toString().toLowerCase().trim();
+            if (hs === 'owned') ho.value = 'owned';
+            else if (hs === 'renting' || hs === 'rented') ho.value = 'rented';
+            else ho.value = '';
         }
         document.getElementById('householdModalTitle').textContent = 'Edit Household';
         const totalMembersGroup = document.getElementById('totalMembersGroup');
@@ -1058,11 +994,6 @@ function resetForm() {
     if (sel) {
         sel.innerHTML = '<option value="">-- Select resident to add --</option>';
         delete sel.dataset.householdId;
-    }
-    const householdTypeSel = document.getElementById('household_type');
-    if (householdTypeSel) {
-        householdTypeSel.disabled = false;
-        householdTypeSel.title = '';
     }
     const totalMembersGroup = document.getElementById('totalMembersGroup');
     if (totalMembersGroup) totalMembersGroup.style.display = '';
