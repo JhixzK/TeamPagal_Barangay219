@@ -9,6 +9,7 @@ define('ACCESS_ALLOWED', true);
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/../includes/household_head_transfer_guard.php';
 
 requireLogin();
 requireModuleAccess('households');
@@ -1807,15 +1808,15 @@ function assignHeadOfficial() {
             return;
         }
 
-        if (columnExists($db, 'residents', 'family_code')) {
-            $oldHeadFc = $db->fetchOne("SELECT family_code FROM residents WHERE id = ?", [$oldHeadResidentId]);
-            $newHeadFc = $db->fetchOne("SELECT family_code FROM residents WHERE id = ?", [$newHeadResidentId]);
-            $oldFc = trim((string)($oldHeadFc['family_code'] ?? ''));
-            $newFc = trim((string)($newHeadFc['family_code'] ?? ''));
-            if ($oldFc !== '' && $newFc !== '' && $oldFc !== $newFc) {
-                sendResponse(false, 'You can only transfer head role to members in the same family group', null, 400);
-                return;
-            }
+        if (!householdHeadTransferSameFamilyGroup($db, $householdId, $oldHeadResidentId, $newHeadResidentId, $designatedHeadId)) {
+            sendResponse(false, 'You can only transfer head role to members in the same family group', null, 400);
+            return;
+        }
+
+        $ageErr = householdHeadMinimumAgeError($db, $newHeadResidentId);
+        if ($ageErr !== null) {
+            sendResponse(false, $ageErr, null, 400);
+            return;
         }
 
         $db->beginTransaction();
