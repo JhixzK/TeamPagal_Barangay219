@@ -122,7 +122,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
               <thead>
                 <tr>
                   <th>Name</th>
-                  <th>Relationship</th>
+                  <th>Household Role</th>
                   <th>Sex</th>
                   <th>Age</th>
                   <th>Status</th>
@@ -333,7 +333,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
                 <thead>
                   <tr>
                     <th>Name</th>
-                    <th>Role</th>
+                    <th>Household Role</th>
                     <th>Age</th>
                     <th>Birth Date</th>
                     <th style="width:200px;">Actions</th>
