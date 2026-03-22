@@ -691,17 +691,24 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
 ?>
 <link rel="stylesheet" href="<?php echo BASE_URL; ?>resident_profile.css?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_profile.css')); ?>">
 
-<div class="main-content module-page">
+<div class="main-content module-page resident-profile-page">
   <div class="container-fluid">
-    <section class="page-head">
-      <div>
-        <p class="portal-tag">RESIDENT PORTAL</p>
-        <h2>My Profile</h2>
-        <p class="page-subtitle">Manage your resident information, verification, and account details.</p>
-      </div>
-      <div class="head-meta">
-        <span class="view-badge">Resident View</span>
-        <span class="date-badge" id="mainDateBadge"><?php echo date('F d, Y'); ?></span>
+    <section class="dashboard-hero card border-0 shadow-sm mb-4">
+      <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="hero-copy">
+          <p class="hero-kicker text-uppercase small mb-1">Resident Services Portal</p>
+          <h2 class="mb-1"><i class="bi bi-person-vcard me-2"></i>My Profile</h2>
+          <p class="hero-subtitle mb-0">Manage your resident information, verification status, and account security.</p>
+        </div>
+        <div class="text-md-end hero-meta">
+          <span class="hero-date-badge fs-6 px-3 py-2" id="mainDateBadge">
+            <i class="bi bi-calendar3 me-1"></i><?php echo date('F d, Y'); ?>
+          </span>
+          <div class="hero-chips mt-2">
+            <span class="hero-chip"><i class="bi bi-person-check me-1"></i>Resident View</span>
+            <span class="hero-chip"><i class="bi bi-shield-check me-1"></i>Profile Secure</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -723,7 +730,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
       </section>
     <?php endif; ?>
 
-    <section class="profile-summary card sticky-profile">
+    <section class="profile-summary card sticky-profile dash-panel mb-4">
       <div class="summary-left">
         <img src="<?php echo h($avatarUrl); ?>" alt="Resident profile image">
         <div class="summary-meta">
@@ -995,6 +1002,188 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
     </section>
   </div>
 </div>
+
+<style>
+.resident-profile-page .dashboard-hero {
+  border-radius: 16px;
+  background: radial-gradient(circle at 0% 0%, rgba(147, 197, 253, 0.24), transparent 36%), linear-gradient(140deg, #f8fbff 0%, #eef4ff 58%, #f4f7fb 100%);
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 16px 34px -24px rgba(37, 99, 235, 0.45);
+}
+
+.resident-profile-page .dashboard-hero .card-body {
+  padding: 1.2rem 1.3rem;
+}
+
+.resident-profile-page .hero-kicker {
+  color: #334155;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.resident-profile-page .hero-copy h2 {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.resident-profile-page .hero-subtitle {
+  color: #475569;
+  max-width: 640px;
+}
+
+.resident-profile-page .hero-date-badge {
+  display: inline-block;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1e3a8a;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  font-weight: 600;
+}
+
+.resident-profile-page .hero-chips {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.resident-profile-page .hero-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.resident-profile-page .notice {
+  border-radius: 12px;
+  border-width: 1px;
+  box-shadow: 0 8px 20px -14px rgba(15, 23, 42, 0.2);
+}
+
+.resident-profile-page .dash-panel,
+.resident-profile-page .card.info-card {
+  border-radius: 14px;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 8px 20px -12px rgba(15, 23, 42, 0.18);
+}
+
+.resident-profile-page .sticky-profile {
+  top: 84px;
+  padding: 1rem;
+  background: #ffffff;
+}
+
+.resident-profile-page .summary-left img {
+  border: 2px solid #dbeafe;
+}
+
+.resident-profile-page .summary-meta h3 {
+  color: #0f172a;
+  font-size: 1.35rem;
+}
+
+.resident-profile-page .summary-meta p {
+  color: #64748b;
+}
+
+.resident-profile-page .completion-track {
+  background: #e2e8f0;
+}
+
+.resident-profile-page .completion-fill {
+  background: linear-gradient(90deg, #2563eb, #1d4ed8);
+}
+
+.resident-profile-page .cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.resident-profile-page .info-card {
+  padding: 1rem;
+  background: #fff;
+}
+
+.resident-profile-page .card-head {
+  margin-bottom: 0.72rem;
+}
+
+.resident-profile-page .card-head h3 {
+  color: #1e293b;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.resident-profile-page .card-head small {
+  color: #64748b;
+}
+
+.resident-profile-page .btn-link {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+}
+
+.resident-profile-page .btn-link:hover {
+  background: #dbeafe;
+}
+
+.resident-profile-page .btn-primary {
+  background: #2563eb;
+}
+
+.resident-profile-page .btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.resident-profile-page .info-row {
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.45rem;
+}
+
+.resident-profile-page .info-row span {
+  color: #64748b;
+}
+
+.resident-profile-page .info-row strong {
+  color: #0f172a;
+}
+
+.resident-profile-page .edit-form {
+  border-top: 1px dashed #cbd5e1;
+}
+
+.resident-profile-page .form-grid input {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+}
+
+.resident-profile-page .form-grid input:focus {
+  border-color: #60a5fa;
+  outline: 2px solid rgba(96, 165, 250, 0.18);
+}
+
+@media (max-width: 992px) {
+  .resident-profile-page .hero-chips {
+    justify-content: flex-start;
+  }
+
+  .resident-profile-page .hero-meta {
+    text-align: left !important;
+    width: 100%;
+  }
+
+  .resident-profile-page .cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
 
 <script src="<?php echo BASE_URL; ?>resident_profile.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_profile.js')); ?>"></script>
 
