@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/_common.php';
+require_once __DIR__ . '/../../includes/household_head_transfer_guard.php';
 
 try {
     $residentId = requireResidentHouseholdSession();
@@ -396,18 +397,17 @@ function assignHouseholdHead($residentId, $data) {
     $newHeadResidentId = (int)$target['resident_id'];
     $oldHeadResidentId = (int)$residentId;
 
-    if (columnExists($db, 'residents', 'family_code')) {
-        $oldHeadFc = $db->fetchOne("SELECT family_code FROM residents WHERE id = ?", [$oldHeadResidentId]);
-        $newHeadFc = $db->fetchOne("SELECT family_code FROM residents WHERE id = ?", [$newHeadResidentId]);
-        $oldFc = trim((string)($oldHeadFc['family_code'] ?? ''));
-        $newFc = trim((string)($newHeadFc['family_code'] ?? ''));
-        if ($oldFc !== '' && $newFc !== '' && $oldFc !== $newFc) {
-            householdJsonResponse(false, null, 'You can only transfer head role to members in your family group', 400);
-        }
-    }
-
     $currentDesignated = $db->fetchOne("SELECT `{$headColumn}` AS hid FROM households WHERE id = ? LIMIT 1", [$householdId]);
     $currentDesignatedId = (int)($currentDesignated['hid'] ?? 0);
+
+    if (!householdHeadTransferSameFamilyGroup($db, $householdId, $oldHeadResidentId, $newHeadResidentId, $currentDesignatedId)) {
+        householdJsonResponse(false, null, 'You can only transfer head role to members in your family group', 400);
+    }
+
+    $ageErr = householdHeadMinimumAgeError($db, $newHeadResidentId);
+    if ($ageErr !== null) {
+        householdJsonResponse(false, null, $ageErr, 400);
+    }
 
     $db->beginTransaction();
     try {
