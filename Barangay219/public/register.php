@@ -601,9 +601,9 @@ $barangay219_purok_options = [
                                                 <option value="Others (Please Specify)">Others (Please Specify)</option>
                                             </select>
                                         </div>
-                                        <div class="col-md-6 mb-3">
+                                        <div class="col-md-6 mb-3" id="employmentStatusWrapper">
                                             <label>Employment Status <span class="text-danger">*</span></label>
-                                            <select name="employment_status" class="form-select" required>
+                                            <select name="employment_status" id="employment_status" class="form-select" required>
                                                 <option value="">Select Status</option>
                                                 <option value="Employed">Employed</option>
                                                 <option value="Unemployed">Unemployed</option>
@@ -1247,18 +1247,29 @@ function toggleMonthlyIncomeField() {
     const occupationField = document.getElementById('occupation');
     const monthlyIncomeWrapper = document.getElementById('monthlyIncomeWrapper');
     const monthlyIncomeField = document.querySelector('input[name="household_income"]');
+    const employmentStatusWrapper = document.getElementById('employmentStatusWrapper');
+    const employmentStatusField = document.getElementById('employment_status');
 
-    if (!occupationField || !monthlyIncomeWrapper || !monthlyIncomeField) {
+    if (!occupationField || !monthlyIncomeWrapper || !monthlyIncomeField || !employmentStatusWrapper || !employmentStatusField) {
         return;
     }
 
     const isStudent = occupationField.value === 'Student';
-    monthlyIncomeWrapper.style.display = isStudent ? 'none' : 'block';
-    monthlyIncomeField.required = !isStudent;
+    const isUnemployed = occupationField.value === 'Unemployed';
+    const shouldHideByOccupation = isStudent || isUnemployed;
 
-    if (isStudent) {
+    monthlyIncomeWrapper.style.display = shouldHideByOccupation ? 'none' : 'block';
+    monthlyIncomeField.required = !shouldHideByOccupation;
+    employmentStatusWrapper.style.display = shouldHideByOccupation ? 'none' : 'block';
+    employmentStatusField.required = !shouldHideByOccupation;
+
+    if (shouldHideByOccupation) {
         monthlyIncomeField.value = '';
         monthlyIncomeField.classList.remove('is-invalid');
+        employmentStatusField.value = isStudent ? 'Student' : 'Unemployed';
+        employmentStatusField.classList.remove('is-invalid');
+    } else if (employmentStatusField.value === 'Student' || employmentStatusField.value === 'Unemployed') {
+        employmentStatusField.value = '';
     }
 }
 
@@ -1466,6 +1477,11 @@ function populateReview() {
 
         const roleOriginal = document.querySelector('[name="household_role"]');
         const isHead = roleOriginal && roleOriginal.value === 'Head of Household';
+        const occupationOriginal = document.querySelector('[name="occupation"]');
+        const occupationValue = occupationOriginal ? occupationOriginal.value : '';
+        const hideEmploymentIncome = occupationValue === 'Student' || occupationValue === 'Unemployed';
+        const voterStatusOriginal = document.querySelector('[name="voter_status"]');
+        const shouldShowPrecinct = voterStatusOriginal && voterStatusOriginal.value === 'Registered Voter (This Barangay)';
 
         const setReviewFieldVisibility = (fieldName, shouldShow) => {
             const field = reviewContent.querySelector(`.review-edit-field[data-field="${fieldName}"]`);
@@ -1477,6 +1493,9 @@ function populateReview() {
 
         setReviewFieldVisibility('house_type', !!isHead);
         setReviewFieldVisibility('house_ownership', !!isHead);
+    setReviewFieldVisibility('precinct_number', !!shouldShowPrecinct);
+    setReviewFieldVisibility('employment_status', !hideEmploymentIncome);
+    setReviewFieldVisibility('household_income', !hideEmploymentIncome);
     };
 
     const reviewSections = [
@@ -1571,6 +1590,12 @@ function populateReview() {
                     }
                     if (this.dataset.field === 'household_role') {
                         toggleHouseholdTypeField();
+                    }
+                    if (this.dataset.field === 'occupation') {
+                        toggleMonthlyIncomeField();
+                    }
+                    if (this.dataset.field === 'voter_status') {
+                        togglePrecinctNumberField();
                     }
                     syncReviewFieldsFromOriginal();
                 });
