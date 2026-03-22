@@ -1,27 +1,33 @@
 <?php
 require_once __DIR__ . '/_common.php';
 
-try {
-    $residentId = requireResidentHouseholdSession();
-    ensureResidentHouseholdSchema();
-    ensureResidentHouseholdContractColumns();
+// When this file is require'd from dependent.php (etc.), do not run the HTTP router — only load helpers.
+$hhInfoScriptBase = basename((string)($_SERVER['SCRIPT_FILENAME'] ?? ''), '.php');
+$householdInfoIsEntryScript = PHP_SAPI !== 'cli' && strcasecmp($hhInfoScriptBase, 'info') === 0;
 
-    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-        handleGetHouseholdInfo($residentId);
-    }
+if ($householdInfoIsEntryScript) {
+    try {
+        $residentId = requireResidentHouseholdSession();
+        ensureResidentHouseholdSchema();
+        ensureResidentHouseholdContractColumns();
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        handleResidentHouseholdAction($residentId, getRequestBodyData());
-    }
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            handleGetHouseholdInfo($residentId);
+        }
 
-    householdJsonResponse(false, null, 'Method not allowed', 405);
-} catch (Exception $e) {
-    error_log('Household info endpoint error: ' . $e->getMessage());
-    $msg = 'Unable to process household request';
-    if (defined('DEBUG_MODE') && DEBUG_MODE) {
-        $msg .= ': ' . $e->getMessage();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            handleResidentHouseholdAction($residentId, getRequestBodyData());
+        }
+
+        householdJsonResponse(false, null, 'Method not allowed', 405);
+    } catch (Exception $e) {
+        error_log('Household info endpoint error: ' . $e->getMessage());
+        $msg = 'Unable to process household request';
+        if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            $msg .= ': ' . $e->getMessage();
+        }
+        householdJsonResponse(false, null, $msg, 500);
     }
-    householdJsonResponse(false, null, $msg, 500);
 }
 
 function ensureResidentHouseholdContractColumns() {
