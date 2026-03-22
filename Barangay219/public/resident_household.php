@@ -44,14 +44,23 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
 ?>
 <link rel="stylesheet" href="<?php echo BASE_URL; ?>resident_household.css?v=<?php echo $cssVersion; ?>">
 
-<div class="main-content module-page">
+<div class="main-content module-page resident-household-page">
     <div class="container-fluid">
-        <div class="module-hero card border-0 shadow-sm mb-4">
+    <div class="module-hero dashboard-hero card border-0 shadow-sm mb-4">
             <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
-                <div>
-                    <p class="module-kicker text-uppercase small mb-1">Resident Portal</p>
+        <div class="hero-copy">
+          <p class="hero-kicker text-uppercase small mb-1">Resident Services Portal</p>
                     <h2 class="mb-1"><i class="bi bi-house-door me-2"></i>Household Information</h2>
-                    <p class="module-subtitle mb-0">View your household overview and members.</p>
+          <p class="hero-subtitle mb-0">View your household overview, membership details, and history updates.</p>
+        </div>
+        <div class="text-md-end hero-meta">
+          <span class="hero-date-badge fs-6 px-3 py-2" id="mainDateBadge">
+            <i class="bi bi-calendar3 me-1"></i><?php echo date('F d, Y'); ?>
+          </span>
+          <div class="hero-chips mt-2">
+            <span class="hero-chip"><i class="bi bi-person-check me-1"></i>Resident View</span>
+            <span class="hero-chip"><i class="bi bi-people me-1"></i>Household Module</span>
+          </div>
                 </div>
             </div>
         </div>
@@ -511,6 +520,119 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
 
     </div>
 <!-- main-content wrapper closed by includes/footer.php -->
+
+<style>
+.resident-household-page .dashboard-hero {
+  border-radius: 16px;
+  background: radial-gradient(circle at 0% 0%, rgba(147, 197, 253, 0.24), transparent 36%), linear-gradient(140deg, #f8fbff 0%, #eef4ff 58%, #f4f7fb 100%);
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 16px 34px -24px rgba(37, 99, 235, 0.45);
+}
+
+.resident-household-page .dashboard-hero .card-body {
+  padding: 1.2rem 1.3rem;
+}
+
+.resident-household-page .hero-kicker {
+  color: #334155;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.resident-household-page .hero-copy h2 {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.resident-household-page .hero-subtitle {
+  color: #475569;
+  max-width: 640px;
+}
+
+.resident-household-page .hero-date-badge {
+  display: inline-block;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1e3a8a;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  font-weight: 600;
+}
+
+.resident-household-page .hero-chips {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.resident-household-page .hero-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.resident-household-page .panel {
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 20px -12px rgba(15, 23, 42, 0.18);
+}
+
+.resident-household-page .panel-header {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.resident-household-page .panel-header h2 {
+  font-size: 1rem;
+  color: #1e293b;
+}
+
+.resident-household-page .panel-subtitle {
+  color: #64748b;
+}
+
+.resident-household-page .details-grid .detail-item {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.resident-household-page .members-table thead th {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.resident-household-page .btn-primary {
+  background: #2563eb;
+}
+
+.resident-household-page .btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.resident-household-page .btn-secondary {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.resident-household-page .btn-secondary:hover {
+  background: #dbeafe;
+}
+
+@media (max-width: 992px) {
+  .resident-household-page .hero-chips {
+    justify-content: flex-start;
+  }
+
+  .resident-household-page .hero-meta {
+    text-align: left !important;
+    width: 100%;
+  }
+}
+</style>
 
 <script>
   // Keep API URL deployment-safe by using relative paths.
