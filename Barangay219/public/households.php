@@ -7,6 +7,13 @@ require_once __DIR__ . '/../includes/auth-check.php';
 requireLogin();
 requireModuleAccess('households');
 
+$hh_street_options = [];
+$streetsPath = __DIR__ . '/../config/barangay219_streets.php';
+if (is_readable($streetsPath)) {
+    $loaded = require $streetsPath;
+    $hh_street_options = is_array($loaded) ? $loaded : [];
+}
+
 include __DIR__ . '/../includes/sidebar.php';
 ?> 
 
@@ -20,9 +27,6 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p class="module-subtitle mb-0">Manage household groups and let residents join selected households.</p>
                 </div>
                 <div class="d-flex gap-2 flex-wrap">
-                    <button type="button" class="btn btn-outline-primary" id="btnNewStreet" onclick="promptNewStreet()">
-                        <i class="bi bi-signpost-2 me-1"></i> New Street
-                    </button>
                     <button type="button" class="btn btn-primary" id="btnCreateHousehold" onclick="newHouseholdForContext()">
                         <i class="bi bi-plus-circle me-1"></i> New Household
                     </button>
@@ -36,30 +40,22 @@ include __DIR__ . '/../includes/sidebar.php';
             </ol>
         </nav>
 
-        <div class="search-bar mb-3">
-            <div class="row">
-                <div class="col-md-6">
-                    <input type="text" class="form-control" id="searchHousehold" placeholder="Search streets by name...">
+        <div class="hh-household-search-bar mb-3 d-none" id="hhHouseholdSearchWrap">
+            <div class="row g-2 align-items-center">
+                <div class="col min-w-0">
+                    <label for="hhHouseholdSearchInput" class="visually-hidden">Search households on this street</label>
+                    <input type="search" class="form-control" id="hhHouseholdSearchInput" placeholder="Search by head name, address, or household ID code…" autocomplete="off">
                 </div>
-                <div class="col-md-2">
-                    <button class="btn btn-primary w-100" onclick="runHouseholdSearch()"><i class="bi bi-search"></i> Search</button>
-                </div>
-                <div class="col-md-2">
-                    <button class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#filterModal">
-                        <i class="bi bi-funnel"></i> Filter
+                <div class="col-auto d-flex gap-1 align-items-center">
+                    <button type="button" class="btn btn-sm btn-primary hh-household-search-icon-btn" id="hhHouseholdSearchBtn" onclick="runHouseholdListSearch()" title="Search" aria-label="Search households">
+                        <i class="bi bi-search" aria-hidden="true"></i>
                     </button>
-                </div>
-                <div class="col-md-2">
-                    <button class="btn btn-secondary w-100" onclick="resetHouseholds()"><i class="bi bi-arrow-clockwise"></i> Reset</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary hh-household-search-icon-btn" id="hhHouseholdSearchClear" onclick="clearHouseholdListSearch()" title="Clear search" aria-label="Clear search">
+                        <i class="bi bi-x-lg" aria-hidden="true"></i>
+                    </button>
                 </div>
             </div>
         </div>
-
-        <ul class="nav nav-tabs app-tabs mb-3" id="rangeTabs">
-            <li class="nav-item"><a class="nav-link active" href="#" data-range="all">All</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" data-range="month">New This Month</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" data-range="year">New This Year</a></li>
-        </ul>
 
         <div class="hh-back-row mb-3 d-none d-flex justify-content-end" id="hhBackBtnWrap">
             <button type="button" class="btn btn-lg btn-outline-primary px-4 hh-back-btn" id="hhBackBtn" onclick="householdNavBack()">
@@ -78,40 +74,6 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <style>
-.households-page .app-tabs {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.45rem;
-    border-bottom: 0;
-}
-
-.households-page .app-tabs .nav-item {
-    margin: 0;
-}
-
-.households-page .app-tabs .nav-link {
-    width: 100%;
-    text-align: center;
-    border: 1px solid #dbe3ee;
-    border-radius: 999px;
-    color: #475569;
-    font-weight: 600;
-    padding: 0.5rem 0.8rem;
-    background: #ffffff;
-}
-
-.households-page .app-tabs .nav-link.active {
-    color: #1d4ed8;
-    background: #e8f0ff;
-    border-color: #bfdbfe;
-}
-
-@media (max-width: 768px) {
-    .households-page .app-tabs {
-        grid-template-columns: 1fr;
-    }
-}
-
 .households-page .household-tiles {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -154,6 +116,20 @@ include __DIR__ . '/../includes/sidebar.php';
     color: #1e40af;
     border-color: #3b82f6;
     background: #e8f0ff;
+}
+
+.households-page .hh-household-search-icon-btn {
+    width: 1.875rem;
+    height: 1.875rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.households-page .hh-household-search-icon-btn i {
+    font-size: 0.8125rem;
 }
 
 .households-page .hh-tiles-wrap {
@@ -397,32 +373,6 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 </style>
 
-<!-- Filter Modal -->
-<div class="modal fade" id="filterModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Filter Households</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Registration From</label>
-                    <input type="date" class="form-control" id="filterFrom">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Registration To</label>
-                    <input type="date" class="form-control" id="filterTo">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div class="modal fade" id="householdModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
@@ -444,18 +394,6 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <select class="form-select" id="family_head_id" name="family_head_id">
                                         <option value="">-- Select Resident --</option>
                                     </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Household Type</label>
-                                    <select class="form-select" id="household_type" name="household_type">
-                                        <option value="">Select Household Type</option>
-                                        <option value="Family Household">Family Household</option>
-                                        <option value="Couple Only">Couple Only</option>
-                                        <option value="Single Inhabitant">Single Inhabitant</option>
-                                        <option value="Non-Relative Household (Shared / Boarders)">Non-Relative Household (Shared / Boarders)</option>
-                                        <option value="Other (Specify)">Other (Specify)</option>
-                                    </select>
-                                    <small class="text-muted form-text">When head is assigned from registration, this reflects the head's registered household type.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="registration_date" class="form-label">Registration Date</label>
@@ -488,17 +426,27 @@ include __DIR__ . '/../includes/sidebar.php';
                                     </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label">Street</label>
-                                    <input type="text" class="form-control" id="street" name="street" placeholder="Select Street">
+                                    <label class="form-label" for="street">Street</label>
+                                    <select class="form-select" id="street" name="street">
+                                        <option value="">— Select street —</option>
+                                        <?php foreach ($hh_street_options as $st) {
+                                            if (!is_string($st)) {
+                                                continue;
+                                            }
+                                            $st = trim($st);
+                                            if ($st === '') {
+                                                continue;
+                                            }
+                                            echo '<option value="' . htmlspecialchars($st, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($st, ENT_QUOTES, 'UTF-8') . "</option>\n";
+                                        } ?>
+                                    </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label">House Ownership</label>
+                                    <label class="form-label" for="house_ownership">House Ownership</label>
                                     <select class="form-select" id="house_ownership" name="house_ownership">
-                                        <option value="">Select Ownership</option>
+                                        <option value="">Select ownership</option>
                                         <option value="owned">Owned</option>
                                         <option value="rented">Rented</option>
-                                        <option value="relatives">Living with Relatives</option>
-                                        <option value="informal_settler">Informal Settler</option>
                                     </select>
                                 </div>
                                 <div class="col-md-3">
