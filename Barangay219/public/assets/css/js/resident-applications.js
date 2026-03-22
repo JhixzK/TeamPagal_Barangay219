@@ -13,9 +13,6 @@ const RES_APP_PERMS = {
     canEdit: window.canModulePermission ? window.canModulePermission('resident_applications', 'can_edit') : true
 };
 
-const ACTIVATION_LINK_STORAGE_KEY = 'resident_app_activation_links_v1';
-const ACTIVATION_LINK_STORAGE_LIMIT = 20;
-
 let currentStatus = 'pending';
 let currentPage = 1;
 let appFilters = { q: '', sex: '', from: '', to: '' };
@@ -28,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
     bindTabs();
     bindActions();
     initResidentApplicationStatFilters();
-    renderStoredActivationLinks();
+    removeActivationLinksPanel();
     loadApplications();
 });
 
@@ -49,6 +46,11 @@ function bindActions() {
     const approveBtn = document.getElementById('btnApprove');
     if (approveBtn) {
         approveBtn.addEventListener('click', submitApprove);
+    }
+
+    const smtpTestBtn = document.getElementById('btnSmtpTestSend');
+    if (smtpTestBtn) {
+        smtpTestBtn.addEventListener('click', submitSmtpTest);
     }
 
     const rejectBtn = document.getElementById('btnReject');
@@ -311,6 +313,43 @@ function openAssignHousehold(applicationId, residentId, isHead) {
 
     const modal = new bootstrap.Modal(document.getElementById('assignHouseholdModal'));
     modal.show();
+}
+
+function openSmtpTestModal() {
+    if (!RES_APP_PERMS.canEdit) return;
+    const inp = document.getElementById('smtpTestTo');
+    if (inp && !inp.value) inp.value = '';
+    new bootstrap.Modal(document.getElementById('smtpTestModal')).show();
+}
+
+function submitSmtpTest() {
+    if (!RES_APP_PERMS.canEdit) return;
+    const btn = document.getElementById('btnSmtpTestSend');
+    const to = (document.getElementById('smtpTestTo') || {}).value.trim();
+    if (!to) {
+        showAlert('error', 'Enter an email address.');
+        return;
+    }
+    const fd = new FormData();
+    fd.append('action', 'smtp_test');
+    fd.append('test_to', to);
+    if (btn) btn.disabled = true;
+    fetch(window.API_URL + 'applications.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                showAlert('error', data.message || 'SMTP test failed');
+                return;
+            }
+            showAlert('success', data.message || 'Test email sent');
+            const m = document.getElementById('smtpTestModal');
+            if (m) {
+                const inst = bootstrap.Modal.getInstance(m);
+                if (inst) inst.hide();
+            }
+        })
+        .catch(() => showAlert('error', 'SMTP test failed'))
+        .finally(() => { if (btn) btn.disabled = false; });
 }
 
 function openAssignHeadsModal() {
@@ -665,18 +704,20 @@ function submitApprove() {
                 showAlert('error', data.message || 'Approval failed');
                 return;
             }
-            const activationLink = data.data?.activation_link || '';
-            if (activationLink) {
-                saveActivationLink({
-                    applicationId: Number(id),
-                    residentCode: data.data?.resident_code || '',
-                    activationLink,
-                    createdAt: new Date().toISOString()
-                });
-                renderStoredActivationLinks();
-            }
-
             showAlert('success', data.message || 'Application approved');
+            const ae = data.data && data.data.activation_email;
+            if (ae && !ae.sent) {
+                const err = ae.error || 'unknown';
+                let detail = err;
+                if (ae.skipped && err === 'smtp_disabled') {
+                    detail = 'SMTP is turned off in config/email_smtp.php (save the file after editing).';
+                } else if (ae.skipped && err === 'smtp_credentials_incomplete') {
+                    detail = 'Add SMTP username, password, and from-address in config/email_smtp.php and save.';
+                } else if (ae.skipped && err === 'invalid_or_missing_email') {
+                    detail = 'This application has no valid email; copy the activation link manually.';
+                }
+                showAlert('warning', 'Activation email was not sent: ' + detail);
+            }
             bootstrap.Modal.getInstance(document.getElementById('approveModal')).hide();
             loadApplications();
         })
@@ -753,16 +794,17 @@ function fetchActivationLink(id) {
                 return;
             }
 
-            saveActivationLink({
-                applicationId: Number(id),
-                residentCode: data.data?.resident_code || '',
-                activationLink,
-                createdAt: new Date().toISOString()
-            });
-            renderStoredActivationLinks();
-
             const exp = data.data?.activation_expires ? ` Expires: ${data.data.activation_expires}` : '';
-            showAlert('success', 'Activation link retrieved and saved locally.' + exp);
+            const done = () => showAlert('success', 'Activation link copied.' + exp);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(activationLink).then(done).catch(() => {
+                    window.prompt('Copy activation link:', activationLink);
+                    showAlert('success', 'Copy the link from the dialog.' + exp);
+                });
+            } else {
+                window.prompt('Copy activation link:', activationLink);
+                showAlert('success', 'Copy the link from the dialog.' + exp);
+            }
         })
         .catch(err => {
             console.error(err);
@@ -956,105 +998,12 @@ function showAlert(type, message) {
     }, 5000);
 }
 
-function getStoredActivationLinks() {
+/** Remove legacy localStorage activation panel if present (feature disabled). */
+function removeActivationLinksPanel() {
     try {
-        const raw = localStorage.getItem(ACTIVATION_LINK_STORAGE_KEY);
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-        return [];
-    }
-}
-
-function saveActivationLink(entry) {
-    const existing = getStoredActivationLinks();
-    const filtered = existing.filter(item => item.activationLink !== entry.activationLink);
-    filtered.unshift(entry);
-    const limited = filtered.slice(0, ACTIVATION_LINK_STORAGE_LIMIT);
-    localStorage.setItem(ACTIVATION_LINK_STORAGE_KEY, JSON.stringify(limited));
-}
-
-function renderStoredActivationLinks() {
-    const container = document.querySelector('.main-content .container-fluid');
-    if (!container) return;
-
-    const stored = getStoredActivationLinks();
-    const existingPanel = document.getElementById('activationLinksPanel');
-    if (!stored.length) {
-        if (existingPanel) existingPanel.remove();
-        return;
-    }
-
-    const latest = stored[0];
-    const itemsHtml = stored.slice(0, 5).map((item, idx) => {
-        const code = item.residentCode ? `Resident ID: ${esc(item.residentCode)}` : `Application #${esc(item.applicationId || '-')}`;
-        const safeLink = esc(item.activationLink || '');
-        return `
-            <li class="list-group-item d-flex flex-wrap align-items-center gap-2">
-                <span class="fw-semibold">${code}</span>
-                <input class="form-control form-control-sm" style="min-width:260px;max-width:560px" value="${safeLink}" readonly>
-                <a class="btn btn-sm btn-outline-primary" href="${safeLink}" target="_blank" rel="noopener">Open</a>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyActivationLinkFromInput(this)">Copy</button>
-            </li>
-        `;
-    }).join('');
-
-    const panelHtml = `
-        <div id="activationLinksPanel" class="alert alert-info border-info-subtle shadow-sm mb-3">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-                <strong>Recent Activation Links</strong>
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearActivationLinks()">Clear</button>
-            </div>
-            <div class="small mb-2">Latest link is saved locally in this browser so it will not disappear after approval.</div>
-            <ul class="list-group">${itemsHtml}</ul>
-            <div class="small text-muted mt-2">Newest: ${esc(latest.createdAt || '')}</div>
-        </div>
-    `;
-
-    if (existingPanel) {
-        existingPanel.outerHTML = panelHtml;
-    } else {
-        container.insertAdjacentHTML('afterbegin', panelHtml);
-    }
-}
-
-function clearActivationLinks() {
-    localStorage.removeItem(ACTIVATION_LINK_STORAGE_KEY);
-    renderStoredActivationLinks();
-}
-
-function copyActivationLink(value) {
-    if (!value) return;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(value)
-            .then(() => showAlert('success', 'Activation link copied to clipboard.'))
-            .catch(() => fallbackCopyText(value));
-        return;
-    }
-    fallbackCopyText(value);
-}
-
-function copyActivationLinkFromInput(btn) {
-    const input = btn ? btn.parentElement.querySelector('input') : null;
-    copyActivationLink(input ? input.value : '');
-}
-
-function fallbackCopyText(value) {
-    const textarea = document.createElement('textarea');
-    textarea.value = value;
-    textarea.setAttribute('readonly', 'readonly');
-    textarea.style.position = 'fixed';
-    textarea.style.left = '-9999px';
-    document.body.appendChild(textarea);
-    textarea.select();
-    try {
-        document.execCommand('copy');
-        showAlert('success', 'Activation link copied to clipboard.');
-    } catch (e) {
-        showAlert('error', 'Unable to copy activation link automatically.');
-    } finally {
-        textarea.remove();
-    }
+        localStorage.removeItem('resident_app_activation_links_v1');
+    } catch (e) {}
+    const panel = document.getElementById('activationLinksPanel');
+    if (panel) panel.remove();
 }
 
