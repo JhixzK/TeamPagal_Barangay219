@@ -39,7 +39,7 @@ if ($residentId) {
 ?>
 <link rel="stylesheet" href="<?php echo BASE_URL; ?>my_requests.css?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/my_requests.css')); ?>">
 
-<div class="main-content module-page resident-my-requests-page">
+<div class="main-content module-page resident-my-requests-page resident-theme">
   <div class="container-fluid">
     <section class="dashboard-hero card border-0 shadow-sm mb-4">
       <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
