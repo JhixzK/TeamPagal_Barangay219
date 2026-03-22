@@ -130,6 +130,13 @@ function listResidents() {
         if ($headAccountOnly && columnExists($db, 'residents', 'household_role')) {
             $where .= " AND LOWER(TRIM(COALESCE(r.household_role,''))) IN ('head', 'head of household')";
         }
+
+        // Admin "add to household" picker: only residents not yet assigned to any household (matches add_member API).
+        // Client-side excludes edge cases (e.g. members already in this HH with stale household_id).
+        $notInHouseholdId = intval($_GET['not_in_household_id'] ?? 0);
+        if ($notInHouseholdId > 0 && columnExists($db, 'residents', 'household_id')) {
+            $where .= ' AND r.household_id IS NULL';
+        }
         
         // Get total count
         $countSql = "SELECT COUNT(*) as total FROM residents r WHERE $where";
