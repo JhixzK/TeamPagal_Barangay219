@@ -955,6 +955,56 @@ function getHousehold() {
 }
 
 /**
+ * Persist address/structure fields from POST (house_number, street, house_type, house_ownership → housing_status).
+ */
+function householdPersistDetailFieldsFromPost($db, $householdId, $post) {
+    $householdId = (int)$householdId;
+    if ($householdId <= 0) {
+        return false;
+    }
+
+    $house_number = sanitizeInput($post['house_number'] ?? '');
+    $street = sanitizeInput($post['street'] ?? '');
+    $house_type = sanitizeInput($post['house_type'] ?? '');
+    $ownRaw = strtolower(trim((string)($post['house_ownership'] ?? '')));
+    $housingStatus = null;
+    if ($ownRaw === 'owned') {
+        $housingStatus = 'owned';
+    } elseif ($ownRaw === 'rented') {
+        $housingStatus = 'renting';
+    }
+
+    $sets = [];
+    $params = [];
+
+    if (columnExists($db, 'households', 'house_number')) {
+        $sets[] = 'house_number = ?';
+        $params[] = $house_number;
+    }
+    if (columnExists($db, 'households', 'street')) {
+        $sets[] = 'street = ?';
+        $params[] = $street;
+    }
+    if ($house_type !== '' && columnExists($db, 'households', 'house_type')) {
+        $sets[] = 'house_type = ?';
+        $params[] = $house_type;
+    }
+
+    if ($housingStatus !== null && columnExists($db, 'households', 'housing_status')) {
+        $sets[] = 'housing_status = ?';
+        $params[] = $housingStatus;
+    }
+
+    if (empty($sets)) {
+        return false;
+    }
+
+    $params[] = $householdId;
+    $db->query('UPDATE households SET ' . implode(', ', $sets) . ' WHERE id = ?', $params);
+    return true;
+}
+
+/**
  * Create new household
  */
 function createHousehold() {
@@ -1003,6 +1053,8 @@ function createHousehold() {
 
         $db->query($sql, [$family_head_db_val, $address_db_val, $total_members_db_val, $registration_date]);
         $householdId = $db->lastInsertId();
+
+        householdPersistDetailFieldsFromPost($db, $householdId, $_POST);
 
         // Generate Household ID Code immediately, even if the household is still empty.
         if (columnExists($db, 'households', 'household_id_code')) {
@@ -1054,6 +1106,8 @@ function createHousehold() {
                         VALUES (?, ?, ?, ?)";
                 $db->query($sql, [$family_head_db_val, $address_db_val, $total_members_db_val, $registration_date]);
                 $householdId = $db->lastInsertId();
+
+                householdPersistDetailFieldsFromPost($db, $householdId, $_POST);
 
                 // Generate Household ID Code immediately, even if household is empty.
                 if (columnExists($db, 'households', 'household_id_code')) {
@@ -1158,16 +1212,19 @@ function updateHousehold() {
             $updates[] = "total_members = ?";
             $params[] = max(0, $total_members);
         }
-        
-        if (empty($updates)) {
+
+        $detailSaved = householdPersistDetailFieldsFromPost($db, $id, $_POST);
+
+        if (empty($updates) && !$detailSaved) {
             sendResponse(false, 'No fields to update', null, 400);
             return;
         }
-        
-        $params[] = $id;
-        $sql = "UPDATE households SET " . implode(', ', $updates) . " WHERE id = ?";
-        
-        $db->query($sql, $params);
+
+        if (!empty($updates)) {
+            $params[] = $id;
+            $sql = "UPDATE households SET " . implode(', ', $updates) . " WHERE id = ?";
+            $db->query($sql, $params);
+        }
 
         // Always ensure codes exist:
         // - `household_id_code` should exist even when household is still empty
