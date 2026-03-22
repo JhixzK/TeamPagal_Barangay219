@@ -27,18 +27,12 @@ $valid_id_types = [
 ];
 
 $barangay219_street_options = [
-    'Road 10',
-    'Road 10 Extension',
-    'Road 11',
-    'Road 11 Extension',
-    'Road 12',
-    'Road 12 Extension',
-    'Road 13',
-    'Road 13 Extension',
-    'Road 14',
-    'Road 15',
-    'R-10 (Radial Road 10)',
-    'Vitas Road'
+    'Tindalo St.',
+    'Almeda Ext.',
+    'New Antipolo St.',
+    'Cavite St.',
+    'Jose Abad Santos St.',
+    'Tecson St.'
 ];
 
 $barangay219_purok_options = [
@@ -286,32 +280,12 @@ $barangay219_purok_options = [
             gap: 0.75rem;
         }
 
-        .btn {
-            border-radius: 10px;
-            font-weight: 600;
-        }
-
-        .btn-primary {
-            background-color: var(--gov-blue);
-            border-color: var(--gov-blue);
-        }
-
-        .btn-primary:hover {
-            background-color: var(--gov-blue-dark);
-            border-color: var(--gov-blue-dark);
-        }
-
-        .btn-outline-secondary {
-            border-color: #cbd5e1;
-            color: #334155;
-        }
-
-        .btn-outline-secondary:hover {
-            background: #eff6ff;
-            border-color: #bfdbfe;
-            color: #1e3a8a;
-        }
-
+        /* Button Overrides - Remove for global consistency */
+        /* Buttons now inherit from global style.css button system */
+        /* .btn styles: border-radius 10px, font-weight 600, padding 0.575rem 1.2rem */
+        /* .btn-primary: #1d4ed8 blue with scale(1.03) hover and shadow */
+        /* .btn-outline-secondary: white with #cbd5e1 border, #1e3a8a on hover */
+        
         .form-control,
         .form-select {
             border-radius: 10px;
@@ -737,21 +711,12 @@ $barangay219_purok_options = [
                                             <label>House No. <span class="text-danger">*</span></label>
                                             <input type="text" name="house_number" class="form-control" maxlength="30" required>
                                         </div>
-                                        <div class="col-md-4 mb-3">
+                                        <div class="col-md-8 mb-3">
                                             <label>Street <span class="text-danger">*</span></label>
                                             <select name="street" class="form-select" required>
                                                 <option value="">Select Street</option>
                                                 <?php foreach ($barangay219_street_options as $street_option): ?>
                                                 <option value="<?php echo htmlspecialchars($street_option); ?>"><?php echo htmlspecialchars($street_option); ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label>Purok / Sitio <span class="text-danger">*</span></label>
-                                            <select name="purok_sitio" class="form-select" required>
-                                                <option value="">Select Purok / Sitio</option>
-                                                <?php foreach ($barangay219_purok_options as $purok_option): ?>
-                                                <option value="<?php echo htmlspecialchars($purok_option); ?>"><?php echo htmlspecialchars($purok_option); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
                                         </div>
@@ -915,7 +880,7 @@ phase1NameFields.forEach(fieldName => {
 });
 
 // Other text name-like fields - letters, spaces, hyphens, apostrophes, periods only
-const nameFields = ['place_of_birth', 'ip_group', 'street', 'purok_sitio'];
+const nameFields = ['place_of_birth', 'ip_group', 'street'];
 nameFields.forEach(fieldName => {
     const field = document.querySelector(`input[name="${fieldName}"]`);
     if (field) {
@@ -1534,7 +1499,6 @@ function populateReview() {
                 { name: 'email', label: 'Email Address' },
                 { name: 'house_number', label: 'House No.' },
                 { name: 'street', label: 'Street' },
-                { name: 'purok_sitio', label: 'Purok / Sitio' },
                 { name: 'residency_start_date', label: 'Date of Residency Start' }
             ]
         }
