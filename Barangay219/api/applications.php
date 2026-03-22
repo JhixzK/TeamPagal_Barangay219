@@ -144,7 +144,10 @@ function generateUniqueFamilyCode($db) {
 }
 
 /**
- * Find an existing household at the same address (house_number, street, purok_sitio).
+ * Find an existing household at the same address (house_number + street).
+ * Purok/sitio is optional: if the application leaves it empty (e.g. field removed from forms),
+ * we still match households that may have purok_sitio stored. When the applicant does supply
+ * purok/sitio and the column exists, it must match as well.
  * Returns household id or null. Requires at least one non-empty field to avoid broad matches.
  * Tries component match first; falls back to full address match when components are empty in DB.
  */
@@ -156,19 +159,31 @@ function findExistingHouseholdByAddress($db, $houseNumber, $street, $purokSitio,
         return null;
     }
 
-    // 1) Try match on house_number, street, purok_sitio (when columns exist)
-    if (columnExists($db, 'households', 'house_number') && columnExists($db, 'households', 'street') && columnExists($db, 'households', 'purok_sitio')) {
-        $hnNorm = $hn === '' ? '' : strtolower($hn);
-        $stNorm = $st === '' ? '' : strtolower($st);
-        $psNorm = $ps === '' ? '' : strtolower($ps);
-        $row = $db->fetchOne(
-            "SELECT id FROM households
-             WHERE LOWER(TRIM(COALESCE(house_number,''))) = ?
-               AND LOWER(TRIM(COALESCE(street,''))) = ?
-               AND LOWER(TRIM(COALESCE(purok_sitio,''))) = ?
-             ORDER BY id ASC LIMIT 1",
-            [$hnNorm, $stNorm, $psNorm]
-        );
+    $hnNorm = $hn === '' ? '' : strtolower($hn);
+    $stNorm = $st === '' ? '' : strtolower($st);
+    $psNorm = $ps === '' ? '' : strtolower($ps);
+
+    // 1) Match on house_number + street (both required for a safe component match).
+    if (columnExists($db, 'households', 'house_number') && columnExists($db, 'households', 'street')
+        && $hnNorm !== '' && $stNorm !== '') {
+        if ($psNorm !== '' && columnExists($db, 'households', 'purok_sitio')) {
+            $row = $db->fetchOne(
+                "SELECT id FROM households
+                 WHERE LOWER(TRIM(COALESCE(house_number,''))) = ?
+                   AND LOWER(TRIM(COALESCE(street,''))) = ?
+                   AND LOWER(TRIM(COALESCE(purok_sitio,''))) = ?
+                 ORDER BY id ASC LIMIT 1",
+                [$hnNorm, $stNorm, $psNorm]
+            );
+        } else {
+            $row = $db->fetchOne(
+                "SELECT id FROM households
+                 WHERE LOWER(TRIM(COALESCE(house_number,''))) = ?
+                   AND LOWER(TRIM(COALESCE(street,''))) = ?
+                 ORDER BY id ASC LIMIT 1",
+                [$hnNorm, $stNorm]
+            );
+        }
         if ($row) {
             return (int)$row['id'];
         }

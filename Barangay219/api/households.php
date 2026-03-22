@@ -19,6 +19,10 @@ switch ($action) {
     case 'list':
         listHouseholds();
         break;
+
+    case 'list_streets':
+        listStreetsSummary();
+        break;
     
     case 'get':
         getHousehold();
@@ -439,6 +443,173 @@ function ensureHouseholdCodesAndDetails($db, $householdId) {
 /**
  * List all households
  */
+/**
+ * Canonical street names (no households required). File returns a list of strings.
+ */
+function getOfficialBarangay219Streets() {
+    $path = __DIR__ . '/../config/barangay219_streets.php';
+    if (!is_readable($path)) {
+        return [];
+    }
+    $list = require $path;
+    if (!is_array($list)) {
+        return [];
+    }
+    $out = [];
+    foreach ($list as $item) {
+        if (!is_string($item)) {
+            continue;
+        }
+        $t = trim($item);
+        if ($t !== '') {
+            $out[] = $t;
+        }
+    }
+    return $out;
+}
+
+function normalizeStreetLookupKey($street) {
+    return strtolower(trim((string)$street));
+}
+
+/**
+ * Aggregated street tiles: official registry (incl. zero households) + DB-only streets.
+ * Search filter `q` is applied after merge so empty streets still match by name.
+ */
+function listStreetsSummary() {
+    try {
+        $db = Database::getInstance();
+        if (!columnExists($db, 'households', 'street')) {
+            sendResponse(true, 'No street column', []);
+            return;
+        }
+
+        $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
+        $from = sanitizeInput($_GET['from'] ?? '');
+        $to = sanitizeInput($_GET['to'] ?? '');
+
+        $where = '1=1';
+        $params = [];
+
+        if (!empty($from)) {
+            $where .= " AND DATE(h.registration_date) >= ?";
+            $params[] = $from;
+        }
+        if (!empty($to)) {
+            $where .= " AND DATE(h.registration_date) <= ?";
+            $params[] = $to;
+        }
+
+        $sql = "SELECT
+                    COALESCE(NULLIF(TRIM(h.street), ''), '') AS street_key,
+                    COUNT(*) AS household_count,
+                    MAX(NULLIF(TRIM(COALESCE(h.barangay, '')), '')) AS barangay_sample
+                FROM households h
+                WHERE $where
+                GROUP BY COALESCE(NULLIF(TRIM(h.street), ''), '')";
+
+        $rows = $db->fetchAll($sql, $params);
+
+        $agg = [];
+        foreach ($rows as $row) {
+            $key = (string)($row['street_key'] ?? '');
+            $norm = normalizeStreetLookupKey($key);
+            $cnt = (int)($row['household_count'] ?? 0);
+            $bg = trim((string)($row['barangay_sample'] ?? ''));
+            if (!isset($agg[$norm])) {
+                $agg[$norm] = [
+                    'count' => 0,
+                    'barangay' => '',
+                    'display_key' => $key,
+                ];
+            }
+            $agg[$norm]['count'] += $cnt;
+            if ($bg !== '' && $agg[$norm]['barangay'] === '') {
+                $agg[$norm]['barangay'] = $bg;
+            }
+            if ($key !== '' && ($agg[$norm]['display_key'] === '' || $agg[$norm]['display_key'] === $key)) {
+                $agg[$norm]['display_key'] = $key;
+            }
+        }
+
+        $defaultBarangay = 'Barangay 219';
+        $out = [];
+        $usedNorm = [];
+
+        $official = getOfficialBarangay219Streets();
+        $seenOfficial = [];
+        foreach ($official as $name) {
+            $norm = normalizeStreetLookupKey($name);
+            if (isset($seenOfficial[$norm])) {
+                continue;
+            }
+            $seenOfficial[$norm] = true;
+            $usedNorm[$norm] = true;
+            $cell = $agg[$norm] ?? null;
+            $count = $cell ? (int)$cell['count'] : 0;
+            $bg = ($cell && $cell['barangay'] !== '') ? $cell['barangay'] : $defaultBarangay;
+            $out[] = [
+                'street_key' => $name,
+                'street_label' => $name,
+                'filter_token' => $name,
+                'household_count' => $count,
+                'barangay' => $bg,
+                'from_registry' => true,
+            ];
+        }
+
+        $emptyNorm = normalizeStreetLookupKey('');
+        if (isset($agg[$emptyNorm]) && $agg[$emptyNorm]['count'] > 0) {
+            $usedNorm[$emptyNorm] = true;
+            $cell = $agg[$emptyNorm];
+            $out[] = [
+                'street_key' => '',
+                'street_label' => '(No street on file)',
+                'filter_token' => '__EMPTY__',
+                'household_count' => (int)$cell['count'],
+                'barangay' => ($cell['barangay'] !== '') ? $cell['barangay'] : $defaultBarangay,
+                'from_registry' => false,
+            ];
+        }
+
+        $extras = [];
+        foreach ($agg as $norm => $cell) {
+            if (isset($usedNorm[$norm])) {
+                continue;
+            }
+            $key = (string)($cell['display_key'] ?? '');
+            $label = $key !== '' ? $key : '(No street on file)';
+            $extras[] = [
+                'street_key' => $key,
+                'street_label' => $label,
+                'filter_token' => $key !== '' ? $key : '__EMPTY__',
+                'household_count' => (int)$cell['count'],
+                'barangay' => ($cell['barangay'] !== '') ? $cell['barangay'] : $defaultBarangay,
+                'from_registry' => false,
+            ];
+        }
+        usort($extras, function ($a, $b) {
+            return strcasecmp((string)($a['street_label'] ?? ''), (string)($b['street_label'] ?? ''));
+        });
+        $out = array_merge($out, $extras);
+
+        if ($q !== '') {
+            $needle = strtolower($q);
+            $out = array_values(array_filter($out, function ($row) use ($needle, $q) {
+                $label = strtolower((string)($row['street_label'] ?? ''));
+                $key = strtolower((string)($row['street_key'] ?? ''));
+                return (strpos($label, $needle) !== false) || (strpos($key, $needle) !== false)
+                    || stripos((string)($row['barangay'] ?? ''), $q) !== false;
+            }));
+        }
+
+        sendResponse(true, 'Streets summary', $out);
+    } catch (Exception $e) {
+        error_log('List streets summary error: ' . $e->getMessage());
+        sendResponse(false, 'Error retrieving streets', null, 500);
+    }
+}
+
 function listHouseholds() {
     try {
         $db = Database::getInstance();
@@ -453,12 +624,22 @@ function listHouseholds() {
         $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
         $from = sanitizeInput($_GET['from'] ?? '');
         $to = sanitizeInput($_GET['to'] ?? '');
+        $streetToken = isset($_GET['street']) ? trim((string)$_GET['street']) : '';
         $where = '1=1';
         $params = [];
         if (!empty($q)) {
             $term = '%' . $q . '%';
-            $where = "(h.address LIKE ? OR CONCAT(r.first_name, ' ', r.last_name) LIKE ?)";
+            $parts = ['h.address LIKE ?', "CONCAT(r.first_name, ' ', r.last_name) LIKE ?"];
             $params = [$term, $term];
+            if (columnExists($db, 'households', 'household_id_code')) {
+                $parts[] = 'h.household_id_code LIKE ?';
+                $params[] = $term;
+            }
+            if (columnExists($db, 'households', 'street')) {
+                $parts[] = "TRIM(COALESCE(h.street, '')) LIKE ?";
+                $params[] = $term;
+            }
+            $where = '(' . implode(' OR ', $parts) . ')';
         }
         if (!empty($from)) {
             $where .= " AND DATE(h.registration_date) >= ?";
@@ -467,6 +648,14 @@ function listHouseholds() {
         if (!empty($to)) {
             $where .= " AND DATE(h.registration_date) <= ?";
             $params[] = $to;
+        }
+        if ($streetToken !== '' && columnExists($db, 'households', 'street')) {
+            if ($streetToken === '__EMPTY__') {
+                $where .= " AND (h.street IS NULL OR TRIM(h.street) = '')";
+            } else {
+                $where .= " AND TRIM(COALESCE(h.street, '')) = ?";
+                $params[] = $streetToken;
+            }
         }
         $sql = "SELECT h.*, 
                        (SELECT COUNT(*) FROM residents r_cnt WHERE r_cnt.household_id = h.id) AS _live_member_count,

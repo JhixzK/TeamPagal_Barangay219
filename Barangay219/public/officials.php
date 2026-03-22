@@ -24,7 +24,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p class="module-kicker text-uppercase small mb-1">Administration Module</p>
                     <h2 class="mb-1"><i class="bi bi-people-fill me-2"></i>Officials</h2>
                     <p class="module-subtitle mb-0">
-                        Manage the 10 core barangay officials (1 Captain, 7 Kagawad, 1 SK Chairperson, 1 Secretary, 1 Treasurer).
+                        Manage the 10 core barangay officials (1 Captain, 1 Secretary, 1 Treasurer, 1 SK Chairperson, 7 Kagawad).
                     </p>
                 </div>
                 <div>
@@ -154,15 +154,9 @@ include __DIR__ . '/../includes/sidebar.php';
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Position <span class="text-danger">*</span></label>
-                            <select class="form-select" id="position" name="position" required>
-                                <option value="">-- Select position --</option>
-                                <option value="barangay_captain">Punong Barangay (Captain)</option>
-                                <option value="kagawad">Kagawad</option>
-                                <option value="sk_chairperson">SK Chairperson</option>
-                                <option value="secretary">Secretary</option>
-                                <option value="treasurer">Treasurer</option>
-                            </select>
-                            <small class="text-muted">Choose the official's position in the barangay.</small>
+                            <input type="hidden" id="position" name="position" value="">
+                            <div class="form-control bg-light d-flex align-items-center" id="positionDisplay" aria-live="polite">—</div>
+                            <small class="text-muted" id="positionHelp">Click a vacant slot on this page to set the position.</small>
                         </div>
                     </div>
 

@@ -26,14 +26,7 @@ $valid_id_types = [
     'other' => 'Other Valid ID'
 ];
 
-$barangay219_street_options = [
-    'Tindalo St.',
-    'Almeda Ext.',
-    'New Antipolo St.',
-    'Cavite St.',
-    'Jose Abad Santos St.',
-    'Tecson St.'
-];
+$barangay219_street_options = require __DIR__ . '/../config/barangay219_streets.php';
 
 $barangay219_purok_options = [
     'Purok 1',
