@@ -394,6 +394,100 @@ function loadHouseholds() {
         });
 }
 
+function buildFamilyHeadOptionHtml(r) {
+    const name = `${r.last_name || ''}, ${r.first_name || ''} ${r.middle_name || ''}`.trim();
+    const fullAddress = (r.address || r.household_address || '').trim();
+    const houseNumber = r.house_number || '';
+    const street = r.street || '';
+    const purok = r.purok_sitio || '';
+    const regHt = (r.registration_house_type ?? '').toString();
+    const regOwn = (r.registration_house_ownership ?? '').toString();
+    const hhHt = (r.current_household_house_type ?? '').toString();
+    const hhHs = (r.current_household_housing_status ?? '').toString();
+    return `<option value="${r.id}"
+                data-address="${escapeHtml(fullAddress)}"
+                data-house-number="${escapeHtml(houseNumber)}"
+                data-street="${escapeHtml(street)}"
+                data-purok="${escapeHtml(purok)}"
+                data-reg-house-type="${escapeHtml(regHt)}"
+                data-reg-house-ownership="${escapeHtml(regOwn)}"
+                data-hh-house-type="${escapeHtml(hhHt)}"
+                data-hh-housing-status="${escapeHtml(hhHs)}"
+            >${escapeHtml(toTitleCase(name))}</option>`;
+}
+
+function formatStructureHouseTypeLabel(raw) {
+    if (raw === null || raw === undefined || String(raw).trim() === '') {
+        return '--';
+    }
+    const slug = String(raw).trim().toLowerCase().replace(/-/g, '_');
+    const map = {
+        concrete: 'Concrete',
+        semi_concrete: 'Semi-Concrete',
+        light_materials: 'Light Materials',
+        apartment_boarding: 'Apartment / Boarding House',
+        townhouse_row: 'Townhouse / Row House',
+        informal_improvised: 'Informal / Improvised'
+    };
+    if (map[slug]) {
+        return map[slug];
+    }
+    return toTitleCase(String(raw).replace(/_/g, ' '));
+}
+
+function mapRegistrationHouseTypeToFormValue(raw) {
+    if (!raw) return '';
+    const s = String(raw).trim();
+    const labelMap = {
+        'Concrete': 'concrete',
+        'Semi-Concrete': 'semi_concrete',
+        'Light Materials': 'light_materials',
+        'Apartment / Boarding House': 'apartment_boarding',
+        'Townhouse / Row House': 'townhouse_row',
+        'Informal / Improvised': 'informal_improvised'
+    };
+    if (labelMap[s]) return labelMap[s];
+    const sLower = s.toLowerCase();
+    for (const [label, slug] of Object.entries(labelMap)) {
+        if (label.toLowerCase() === sLower) return slug;
+    }
+    const normSlug = sLower.replace(/-/g, '_').replace(/\s+/g, '_').replace(/_+/g, '_');
+    const sel = document.getElementById('house_type');
+    if (sel && normSlug && Array.from(sel.options).some(o => o.value === normSlug)) return normSlug;
+    if (sel && s && Array.from(sel.options).some(o => o.value === s)) return s;
+    return '';
+}
+
+function mapHousingStatusToOwnershipValue(raw) {
+    if (!raw) return '';
+    const x = String(raw).toLowerCase().trim();
+    if (x === 'owned') return 'owned';
+    if (x === 'renting' || x === 'rented') return 'rented';
+    return '';
+}
+
+function applyHeadHousingFromSelection(selected) {
+    const typeSel = document.getElementById('house_type');
+    const ownSel = document.getElementById('house_ownership');
+    if (!typeSel && !ownSel) return;
+
+    const hhHt = (selected.getAttribute('data-hh-house-type') || '').trim();
+    const hhHs = (selected.getAttribute('data-hh-housing-status') || '').trim();
+    const regHt = (selected.getAttribute('data-reg-house-type') || '').trim();
+    const regOwn = (selected.getAttribute('data-reg-house-ownership') || '').trim();
+
+    if (typeSel) {
+        let v = mapRegistrationHouseTypeToFormValue(hhHt);
+        if (!v) v = mapRegistrationHouseTypeToFormValue(regHt);
+        typeSel.value = v || '';
+    }
+    if (ownSel) {
+        let o = mapHousingStatusToOwnershipValue(hhHs);
+        if (!o) o = mapHousingStatusToOwnershipValue(regOwn);
+        ownSel.value = o || '';
+    }
+}
+
 function loadResidentsForDropdown() {
     const sel = document.getElementById('family_head_id');
     if (!sel) return;
@@ -403,19 +497,7 @@ function loadResidentsForDropdown() {
         .then(d => {
             if (d.success && d.data && d.data.residents) {
                 sel.innerHTML = '<option value="">-- Select Resident --</option>' +
-                    d.data.residents.map(r => {
-                        const name = `${r.last_name || ''}, ${r.first_name || ''} ${r.middle_name || ''}`.trim();
-                        const fullAddress = (r.address || r.household_address || '').trim();
-                        const houseNumber = r.house_number || '';
-                        const street = r.street || '';
-                        const purok = r.purok_sitio || '';
-                        return `<option value="${r.id}"
-                                    data-address="${escapeHtml(fullAddress)}"
-                                    data-house-number="${escapeHtml(houseNumber)}"
-                                    data-street="${escapeHtml(street)}"
-                                    data-purok="${escapeHtml(purok)}"
-                                >${escapeHtml(toTitleCase(name))}</option>`;
-                    }).join('');
+                    d.data.residents.map(r => buildFamilyHeadOptionHtml(r)).join('');
                 if (currentVal) sel.value = currentVal;
             }
         })
@@ -450,12 +532,23 @@ document.addEventListener('change', function (e) {
     const selected = target.selectedOptions && target.selectedOptions[0];
     if (!selected) return;
 
+    const houseNumberInput = document.getElementById('house_number');
+    const addressTextarea = document.getElementById('address');
+
+    if (!selected.value || String(selected.value).trim() === '') {
+        if (houseNumberInput) houseNumberInput.value = '';
+        setStreetSelectValue('');
+        if (addressTextarea) addressTextarea.value = '';
+        const typeSel = document.getElementById('house_type');
+        const ownSel = document.getElementById('house_ownership');
+        if (typeSel) typeSel.value = '';
+        if (ownSel) ownSel.value = '';
+        return;
+    }
+
     const fullAddress = selected.getAttribute('data-address') || '';
     const houseNumber = selected.getAttribute('data-house-number') || '';
     const street = selected.getAttribute('data-street') || '';
-
-    const houseNumberInput = document.getElementById('house_number');
-    const addressTextarea = document.getElementById('address');
 
     if (houseNumberInput) {
         houseNumberInput.value = houseNumber;
@@ -464,6 +557,7 @@ document.addEventListener('change', function (e) {
     if (addressTextarea) {
         addressTextarea.value = fullAddress;
     }
+    applyHeadHousingFromSelection(selected);
 });
 
 function saveHousehold() {
@@ -563,6 +657,7 @@ function viewHousehold(id) {
                 <p><strong>Household ID Code:</strong> ${escapeHtml((h.household_id_code || '-'))}</p>
                 <p><strong>Family Head:</strong> <span id="viewInfoHeadName">${escapeHtml(firstHeadName)}</span></p>
                 <p><strong>Household Type:</strong> <span id="viewInfoHouseholdType">--</span></p>
+                <p><strong>House Type:</strong> ${escapeHtml(formatStructureHouseTypeLabel(h.house_type))}</p>
                 <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
                 <p><strong>Total Members:</strong> ${members.length}</p>
                 <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
@@ -927,10 +1022,7 @@ function editHousehold(id) {
             : [];
         if (residents.length) {
             sel.innerHTML = '<option value="">-- Select Resident --</option>' +
-                residents.map(r => {
-                    const name = `${r.last_name || ''}, ${r.first_name || ''}`.trim();
-                    return `<option value="${r.id}">${escapeHtml(toTitleCase(name))}</option>`;
-                }).join('');
+                residents.map(r => buildFamilyHeadOptionHtml(r)).join('');
         }
         const headId = Number(h.family_head_id || 0);
         if (headId > 0 && !residents.some(r => Number(r.id) === headId)) {
