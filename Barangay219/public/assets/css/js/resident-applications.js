@@ -499,6 +499,8 @@ function viewApplication(id) {
             const proofDoc = buildFilePreview(proofPath, 'Proof of Residency');
 
             const roleInfo = getHouseholdRoleInfo(app);
+            const incomeDisplay = formatCurrency(app.household_income);
+            const specialCategories = buildSpecialCategories(app);
             document.getElementById('viewModalBody').innerHTML = `
                 <div class="row g-3">
                     <div class="col-md-6"><strong>Name:</strong> ${esc(toTitleCase(fullName || '-'))}</div>
@@ -512,11 +514,20 @@ function viewApplication(id) {
                     <div class="col-md-6"><strong>Email:</strong> ${esc(app.email || '-')}</div>
                     <div class="col-md-6"><strong>Household Role:</strong> ${esc(toTitleCase(roleInfo.label || '-'))}</div>
                     <div class="col-md-6"><strong>Relationship to Head:</strong> ${esc(toTitleCase(roleInfo.relationship || '-'))}</div>
+                    <div class="col-md-6"><strong>Voter Status:</strong> ${esc(toTitleCase(app.voter_status || '-'))}</div>
+                    <div class="col-md-6"><strong>Precinct Number:</strong> ${esc(app.precinct_number || '-')}</div>
+                    <div class="col-md-6"><strong>Education:</strong> ${esc(toTitleCase(app.educational_attainment || '-'))}</div>
+                    <div class="col-md-6"><strong>Occupation:</strong> ${esc(toTitleCase(app.occupation || '-'))}</div>
+                    <div class="col-md-6"><strong>Employment Status:</strong> ${esc(toTitleCase(app.employment_status || '-'))}</div>
+                    <div class="col-md-6"><strong>Monthly Income:</strong> ${incomeDisplay}</div>
+                    <div class="col-md-6"><strong>Residency Start:</strong> ${formatDate(app.residency_start_date)}</div>
+                    <div class="col-md-6"><strong>Length of Residency:</strong> ${esc(app.length_of_residency || '-')}</div>
+                    <div class="col-md-6"><strong>House Type:</strong> ${esc(toTitleCase(app.house_type || '-'))}</div>
+                    <div class="col-md-6"><strong>House Ownership:</strong> ${esc(toTitleCase(app.house_ownership || '-'))}</div>
+                    <div class="col-md-12"><strong>Special Categories:</strong> ${specialCategories}</div>
                     <div class="col-md-6"><strong>Emergency Contact:</strong> ${esc(toTitleCase(app.emergency_contact_name || '-'))}</div>
                     <div class="col-md-6"><strong>Emergency Number:</strong> ${esc(formatPhoneNumber(app.emergency_contact_number) || '-')}</div>
                     <div class="col-md-6"><strong>Relationship:</strong> ${esc(toTitleCase(app.emergency_contact_relationship || '-'))}</div>
-                    <div class="col-md-6"><strong>Employment:</strong> ${esc(toTitleCase(app.employment_status || '-'))}</div>
-                    <div class="col-md-6"><strong>Education:</strong> ${esc(toTitleCase(app.educational_attainment || '-'))}</div>
                     <div class="col-md-6"><strong>Submitted:</strong> ${formatDate(app.created_at)}</div>
                     <div class="col-md-6"><strong>Status:</strong> ${getStatusBadge(app.record_status)}</div>
                     <div class="col-md-6"><strong>Valid ID:</strong> ${idDoc}</div>
@@ -857,6 +868,29 @@ function formatDate(value) {
     const date = new Date(value);
     if (isNaN(date.getTime())) return esc(value);
     return date.toLocaleDateString();
+}
+
+function formatCurrency(value) {
+    if (value === null || value === undefined || value === '') return '-';
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return esc(String(value));
+    return 'PHP ' + numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function buildSpecialCategories(app) {
+    const categories = [];
+    if (Number(app.is_senior_citizen || 0) === 1) categories.push('Senior Citizen');
+    if (Number(app.is_pwd || 0) === 1) {
+        categories.push(app.pwd_id_number ? `PWD (${app.pwd_id_number})` : 'PWD');
+    }
+    if (Number(app.is_solo_parent || 0) === 1) {
+        categories.push(app.solo_parent_id_number ? `Solo Parent (${app.solo_parent_id_number})` : 'Solo Parent');
+    }
+    if (Number(app.is_ip_member || 0) === 1) {
+        categories.push(app.ip_group ? `IP Member (${app.ip_group})` : 'IP Member');
+    }
+    if (Number(app.is_4ps_beneficiary || 0) === 1) categories.push('4Ps Beneficiary');
+    return categories.length ? esc(categories.join(', ')) : '-';
 }
 
 function toTitleCase(text) {
