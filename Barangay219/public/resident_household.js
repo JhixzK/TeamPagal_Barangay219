@@ -85,7 +85,6 @@ function setupEventListeners() {
     ["submitTransferHeadReason", submitTransferHeadReason],
     ["openAddDependentModal", openAddDependentModal],
     ["closeAddDependentModal", closeAddDependentModal],
-    ["submitAddDependent", submitAddDependent],
     ["closeEditMemberModal", closeEditMemberModal],
     ["submitEditMember", submitEditMember],
     ["openUpdateOverview", editHousehold],
@@ -106,9 +105,9 @@ function setupEventListeners() {
       openAddDependentModal();
     });
   }
-  const submitAddDepBtn = document.getElementById("submitAddDependentBtn");
-  if (submitAddDepBtn) {
-    submitAddDepBtn.addEventListener("click", (e) => {
+  const addDependentForm = document.getElementById("addDependentForm");
+  if (addDependentForm) {
+    addDependentForm.addEventListener("submit", (e) => {
       e.preventDefault();
       submitAddDependent(e);
     });
@@ -145,9 +144,14 @@ async function requestJson(url, options) {
     headers: { "Content-Type": "application/json" },
     ...options
   });
-  const result = await response.json();
+  let result;
+  try {
+    result = await response.json();
+  } catch (e) {
+    throw new Error(response.statusText || "Request failed");
+  }
   if (!response.ok || !result.success) {
-    throw new Error(result.message || "Request failed");
+    throw new Error((result && result.message) || "Request failed");
   }
   return result;
 }
@@ -251,6 +255,23 @@ function renderMembersTable(members, isHead) {
     .join("");
 }
 
+function clearAddDependentFormError() {
+  const el = document.getElementById("addDependentFormError");
+  if (!el) return;
+  el.textContent = "";
+  el.classList.remove("is-visible");
+}
+
+function showAddDependentFormError(message) {
+  const el = document.getElementById("addDependentFormError");
+  if (el) {
+    el.textContent = message;
+    el.classList.add("is-visible");
+    return;
+  }
+  showErrorMessage(message);
+}
+
 function openAddDependentModal() {
   if (!currentHouseholdContext?.is_head) {
     showErrorMessage("Only household head can add members.");
@@ -258,8 +279,17 @@ function openAddDependentModal() {
   }
   const modal = document.getElementById("addDependentModal");
   if (!modal) return;
+  clearAddDependentFormError();
   const form = document.getElementById("addDependentForm");
   form?.reset();
+  const bd = document.getElementById("depBirthDate");
+  if (bd) {
+    const t = new Date();
+    const yyyy = t.getFullYear();
+    const mm = String(t.getMonth() + 1).padStart(2, "0");
+    const dd = String(t.getDate()).padStart(2, "0");
+    bd.max = `${yyyy}-${mm}-${dd}`;
+  }
   modal.style.display = "flex";
   document.body.style.overflow = "hidden";
 }
@@ -274,8 +304,13 @@ function closeAddDependentModal() {
 
 async function submitAddDependent(e) {
   e?.preventDefault();
+  clearAddDependentFormError();
+  if (typeof HOUSEHOLD_API === "undefined" || !HOUSEHOLD_API) {
+    showAddDependentFormError("Household service URL is missing. Refresh the page and try again.");
+    return;
+  }
   if (!currentHouseholdContext?.is_head) {
-    showErrorMessage("Only household head can add members.");
+    showAddDependentFormError("Only the household head can add family members.");
     return;
   }
 
@@ -290,17 +325,32 @@ async function submitAddDependent(e) {
   };
 
   if (!payload.first_name || !payload.last_name || !payload.birth_date || !payload.gender || !payload.relationship_to_head) {
-    showErrorMessage("Please complete all required fields.");
+    showAddDependentFormError("Please complete all required fields.");
     return;
   }
 
+  if (payload.birth_date) {
+    const parsed = new Date(`${payload.birth_date}T12:00:00`);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    if (!Number.isNaN(parsed.getTime()) && parsed > endOfToday) {
+      showAddDependentFormError("Birth date cannot be in the future. Use today or an earlier date.");
+      return;
+    }
+  }
+
+  const submitBtn = document.getElementById("submitAddDependentBtn");
   try {
+    if (submitBtn) submitBtn.disabled = true;
     await requestJson(`${HOUSEHOLD_API}/dependent.php`, { method: "POST", body: JSON.stringify(payload) });
+    clearAddDependentFormError();
     closeAddDependentModal();
     await loadHouseholdInfo();
     showSuccessMessage("Family member added.");
   } catch (error) {
-    showErrorMessage(error.message || "Failed to add family member.");
+    showAddDependentFormError(error.message || "Failed to add family member.");
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
   }
 }
 
@@ -333,14 +383,23 @@ function renderManageMembersTable(members) {
     return;
   }
 
-  const currentUserFc = (members || []).find(m => m.is_self)?.family_code ?? '';
+  const currentUserFc = ((members || []).find(m => m.is_self)?.family_code ?? "").toString().trim();
   tbody.innerHTML = members.map((member) => {
     const isSelf = !!member.is_self;
     const memberId = Number(member.id || 0);
       const isMemberHead = isHeadRelationship(member.relationship_to_head) || (Number(member.resident_id || 0) === Number(currentHouseholdData?.family_head_id || 0));
 
-    const canAssignHead = !isSelf && !isMemberHead &&
-      (currentUserFc === '' || (member.family_code || '') === currentUserFc);
+    const memberFc = (member.family_code || "").toString().trim();
+    // Dependents/minors often have no family_code yet; co-heads use distinct codes. Allow transfer when
+    // codes match OR either side has no code (same household list is already scoped to this household).
+    const familyGroupMatches =
+      currentUserFc === "" ||
+      memberFc === "" ||
+      memberFc === currentUserFc;
+    const ageRaw = member.age ?? calculateAge(member.date_of_birth || member.birth_date);
+    const ageNum = typeof ageRaw === "number" && !Number.isNaN(ageRaw) ? ageRaw : Number.parseInt(String(ageRaw), 10);
+    const meetsHeadMinAge = Number.isFinite(ageNum) && ageNum >= 18;
+    const canAssignHead = !isSelf && !isMemberHead && familyGroupMatches && meetsHeadMinAge;
     const canRemove = !isSelf && !isMemberHead;
     const age = member.age ?? calculateAge(member.date_of_birth || member.birth_date) ?? "-";
     const birthDateLabel = formatDate(member.date_of_birth || member.birth_date);
