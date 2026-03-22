@@ -253,6 +253,42 @@
   background: #f9fbff;
 }
 
+/* Household Members: use full panel width; columns share horizontal space */
+#membersPanel .members-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+#membersPanel .members-table th:nth-child(1),
+#membersPanel .members-table td:nth-child(1) {
+  width: 32%;
+}
+
+#membersPanel .members-table th:nth-child(2),
+#membersPanel .members-table td:nth-child(2) {
+  width: 22%;
+}
+
+#membersPanel .members-table th:nth-child(3),
+#membersPanel .members-table td:nth-child(3) {
+  width: 16%;
+}
+
+#membersPanel .members-table th:nth-child(4),
+#membersPanel .members-table td:nth-child(4) {
+  width: 12%;
+}
+
+#membersPanel .members-table th:nth-child(5),
+#membersPanel .members-table td:nth-child(5) {
+  width: 18%;
+}
+
+#membersPanel .members-table td {
+  overflow-wrap: anywhere;
+  word-wrap: break-word;
+}
+
 .status-badge {
   display: inline-flex;
   border-radius: 999px;
