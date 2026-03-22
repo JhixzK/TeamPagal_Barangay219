@@ -81,14 +81,25 @@ if ($tracking === '') {
 ?>
 <link rel="stylesheet" href="<?php echo BASE_URL; ?>request_certificate.css?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/request_certificate.css')); ?>">
 
-<div class="main-content module-page">
+<div class="main-content module-page resident-theme">
   <div class="container-fluid">
   <div class="resident-request-certificate">
-    <section class="page-head">
-      <div>
-        <p class="portal-tag">RESIDENT PORTAL</p>
-        <h2>Request Submitted Successfully</h2>
-        <p class="page-subtitle">Your certificate request has been recorded.</p>
+    <section class="dashboard-hero card border-0 shadow-sm mb-4">
+      <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="hero-copy">
+          <p class="hero-kicker text-uppercase small mb-1">Resident Services Portal</p>
+          <h2 class="mb-1"><i class="bi bi-check2-circle me-2"></i>Request Submitted Successfully</h2>
+          <p class="hero-subtitle mb-0">Your certificate request has been recorded.</p>
+        </div>
+        <div class="text-md-end hero-meta">
+          <span class="hero-date-badge fs-6 px-3 py-2" id="mainDateBadge">
+            <i class="bi bi-calendar3 me-1"></i><?php echo date('F d, Y'); ?>
+          </span>
+          <div class="hero-chips mt-2">
+            <span class="hero-chip"><i class="bi bi-person-check me-1"></i>Resident View</span>
+            <span class="hero-chip"><i class="bi bi-receipt me-1"></i>Request Confirmation</span>
+          </div>
+        </div>
       </div>
     </section>
 
