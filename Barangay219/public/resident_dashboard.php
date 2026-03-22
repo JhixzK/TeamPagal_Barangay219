@@ -619,211 +619,622 @@ if ($residentProfile['resident_status'] === 'Verified') {
 
 $householdStatusBadgeClass = $residentProfile['household_status'] === 'Linked' ? 'text-bg-primary' : 'text-bg-secondary';
 ?>
-<link rel="stylesheet" href="<?php echo BASE_URL; ?>resident_dashboard.css?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_dashboard.css')); ?>">
-
-<div class="main-content module-page" id="mainContent">
+<div class="main-content dashboard-page resident-dashboard-page" id="mainContent">
   <div class="container-fluid">
-    <section class="dashboard-head">
-      <div>
-        <p class="portal-tag">RESIDENT PORTAL</p>
-        <h2>Dashboard</h2>
-        <p class="dashboard-subtitle">Access your barangay services, requests, and community updates.</p>
-      </div>
-      <div class="head-meta">
-        <span class="view-badge">Resident View</span>
-        <span class="date-badge" id="mainDateBadge"><?php echo date('F d, Y'); ?></span>
-      </div>
-    </section>
-
-    <section class="profile-overview card-surface">
-      <div class="profile-identity">
-        <img src="<?php echo htmlspecialchars($residentProfile['avatar']); ?>" alt="Resident profile image">
-        <div>
-          <h3><?php echo htmlspecialchars($residentProfile['full_name']); ?></h3>
-          <p><?php echo htmlspecialchars($email ?: 'No email on file'); ?></p>
-          <p class="mb-0"><strong>Resident ID:</strong> <?php echo htmlspecialchars($residentProfile['resident_id'] ?: $username); ?></p>
+    <div class="dashboard-hero card border-0 shadow-sm mb-4">
+      <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="hero-copy">
+          <p class="hero-kicker text-uppercase small mb-1">Resident Services Portal</p>
+          <h2 class="mb-1"><i class="bi bi-house-heart me-2"></i>Resident Dashboard</h2>
+          <p class="hero-subtitle mb-0">Track your requests, household details, announcements, and account updates in one place.</p>
         </div>
-      </div>
-      <div class="profile-status">
-        <span class="badge <?php echo $householdStatusBadgeClass; ?>">
-          <i class="bi bi-house-door"></i>
-          Household Status: <?php echo htmlspecialchars($residentProfile['household_status']); ?>
-        </span>
-      </div>
-    </section>
-
-    <section class="quick-actions card-surface" aria-label="Quick actions">
-      <div class="panel-header compact">
-        <h3>Quick Actions</h3>
-      </div>
-      <div class="quick-actions-grid">
-        <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=barangay_certificate"><i class="bi bi-file-earmark-text"></i><span>Request Barangay Certificate</span></a>
-        <a class="quick-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=certificate_indigency"><i class="bi bi-heart-pulse"></i><span>Request Certificate of Indigency</span></a>
-        <a class="quick-btn" href="<?php echo BASE_URL; ?>my_requests.php"><i class="bi bi-list-check"></i><span>View My Requests</span></a>
-        <a class="quick-btn" href="<?php echo BASE_URL; ?>resident_profile.php"><i class="bi bi-person-circle"></i><span>Update Profile</span></a>
-        <a class="quick-btn" href="<?php echo BASE_URL; ?>resident_household.php"><i class="bi bi-house-door"></i><span>Household Information</span></a>
-      </div>
-    </section>
-
-    <section class="stats-grid" aria-label="Resident dashboard statistics">
-      <article class="stat-card card-1" data-href="<?php echo BASE_URL; ?>my_requests.php" role="link" tabindex="0">
-        <i class="bi bi-folder2-open stat-icon"></i>
-        <h3>My Requests</h3>
-        <p class="stat-value"><?php echo (int)$stats['total_requests']; ?></p>
-        <p class="stat-note">Total documents requested</p>
-      </article>
-
-      <article class="stat-card card-2" data-href="<?php echo BASE_URL; ?>my_requests.php?status=Pending" role="link" tabindex="0">
-        <i class="bi bi-clock stat-icon"></i>
-        <h3>Pending Requests</h3>
-        <p class="stat-value"><?php echo (int)$stats['pending_requests']; ?></p>
-        <p class="stat-note">Pending or under review</p>
-      </article>
-
-      <article class="stat-card card-3" data-href="<?php echo BASE_URL; ?>my_requests.php?status=Approved" role="link" tabindex="0">
-        <i class="bi bi-check-circle stat-icon"></i>
-        <h3>Approved Documents</h3>
-        <p class="stat-value"><?php echo (int)$stats['approved_documents']; ?></p>
-        <p class="stat-note">Approved and ready for pickup</p>
-      </article>
-
-      <article class="stat-card card-4" data-href="<?php echo BASE_URL; ?>resident_announcements.php" role="link" tabindex="0">
-        <i class="bi bi-megaphone stat-icon"></i>
-        <h3>Barangay Announcements</h3>
-        <p class="stat-value"><?php echo (int)$stats['active_announcements']; ?></p>
-        <p class="stat-note">Recent community updates</p>
-      </article>
-    </section>
-
-    <!-- Announcements Widget -->
-    <section class="announcements-widget panel">
-      <div class="panel-header">
-        <h3><i class="bi bi-megaphone"></i> Latest Announcements</h3>
-        <a href="<?php echo BASE_URL; ?>resident_announcements.php" class="view-all-link">View All</a>
-      </div>
-      <div id="dashboardAnnouncementsContainer" class="announcements-list-dashboard">
-        <div class="loading-placeholder">
-          <i class="bi bi-arrow-repeat"></i> Loading announcements...
-        </div>
-      </div>
-    </section>
-
-    <section class="dashboard-grid-two">
-      <article class="panel">
-        <div class="panel-header">
-          <h3>Request Progress Tracker</h3>
-        </div>
-        <?php if (!$latestRequest): ?>
-          <p class="info-empty">No recent requests found.</p>
-        <?php else: ?>
-          <div class="tracker-card">
-            <p><strong>Document Type:</strong> <?php echo htmlspecialchars(residentDashboardPrettyLabel($latestRequest['request_type'] ?? 'Document Request')); ?></p>
-            <p><strong>Date Requested:</strong> <?php echo !empty($latestRequest['requested_at']) ? htmlspecialchars(date('F d, Y', strtotime($latestRequest['requested_at']))) : '-'; ?></p>
-            <p><strong>Current Status:</strong> <span class="tracker-badge <?php echo residentDashboardTrackerClass($latestRequest['status'] ?? 'Submitted'); ?>"><?php echo htmlspecialchars(residentDashboardPrettyLabel($latestRequest['status'] ?? 'Submitted')); ?></span></p>
+        <div class="text-md-end hero-meta">
+          <span class="hero-date-badge fs-6 px-3 py-2" id="mainDateBadge">
+            <i class="bi bi-calendar3 me-1"></i><?php echo date('F d, Y'); ?>
+          </span>
+          <div class="hero-chips mt-2">
+            <span class="hero-chip"><i class="bi bi-person-check me-1"></i>Resident View</span>
+            <span class="hero-chip"><i class="bi bi-shield-lock me-1"></i>Account Secure</span>
           </div>
-        <?php endif; ?>
-      </article>
-
-      <article class="panel">
-        <div class="panel-header">
-          <h3>Notifications</h3>
         </div>
-        <?php if (!$dashboardNotifications): ?>
-          <p class="info-empty">No new notifications.</p>
-        <?php else: ?>
-          <ul class="notification-list">
-            <?php foreach ($dashboardNotifications as $notice): ?>
-              <li>
-                <h4><?php echo htmlspecialchars($notice['title'] ?? 'System Alert'); ?></h4>
-                <p><?php echo htmlspecialchars($notice['message'] ?? 'You have a new update.'); ?></p>
-              </li>
-            <?php endforeach; ?>
-          </ul>
-        <?php endif; ?>
-      </article>
+      </div>
+    </div>
 
-      <article class="panel">
-        <div class="panel-header">
-          <h3>Household Snapshot</h3>
+    <div class="card dash-panel mb-4">
+      <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <img class="resident-avatar" src="<?php echo htmlspecialchars($residentProfile['avatar']); ?>" alt="Resident profile image">
+          <div>
+            <h5 class="mb-1"><?php echo htmlspecialchars($residentProfile['full_name']); ?></h5>
+            <p class="text-muted mb-1"><?php echo htmlspecialchars($email ?: 'No email on file'); ?></p>
+            <p class="mb-0 resident-meta"><strong>Resident ID:</strong> <?php echo htmlspecialchars($residentProfile['resident_id'] ?: $username); ?></p>
+          </div>
         </div>
-        <?php if (!$householdSnapshot['linked']): ?>
-          <p class="info-empty">You are not currently associated with any household. Please contact the barangay office to link your household record.</p>
-        <?php else: ?>
-          <ul class="detail-list">
-            <li><strong>Household Head Name:</strong> <?php echo htmlspecialchars($householdSnapshot['head_name'] ?: '-'); ?></li>
-            <li><strong>Number of Household Members:</strong> <?php echo (int)$householdSnapshot['member_count']; ?></li>
-            <li><strong>Address:</strong> <?php echo htmlspecialchars($householdSnapshot['address'] ?: '-'); ?></li>
-            <li><strong>Household ID:</strong> <?php echo (int)$householdSnapshot['household_id']; ?></li>
-          </ul>
-        <?php endif; ?>
-      </article>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <span class="badge <?php echo $residentStatusBadgeClass; ?> px-3 py-2">Status: <?php echo htmlspecialchars($residentProfile['resident_status']); ?></span>
+          <span class="badge <?php echo $householdStatusBadgeClass; ?> px-3 py-2">Household: <?php echo htmlspecialchars($residentProfile['household_status']); ?></span>
+        </div>
+      </div>
+    </div>
 
-      <article class="panel">
-        <div class="panel-header">
-          <h3>Recent Requests</h3>
+    <div class="row g-3 mb-4" aria-label="Resident dashboard statistics">
+      <div class="col-6 col-lg-3">
+        <a href="<?php echo BASE_URL; ?>my_requests.php" class="text-decoration-none dashboard-kpi-link">
+          <div class="dashboard-kpi-card kpi-primary">
+            <div class="kpi-icon"><i class="bi bi-folder2-open"></i></div>
+            <div class="kpi-value"><?php echo (int)$stats['total_requests']; ?></div>
+            <div class="kpi-label">My Requests</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-lg-3">
+        <a href="<?php echo BASE_URL; ?>my_requests.php?status=Pending" class="text-decoration-none dashboard-kpi-link">
+          <div class="dashboard-kpi-card kpi-teal">
+            <div class="kpi-icon"><i class="bi bi-hourglass-split"></i></div>
+            <div class="kpi-value"><?php echo (int)$stats['pending_requests']; ?></div>
+            <div class="kpi-label">Pending Requests</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-lg-3">
+        <a href="<?php echo BASE_URL; ?>my_requests.php?status=Approved" class="text-decoration-none dashboard-kpi-link">
+          <div class="dashboard-kpi-card kpi-sky">
+            <div class="kpi-icon"><i class="bi bi-patch-check"></i></div>
+            <div class="kpi-value"><?php echo (int)$stats['approved_documents']; ?></div>
+            <div class="kpi-label">Approved Documents</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-lg-3">
+        <a href="<?php echo BASE_URL; ?>resident_announcements.php" class="text-decoration-none dashboard-kpi-link">
+          <div class="dashboard-kpi-card kpi-amber">
+            <div class="kpi-icon"><i class="bi bi-megaphone"></i></div>
+            <div class="kpi-value"><?php echo (int)$stats['active_announcements']; ?></div>
+            <div class="kpi-label">Announcements</div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-xl-7">
+        <div class="card dash-panel h-100">
+          <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="bi bi-lightning-charge me-2 text-primary"></i>Quick Actions</h6>
+          </div>
+          <div class="card-body pt-0">
+            <div class="quick-actions-grid mb-3">
+              <a class="quick-action-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=barangay_certificate"><i class="bi bi-file-earmark-text"></i><span>Request Barangay Certificate</span></a>
+              <a class="quick-action-btn" href="<?php echo BASE_URL; ?>request_certificate.php?certificate=certificate_indigency"><i class="bi bi-heart-pulse"></i><span>Request Certificate of Indigency</span></a>
+              <a class="quick-action-btn" href="<?php echo BASE_URL; ?>my_requests.php"><i class="bi bi-list-check"></i><span>View My Requests</span></a>
+              <a class="quick-action-btn" href="<?php echo BASE_URL; ?>resident_profile.php"><i class="bi bi-person-circle"></i><span>Update Profile</span></a>
+              <a class="quick-action-btn" href="<?php echo BASE_URL; ?>resident_household.php"><i class="bi bi-house-door"></i><span>Household Information</span></a>
+            </div>
+            <div class="announcements-widget">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0"><i class="bi bi-megaphone me-2 text-primary"></i>Latest Announcements</h6>
+                <a href="<?php echo BASE_URL; ?>resident_announcements.php" class="view-all-link">View All</a>
+              </div>
+              <div id="dashboardAnnouncementsContainer" class="announcements-list-dashboard">
+                <div class="loading-placeholder">
+                  <i class="bi bi-arrow-repeat"></i> Loading announcements...
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      <div class="table-wrap">
-        <table class="request-table" id="requestTable">
-          <thead>
-            <tr>
-              <th>Document Type</th>
-              <th>Date Requested</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php if (!$recentRequests): ?>
-              <tr>
-                <td colspan="4" class="table-empty">No recent requests found.</td>
-              </tr>
+      </div>
+
+      <div class="col-xl-5">
+        <div class="card dash-panel h-100">
+          <div class="card-header bg-white border-0">
+            <h6 class="mb-0"><i class="bi bi-bell me-2 text-primary"></i>Notifications</h6>
+          </div>
+          <div class="card-body pt-0">
+            <?php if (!$dashboardNotifications): ?>
+              <p class="info-empty mb-0">No new notifications.</p>
             <?php else: ?>
-              <?php foreach ($recentRequests as $request): ?>
-                <?php $statusClass = residentDashboardStatusClass($request['status'] ?? 'pending'); ?>
-                <tr>
-                  <td><?php echo htmlspecialchars(residentDashboardPrettyLabel($request['request_type'] ?? 'Document Request')); ?></td>
-                  <td><?php echo !empty($request['requested_at']) ? htmlspecialchars(date('F d, Y', strtotime($request['requested_at']))) : '-'; ?></td>
-                  <td><span class="status <?php echo $statusClass; ?>"><?php echo htmlspecialchars(residentDashboardPrettyLabel($request['status'] ?? 'pending')); ?></span></td>
-                  <td><a class="text-link" href="<?php echo BASE_URL; ?>my_requests.php">View Details</a></td>
-                </tr>
-              <?php endforeach; ?>
+              <ul class="notification-list mb-0">
+                <?php foreach ($dashboardNotifications as $notice): ?>
+                  <li>
+                    <h4><?php echo htmlspecialchars($notice['title'] ?? 'System Alert'); ?></h4>
+                    <p><?php echo htmlspecialchars($notice['message'] ?? 'You have a new update.'); ?></p>
+                  </li>
+                <?php endforeach; ?>
+              </ul>
             <?php endif; ?>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="panel emergency-panel">
-      <div class="panel-header">
-        <h3>Emergency Contacts</h3>
-      </div>
-      <div class="emergency-grid">
-        <?php if (!empty($residentEmergencyContact['name']) || !empty($residentEmergencyContact['number'])): ?>
-          <div class="contact-item">
-            <h4>My Emergency Contact<?php echo !empty($residentEmergencyContact['relationship']) ? ' (' . htmlspecialchars($residentEmergencyContact['relationship']) . ')' : ''; ?></h4>
-            <p><?php echo htmlspecialchars($residentEmergencyContact['name'] ?: 'Not specified'); ?></p>
-            <p><?php echo htmlspecialchars($residentEmergencyContact['number'] ?: 'No number on file'); ?></p>
           </div>
-        <?php endif; ?>
-
-        <?php if (!empty($householdSnapshot['emergency_contact_name']) || !empty($householdSnapshot['emergency_contact_number'])): ?>
-          <div class="contact-item">
-            <h4>Household Emergency Contact</h4>
-            <p><?php echo htmlspecialchars($householdSnapshot['emergency_contact_name'] ?: 'Not specified'); ?></p>
-            <p><?php echo htmlspecialchars($householdSnapshot['emergency_contact_number'] ?: 'No number on file'); ?></p>
-          </div>
-        <?php endif; ?>
-
-        <?php foreach ($dashboardEmergencyContacts as $contact): ?>
-          <div class="contact-item">
-            <h4><?php echo htmlspecialchars((string)($contact['label'] ?? 'Emergency Contact')); ?></h4>
-            <p><?php echo htmlspecialchars((string)($contact['number'] ?? '-')); ?></p>
-          </div>
-        <?php endforeach; ?>
+        </div>
       </div>
-    </section>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-xl-6">
+        <div class="card dash-panel h-100">
+          <div class="card-header bg-white border-0">
+            <h6 class="mb-0"><i class="bi bi-signpost-split me-2 text-primary"></i>Request Progress Tracker</h6>
+          </div>
+          <div class="card-body pt-0">
+            <?php if (!$latestRequest): ?>
+              <p class="info-empty mb-0">No recent requests found.</p>
+            <?php else: ?>
+              <ul class="mini-list mb-0">
+                <li><span>Document Type</span><strong><?php echo htmlspecialchars(residentDashboardPrettyLabel($latestRequest['request_type'] ?? 'Document Request')); ?></strong></li>
+                <li><span>Date Requested</span><strong><?php echo !empty($latestRequest['requested_at']) ? htmlspecialchars(date('F d, Y', strtotime($latestRequest['requested_at']))) : '-'; ?></strong></li>
+                <li><span>Current Status</span><strong><span class="tracker-badge <?php echo residentDashboardTrackerClass($latestRequest['status'] ?? 'Submitted'); ?>"><?php echo htmlspecialchars(residentDashboardPrettyLabel($latestRequest['status'] ?? 'Submitted')); ?></span></strong></li>
+              </ul>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-6">
+        <div class="card dash-panel h-100">
+          <div class="card-header bg-white border-0">
+            <h6 class="mb-0"><i class="bi bi-house-check me-2 text-primary"></i>Household Snapshot</h6>
+          </div>
+          <div class="card-body pt-0">
+            <?php if (!$householdSnapshot['linked']): ?>
+              <p class="info-empty mb-0">You are not currently associated with any household. Please contact the barangay office to link your household record.</p>
+            <?php else: ?>
+              <ul class="mini-list mb-0">
+                <li><span>Household Head</span><strong><?php echo htmlspecialchars($householdSnapshot['head_name'] ?: '-'); ?></strong></li>
+                <li><span>Total Members</span><strong><?php echo (int)$householdSnapshot['member_count']; ?></strong></li>
+                <li><span>Address</span><strong><?php echo htmlspecialchars($householdSnapshot['address'] ?: '-'); ?></strong></li>
+                <li><span>Household ID</span><strong><?php echo (int)$householdSnapshot['household_id']; ?></strong></li>
+              </ul>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-12">
+        <div class="card dash-panel">
+          <div class="card-header bg-white border-0">
+            <h6 class="mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>Recent Requests</h6>
+          </div>
+          <div class="card-body pt-0">
+            <div class="table-wrap">
+              <table class="request-table" id="requestTable">
+                <thead>
+                  <tr>
+                    <th>Document Type</th>
+                    <th>Date Requested</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php if (!$recentRequests): ?>
+                    <tr>
+                      <td colspan="4" class="table-empty">No recent requests found.</td>
+                    </tr>
+                  <?php else: ?>
+                    <?php foreach ($recentRequests as $request): ?>
+                      <?php $statusClass = residentDashboardStatusClass($request['status'] ?? 'pending'); ?>
+                      <tr>
+                        <td><?php echo htmlspecialchars(residentDashboardPrettyLabel($request['request_type'] ?? 'Document Request')); ?></td>
+                        <td><?php echo !empty($request['requested_at']) ? htmlspecialchars(date('F d, Y', strtotime($request['requested_at']))) : '-'; ?></td>
+                        <td><span class="status <?php echo $statusClass; ?>"><?php echo htmlspecialchars(residentDashboardPrettyLabel($request['status'] ?? 'pending')); ?></span></td>
+                        <td><a class="text-link" href="<?php echo BASE_URL; ?>my_requests.php">View Details</a></td>
+                      </tr>
+                    <?php endforeach; ?>
+                  <?php endif; ?>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="card dash-panel emergency-panel">
+          <div class="card-header bg-white border-0">
+            <h6 class="mb-0"><i class="bi bi-telephone-forward me-2 text-primary"></i>Emergency Contacts</h6>
+          </div>
+          <div class="card-body pt-0">
+            <div class="emergency-grid">
+              <?php if (!empty($residentEmergencyContact['name']) || !empty($residentEmergencyContact['number'])): ?>
+                <div class="contact-item">
+                  <h4>My Emergency Contact<?php echo !empty($residentEmergencyContact['relationship']) ? ' (' . htmlspecialchars($residentEmergencyContact['relationship']) . ')' : ''; ?></h4>
+                  <p><?php echo htmlspecialchars($residentEmergencyContact['name'] ?: 'Not specified'); ?></p>
+                  <p><?php echo htmlspecialchars($residentEmergencyContact['number'] ?: 'No number on file'); ?></p>
+                </div>
+              <?php endif; ?>
+
+              <?php if (!empty($householdSnapshot['emergency_contact_name']) || !empty($householdSnapshot['emergency_contact_number'])): ?>
+                <div class="contact-item">
+                  <h4>Household Emergency Contact</h4>
+                  <p><?php echo htmlspecialchars($householdSnapshot['emergency_contact_name'] ?: 'Not specified'); ?></p>
+                  <p><?php echo htmlspecialchars($householdSnapshot['emergency_contact_number'] ?: 'No number on file'); ?></p>
+                </div>
+              <?php endif; ?>
+
+              <?php foreach ($dashboardEmergencyContacts as $contact): ?>
+                <div class="contact-item">
+                  <h4><?php echo htmlspecialchars((string)($contact['label'] ?? 'Emergency Contact')); ?></h4>
+                  <p><?php echo htmlspecialchars((string)($contact['number'] ?? '-')); ?></p>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
+
+<style>
+.resident-dashboard-page .dashboard-hero {
+  border-radius: 16px;
+  background: radial-gradient(circle at 0% 0%, rgba(147, 197, 253, 0.24), transparent 36%), linear-gradient(140deg, #f8fbff 0%, #eef4ff 58%, #f4f7fb 100%);
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 16px 34px -24px rgba(37, 99, 235, 0.45);
+}
+
+.resident-dashboard-page .dashboard-hero .card-body {
+  padding: 1.2rem 1.3rem;
+}
+
+.resident-dashboard-page .hero-kicker {
+  color: #334155;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.resident-dashboard-page .hero-copy h2 {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.resident-dashboard-page .hero-subtitle {
+  color: #475569;
+  max-width: 640px;
+}
+
+.resident-dashboard-page .hero-date-badge {
+  display: inline-block;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1e3a8a;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  font-weight: 600;
+}
+
+.resident-dashboard-page .hero-chips {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.resident-dashboard-page .hero-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.resident-dashboard-page .dash-panel {
+  border-radius: 14px;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 8px 20px -12px rgba(15, 23, 42, 0.18);
+}
+
+.resident-dashboard-page .dash-panel .card-header {
+  padding: 0.85rem 1rem 0.6rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.resident-dashboard-page .dash-panel .card-header h6 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.resident-dashboard-page .resident-avatar {
+  width: 62px;
+  height: 62px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 2px solid #dbeafe;
+}
+
+.resident-dashboard-page .resident-meta {
+  color: #334155;
+  font-size: 0.82rem;
+}
+
+.resident-dashboard-page .dashboard-kpi-card {
+  position: relative;
+  border-radius: 14px;
+  padding: 0.85rem 1rem 0.7rem;
+  min-height: 100px;
+  color: #fff;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.resident-dashboard-page .dashboard-kpi-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 55%);
+  pointer-events: none;
+}
+
+.resident-dashboard-page .dashboard-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.2);
+}
+
+.resident-dashboard-page .kpi-icon {
+  position: absolute;
+  right: 12px;
+  top: 10px;
+  font-size: 1.15rem;
+  opacity: 0.9;
+}
+
+.resident-dashboard-page .kpi-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  margin-top: 0.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.resident-dashboard-page .kpi-label {
+  font-size: 0.78rem;
+  opacity: 0.92;
+  margin-top: 2px;
+}
+
+.resident-dashboard-page .kpi-primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+
+.resident-dashboard-page .kpi-teal {
+  background: linear-gradient(135deg, #0f766e, #115e59);
+}
+
+.resident-dashboard-page .kpi-sky {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+}
+
+.resident-dashboard-page .kpi-amber {
+  background: linear-gradient(135deg, #d97706, #b45309);
+}
+
+.resident-dashboard-page .quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 0.7rem;
+}
+
+.resident-dashboard-page .quick-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  text-decoration: none;
+  color: #1e293b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.62rem 0.72rem;
+  font-size: 0.83rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.resident-dashboard-page .quick-action-btn:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.resident-dashboard-page .view-all-link,
+.resident-dashboard-page .text-link {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.78rem;
+}
+
+.resident-dashboard-page .view-all-link:hover,
+.resident-dashboard-page .text-link:hover {
+  text-decoration: underline;
+}
+
+.resident-dashboard-page .mini-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.resident-dashboard-page .mini-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 0.58rem 0;
+  font-size: 0.83rem;
+}
+
+.resident-dashboard-page .mini-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.resident-dashboard-page .mini-list span {
+  color: #64748b;
+}
+
+.resident-dashboard-page .mini-list strong {
+  color: #0f172a;
+  text-align: right;
+}
+
+.resident-dashboard-page .tracker-badge,
+.resident-dashboard-page .status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.62rem;
+  font-size: 0.73rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.resident-dashboard-page .tracker-submitted,
+.resident-dashboard-page .tracker-review,
+.resident-dashboard-page .status.status-pending {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.resident-dashboard-page .tracker-approved,
+.resident-dashboard-page .tracker-ready,
+.resident-dashboard-page .tracker-released,
+.resident-dashboard-page .status.status-approved {
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.resident-dashboard-page .tracker-cancelled,
+.resident-dashboard-page .status.status-rejected,
+.resident-dashboard-page .status.status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.resident-dashboard-page .notification-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.58rem;
+}
+
+.resident-dashboard-page .notification-list li {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0.62rem 0.72rem;
+}
+
+.resident-dashboard-page .notification-list h4 {
+  margin: 0 0 0.18rem;
+  font-size: 0.82rem;
+  color: #0f172a;
+}
+
+.resident-dashboard-page .notification-list p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #475569;
+}
+
+.resident-dashboard-page .info-empty {
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.resident-dashboard-page .table-wrap {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.resident-dashboard-page .request-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+}
+
+.resident-dashboard-page .request-table th,
+.resident-dashboard-page .request-table td {
+  padding: 0.68rem 0.72rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.8rem;
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.resident-dashboard-page .request-table th {
+  background: #f8fafc;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+}
+
+.resident-dashboard-page .table-empty {
+  color: #64748b;
+  text-align: center;
+}
+
+.resident-dashboard-page .emergency-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.72rem;
+}
+
+.resident-dashboard-page .contact-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0.62rem 0.72rem;
+}
+
+.resident-dashboard-page .contact-item h4 {
+  margin: 0 0 0.22rem;
+  font-size: 0.8rem;
+  color: #0f172a;
+}
+
+.resident-dashboard-page .contact-item p {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #475569;
+}
+
+@media (max-width: 991px) {
+  .resident-dashboard-page .quick-actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .resident-dashboard-page .hero-chips {
+    justify-content: flex-start;
+  }
+
+  .resident-dashboard-page .hero-meta {
+    text-align: left !important;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .resident-dashboard-page .dashboard-kpi-card {
+    min-height: 88px;
+    padding: 0.7rem 0.8rem 0.6rem;
+  }
+
+  .resident-dashboard-page .kpi-value {
+    font-size: 1.4rem;
+  }
+}
+</style>
 
 <script src="<?php echo BASE_URL; ?>resident_dashboard.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_dashboard.js')); ?>"></script>
 <script src="<?php echo BASE_URL; ?>assets/css/js/dashboard-announcements.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/assets/css/js/dashboard-announcements.js')); ?>"></script>
