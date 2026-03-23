@@ -110,7 +110,7 @@ function displayUsers(users) {
     const tbody = document.getElementById('usersTableBody');
     
     if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center users-subtext">No users found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center users-subtext">No users found</td></tr>';
         return;
     }
 
@@ -133,11 +133,10 @@ function displayUsers(users) {
 
     tbody.innerHTML = sortedUsers.map(user => `
         <tr>
-            <td class="text-center"><span class="users-code-badge">#${user.id}</span></td>
             <td class="text-center"><span class="users-code-badge">${escapeHtml(user.username)}</span></td>
             <td class="text-center"><span class="users-main-text">${escapeHtml(user.full_name || '-')}</span></td>
             <td class="text-center"><span class="users-subtext">${escapeHtml(user.email || '-')}</span></td>
-            <td class="text-center"><span class="user-pill role-pill">${formatRole(user.role)}</span></td>
+            <td class="text-center"><span class="user-pill role-pill ${getRoleClass(user.role)}">${formatRole(user.role)}</span></td>
             <td class="text-center"><span class="user-pill ${getStatusClass(user.status)}">${formatStatus(user.status)}</span></td>
             <td class="text-center"><span class="users-subtext">${formatDate(user.created_at)}</span></td>
             <td class="text-center users-actions-col users-actions actions-col-wide">
@@ -398,6 +397,20 @@ function resetForm() {
  */
 function formatRole(role) {
     return role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function getRoleClass(role) {
+    const r = String(role || '').toLowerCase();
+    const map = {
+        'super_admin': 'role-super-admin',
+        'barangay_captain': 'role-captain',
+        'secretary': 'role-secretary',
+        'treasurer': 'role-treasurer',
+        'kagawad': 'role-kagawad',
+        'sk_chairman': 'role-sk',
+        'resident': 'role-resident'
+    };
+    return map[r] || 'role-pill';
 }
 
 function formatStatus(status) {
