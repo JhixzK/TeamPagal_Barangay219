@@ -68,6 +68,7 @@ function ensureBlotterRecordsSchema(): void {
             incident_datetime DATETIME NOT NULL,
             narrative TEXT NOT NULL,
             status ENUM('pending','investigation','mediation','settled','dismissed') NOT NULL DEFAULT 'pending',
+            respondent_name_raw VARCHAR(255) DEFAULT NULL,
             respondent_name VARCHAR(255) DEFAULT NULL,
             respondent_id INT(11) DEFAULT NULL,
             witnesses TEXT DEFAULT NULL,
@@ -85,6 +86,11 @@ function ensureBlotterRecordsSchema(): void {
             KEY idx_blotter_respondent_id (respondent_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    $hasRawNameColumn = $db->fetchOne("SHOW COLUMNS FROM blotter_records LIKE 'respondent_name_raw'");
+    if (!$hasRawNameColumn) {
+        $db->query("ALTER TABLE blotter_records ADD COLUMN respondent_name_raw VARCHAR(255) DEFAULT NULL AFTER status");
+    }
 }
 
 function generateBlotterReferenceNumber(): string {
