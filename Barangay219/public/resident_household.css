@@ -31,6 +31,18 @@
   display: block;
 }
 
+/* Keep tables and grids inside the main column (fixed sidebar uses margin-left). */
+.resident-household-page.main-content {
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.resident-household-page.main-content > .container-fluid {
+  max-width: 100%;
+  min-width: 0;
+}
+
 :root {
   --hh-surface: #ffffff;
   --hh-bg-soft: #f5f7fc;
@@ -113,6 +125,12 @@
   border-radius: var(--hh-radius);
   margin-bottom: 18px;
   overflow: hidden;
+}
+
+/* Wide member tables: horizontal scroll inside the panel, not the whole page. */
+#membersPanel.panel {
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .panel-header {
@@ -224,13 +242,17 @@
 
 .table-responsive {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .members-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 860px;
+  min-width: 0;
+  max-width: 100%;
+  table-layout: auto;
 }
 
 .members-table th,
@@ -259,29 +281,35 @@
   table-layout: fixed;
 }
 
+/* Name, Role, Sex, Age, Occupation, Status */
 #membersPanel .members-table th:nth-child(1),
 #membersPanel .members-table td:nth-child(1) {
-  width: 32%;
+  width: 22%;
 }
 
 #membersPanel .members-table th:nth-child(2),
 #membersPanel .members-table td:nth-child(2) {
-  width: 22%;
+  width: 14%;
 }
 
 #membersPanel .members-table th:nth-child(3),
 #membersPanel .members-table td:nth-child(3) {
-  width: 16%;
+  width: 10%;
 }
 
 #membersPanel .members-table th:nth-child(4),
 #membersPanel .members-table td:nth-child(4) {
-  width: 12%;
+  width: 8%;
 }
 
 #membersPanel .members-table th:nth-child(5),
 #membersPanel .members-table td:nth-child(5) {
-  width: 18%;
+  width: 22%;
+}
+
+#membersPanel .members-table th:nth-child(6),
+#membersPanel .members-table td:nth-child(6) {
+  width: 24%;
 }
 
 #membersPanel .members-table td {
