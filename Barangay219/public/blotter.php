@@ -76,68 +76,125 @@ include __DIR__ . '/../includes/sidebar.php';
     <div class="modal fade blotterModal" id="viewBlotterModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header d-flex justify-content-between align-items-center">
                     <h5 class="modal-title">Blotter Case Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-primary" id="btnEnableEditMode" title="Edit/Process">
+                            <i class="bi bi-pencil"></i> Edit/Process
+                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
                 </div>
-                <div class="modal-body">
-                    <h6>Case Information</h6>
-                    <div class="row mb-3">
-                        <div class="col-md-8">
-                            <label class="form-label fw-bold">Case Title:</label>
-                            <p id="viewCaseTitle"></p>
+                <form id="caseDetailForm" style="display:none;">
+                    <input type="hidden" id="editCaseId" name="case_id">
+                    <div class="modal-body">
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle"></i> You are now editing this case. Make changes and click Save.
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Incident Date:</label>
-                            <p id="viewIncidentDate"></p>
+                        
+                        <h6>Case Status & Respondent</h6>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" id="editStatus" name="status">
+                                    <option value="pending">Pending</option>
+                                    <option value="investigation">Under Investigation</option>
+                                    <option value="mediation">Mediation</option>
+                                    <option value="settled">Settled</option>
+                                    <option value="dismissed">Dismissed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Respondent (Link)</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="editRespondentSearch" placeholder="Search resident..." autocomplete="off">
+                                    <button class="btn btn-outline-secondary" type="button" id="clearRespondentBtn">Clear</button>
+                                </div>
+                                <input type="hidden" id="editRespondentId" name="respondent_id">
+                                <div id="respondentSearchResults" class="list-group mt-2" style="display:none; max-height:200px; overflow-y:auto;"></div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Incident Type:</label>
-                            <p id="viewIncidentType"></p>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Proof of Incident:</label>
-                            <p id="viewIncidentProof"></p>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Incident Location:</label>
-                        <p id="viewIncidentLocation"></p>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Incident Detail:</label>
-                        <p id="viewDescription"></p>
-                    </div>
-                    
-                    <hr>
-                    <h6>Complainants</h6>
-                    <div id="viewComplainantsInfo"></div>
-                    
-                    <hr>
-                    <h6>Respondents</h6>
-                    <div id="viewRespondentsInfo"></div>
-                    
-                    <hr>
-                    <h6>Case Status</h6>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Status:</label>
-                            <p id="viewStatus"></p>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Settlement Date:</label>
-                            <p id="viewSettlementDate"></p>
-                        </div>
-                    </div>
 
-                    <hr>
-                    <h6>Hearings</h6>
-                    <div id="viewHearingsInfo"></div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <hr>
+                        <h6>Admin Notes</h6>
+                        <textarea class="form-control mb-3" id="editAdminNotes" name="admin_notes" rows="3" placeholder="Add processing notes, mediation outcomes, etc."></textarea>
+
+                        <div id="editModeActionLog" class="alert alert-secondary p-2" style="font-size:0.9rem; display:none;"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="btnCancelEdit">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+
+                <div id="viewModeContent">
+                    <div class="modal-body">
+                        <h6>Case Information</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold">Case Title:</label>
+                                <p id="viewCaseTitle"></p>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Incident Date:</label>
+                                <p id="viewIncidentDate"></p>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Incident Type:</label>
+                                <p id="viewIncidentType"></p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Proof of Incident:</label>
+                                <p id="viewIncidentProof"></p>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Incident Location:</label>
+                            <p id="viewIncidentLocation"></p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Incident Detail:</label>
+                            <p id="viewDescription"></p>
+                        </div>
+                        
+                        <hr>
+                        <h6>Complainants</h6>
+                        <div id="viewComplainantsInfo"></div>
+                        
+                        <hr>
+                        <h6>Respondents</h6>
+                        <div id="viewRespondentsInfo"></div>
+                        
+                        <hr>
+                        <h6>Case Status</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Status:</label>
+                                <p id="viewStatus"></p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Settlement Date:</label>
+                                <p id="viewSettlementDate"></p>
+                            </div>
+                        </div>
+
+                        <hr>
+                        <h6>Admin Notes</h6>
+                        <div id="viewAdminNotes" class="p-2 bg-light border rounded" style="white-space:pre-wrap; min-height:60px;"></div>
+
+                        <hr>
+                        <h6>Hearings</h6>
+                        <div id="viewHearingsInfo"></div>
+
+                        <hr>
+                        <h6>Audit Log</h6>
+                        <div id="viewAuditLog" style="font-size:0.9rem;"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
                 </div>
             </div>
         </div>
