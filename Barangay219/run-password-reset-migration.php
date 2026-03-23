@@ -38,23 +38,27 @@ try {
     }
     
     echo "📝 Running migration...\n\n";
-    
-    // Split SQL statements and execute them
-    $statements = array_filter(
-        array_map('trim', explode(';', $sql)),
-        function($stmt) {
-            return !empty($stmt) && !preg_match('/^--/', trim($stmt));
-        }
-    );
-    
-    $success_count = 0;
-    $skip_count = 0;
-    
-    foreach ($statements as $statement) {
-        // Skip comments
-        if (empty(trim($statement)) || preg_match('/^--/', trim($statement))) {
+
+    // Strip full-line SQL comments so chunks split on ';' are not discarded when they start with '--'
+    $lines = preg_split('/\R/', $sql);
+    $cleanLines = [];
+    foreach ($lines as $line) {
+        $t = trim($line);
+        if ($t === '' || strpos($t, '--') === 0) {
             continue;
         }
+        $cleanLines[] = $line;
+    }
+    $sqlNoComments = implode("\n", $cleanLines);
+
+    $statements = array_filter(array_map('trim', explode(';', $sqlNoComments)), static function ($stmt) {
+        return $stmt !== '';
+    });
+
+    $success_count = 0;
+    $skip_count = 0;
+
+    foreach ($statements as $statement) {
         
         try {
             // Try to execute the statement
@@ -73,7 +77,7 @@ try {
             }
         } catch (PDOException $e) {
             // Check if it's a "table already exists" or "column already exists" error
-            if (strpos($e->getMessage(), 'already exists') !== false || 
+            if (strpos($e->getMessage(), 'already exists') !== false ||
                 strpos($e->getMessage(), 'Duplicate column') !== false ||
                 strpos($e->getMessage(), '1050') !== false ||
                 strpos($e->getMessage(), '1060') !== false) {
@@ -117,12 +121,13 @@ try {
     
     foreach ($tables_to_check as $table) {
         try {
-            $quotedTable = $db->getConnection()->quote($table);
-            $result = $db->fetchOne("SHOW TABLES LIKE {$quotedTable}");
-            if ($result) {
-                // Get row count
-                $count_result = $db->fetchOne("SELECT COUNT(*) as count FROM {$table}");
-                $count = $count_result['count'] ?? 0;
+            $exists = $db->fetchOne(
+                'SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?',
+                [$table]
+            );
+            if ($exists && (int)($exists['c'] ?? 0) > 0) {
+                $count_result = $db->fetchOne("SELECT COUNT(*) AS cnt FROM `{$table}`");
+                $count = (int)($count_result['cnt'] ?? 0);
                 echo "  ✓ {$table} ({$count} rows)\n";
             } else {
                 echo "  ❌ {$table} (NOT FOUND)\n";
