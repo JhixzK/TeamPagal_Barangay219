@@ -221,27 +221,124 @@ function mapPositionToUserRole($position) {
     return null;
 }
 
-function syncUserRoleForOfficial($db, $residentId, $position, $status) {
+/**
+ * Find the login account for a resident: first by users.resident_id, then by username = residents.resident_code.
+ * Links resident_id on the user row when it was missing (common with older or manual accounts).
+ */
+function findUserRowForResident($db, $residentId) {
+    $residentId = (int)$residentId;
+    if ($residentId <= 0 || !usersTableHasColumn($db, 'role')) {
+        return null;
+    }
+
+    $user = $db->fetchOne(
+        "SELECT id, role, resident_id FROM users WHERE resident_id = ? ORDER BY id ASC LIMIT 1",
+        [$residentId]
+    );
+    if ($user) {
+        return $user;
+    }
+
+    $res = $db->fetchOne("SELECT resident_code FROM residents WHERE id = ? LIMIT 1", [$residentId]);
+    $code = trim((string)($res['resident_code'] ?? ''));
+    if ($code === '') {
+        return null;
+    }
+
+    $user = $db->fetchOne(
+        "SELECT id, role, resident_id FROM users WHERE username = ? ORDER BY id ASC LIMIT 1",
+        [$code]
+    );
+    if ($user && usersTableHasColumn($db, 'resident_id')) {
+        $uid = (int)$user['id'];
+        $linked = (int)($user['resident_id'] ?? 0);
+        if ($linked === 0) {
+            try {
+                $db->query(
+                    "UPDATE users SET resident_id = ? WHERE id = ? AND (resident_id IS NULL OR resident_id = 0)",
+                    [$residentId, $uid]
+                );
+            } catch (Exception $e) {
+                // ignore link repair failures
+            }
+        }
+    }
+
+    return $user;
+}
+
+function syncUserRoleForOfficial($db, $residentId, $position, $status, $fullName = '') {
     $residentId = (int)$residentId;
     if ($residentId <= 0) return;
     if (strtolower(trim((string)$status)) !== 'active') return;
 
-    if (!usersTableHasColumn($db, 'resident_id') || !usersTableHasColumn($db, 'role')) {
+    if (!usersTableHasColumn($db, 'role')) {
         return;
     }
 
     $targetRole = mapPositionToUserRole($position);
     if (!$targetRole) return;
 
-    // If the resident has a linked user account, update its role.
-    // Never override super_admin.
-    $db->query(
-        "UPDATE users
-         SET role = ?
-         WHERE resident_id = ?
-           AND (role IS NULL OR role <> ?)",
-        [$targetRole, $residentId, ROLE_SUPER_ADMIN]
+    $user = findUserRowForResident($db, $residentId);
+    if (!$user) return;
+    if (strtolower(trim((string)($user['role'] ?? ''))) === ROLE_SUPER_ADMIN) return;
+
+    $oldRole = $user['role'];
+    if (strtolower(trim((string)$oldRole)) === strtolower(trim((string)$targetRole))) return;
+
+    $db->query("UPDATE users SET role = ? WHERE id = ?", [$targetRole, $user['id']]);
+
+    try {
+        $label = $fullName ?: ('Resident #' . $residentId);
+        $posLabel = ucfirst(str_replace('_', ' ', $position));
+        logActivity('role_promoted', 'officials', $user['id'], [
+            'resident_id' => $residentId,
+            'from_role' => $oldRole,
+            'to_role' => $targetRole,
+            'description' => "$label promoted to $posLabel"
+        ]);
+    } catch (Exception $e) { /* logging is best-effort */ }
+
+    if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === (int)$user['id']) {
+        $_SESSION['role'] = $targetRole;
+    }
+}
+
+function demoteUserForOfficial($db, $residentId, $fullName = '') {
+    $residentId = (int)$residentId;
+    if ($residentId <= 0) return;
+
+    if (!usersTableHasColumn($db, 'role')) {
+        return;
+    }
+
+    $user = findUserRowForResident($db, $residentId);
+    if (!$user) return;
+
+    $currentRole = strtolower(trim((string)($user['role'] ?? '')));
+    if ($currentRole === ROLE_SUPER_ADMIN || $currentRole === ROLE_RESIDENT) return;
+
+    $stillActive = $db->fetchOne(
+        "SELECT id FROM officials WHERE resident_id = ? AND status = 'active' LIMIT 1",
+        [$residentId]
     );
+    if ($stillActive) return;
+
+    $db->query("UPDATE users SET role = ? WHERE id = ?", [ROLE_RESIDENT, $user['id']]);
+
+    try {
+        $label = $fullName ?: ('Resident #' . $residentId);
+        logActivity('role_demoted', 'officials', $user['id'], [
+            'resident_id' => $residentId,
+            'from_role' => $user['role'],
+            'to_role' => ROLE_RESIDENT,
+            'description' => "$label demoted to Resident"
+        ]);
+    } catch (Exception $e) { /* logging is best-effort */ }
+
+    if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === (int)$user['id']) {
+        $_SESSION['role'] = ROLE_RESIDENT;
+    }
 }
 
 function getOfficial() {
@@ -309,11 +406,22 @@ function createOfficial() {
             "INSERT INTO officials (position, full_name, user_id, resident_id, term_start, term_end, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
             [$position, $full_name, null, ($resident_id > 0 ? $resident_id : null), ($term_start ?: null), ($term_end ?: null), $status]
         );
+        $newId = $db->lastInsertId();
 
         if ($resident_id > 0) {
-            syncUserRoleForOfficial($db, $resident_id, $position, $status);
+            syncUserRoleForOfficial($db, $resident_id, $position, $status, $full_name);
         }
-        sendResponse(true, 'Official added', ['id' => $db->lastInsertId()]);
+
+        try {
+            $posLabel = ucfirst(str_replace('_', ' ', $position));
+            logActivity('official_assigned', 'officials', $newId, [
+                'position' => $position,
+                'full_name' => $full_name,
+                'description' => "$full_name assigned as $posLabel"
+            ]);
+        } catch (Exception $e) { /* best-effort */ }
+
+        sendResponse(true, 'Official added', ['id' => $newId]);
     } catch (Exception $e) {
         $msg = (defined('DEBUG_MODE') && DEBUG_MODE) ? ('Error: ' . $e->getMessage()) : 'Error adding official';
         sendResponse(false, $msg, null, 500);
@@ -371,14 +479,37 @@ function updateOfficial() {
             sendResponse(false, $err, null, 400);
         }
 
+        $oldResidentId = (int)($existing['resident_id'] ?? 0);
+        $oldStatus = strtolower(trim((string)($existing['status'] ?? '')));
+        $oldFullName = $existing['full_name'] ?? '';
+
         $db->query(
             "UPDATE officials SET position = ?, full_name = ?, user_id = ?, resident_id = ?, term_start = ?, term_end = ?, status = ? WHERE id = ?",
             [$position, $full_name, null, ($resident_id > 0 ? $resident_id : null), ($term_start ?: null), ($term_end ?: null), $status, $id]
         );
 
-        if ($resident_id > 0) {
-            syncUserRoleForOfficial($db, $resident_id, $position, $status);
+        $residentChanged = ($oldResidentId > 0 && $oldResidentId !== $resident_id);
+        $becameInactive = ($oldStatus === 'active' && $status !== 'active');
+
+        if ($residentChanged || $becameInactive) {
+            if ($oldResidentId > 0) {
+                demoteUserForOfficial($db, $oldResidentId, $oldFullName);
+            }
         }
+
+        if ($resident_id > 0) {
+            syncUserRoleForOfficial($db, $resident_id, $position, $status, $full_name);
+        }
+
+        try {
+            $posLabel = ucfirst(str_replace('_', ' ', $position));
+            logActivity('official_updated', 'officials', $id, [
+                'position' => $position,
+                'full_name' => $full_name,
+                'description' => "$full_name updated as $posLabel"
+            ]);
+        } catch (Exception $e) { /* best-effort */ }
+
         sendResponse(true, 'Official updated', null);
     } catch (Exception $e) {
         $msg = (defined('DEBUG_MODE') && DEBUG_MODE) ? ('Error: ' . $e->getMessage()) : 'Error updating official';
@@ -396,7 +527,7 @@ function deleteOfficial() {
     }
     try {
         $db = Database::getInstance();
-        $existing = $db->fetchOne("SELECT id, position FROM officials WHERE id = ?", [$id]);
+        $existing = $db->fetchOne("SELECT id, position, resident_id, full_name, status FROM officials WHERE id = ?", [$id]);
         if (!$existing) {
             sendResponse(false, 'Official not found', null, 404);
         }
@@ -406,8 +537,23 @@ function deleteOfficial() {
             sendResponse(false, 'Only Super Admin can remove the Punong Barangay (Captain).', null, 403);
         }
 
-        // Soft delete: set inactive
         $db->query("UPDATE officials SET status = 'inactive' WHERE id = ?", [$id]);
+
+        $oldResidentId = (int)($existing['resident_id'] ?? 0);
+        $oldFullName = $existing['full_name'] ?? '';
+        if ($oldResidentId > 0) {
+            demoteUserForOfficial($db, $oldResidentId, $oldFullName);
+        }
+
+        try {
+            $posLabel = ucfirst(str_replace('_', ' ', $position));
+            logActivity('official_removed', 'officials', $id, [
+                'position' => $position,
+                'full_name' => $oldFullName,
+                'description' => "$oldFullName removed from $posLabel"
+            ]);
+        } catch (Exception $e2) { /* best-effort */ }
+
         sendResponse(true, 'Official removed', null);
     } catch (Exception $e) {
         sendResponse(false, 'Error removing official', null, 500);
