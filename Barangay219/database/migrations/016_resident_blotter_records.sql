@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS blotter_records (
     reference_no VARCHAR(20) NOT NULL,
     complainant_id INT(11) NOT NULL,
     incident_type ENUM('physical_assault','theft','threat','harassment','property_damage','domestic_dispute','public_disturbance','other') NOT NULL DEFAULT 'other',
+    incident_type_detail VARCHAR(100) DEFAULT NULL,
     incident_location VARCHAR(255) NOT NULL,
     incident_datetime DATETIME NOT NULL,
     narrative TEXT NOT NULL,
