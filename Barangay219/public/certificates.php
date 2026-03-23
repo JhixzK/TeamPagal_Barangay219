@@ -4,8 +4,7 @@ require_once __DIR__ . '/../includes/auth-check.php';
 
 requireLogin();
 if (!canAccessModule('applications') && !canAccessModule('certificates')) {
-    header('Location: ' . BASE_URL . 'dashboard.php?error=access_denied');
-    exit();
+    redirectStaffPortalAccessDenied();
 }
 
 header('Location: ' . BASE_URL . 'applications.php');
