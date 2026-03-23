@@ -345,10 +345,14 @@ function initDetailModalEditMode() {
             searchResidentsForRespondent(e.target.value);
         });
 
-        searchInput.addEventListener('blur', () => {
+        searchInput.addEventListener('blur', (e) => {
+            // Don't hide if clicking on a result button
             setTimeout(() => {
-                document.getElementById('respondentSearchResults').style.display = 'none';
-            }, 200);
+                const resultsContainer = document.getElementById('respondentSearchResults');
+                if (resultsContainer && !resultsContainer.contains(document.activeElement)) {
+                    resultsContainer.style.display = 'none';
+                }
+            }, 100);
         });
 
         searchInput.addEventListener('focus', () => {
@@ -356,6 +360,17 @@ function initDetailModalEditMode() {
                 searchResidentsForRespondent(searchInput.value);
             }
         });
+
+        // Also add event listener to results container to prevent closing when hovering/clicking
+        const resultsContainer = document.getElementById('respondentSearchResults');
+        if (resultsContainer) {
+            resultsContainer.addEventListener('click', (e) => {
+                // Prevent default to ensure our button handlers work
+                if (e.target.closest('button')) {
+                    e.preventDefault();
+                }
+            });
+        }
     }
 
     if (caseForm) {
@@ -430,7 +445,7 @@ function searchResidentsForRespondent(keyword) {
     resultsContainer.innerHTML = filtered.map(r => {
         const fullName = `${r.first_name} ${r.middle_name || ''} ${r.last_name}`.trim();
         const address = (r.address || '').substring(0, 50);
-        return `<button type="button" class="list-group-item list-group-item-action" data-resident-id="${r.id}" onclick="selectRespondentFromSearch(${r.id}, '${escapeHtml(fullName)}'); return false;">
+        return `<button type="button" class="list-group-item list-group-item-action select-resident-btn" data-resident-id="${r.id}" data-resident-name="${escapeHtml(fullName)}" onmousedown="selectRespondentFromSearch(${r.id}, '${escapeHtml(fullName)}'); return false;">
             <div class="fw-semibold">${escapeHtml(fullName)}</div>
             <div class="small text-muted">${escapeHtml(address)}${address.length >= 50 ? '...' : ''}</div>
         </button>`;
