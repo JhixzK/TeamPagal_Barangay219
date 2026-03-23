@@ -173,6 +173,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <option value="">Select Incident Type</option>
                                     <option value="physical_assault">Physical Assault</option>
                                     <option value="verbal_threat">Verbal Threat</option>
+                                    <option value="vawc">VAWC</option>
                                     <option value="theft">Theft</option>
                                     <option value="property_damage">Property Damage</option>
                                     <option value="public_disturbance">Public Disturbance</option>
