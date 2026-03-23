@@ -117,7 +117,8 @@ try {
     
     foreach ($tables_to_check as $table) {
         try {
-            $result = $db->fetchOne("SHOW TABLES LIKE ?", [$table]);
+            $quotedTable = $db->getConnection()->quote($table);
+            $result = $db->fetchOne("SHOW TABLES LIKE {$quotedTable}");
             if ($result) {
                 // Get row count
                 $count_result = $db->fetchOne("SELECT COUNT(*) as count FROM {$table}");
