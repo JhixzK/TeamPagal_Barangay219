@@ -106,6 +106,7 @@ try {
     $caseId = (int)($_POST['case_id'] ?? 0);
     $status = sanitizeInput($_POST['status'] ?? '');
     $respondentId = !empty($_POST['respondent_id']) ? (int)$_POST['respondent_id'] : null;
+    $respondentsJsonRaw = $_POST['respondents_json'] ?? null;
     $adminNotes = sanitizeInput($_POST['admin_notes'] ?? '');
     $hearingDate = normalizeDateTimeOrNull($_POST['hearing_date'] ?? '');
     $settlementDate = normalizeDateOrNull($_POST['settlement_date'] ?? '');
@@ -167,9 +168,92 @@ try {
 
     $db->query('START TRANSACTION');
 
+    $normalizedRespondents = null;
+    $primaryRespondentId = null;
+    $primaryRespondentName = null;
+
+    if ($respondentsJsonRaw !== null && $respondentsJsonRaw !== '') {
+        $decoded = json_decode((string)$respondentsJsonRaw, true);
+        if (!is_array($decoded)) {
+            $db->query('ROLLBACK');
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid respondents payload']);
+            exit;
+        }
+
+        $normalizedRespondents = [];
+        foreach ($decoded as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $residentId = isset($entry['resident_id']) ? (int)$entry['resident_id'] : 0;
+            if ($residentId > 0) {
+                $resident = $db->fetchOne(
+                    'SELECT id, first_name, middle_name, last_name, address, contact_number FROM residents WHERE id = ? LIMIT 1',
+                    [$residentId]
+                );
+                if (!$resident) {
+                    continue;
+                }
+
+                $name = trim((string)($resident['first_name'] ?? '') . ' ' . (string)($resident['middle_name'] ?? '') . ' ' . (string)($resident['last_name'] ?? ''));
+                $normalizedRespondents[] = [
+                    'name' => $name,
+                    'address' => (string)($resident['address'] ?? ''),
+                    'contact' => (string)($resident['contact_number'] ?? ''),
+                    'residency' => 'resident',
+                    'resident_id' => $residentId,
+                ];
+                continue;
+            }
+
+            $name = sanitizeInput((string)($entry['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $normalizedRespondents[] = [
+                'name' => $name,
+                'address' => sanitizeInput((string)($entry['address'] ?? '')),
+                'contact' => sanitizeInput((string)($entry['contact'] ?? '')),
+                'residency' => (($entry['residency'] ?? '') === 'resident') ? 'resident' : 'non_resident',
+                'resident_id' => null,
+            ];
+        }
+
+        $firstResident = null;
+        foreach ($normalizedRespondents as $item) {
+            if (!empty($item['resident_id'])) {
+                $firstResident = (int)$item['resident_id'];
+                break;
+            }
+        }
+        $primaryRespondentId = $firstResident ?: null;
+        $primaryRespondentName = !empty($normalizedRespondents[0]['name']) ? (string)$normalizedRespondents[0]['name'] : null;
+    } elseif ($respondentId !== null) {
+        $resident = $db->fetchOne(
+            'SELECT id, first_name, middle_name, last_name, address, contact_number FROM residents WHERE id = ? LIMIT 1',
+            [$respondentId]
+        );
+
+        if ($resident) {
+            $normalizedRespondents = [[
+                'name' => trim(($resident['first_name'] ?? '') . ' ' . ($resident['middle_name'] ?? '') . ' ' . ($resident['last_name'] ?? '')),
+                'address' => $resident['address'] ?? '',
+                'contact' => $resident['contact_number'] ?? '',
+                'residency' => 'resident',
+                'resident_id' => $respondentId,
+            ]];
+            $primaryRespondentId = $respondentId;
+            $primaryRespondentName = (string)($normalizedRespondents[0]['name'] ?? null);
+        }
+    }
+
     $updates = [
         'status = ?',
         'respondent_id = ?',
+        'respondent_name_raw = ?',
+        'respondent_name = ?',
         'admin_updates = ?',
         'hearing_date = ?',
         'settlement_date = ?',
@@ -180,38 +264,15 @@ try {
 
     $params = [
         $status,
-        $respondentId,
+        $primaryRespondentId,
+        $primaryRespondentName,
+        $normalizedRespondents !== null ? json_encode($normalizedRespondents, JSON_UNESCAPED_UNICODE) : null,
         $adminNotes,
         $nextHearingDate,
         $nextSettlementDate,
         $nextDismissalReason,
         $nextResolutionFile,
     ];
-
-    if ($respondentId !== null) {
-        $resident = $db->fetchOne(
-            'SELECT id, first_name, middle_name, last_name, address, contact_number FROM residents WHERE id = ? LIMIT 1',
-            [$respondentId]
-        );
-
-        if ($resident) {
-            $respondentJson = json_encode([
-                [
-                    'name' => trim(($resident['first_name'] ?? '') . ' ' . ($resident['middle_name'] ?? '') . ' ' . ($resident['last_name'] ?? '')),
-                    'address' => $resident['address'] ?? '',
-                    'contact' => $resident['contact_number'] ?? '',
-                    'residency' => 'resident',
-                    'resident_id' => $respondentId,
-                ]
-            ], JSON_UNESCAPED_UNICODE);
-
-            $updates[] = 'respondent_name = ?';
-            $params[] = $respondentJson;
-        }
-    } else {
-        $updates[] = 'respondent_name = ?';
-        $params[] = null;
-    }
 
     $params[] = $caseId;
     $db->query('UPDATE blotter_records SET ' . implode(', ', $updates) . ' WHERE id = ?', $params);
@@ -224,7 +285,8 @@ try {
         'data' => [
             'case_id' => $caseId,
             'status' => $status,
-            'respondent_id' => $respondentId,
+            'respondent_id' => $primaryRespondentId,
+            'respondents' => $normalizedRespondents,
             'hearing_date' => $nextHearingDate,
             'settlement_date' => $nextSettlementDate,
             'dismissal_reason' => $nextDismissalReason,
