@@ -62,6 +62,24 @@ function parseHouseholdApiJson(r) {
     });
 }
 
+function householdIndigentBadge(status) {
+    if (status === 'indigent') {
+        return '<span class="badge rounded-pill bg-white text-dark border border-warning">Indigent</span>';
+    }
+    if (status === 'non_indigent') {
+        return '<span class="badge rounded-pill bg-white text-primary border border-primary">Non-indigent</span>';
+    }
+    return '<span class="text-muted">—</span>';
+}
+
+function memberMonthlyIncomeNote(m) {
+    var occ = (m.occupation != null && m.occupation !== '') ? String(m.occupation).trim() : '';
+    if (occ === '') {
+        return '<span class="badge bg-light text-secondary border ms-2">—</span>';
+    }
+    return '<span class="badge bg-light text-dark border ms-2">' + escapeHtml(toTitleCase(occ)) + '</span>';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     initHouseholdTilesDelegation();
     renderBreadcrumb();
@@ -758,6 +776,13 @@ function viewHousehold(id) {
             const firstHead = heads.length > 0 ? heads[0] : null;
             const firstHeadName = firstHead ? toName(firstHead) : (h.family_head_name ? toTitleCase(h.family_head_name) : '-');
 
+            const indigentEnabled = !!h.indigent_classification_enabled;
+            let indigentSection = '';
+            if (indigentEnabled) {
+                const st = (h.computed_indigent_status || h.effective_indigent_status || '').toString();
+                indigentSection = `<p class="mb-0"><strong>Status:</strong> ${householdIndigentBadge(st)}</p>`;
+            }
+
             infoEl.innerHTML = `
                 <p><strong>Household ID Code:</strong> ${escapeHtml((h.household_id_code || '-'))}</p>
                 <p><strong>Family Head:</strong> <span id="viewInfoHeadName">${escapeHtml(firstHeadName)}</span></p>
@@ -766,6 +791,7 @@ function viewHousehold(id) {
                 <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
                 <p><strong>Total Members:</strong> ${members.length}</p>
                 <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
+                ${indigentSection}
             `;
 
             const getFamilyCode = (m) => (m.family_code ?? '').toString().trim();
@@ -826,6 +852,7 @@ function viewHousehold(id) {
                                 <span class="fw-semibold">${escapeHtml(toName(g.head))}</span>
                                 <span class="badge bg-primary ms-2">Head</span>
                                 <small class="text-muted ms-2">(${escapeHtml(g.headDisplayCode)})</small>
+                                ${memberMonthlyIncomeNote(g.head)}
                             </div>
                             <div class="household-detail-actions">${removeBtn}</div>
                         </div>`;
@@ -861,6 +888,7 @@ function viewHousehold(id) {
                                     <span class="fw-semibold">${escapeHtml(toName(g.head))}</span>
                                     <span class="badge bg-primary ms-2">Head</span>
                                     <small class="text-muted ms-2">(${escapeHtml(g.headDisplayCode)})</small>
+                                    ${memberMonthlyIncomeNote(g.head)}
                                 </div>
                                 <div class="household-detail-actions">${removeBtn}</div>
                             </div>
@@ -943,6 +971,7 @@ function buildMemberRows(memberArr, headId, allowEdit) {
                 <div>
                     <span>${escapeHtml(toTitleCase(name))}</span>
                     <span class="badge bg-light text-dark border ms-2">Member</span>
+                    ${memberMonthlyIncomeNote(m)}
                 </div>
                 <div class="household-detail-actions">${transferBtn}${removeBtn}</div>
             </div>`;
@@ -962,6 +991,7 @@ function buildUngroupedRows(ungroupedArr, designatedHeadId, allowEdit) {
                 <div>
                     <span>${escapeHtml(toTitleCase(name))}</span>
                     <span class="badge bg-light text-dark border ms-2">Member</span>
+                    ${memberMonthlyIncomeNote(m)}
                 </div>
                 <div class="household-detail-actions">${transferBtn}${removeBtn}</div>
             </div>`;
