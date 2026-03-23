@@ -9,6 +9,7 @@ define('ACCESS_ALLOWED', true);
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/../includes/indigent-classification.php';
 
 requireLogin();
 requireModuleAccess('residents');
@@ -63,89 +64,6 @@ switch ($action) {
     default:
         sendResponse(false, 'Invalid action', null, 400);
         break;
-}
-
-/**
- * Build a safe resident_applications lookup for a resident row.
- * Preference order: approved_resident_id match, then name + birth date fallback.
- */
-function buildRegistrationLookupSql($db, $residentAlias = 'r') {
-    $hasRaApprovedId = columnExists($db, 'resident_applications', 'approved_resident_id');
-    $hasRaBirth = columnExists($db, 'resident_applications', 'birth_date');
-    $statusCol = columnExists($db, 'resident_applications', 'record_status')
-        ? 'record_status'
-        : (columnExists($db, 'resident_applications', 'status') ? 'status' : null);
-    $birthRef = columnExists($db, 'residents', 'birth_date')
-        ? $residentAlias . '.birth_date'
-        : (columnExists($db, 'residents', 'date_of_birth') ? $residentAlias . '.date_of_birth' : null);
-
-    $matchParts = [];
-    if ($hasRaApprovedId) {
-        $matchParts[] = 'ra.approved_resident_id = ' . $residentAlias . '.id';
-    }
-    if ($birthRef !== null && $hasRaBirth) {
-        $matchParts[] = '(LOWER(TRIM(ra.first_name)) = LOWER(TRIM(' . $residentAlias . '.first_name)) AND LOWER(TRIM(ra.last_name)) = LOWER(TRIM(' . $residentAlias . '.last_name)) AND ra.birth_date = ' . $birthRef . ')';
-    }
-    if (empty($matchParts)) {
-        return null;
-    }
-
-    $matchSql = '(' . implode(' OR ', $matchParts) . ')';
-    if ($statusCol !== null) {
-        $whereSql = "LOWER(TRIM(COALESCE(ra.`{$statusCol}`, ''))) = 'approved' AND {$matchSql}";
-    } elseif ($hasRaApprovedId) {
-        $whereSql = 'ra.approved_resident_id = ' . $residentAlias . '.id';
-    } else {
-        $whereSql = $matchSql;
-    }
-
-    $orderBy = $hasRaApprovedId
-        ? '(ra.approved_resident_id = ' . $residentAlias . '.id) DESC, ra.id DESC'
-        : 'ra.id DESC';
-
-    return [
-        'where' => $whereSql,
-        'order' => $orderBy
-    ];
-}
-
-function buildRegistrationSelectExpression($db, $lookup, $column, $alias) {
-    if (!$lookup || !columnExists($db, 'resident_applications', $column)) {
-        return "NULL AS {$alias}";
-    }
-
-    return "(SELECT ra.`{$column}` FROM resident_applications ra WHERE {$lookup['where']} ORDER BY {$lookup['order']} LIMIT 1) AS {$alias}";
-}
-
-function buildRegistrationSelectExpressions($db, $residentAlias = 'r') {
-    $lookup = buildRegistrationLookupSql($db, $residentAlias);
-
-    $exprs = [
-        buildRegistrationSelectExpression($db, $lookup, 'house_type', 'registration_house_type'),
-        buildRegistrationSelectExpression($db, $lookup, 'house_ownership', 'registration_house_ownership'),
-        buildRegistrationSelectExpression($db, $lookup, 'household_role', 'registration_household_role'),
-        buildRegistrationSelectExpression($db, $lookup, 'voter_status', 'registration_voter_status'),
-        buildRegistrationSelectExpression($db, $lookup, 'precinct_number', 'registration_precinct_number'),
-        buildRegistrationSelectExpression($db, $lookup, 'household_income', 'registration_household_income'),
-        buildRegistrationSelectExpression($db, $lookup, 'occupation', 'registration_occupation'),
-        buildRegistrationSelectExpression($db, $lookup, 'educational_attainment', 'registration_educational_attainment'),
-        buildRegistrationSelectExpression($db, $lookup, 'employment_status', 'registration_employment_status'),
-        buildRegistrationSelectExpression($db, $lookup, 'residency_start_date', 'registration_residency_start_date'),
-        buildRegistrationSelectExpression($db, $lookup, 'length_of_residency', 'registration_length_of_residency'),
-        buildRegistrationSelectExpression($db, $lookup, 'length_of_residency_years', 'registration_length_of_residency_years'),
-        buildRegistrationSelectExpression($db, $lookup, 'valid_id_type', 'registration_valid_id_type'),
-        buildRegistrationSelectExpression($db, $lookup, 'valid_id_number', 'registration_valid_id_number'),
-        buildRegistrationSelectExpression($db, $lookup, 'is_senior_citizen', 'registration_is_senior_citizen'),
-        buildRegistrationSelectExpression($db, $lookup, 'is_pwd', 'registration_is_pwd'),
-        buildRegistrationSelectExpression($db, $lookup, 'pwd_id_number', 'registration_pwd_id_number'),
-        buildRegistrationSelectExpression($db, $lookup, 'is_solo_parent', 'registration_is_solo_parent'),
-        buildRegistrationSelectExpression($db, $lookup, 'solo_parent_id_number', 'registration_solo_parent_id_number'),
-        buildRegistrationSelectExpression($db, $lookup, 'is_ip_member', 'registration_is_ip_member'),
-        buildRegistrationSelectExpression($db, $lookup, 'ip_group', 'registration_ip_group'),
-        buildRegistrationSelectExpression($db, $lookup, 'is_4ps_beneficiary', 'registration_is_4ps_beneficiary')
-    ];
-
-    return implode(",\n                ", $exprs);
 }
 
 /**
@@ -247,16 +165,54 @@ function listResidents() {
             $familyHeadCodeExpr = 'NULL AS family_head_code,';
         }
 
-        $registrationMetaExpr = buildRegistrationSelectExpressions($db, 'r');
-        if (columnExists($db, 'households', 'house_type')) {
-            $currentHouseTypeExpr = 'h.house_type AS current_household_house_type,';
+        $housingMetaExpr = '';
+        // Registration housing: prefer approved_resident_id link; fall back to name + birth_date when that link is missing.
+        $hasRaHouseType = columnExists($db, 'resident_applications', 'house_type');
+        $hasRaOwnership = columnExists($db, 'resident_applications', 'house_ownership');
+        $hasRaApprovedId = columnExists($db, 'resident_applications', 'approved_resident_id');
+        $hasRaBirth = columnExists($db, 'resident_applications', 'birth_date');
+        $statusCol = columnExists($db, 'resident_applications', 'record_status') ? 'record_status'
+            : (columnExists($db, 'resident_applications', 'status') ? 'status' : null);
+        $birthRef = columnExists($db, 'residents', 'birth_date') ? 'r.birth_date'
+            : (columnExists($db, 'residents', 'date_of_birth') ? 'r.date_of_birth' : null);
+
+        $raMatchParts = [];
+        if ($hasRaApprovedId) {
+            $raMatchParts[] = 'ra.approved_resident_id = r.id';
+        }
+        if ($birthRef !== null && $hasRaBirth) {
+            $raMatchParts[] = '(LOWER(TRIM(ra.first_name)) = LOWER(TRIM(r.first_name)) AND LOWER(TRIM(ra.last_name)) = LOWER(TRIM(r.last_name)) AND ra.birth_date = ' . $birthRef . ')';
+        }
+        $raMatchSql = !empty($raMatchParts) ? '(' . implode(' OR ', $raMatchParts) . ')' : '0';
+        if ($statusCol !== null) {
+            $raWhereSql = "LOWER(TRIM(COALESCE(ra.`{$statusCol}`,''))) = 'approved' AND {$raMatchSql}";
+        } elseif ($hasRaApprovedId) {
+            // No status column: only trust approved_resident_id linkage.
+            $raWhereSql = 'ra.approved_resident_id = r.id';
         } else {
-            $currentHouseTypeExpr = 'NULL AS current_household_house_type,';
+            $raWhereSql = '0';
+        }
+        $raOrderBy = $hasRaApprovedId ? '(ra.approved_resident_id = r.id) DESC, ra.id DESC' : 'ra.id DESC';
+
+        if ($hasRaHouseType) {
+            $housingMetaExpr .= "(SELECT ra.house_type FROM resident_applications ra WHERE {$raWhereSql} ORDER BY {$raOrderBy} LIMIT 1) AS registration_house_type, ";
+        } else {
+            $housingMetaExpr .= 'NULL AS registration_house_type, ';
+        }
+        if ($hasRaOwnership) {
+            $housingMetaExpr .= "(SELECT ra.house_ownership FROM resident_applications ra WHERE {$raWhereSql} ORDER BY {$raOrderBy} LIMIT 1) AS registration_house_ownership, ";
+        } else {
+            $housingMetaExpr .= 'NULL AS registration_house_ownership, ';
+        }
+        if (columnExists($db, 'households', 'house_type')) {
+            $housingMetaExpr .= 'h.house_type AS current_household_house_type, ';
+        } else {
+            $housingMetaExpr .= 'NULL AS current_household_house_type, ';
         }
         if (columnExists($db, 'households', 'housing_status')) {
-            $currentHousingStatusExpr = 'h.housing_status AS current_household_housing_status,';
+            $housingMetaExpr .= 'h.housing_status AS current_household_housing_status, ';
         } else {
-            $currentHousingStatusExpr = 'NULL AS current_household_housing_status,';
+            $housingMetaExpr .= 'NULL AS current_household_housing_status, ';
         }
         
         // Get residents - ordered by ID so new residents appear at the end
@@ -264,9 +220,7 @@ function listResidents() {
                 CASE WHEN h.family_head_id = r.id THEN 1 ELSE 0 END as is_household_head,
                 $householdCodeExpr
                 $familyHeadCodeExpr
-                $registrationMetaExpr,
-                $currentHouseTypeExpr
-                $currentHousingStatusExpr
+                $housingMetaExpr
                 (SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count
                 FROM residents r
                 LEFT JOIN households h ON r.household_id = h.id
@@ -327,7 +281,6 @@ function getResident() {
 
         $hasHouseholdIdCode = columnExists($db, 'households', 'household_id_code');
         $hasFamilyCode = columnExists($db, 'households', 'family_code');
-        $hasResidentFamilyHeadCode = columnExists($db, 'residents', 'family_head_code');
         $hasFamilyHeadCode = columnExists($db, 'households', 'family_head_code');
         if ($hasHouseholdIdCode) {
             $householdCodeExpr = 'h.household_id_code AS household_code,';
@@ -336,33 +289,12 @@ function getResident() {
         } else {
             $householdCodeExpr = 'NULL AS household_code,';
         }
-        if ($hasResidentFamilyHeadCode) {
-            $familyHeadCodeExpr = 'r.family_head_code AS family_head_code,';
-        } elseif ($hasFamilyHeadCode) {
-            $familyHeadCodeExpr = 'h.family_head_code AS family_head_code,';
-        } else {
-            $familyHeadCodeExpr = 'NULL AS family_head_code,';
-        }
-
-        $registrationMetaExpr = buildRegistrationSelectExpressions($db, 'r');
-        if (columnExists($db, 'households', 'house_type')) {
-            $currentHouseTypeExpr = 'h.house_type AS current_household_house_type,';
-        } else {
-            $currentHouseTypeExpr = 'NULL AS current_household_house_type,';
-        }
-        if (columnExists($db, 'households', 'housing_status')) {
-            $currentHousingStatusExpr = 'h.housing_status AS current_household_housing_status,';
-        } else {
-            $currentHousingStatusExpr = 'NULL AS current_household_housing_status,';
-        }
+        $familyHeadCodeExpr = $hasFamilyHeadCode ? 'h.family_head_code AS family_head_code,' : 'NULL AS family_head_code,';
         
         $sql = "SELECT r.*, h.address as household_address, h.total_members, h.family_head_id,
                 CASE WHEN h.family_head_id = r.id THEN 1 ELSE 0 END as is_household_head,
                 $householdCodeExpr
                 $familyHeadCodeExpr
-                $registrationMetaExpr,
-                $currentHouseTypeExpr
-                $currentHousingStatusExpr
                 (SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count
                 FROM residents r
                 LEFT JOIN households h ON r.household_id = h.id
@@ -504,6 +436,20 @@ function updateResident() {
     $household_id = intval($_POST['household_id'] ?? 0);
     $status = sanitizeInput($_POST['status'] ?? '');
 
+    $monthly_income_raw = trim((string)($_POST['monthly_income'] ?? ''));
+    $monthly_income_val = null;
+    if ($monthly_income_raw !== '') {
+        if (!is_numeric($monthly_income_raw)) {
+            sendResponse(false, 'Monthly income must be a non-negative number.', null, 400);
+            return;
+        }
+        $monthly_income_val = (float)$monthly_income_raw;
+        if ($monthly_income_val < 0) {
+            sendResponse(false, 'Monthly income cannot be negative.', null, 400);
+            return;
+        }
+    }
+
     if (empty($first_name) || empty($last_name) || empty($birth_date) || empty($gender) || empty($civil_status) || empty($occupation) || empty($citizenship) || empty($contact_number) || empty($address) || empty($status)) {
         sendResponse(false, 'All fields are required except household and suffix', null, 400);
         return;
@@ -511,6 +457,7 @@ function updateResident() {
     
     try {
         $db = Database::getInstance();
+        ensureIndigentClassificationSchema($db);
         
         // Check if resident exists
         $existing = $db->fetchOne("SELECT id FROM residents WHERE id = ?", [$id]);
@@ -519,13 +466,21 @@ function updateResident() {
             return;
         }
         
-        $sql = "UPDATE residents SET 
-                first_name = ?, middle_name = ?, last_name = ?, suffix = ?, 
-                birth_date = ?, gender = ?, civil_status = ?, occupation = ?, 
-                citizenship = ?, address = ?, contact_number = ?, 
-                household_id = ?, status = ?
-                WHERE id = ?";
-        
+        $sets = [
+            'first_name = ?',
+            'middle_name = ?',
+            'last_name = ?',
+            'suffix = ?',
+            'birth_date = ?',
+            'gender = ?',
+            'civil_status = ?',
+            'occupation = ?',
+            'citizenship = ?',
+            'address = ?',
+            'contact_number = ?',
+            'household_id = ?',
+            'status = ?',
+        ];
         $params = [
             $first_name,
             $middle_name ?: null,
@@ -540,9 +495,14 @@ function updateResident() {
             $contact_number ?: null,
             $household_id ?: null,
             $status,
-            $id
         ];
-        
+        if (columnExists($db, 'residents', 'monthly_income')) {
+            $sets[] = 'monthly_income = ?';
+            $params[] = $monthly_income_val;
+        }
+        $params[] = $id;
+
+        $sql = 'UPDATE residents SET ' . implode(', ', $sets) . ' WHERE id = ?';
         $db->query($sql, $params);
         
         // Get updated resident
