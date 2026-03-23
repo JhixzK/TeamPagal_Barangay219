@@ -14,9 +14,7 @@ try {
     $incidentDatetimeInput = trim((string)($_POST['incident_datetime'] ?? ''));
     $narrative = sanitizeInput((string)($_POST['narrative'] ?? ''));
 
-    $isNonResident = ((string)($_POST['respondent_non_resident'] ?? '0')) === '1';
-    $respondentId = (int)($_POST['respondent_id'] ?? 0);
-    $respondentName = sanitizeInput((string)($_POST['respondent_name'] ?? ''));
+    $respondentNameRaw = sanitizeInput((string)($_POST['respondent_name_raw'] ?? ''));
 
     $witnessesRaw = trim((string)($_POST['witnesses'] ?? ''));
     $isConfidential = ((string)($_POST['is_confidential'] ?? '0')) === '1' ? 1 : 0;
@@ -32,37 +30,16 @@ try {
     }
     $incidentDatetime = date('Y-m-d H:i:s', $incidentTs);
 
-    if ($isNonResident) {
-        if ($respondentName === '') {
-            blotterJson(false, 'Respondent name is required for non-resident respondents.', null, 400);
-        }
-        $respondentId = 0;
-    } else {
-        if ($respondentId <= 0) {
-            blotterJson(false, 'Please select a respondent resident.', null, 400);
-        }
-        $db = Database::getInstance();
-        $resident = $db->fetchOne('SELECT first_name, middle_name, last_name FROM residents WHERE id = ? LIMIT 1', [$respondentId]);
-        if (!$resident) {
-            blotterJson(false, 'Selected respondent was not found.', null, 404);
-        }
-        $respondentName = trim(
-            (string)($resident['first_name'] ?? '') . ' '
-            . ((string)($resident['middle_name'] ?? '') !== '' ? (string)$resident['middle_name'] . ' ' : '')
-            . (string)($resident['last_name'] ?? '')
-        );
+    if ($respondentNameRaw === '') {
+        blotterJson(false, 'Respondent name is required.', null, 400);
     }
 
     $witnessesPayload = null;
     if ($witnessesRaw !== '') {
-        $lines = preg_split('/\r\n|\r|\n/', $witnessesRaw);
-        $clean = [];
-        foreach ($lines as $line) {
-            $entry = trim($line);
-            if ($entry !== '') {
-                $clean[] = $entry;
-            }
-        }
+        $normalizedWitnesses = str_replace(["\r\n", "\r"], "\n", $witnessesRaw);
+        $lines = explode("\n", $normalizedWitnesses);
+        $clean = array_map('trim', $lines);
+        $clean = array_values(array_filter($clean));
         if (!empty($clean)) {
             $witnessesPayload = json_encode($clean, JSON_UNESCAPED_UNICODE);
         }
@@ -81,6 +58,7 @@ try {
             incident_datetime,
             narrative,
             status,
+            respondent_name_raw,
             respondent_name,
             respondent_id,
             witnesses,
@@ -96,8 +74,9 @@ try {
             $incidentDatetime,
             $narrative,
             'pending',
-            $respondentName !== '' ? $respondentName : null,
-            $respondentId > 0 ? $respondentId : null,
+            $respondentNameRaw,
+            $respondentNameRaw,
+            null,
             $witnessesPayload,
             $isConfidential,
             $actionRequested,
