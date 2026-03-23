@@ -43,7 +43,7 @@ if ($password !== $password_confirm) {
 try {
     $db = Database::getInstance();
     $user = $db->fetchOne(
-        "SELECT id, username, activation_token FROM users WHERE activation_token = ? AND activation_expires > CURRENT_TIMESTAMP AND role = ?",
+        "SELECT id, username, activation_token FROM users WHERE activation_token = ? AND role = ?",
         [$token, ROLE_RESIDENT]
     );
 
