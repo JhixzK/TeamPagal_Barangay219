@@ -25,7 +25,7 @@ const PALETTE_BORDER = [COLORS.blue.border, COLORS.teal.border, COLORS.amber.bor
 /* ============================================================
    Shared chart defaults
    ============================================================ */
-const CHART_FONT = { family: "'Inter','Segoe UI',sans-serif", size: 11 };
+const CHART_FONT = { family: "'Inter','Segoe UI',sans-serif", size: 10 };
 const GRID_COLOR = 'rgba(226,232,240,.6)';
 
 Chart.defaults.font.family = CHART_FONT.family;
@@ -83,11 +83,8 @@ function loadCharts() {
             initDoughnutChart('chartRequestStatus', c.request_status);
             initDoughnutChart('chartGender', c.gender_distribution);
             initBarChart('chartPurok', c.population_by_purok, 'Residents', COLORS.teal, true);
-            initBarChart('chartDocTypes', c.request_types, 'Requests', COLORS.sky, true);
-            initBarChart('chartHouseholdTypes', c.household_types, 'Households', COLORS.purple, true);
             initLineChart('chartHouseholdTrends', c.household_trends, 'New Households', COLORS.green);
             initBarChart('chartAge', c.age_groups, 'Residents', COLORS.amber, false);
-            initLineChart('chartLogins', c.daily_logins, 'Logins', COLORS.cyan);
             initSpecialCategories(c.special_categories);
         })
         .catch(err => console.error('Dashboard charts error:', err));
@@ -136,16 +133,16 @@ function initLineChart(id, data, label, color) {
                 backgroundColor: color.bg,
                 fill: true,
                 tension: .35,
-                pointRadius: 3,
-                pointHoverRadius: 5,
+                pointRadius: 2,
+                pointHoverRadius: 4,
                 pointBackgroundColor: color.border,
-                borderWidth: 2
+                borderWidth: 1.5
             }]
         },
         options: Object.assign({}, chartDefaults({ legend: { display: false } }), {
             scales: {
-                x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 10 } } },
-                y: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { stepSize: 1 } }
+                x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 9 }, maxTicksLimit: 8 } },
+                y: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { stepSize: 1, font: { size: 9 } } }
             }
         })
     });
@@ -171,14 +168,14 @@ function initBarChart(id, data, label, color, horizontal) {
                 borderColor: borderColors,
                 borderWidth: 1,
                 borderRadius: 4,
-                maxBarThickness: 36
+                maxBarThickness: 26
             }]
         },
         options: Object.assign({}, chartDefaults(), {
             indexAxis: horizontal ? 'y' : 'x',
             scales: {
-                x: { beginAtZero: true, grid: { color: horizontal ? GRID_COLOR : 'transparent' }, ticks: { font: { size: 10 }, maxRotation: horizontal ? 0 : 45 } },
-                y: { beginAtZero: true, grid: { color: horizontal ? 'transparent' : GRID_COLOR }, ticks: { font: { size: 10 } } }
+                x: { beginAtZero: true, grid: { color: horizontal ? GRID_COLOR : 'transparent' }, ticks: { font: { size: 9 }, maxRotation: horizontal ? 0 : 45, maxTicksLimit: horizontal ? 12 : 8 } },
+                y: { beginAtZero: true, grid: { color: horizontal ? 'transparent' : GRID_COLOR }, ticks: { font: { size: 9 } } }
             }
         })
     });
@@ -208,12 +205,12 @@ function initDoughnutChart(id, data) {
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            cutout: '55%',
+            cutout: '58%',
             plugins: {
                 legend: {
                     display: true,
                     position: 'bottom',
-                    labels: { padding: 12, usePointStyle: true, pointStyle: 'circle', font: { size: 11 } }
+                    labels: { padding: 6, boxWidth: 10, usePointStyle: true, pointStyle: 'circle', font: { size: 9 } }
                 }
             }
         }
