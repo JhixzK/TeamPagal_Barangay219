@@ -198,6 +198,29 @@ include __DIR__ . '/../includes/sidebar.php';
     return String(raw).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
   }
 
+  function decodeRespondents(rawJson, rawName) {
+    const fallback = String(rawName || '').trim();
+    if (!rawJson) {
+      return fallback || '-';
+    }
+
+    try {
+      const parsed = JSON.parse(rawJson);
+      if (Array.isArray(parsed) && parsed.length) {
+        const names = parsed
+          .map(function (item) { return String(item?.name || '').trim(); })
+          .filter(Boolean)
+          .map(function (name) { return name.replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s])); });
+
+        if (names.length) {
+          return '<ul class="mb-0">' + names.map(function (name) { return '<li>' + name + '</li>'; }).join('') + '</ul>';
+        }
+      }
+    } catch (e) {}
+
+    return (fallback || '-').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
+  }
+
   function incidentTypeDisplay(type, detail) {
     const base = String(type || '').toLowerCase();
     const detailText = String(detail || '').trim();
@@ -246,7 +269,7 @@ include __DIR__ . '/../includes/sidebar.php';
         }
         const r = d.data.record;
         const witnesses = decodeWitnesses(r.witnesses);
-        const respondentDisplay = r.respondent_name_raw || r.respondent_name || '-';
+        const respondentDisplay = decodeRespondents(r.respondent_name, r.respondent_name_raw);
         const evidenceHtml = r.evidence_path
           ? '<a href="<?php echo BASE_URL; ?>' + String(r.evidence_path).replace(/^\/+/, '') + '" target="_blank" rel="noopener">View Uploaded Evidence</a>'
           : '-';
@@ -261,7 +284,7 @@ include __DIR__ . '/../includes/sidebar.php';
             '<div class="col-md-6"><strong>Incident Type:</strong><br>' + incidentTypeDisplay(r.incident_type, r.incident_type_detail) + '</div>' +
             '<div class="col-md-6"><strong>Incident Date:</strong><br>' + formatDate(r.incident_datetime) + '</div>' +
             '<div class="col-12"><strong>Location:</strong><br>' + (r.incident_location || '-') + '</div>' +
-            '<div class="col-md-6"><strong>Respondent:</strong><br>' + respondentDisplay + '</div>' +
+            '<div class="col-md-6"><strong>Respondents:</strong><br>' + respondentDisplay + '</div>' +
             '<div class="col-md-6"><strong>Action Requested:</strong><br>' + (r.action_requested || '-') + '</div>' +
             '<div class="col-md-6"><strong>Hearing Date:</strong><br>' + formatDate(r.hearing_date) + '</div>' +
             '<div class="col-md-6"><strong>Settlement Date:</strong><br>' + formatDate(r.settlement_date) + '</div>' +
