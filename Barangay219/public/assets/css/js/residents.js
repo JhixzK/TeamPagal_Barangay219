@@ -373,6 +373,11 @@ function editResident(id) {
         document.getElementById('address').value = toTitleCase(resident.address || '');
         document.getElementById('contact_number').value = formatPhoneForInput(resident.contact_number) || '+63 ';
         document.getElementById('household_id').value = resident.household_id || '';
+        const miEl = document.getElementById('monthly_income');
+        if (miEl) {
+            const mi = resident.monthly_income;
+            miEl.value = (mi != null && mi !== '') ? String(mi) : '';
+        }
         document.getElementById('status').value = resident.status;
         document.getElementById('residentModalTitle').textContent = 'Edit Resident';
         initResidentFormValidation();
@@ -403,7 +408,9 @@ function viewResident(id) {
             const householdRole = r.registration_household_role || r.relationship_to_head || '-';
             const residencyStart = r.residency_start_date || r.registration_residency_start_date || '';
             const residencyLength = r.computed_length_of_residency || r.length_of_residency || r.registration_length_of_residency || '-';
-            const monthlyIncome = formatCurrency(r.registration_household_income);
+            const monthlyIncome = formatCurrency(
+                (r.monthly_income != null && r.monthly_income !== '') ? r.monthly_income : r.registration_household_income
+            );
             const specialCategories = buildResidentSpecialCategories(r);
             document.getElementById('viewResidentBody').innerHTML = `
                 <table class="table table-sm">
@@ -423,7 +430,7 @@ function viewResident(id) {
                     <tr><td><strong>Household Role</strong></td><td>${escapeHtml(toTitleCase(householdRole || '-'))}</td></tr>
                     <tr><td><strong>Voter Status</strong></td><td>${escapeHtml(toTitleCase(voterStatus))}</td></tr>
                     <tr><td><strong>Precinct Number</strong></td><td>${escapeHtml(precinctNumber)}</td></tr>
-                    <tr><td><strong>Monthly Income</strong></td><td>${monthlyIncome}</td></tr>
+                    <tr><td><strong>Monthly income (this resident)</strong></td><td>${monthlyIncome}</td></tr>
                     <tr><td><strong>House Type</strong></td><td>${escapeHtml(toTitleCase(houseType))}</td></tr>
                     <tr><td><strong>House Ownership</strong></td><td>${escapeHtml(toTitleCase(houseOwnership))}</td></tr>
                     <tr><td><strong>Residency Start</strong></td><td>${formatDate(residencyStart)}</td></tr>
@@ -553,6 +560,8 @@ function resetForm() {
     document.getElementById('residentId').value = '';
     document.getElementById('citizenship').value = 'Filipino';
     document.getElementById('status').value = 'active';
+    const miReset = document.getElementById('monthly_income');
+    if (miReset) miReset.value = '';
     document.getElementById('contact_number').value = '+63 ';
     document.getElementById('residentModalTitle').textContent = 'Edit Resident';
     initResidentFormValidation();
