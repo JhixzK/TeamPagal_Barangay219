@@ -118,6 +118,19 @@ include __DIR__ . '/../includes/sidebar.php';
 .resident-incident-page textarea.form-control {
   resize: none;
 }
+
+.resident-incident-page .form-check-input[type="checkbox"] {
+  border-color: #9aa4b2;
+}
+
+.resident-incident-page .form-check-input[type="checkbox"]:checked {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+  background-size: 0.8rem 0.8rem;
+  background-position: center;
+  background-repeat: no-repeat;
+}
 </style>
 
 <script>
