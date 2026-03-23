@@ -12,11 +12,12 @@ if (!defined('ACCESS_ALLOWED')) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/constants.php';
 require_once __DIR__ . '/auth-check.php';
+require_once __DIR__ . '/mail-helper.php';
 
 // Password Reset Configuration
 define('OTP_LENGTH', 6);  // 6-digit OTP (required)
 define('OTP_EXPIRY_MINUTES', 5);  // 3-5 minutes expiry
-define('TOKEN_EXPIRY_MINUTES', 60);
+define('TOKEN_EXPIRY_MINUTES', 5);  // Reset link expires after 5 minutes
 define('MAX_OTP_ATTEMPTS', 5);  // 3-5 attempts allowed
 define('RATE_LIMIT_WINDOW_MINUTES', 60);
 define('MAX_RESET_REQUESTS_PER_HOUR', 3);
@@ -234,7 +235,7 @@ function sendOTPViaSMS($phone_number, $otp) {
 }
 
 /**
- * Send reset link via Email (placeholder - integrate with actual Email service)
+ * Send reset link via Email using configured SMTP helper.
  *
  * @param string $email Email address
  * @param string $token Reset token
@@ -243,32 +244,34 @@ function sendOTPViaSMS($phone_number, $otp) {
  */
 function sendResetLinkViaEmail($email, $token, $reset_link) {
     try {
-        // Email template
-        $subject = "E-Barangay Password Reset Request";
-        
-        $message = "
-        <h2>Password Reset Request</h2>
-        <p>You requested a password reset for your E-Barangay account.</p>
-        <p>Click the link below to reset your password:</p>
-        <p><a href='{$reset_link}'>Reset Password</a></p>
-        <p>Or copy this link: {$reset_link}</p>
-        <p><strong>This link will expire in 60 minutes.</strong></p>
-        <p>If you did not request this reset, please ignore this email or contact support.</p>
-        <hr>
-        <p>E-Barangay Information Management System</p>
-        ";
-        
-        $headers = "MIME-Version: 1.0\r\n";
-        $headers .= "Content-type: text/html; charset=UTF-8\r\n";
-        $headers .= "From: " . BARANGAY_NAME . " <noreply@ebarangay.local>\r\n";
-        
-        // Log email for development/testing
-        error_log("Email sent to {$email}: Reset token: {$token}");
-        
-        // Send email using PHP mail or integrate with mail service
-        $result = mail($email, $subject, $message, $headers);
-        
-        return $result;
+        $subject = APP_NAME . ' - Password Reset Request';
+        $safeLink = htmlspecialchars($reset_link, ENT_QUOTES, 'UTF-8');
+        $safeBarangay = htmlspecialchars(BARANGAY_NAME, ENT_QUOTES, 'UTF-8');
+
+        $html = '<p>Hello Resident,</p>'
+            . '<p>We received a request to reset your E-Barangay account password.</p>'
+            . '<p>Use the link below to set a new password (link expires in ' . TOKEN_EXPIRY_MINUTES . ' minutes).</p>'
+            . '<p><a href="' . $safeLink . '">Reset my password</a></p>'
+            . '<p>If the link does not open, copy and paste this URL into your browser:</p>'
+            . '<p style="word-break:break-all;">' . $safeLink . '</p>'
+            . '<p>If you did not request this reset, please ignore this email.</p>'
+            . '<p>— ' . $safeBarangay . '</p>';
+
+        $plain = "Hello Resident,\n\n"
+            . "We received a request to reset your E-Barangay account password.\n"
+            . "Use the link below to set a new password (link expires in " . TOKEN_EXPIRY_MINUTES . " minutes).\n"
+            . "Reset link: {$reset_link}\n\n"
+            . "If you did not request this reset, please ignore this email.\n"
+            . "- {$safeBarangay}";
+
+        $result = sendHtmlMailToResident($email, $subject, $html, $plain);
+        if (!($result['sent'] ?? false)) {
+            error_log('Password reset email send failed: ' . ($result['error'] ?? 'unknown'));
+            return false;
+        }
+
+        error_log("SMTP reset email sent to {$email}: Reset token: {$token}");
+        return true;
     } catch (Exception $e) {
         error_log("Email send error: " . $e->getMessage());
         return false;
@@ -307,7 +310,7 @@ function initiatePasswordReset($user_identifier, $method) {
         }
         
         // Find user by email or username
-        $sql = "SELECT id, username, email FROM users WHERE (email = ? OR username = ?) AND status = 'active'";
+        $sql = "SELECT id, username, email, resident_id FROM users WHERE (email = ? OR username = ?) AND status = 'active'";
         $user = $db->fetchOne($sql, [$user_identifier, $user_identifier]);
         
         if (!$user) {
@@ -325,7 +328,7 @@ function initiatePasswordReset($user_identifier, $method) {
         
         // Get phone number from residents table if user is linked to resident
         $phone = null;
-        if ($user['resident_id']) {
+        if (!empty($user['resident_id'])) {
             $resident = $db->fetchOne("SELECT contact_number FROM residents WHERE id = ?", [$user['resident_id']]);
             if ($resident && $resident['contact_number']) {
                 $phone = $resident['contact_number'];
@@ -354,11 +357,13 @@ function initiatePasswordReset($user_identifier, $method) {
         // Generate token/OTP and store
         if ($method === 'email') {
             $token = generateResetToken();
-            $expires_at = date('Y-m-d H:i:s', time() + (TOKEN_EXPIRY_MINUTES * 60));
-            
+            $token_hash = hash('sha256', $token);
+
+            // Use database time for consistency with token validation.
             $db->query(
-                "INSERT INTO password_reset_tokens (user_id, token, method, identifier, expires_at) VALUES (?, ?, ?, ?, ?)",
-                [$user_id, $token, $method, $email, $expires_at]
+                "INSERT INTO password_reset_tokens (user_id, token, method, identifier, expires_at)
+                 VALUES (?, ?, ?, ?, TIMESTAMPADD(MINUTE, ?, CURRENT_TIMESTAMP))",
+                [$user_id, $token_hash, $method, $email, TOKEN_EXPIRY_MINUTES]
             );
             
             $token_id = $db->lastInsertId();
@@ -373,11 +378,12 @@ function initiatePasswordReset($user_identifier, $method) {
             
         } else { // SMS
             $otp = generateOTP();
-            $expires_at = date('Y-m-d H:i:s', time() + (OTP_EXPIRY_MINUTES * 60));
-            
+
+            // Use database time for consistency with OTP validation.
             $db->query(
-                "INSERT INTO password_reset_otp (user_id, otp_code, phone_number, expires_at) VALUES (?, ?, ?, ?)",
-                [$user_id, $otp, $phone, $expires_at]
+                "INSERT INTO password_reset_otp (user_id, otp_code, phone_number, expires_at)
+                 VALUES (?, ?, ?, TIMESTAMPADD(MINUTE, ?, CURRENT_TIMESTAMP))",
+                [$user_id, $otp, $phone, OTP_EXPIRY_MINUTES]
             );
             
             $otp_id = $db->lastInsertId();
@@ -444,7 +450,7 @@ function verifyOTP($otp, $user_identifier) {
             "SELECT * FROM password_reset_otp 
              WHERE user_id = ? 
              AND is_verified = 0 
-             AND expires_at > NOW() 
+             AND expires_at >= CURRENT_TIMESTAMP
              ORDER BY created_at DESC 
              LIMIT 1",
             [$user['id']]
@@ -529,23 +535,36 @@ function verifyResetToken($token) {
     try {
         $db = Database::getInstance();
         
-        // Find and validate token
-        $token_record = $db->fetchOne(
-            "SELECT * FROM password_reset_tokens 
-             WHERE token = ? 
-             AND is_used = 0 
-             AND expires_at > NOW()",
-            [$token]
-        );
-        
-        if (!$token_record) {
-            logPasswordResetActivity(null, 'token_verify_failed', 'email', 'unknown', 'invalid_or_expired_token');
+        $token_state = getResetTokenState($token);
+
+        if (!$token_state) {
+            logPasswordResetActivity(null, 'token_verify_failed', 'email', 'unknown', 'invalid_token');
             return [
                 'success' => false,
-                'message' => 'Invalid or expired reset link. Please request a new one.',
+                'message' => 'Invalid reset link. Please request a new one.',
                 'code' => 'INVALID_TOKEN'
             ];
         }
+
+        if ((int)$token_state['is_used'] === 1) {
+            logPasswordResetActivity((int)$token_state['user_id'], 'token_verify_failed', 'email', (string)$token_state['identifier'], 'token_already_used');
+            return [
+                'success' => false,
+                'message' => 'This reset link has already been used. Please request a new one.',
+                'code' => 'TOKEN_ALREADY_USED'
+            ];
+        }
+
+        if ((int)$token_state['is_expired'] === 1) {
+            logPasswordResetActivity((int)$token_state['user_id'], 'token_verify_failed', 'email', (string)$token_state['identifier'], 'token_expired');
+            return [
+                'success' => false,
+                'message' => 'This reset link has expired. Please request a new one.',
+                'code' => 'TOKEN_EXPIRED'
+            ];
+        }
+
+        $token_record = $token_state;
         
         // Generate session token for password reset
         $reset_session_token = bin2hex(random_bytes(32));
@@ -662,6 +681,187 @@ function resetPassword($user_id, $new_password) {
 }
 
 /**
+ * Reset password directly from a valid email reset token (single-step flow).
+ *
+ * @param string $token Email reset token
+ * @param string $new_password New password
+ * @param string $confirm_password Confirm password
+ * @return array Result array
+ */
+function resetPasswordWithToken($token, $new_password, $confirm_password) {
+    try {
+        $db = Database::getInstance();
+
+        $token = trim((string)$token);
+        if ($token === '') {
+            return [
+                'success' => false,
+                'message' => 'Reset token is required.',
+                'code' => 'TOKEN_REQUIRED'
+            ];
+        }
+
+        if ($new_password !== $confirm_password) {
+            return [
+                'success' => false,
+                'message' => 'Passwords do not match.',
+                'code' => 'PASSWORD_MISMATCH'
+            ];
+        }
+
+        $token_state = getResetTokenState($token);
+
+        if (!$token_state) {
+            logPasswordResetActivity(null, 'reset_failed', 'email', 'unknown', 'invalid_token');
+            return [
+                'success' => false,
+                'message' => 'Invalid reset link. Please request a new one.',
+                'code' => 'INVALID_TOKEN'
+            ];
+        }
+
+        if ((int)$token_state['is_used'] === 1) {
+            logPasswordResetActivity((int)$token_state['user_id'], 'reset_failed', 'email', (string)$token_state['identifier'], 'token_already_used');
+            return [
+                'success' => false,
+                'message' => 'This reset link has already been used. Please request a new one.',
+                'code' => 'TOKEN_ALREADY_USED'
+            ];
+        }
+
+        if ((int)$token_state['is_expired'] === 1) {
+            logPasswordResetActivity((int)$token_state['user_id'], 'reset_failed', 'email', (string)$token_state['identifier'], 'token_expired');
+            return [
+                'success' => false,
+                'message' => 'This reset link has expired. Please request a new one.',
+                'code' => 'TOKEN_EXPIRED'
+            ];
+        }
+
+        $token_record = $token_state;
+
+        $password_validation = validatePassword($new_password);
+        if (!$password_validation['valid']) {
+            return [
+                'success' => false,
+                'message' => 'Password does not meet requirements: ' . implode(', ', $password_validation['errors']),
+                'code' => 'INVALID_PASSWORD',
+                'requirements' => $password_validation['requirements']
+            ];
+        }
+
+        $userId = (int)$token_record['user_id'];
+        $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
+
+        $db->beginTransaction();
+        try {
+            $db->query(
+                "UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?",
+                [$password_hash, $userId]
+            );
+
+            $markUsedStmt = $db->query(
+                "UPDATE password_reset_tokens
+                 SET is_used = 1, used_at = NOW()
+                 WHERE id = ? AND is_used = 0 AND expires_at >= CURRENT_TIMESTAMP",
+                [(int)$token_record['id']]
+            );
+
+            if (!$markUsedStmt || $markUsedStmt->rowCount() !== 1) {
+                $latest_state = getResetTokenState($token);
+                if (!$latest_state) {
+                    throw new RuntimeException('TOKEN_INVALID');
+                }
+                if ((int)$latest_state['is_used'] === 1) {
+                    throw new RuntimeException('TOKEN_ALREADY_USED');
+                }
+                if ((int)$latest_state['is_expired'] === 1) {
+                    throw new RuntimeException('TOKEN_EXPIRED');
+                }
+                throw new RuntimeException('TOKEN_INVALID');
+            }
+
+            $db->commit();
+        } catch (Exception $e) {
+            $db->rollback();
+            throw $e;
+        }
+
+        // Clear any in-progress reset session to avoid stale state.
+        unset($_SESSION['password_reset_token']);
+        unset($_SESSION['password_reset_user_id']);
+        unset($_SESSION['password_reset_method']);
+        unset($_SESSION['password_reset_verified']);
+        unset($_SESSION['password_reset_expires']);
+        unset($_SESSION['password_reset_token_id']);
+
+        logPasswordResetActivity($userId, 'password_reset', 'email', (string)($token_record['identifier'] ?? 'unknown'), ['success' => true, 'mode' => 'token_direct']);
+
+        return [
+            'success' => true,
+            'message' => 'Password reset successfully. You can now login with your new password.',
+            'code' => 'PASSWORD_RESET_SUCCESS'
+        ];
+    } catch (RuntimeException $e) {
+        $message = $e->getMessage();
+        if ($message === 'TOKEN_ALREADY_USED') {
+            return [
+                'success' => false,
+                'message' => 'This reset link has already been used. Please request a new one.',
+                'code' => 'TOKEN_ALREADY_USED'
+            ];
+        }
+        if ($message === 'TOKEN_EXPIRED') {
+            return [
+                'success' => false,
+                'message' => 'This reset link has expired. Please request a new one.',
+                'code' => 'TOKEN_EXPIRED'
+            ];
+        }
+        return [
+            'success' => false,
+            'message' => 'Invalid reset link. Please request a new one.',
+            'code' => 'INVALID_TOKEN'
+        ];
+    } catch (Exception $e) {
+        error_log('Reset with token error: ' . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'An error occurred while resetting password. Please try again.',
+            'code' => 'ERROR'
+        ];
+    }
+}
+
+/**
+ * Get reset token state using database clock for expiry checks.
+ *
+ * @param string $token
+ * @return array|null
+ */
+function getResetTokenState($token) {
+    try {
+        $db = Database::getInstance();
+        $token = trim((string)$token);
+        $token_hash = hash('sha256', $token);
+
+        return $db->fetchOne(
+            "SELECT id, user_id, identifier, is_used, expires_at,
+                    CASE WHEN expires_at < CURRENT_TIMESTAMP THEN 1 ELSE 0 END AS is_expired,
+                    GREATEST(TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, expires_at), 0) AS seconds_until_expiry
+             FROM password_reset_tokens
+             WHERE token = ? OR token = ?
+             ORDER BY created_at DESC
+             LIMIT 1",
+            [$token_hash, $token]
+        );
+    } catch (Exception $e) {
+        error_log('Get reset token state error: ' . $e->getMessage());
+        return null;
+    }
+}
+
+/**
  * Validate password strength
  *
  * @param string $password Password to validate
@@ -763,7 +963,7 @@ function maskIdentifier($identifier, $type = 'email') {
 function resendOTP($user_identifier) {
     try {
         $db = Database::getInstance();
-        
+
         // Check rate limiting for resend
         $rate_check = checkRateLimit(null, 'otp_resend', MAX_RESEND_OTP_PER_HOUR, RATE_LIMIT_WINDOW_MINUTES);
         if (!$rate_check['allowed']) {
@@ -773,7 +973,7 @@ function resendOTP($user_identifier) {
                 'code' => 'RATE_LIMITED'
             ];
         }
-        
+
         // Find user
         $user = $db->fetchOne("SELECT id FROM users WHERE (email = ? OR username = ?) AND status = 'active'", [$user_identifier, $user_identifier]);
         if (!$user) {
@@ -783,18 +983,18 @@ function resendOTP($user_identifier) {
                 'code' => 'OTP_REQUEST_SUBMITTED'
             ];
         }
-        
+
         // Find latest OTP
         $otp_record = $db->fetchOne(
-            "SELECT * FROM password_reset_otp 
-             WHERE user_id = ? 
-             AND is_verified = 0 
-             AND created_at > DATE_SUB(NOW(), INTERVAL 30 MINUTE)
-             ORDER BY created_at DESC 
+            "SELECT * FROM password_reset_otp
+             WHERE user_id = ?
+               AND is_verified = 0
+               AND created_at > DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+             ORDER BY created_at DESC
              LIMIT 1",
             [$user['id']]
         );
-        
+
         if (!$otp_record) {
             return [
                 'success' => false,
@@ -802,31 +1002,34 @@ function resendOTP($user_identifier) {
                 'code' => 'NO_OTP_REQUEST'
             ];
         }
-        
+
         // Generate new OTP
         $new_otp = generateOTP();
-        $expires_at = date('Y-m-d H:i:s', time() + (OTP_EXPIRY_MINUTES * 60));
-        
-        // Update OTP record with new code
+
+        // Update OTP record with new code using database time.
         $db->query(
-            "UPDATE password_reset_otp SET otp_code = ?, expires_at = ?, attempt_count = 0, updated_at = NOW() WHERE id = ?",
-            [$new_otp, $expires_at, $otp_record['id']]
+            "UPDATE password_reset_otp
+             SET otp_code = ?,
+                 expires_at = TIMESTAMPADD(MINUTE, ?, NOW()),
+                 attempt_count = 0,
+                 updated_at = NOW()
+             WHERE id = ?",
+            [$new_otp, OTP_EXPIRY_MINUTES, $otp_record['id']]
         );
-        
+
         // Send new OTP
         sendOTPViaSMS($otp_record['phone_number'], $new_otp);
-        
+
         logPasswordResetActivity($user['id'], 'otp_resent', 'sms', $otp_record['phone_number']);
-        
+
         return [
             'success' => true,
             'message' => 'New OTP sent successfully',
             'code' => 'OTP_RESENT',
             'identifier_hint' => maskIdentifier($otp_record['phone_number'], 'sms')
         ];
-        
     } catch (Exception $e) {
-        error_log("OTP resend error: " . $e->getMessage());
+        error_log("Resend OTP error: " . $e->getMessage());
         return [
             'success' => false,
             'message' => 'An error occurred. Please try again.',
