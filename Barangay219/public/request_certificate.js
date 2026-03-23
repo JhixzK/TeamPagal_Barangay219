@@ -27,9 +27,18 @@ const requirementMap = {
   "Barangay Certificate": [
     hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID"
   ],
+  "Transfer Request": [
+    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID"
+  ],
   "Barangay Indigency": [
     hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID",
     "Supporting proof (optional)"
+  ],
+  "Barangay Clearance": [
+    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID"
+  ],
+  "Certificate of Residency": [
+    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID"
   ]
 };
 
@@ -49,11 +58,56 @@ const purposeOptionsByType = {
     "Transfer of Residence",
     "Others"
   ],
+  "Transfer Request": [
+    "Application for Employment",
+    "School Admission/Requirement",
+    "Hospital Purpose",
+    "Processing of Calamity",
+    "Medical Purpose",
+    "For Livelihood Loan",
+    "Bank Transaction",
+    "Indigent Family",
+    "Organized Vending Permit",
+    "DSWD Requirement",
+    "For Travel Abroad",
+    "Transfer of Residence",
+    "Others"
+  ],
   "Barangay Indigency": [
     "Financial Assistance",
     "Medical Purpose",
     "Hospital Purpose",
     "DSWD Requirement",
+    "Others"
+  ],
+  "Barangay Clearance": [
+    "Application for Employment",
+    "School Admission/Requirement",
+    "Hospital Purpose",
+    "Processing of Calamity",
+    "Medical Purpose",
+    "For Livelihood Loan",
+    "Bank Transaction",
+    "Indigent Family",
+    "Organized Vending Permit",
+    "DSWD Requirement",
+    "For Travel Abroad",
+    "Transfer of Residence",
+    "Others"
+  ],
+  "Certificate of Residency": [
+    "Application for Employment",
+    "School Admission/Requirement",
+    "Hospital Purpose",
+    "Processing of Calamity",
+    "Medical Purpose",
+    "For Livelihood Loan",
+    "Bank Transaction",
+    "Indigent Family",
+    "Organized Vending Permit",
+    "DSWD Requirement",
+    "For Travel Abroad",
+    "Transfer of Residence",
     "Others"
   ]
 };
