@@ -57,7 +57,8 @@ $all_tables_exist = true;
 
 foreach ($tables as $table => $description) {
     try {
-        $result = $db->fetchOne("SHOW TABLES LIKE ?", [$table]);
+        $quotedTable = $db->getConnection()->quote($table);
+        $result = $db->fetchOne("SHOW TABLES LIKE {$quotedTable}");
         if ($result) {
             $row_result = $db->fetchOne("SELECT COUNT(*) as count FROM {$table}");
             $count = $row_result['count'] ?? 0;
