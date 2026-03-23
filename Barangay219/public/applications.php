@@ -444,16 +444,12 @@ include __DIR__ . '/../includes/sidebar.php';
             <div class="modal-body">
                 <div class="mb-3">
                     <label class="form-label">Resident <span class="text-danger">*</span></label>
-                    <div id="walkinResidentSelect2Wrap" class="d-none">
-                        <select class="form-select" id="walkinResidentIdSelect" required>
-                            <option value="">-- Select Resident --</option>
-                        </select>
-                    </div>
-                    <div id="walkinResidentDatalistWrap">
-                        <input type="text" class="form-control" id="walkinResidentLookup" list="walkinResidentList" placeholder="Type resident name..." autocomplete="off">
-                        <datalist id="walkinResidentList"></datalist>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="walkinResidentSearch" placeholder="Search resident..." autocomplete="off">
+                        <button class="btn btn-outline-secondary" type="button" id="clearWalkinResidentBtn">Clear</button>
                     </div>
                     <input type="hidden" id="walkinResidentId" value="">
+                    <div id="walkinResidentSearchResults" class="list-group mt-2" style="display:none; max-height:200px; overflow-y:auto;"></div>
                 </div>
                 <div class="mb-0">
                     <label class="form-label">Certificate Type <span class="text-danger">*</span></label>
@@ -607,8 +603,7 @@ include __DIR__ . '/../includes/sidebar.php';
     let currentReleaseCertificateType = '';
     let currentReleaseBirthDate = '';
     let currentReleaseCivilStatus = '';
-    let walkInUseSelect2 = false;
-    let walkInResidentLabelToId = {};
+    let walkInResidentSearchTimer = null;
     const APP_PERMS = {
         canEdit: window.canModulePermission
             ? (window.canModulePermission('applications', 'can_edit') || window.canModulePermission('certificates', 'can_edit'))
@@ -1359,44 +1354,126 @@ include __DIR__ . '/../includes/sidebar.php';
     }
 
     function getWalkInSelectedResidentId() {
-        if (walkInUseSelect2) {
-            return document.getElementById('walkinResidentIdSelect')?.value || '';
-        }
         return document.getElementById('walkinResidentId')?.value || '';
     }
 
     function resetWalkInResidentSelection() {
-        if (walkInUseSelect2) {
-            const select = document.getElementById('walkinResidentIdSelect');
-            if (select) {
-                if (window.jQuery && window.jQuery(select).data('select2')) {
-                    window.jQuery(select).val('').trigger('change');
-                } else {
-                    select.value = '';
-                }
-            }
-        } else {
-            const lookup = document.getElementById('walkinResidentLookup');
-            const hidden = document.getElementById('walkinResidentId');
-            if (lookup) lookup.value = '';
-            if (hidden) hidden.value = '';
+        const searchInput = document.getElementById('walkinResidentSearch');
+        const hidden = document.getElementById('walkinResidentId');
+        const results = document.getElementById('walkinResidentSearchResults');
+        if (searchInput) searchInput.value = '';
+        if (hidden) hidden.value = '';
+        if (results) {
+            results.innerHTML = '';
+            results.style.display = 'none';
         }
     }
 
-    function bindWalkInDatalistResolver() {
-        const lookup = document.getElementById('walkinResidentLookup');
+    function buildWalkInResidentMeta(resident) {
+        const code = String(resident.resident_code || '').trim();
+        const address = String(resident.address || resident.purok_sitio || '').trim();
+        if (code && address) return `${code} • ${address}`;
+        if (code) return code;
+        if (address) return address;
+        return 'No additional details';
+    }
+
+    function renderWalkInResidentResults(residents) {
+        const results = document.getElementById('walkinResidentSearchResults');
+        if (!results) return;
+
+        if (!Array.isArray(residents) || residents.length === 0) {
+            results.innerHTML = '<div class="list-group-item text-muted small">No matching residents</div>';
+            results.style.display = 'block';
+            return;
+        }
+
+        results.innerHTML = residents.map(r => {
+            const fullName = buildResidentLabel(r);
+            const meta = buildWalkInResidentMeta(r);
+            return `<button type="button" class="list-group-item list-group-item-action" data-resident-id="${esc(r.id)}" data-resident-name="${esc(fullName)}">
+                <div class="fw-semibold">${esc(fullName)}</div>
+                <div class="small text-muted">${esc(meta)}</div>
+            </button>`;
+        }).join('');
+        results.style.display = 'block';
+    }
+
+    function searchWalkInResidents(keyword) {
+        const results = document.getElementById('walkinResidentSearchResults');
+        if (!results) return;
+
+        const q = String(keyword || '').trim();
+        if (q.length < 3) {
+            results.innerHTML = '';
+            results.style.display = 'none';
+            return;
+        }
+
+        fetch(API_URL + 'certificates.php?action=resident_options&limit=20&q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(d => {
+                const residents = (d && d.success && d.data && Array.isArray(d.data.residents)) ? d.data.residents : [];
+                renderWalkInResidentResults(residents);
+            })
+            .catch(() => {
+                results.innerHTML = '<div class="list-group-item text-danger small">Unable to search residents</div>';
+                results.style.display = 'block';
+            });
+    }
+
+    function initWalkInResidentSearch() {
+        const searchInput = document.getElementById('walkinResidentSearch');
         const hidden = document.getElementById('walkinResidentId');
-        if (!lookup || !hidden) return;
+        const clearBtn = document.getElementById('clearWalkinResidentBtn');
+        const results = document.getElementById('walkinResidentSearchResults');
+        if (!searchInput || !hidden || !results) return;
 
-        const resolve = () => {
-            const value = String(lookup.value || '').trim();
-            hidden.value = walkInResidentLabelToId[value] ? String(walkInResidentLabelToId[value]) : '';
-        };
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                resetWalkInResidentSelection();
+                searchInput.focus();
+            });
+        }
 
-        lookup.removeEventListener('input', resolve);
-        lookup.removeEventListener('change', resolve);
-        lookup.addEventListener('input', resolve);
-        lookup.addEventListener('change', resolve);
+        searchInput.addEventListener('input', (e) => {
+            hidden.value = '';
+            if (walkInResidentSearchTimer) {
+                clearTimeout(walkInResidentSearchTimer);
+            }
+            walkInResidentSearchTimer = setTimeout(() => {
+                searchWalkInResidents(e.target.value || '');
+            }, 250);
+        });
+
+        searchInput.addEventListener('focus', () => {
+            if (searchInput.value.trim().length >= 3) {
+                searchWalkInResidents(searchInput.value);
+            }
+        });
+
+        searchInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (!results.contains(document.activeElement)) {
+                    results.style.display = 'none';
+                }
+            }, 100);
+        });
+
+        results.addEventListener('mousedown', (e) => {
+            const item = e.target.closest('button[data-resident-id]');
+            if (!item) return;
+            e.preventDefault();
+            hidden.value = String(item.getAttribute('data-resident-id') || '');
+            searchInput.value = String(item.getAttribute('data-resident-name') || '');
+            results.style.display = 'none';
+        });
+
+        results.addEventListener('click', (e) => {
+            if (e.target.closest('button[data-resident-id]')) {
+                e.preventDefault();
+            }
+        });
     }
 
     function updateWalkInPurposeVisibility() {
@@ -1428,70 +1505,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
     // Load residents for walk-in searchable field
     function loadResidents() {
-        fetch(API_URL + 'certificates.php?action=resident_options&limit=500')
-            .then(r => r.json())
-            .then(d => {
-                if (d.success && d.data && d.data.residents) {
-                    const residents = d.data.residents;
-                    const select2Wrap = document.getElementById('walkinResidentSelect2Wrap');
-                    const datalistWrap = document.getElementById('walkinResidentDatalistWrap');
-                    const select = document.getElementById('walkinResidentIdSelect');
-                    const datalist = document.getElementById('walkinResidentList');
-
-                    walkInUseSelect2 = !!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2 && select);
-
-                    if (walkInUseSelect2) {
-                        if (select2Wrap) select2Wrap.classList.remove('d-none');
-                        if (datalistWrap) datalistWrap.classList.add('d-none');
-
-                        const optionsHtml = '<option value="">-- Select Resident --</option>' +
-                            residents.map(r => `<option value="${r.id}">${esc(buildResidentLabel(r))}</option>`).join('');
-                        select.innerHTML = optionsHtml;
-
-                        const $select = window.jQuery(select);
-                        if ($select.data('select2')) {
-                            $select.select2('destroy');
-                        }
-                        $select.select2({
-                            width: '100%',
-                            placeholder: '-- Select Resident --',
-                            dropdownParent: window.jQuery('#walkinModal')
-                        });
-                    } else {
-                        if (select2Wrap) select2Wrap.classList.add('d-none');
-                        if (datalistWrap) datalistWrap.classList.remove('d-none');
-
-                        walkInResidentLabelToId = {};
-                        const datalistHtml = residents.map(r => {
-                            const label = buildResidentLabel(r);
-                            walkInResidentLabelToId[label] = r.id;
-                            return `<option value="${esc(label)}"></option>`;
-                        }).join('');
-
-                        if (datalist) datalist.innerHTML = datalistHtml;
-                        bindWalkInDatalistResolver();
-                    }
-                } else {
-                    const datalist = document.getElementById('walkinResidentList');
-                    const select = document.getElementById('walkinResidentIdSelect');
-                    if (datalist) datalist.innerHTML = '';
-                    if (select) select.innerHTML = '<option value="">No residents available</option>';
-                    const hidden = document.getElementById('walkinResidentId');
-                    if (hidden) {
-                        hidden.value = '';
-                    }
-                }
-            })
-            .catch(() => {
-                const datalist = document.getElementById('walkinResidentList');
-                const select = document.getElementById('walkinResidentIdSelect');
-                if (datalist) datalist.innerHTML = '';
-                if (select) {
-                    select.innerHTML = '<option value="">Failed to load residents</option>';
-                }
-                const hidden = document.getElementById('walkinResidentId');
-                if (hidden) hidden.value = '';
-            });
+        resetWalkInResidentSelection();
     }
 
     const btnDirectIssue = document.getElementById('btnDirectIssue');
@@ -1580,6 +1594,8 @@ include __DIR__ . '/../includes/sidebar.php';
     if (walkInPurposeSelect) {
         walkInPurposeSelect.addEventListener('change', updateWalkInPurposeVisibility);
     }
+
+    initWalkInResidentSearch();
 
     document.querySelectorAll('#statusTabs .nav-link').forEach(link => {
         link.addEventListener('click', function(e) {
