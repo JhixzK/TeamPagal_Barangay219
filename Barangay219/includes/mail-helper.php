@@ -108,7 +108,7 @@ function sendResidentRegistrationActivationEmail($toEmail, $residentName, $activ
     $html = '<p>Hello ' . $nameEsc . ',</p>'
         . '<p>Your barangay registration has been <strong>approved</strong>.</p>'
         . $idBlock
-        . '<p>Use the link below to set your password and activate your online resident account (link expires in 7 days).</p>'
+        . '<p>Use the link below to set your password and activate your online resident account (valid until used).</p>'
         . '<p><a href="' . $safeLink . '">Activate my account</a></p>'
         . '<p>If the link does not open, copy and paste this URL into your browser:</p>'
         . '<p style="word-break:break-all;">' . $safeLink . '</p>'
