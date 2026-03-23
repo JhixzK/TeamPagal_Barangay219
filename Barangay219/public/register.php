@@ -47,7 +47,6 @@ $barangay219_purok_options = [
     <title>Resident Registration - <?php echo APP_NAME; ?></title>
     <link href="<?php echo ASSETS_URL; ?>css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="<?php echo ASSETS_URL; ?>style.css?v=<?php echo time(); ?>" rel="stylesheet">
     <style>
@@ -291,28 +290,6 @@ $barangay219_purok_options = [
             box-shadow: 0 0 0 0.18rem rgba(29, 78, 216, 0.18);
         }
 
-        .flatpickr-calendar {
-            border: 1px solid var(--border-soft);
-            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
-            border-radius: 12px;
-        }
-
-        .flatpickr-day.selected,
-        .flatpickr-day.startRange,
-        .flatpickr-day.endRange,
-        .flatpickr-day.selected:hover,
-        .flatpickr-day.startRange:hover,
-        .flatpickr-day.endRange:hover {
-            background: var(--gov-blue);
-            border-color: var(--gov-blue);
-        }
-
-        .flatpickr-months .flatpickr-month,
-        .flatpickr-current-month .flatpickr-monthDropdown-months,
-        .flatpickr-current-month input.cur-year {
-            font-weight: 600;
-        }
-
         .back-to-login {
             position: absolute;
             top: 1rem;
@@ -468,7 +445,7 @@ $barangay219_purok_options = [
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label>Date of Birth <span class="text-danger">*</span></label>
-                                            <input type="text" name="birth_date" id="birth_date" class="form-control" required autocomplete="off" placeholder="Select your birth date">
+                                            <input type="date" name="birth_date" id="birth_date" class="form-control" required autocomplete="off" max="<?php echo date('Y-m-d'); ?>">
                                             <div class="invalid-feedback">You must be 18 years old and above to register.</div>
                                         </div>
                                         <div class="col-md-3 mb-3">
@@ -728,7 +705,7 @@ $barangay219_purok_options = [
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label>Date of Residency Start <span class="text-danger">*</span></label>
-                                            <input type="text" name="residency_start_date" id="residency_start_date" class="form-control" placeholder="Select date" required>
+                                            <input type="date" name="residency_start_date" id="residency_start_date" class="form-control" required max="<?php echo date('Y-m-d'); ?>">
                                             <small class="text-muted">Minimum residency requirement is 6 months.</small>
                                             <small class="text-muted d-block mt-1" id="computed_residency_display">Computed length of residency will appear here.</small>
                                             <div class="invalid-feedback">Valid residency start date is required (minimum 6 months ago).</div>
@@ -816,7 +793,6 @@ $barangay219_purok_options = [
     </div>
 </div>
 <script src="<?php echo ASSETS_URL; ?>js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
 window.addEventListener('DOMContentLoaded', function () {
     var baseOuterInnerRatio = window.outerWidth && window.innerWidth ? window.outerWidth / window.innerWidth : 1;
@@ -1023,28 +999,12 @@ function calculateAge(dateString) {
 // Attach event listeners for birth date calculation
 const birthDateField = document.getElementById('birth_date');
 if (birthDateField) {
-    if (typeof flatpickr !== 'undefined') {
-        flatpickr(birthDateField, {
-            altInput: true,
-            altFormat: 'F j, Y',
-            dateFormat: 'Y-m-d',
-            maxDate: 'today',
-            allowInput: false,
-            monthSelectorType: 'dropdown',
-            animate: true,
-            disableMobile: false,
-            onChange: function(selectedDates, dateStr) {
-                calculateAge(dateStr);
-            }
-        });
-    } else {
-        birthDateField.addEventListener('change', function() {
-            calculateAge(this.value);
-        });
-        birthDateField.addEventListener('input', function() {
-            calculateAge(this.value);
-        });
-    }
+    birthDateField.addEventListener('change', function() {
+        calculateAge(this.value);
+    });
+    birthDateField.addEventListener('input', function() {
+        calculateAge(this.value);
+    });
 }
 
 // Residency date picker - Phase 3 with computed values
@@ -1052,25 +1012,12 @@ function initializeResidencyDatePicker() {
     const startDateField = document.getElementById('residency_start_date');
     if (!startDateField) return;
 
-    // Initialize flatpickr if available, otherwise use HTML5 date input
-    if (typeof flatpickr !== 'undefined') {
-        flatpickr(startDateField, {
-            altFormat: 'F j, Y',
-            dateFormat: 'Y-m-d',
-            maxDate: 'today',
-            allowInput: false,
-            monthSelectorType: 'dropdown',
-            animate: true,
-            disableMobile: false,
-            onChange: function(selectedDates, dateStr) {
-                computeResidencyDuration(dateStr);
-            }
-        });
-    } else {
-        startDateField.addEventListener('change', function() {
-            computeResidencyDuration(this.value);
-        });
-    }
+    startDateField.addEventListener('change', function() {
+        computeResidencyDuration(this.value);
+    });
+    startDateField.addEventListener('input', function() {
+        computeResidencyDuration(this.value);
+    });
 }
 
 function computeResidencyDuration(startDateStr) {
