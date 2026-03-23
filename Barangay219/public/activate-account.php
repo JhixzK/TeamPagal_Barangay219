@@ -337,21 +337,54 @@ if (isLoggedIn() && !$token) {
             }
         })();
 
-        document.getElementById('activateForm')?.addEventListener('submit', async function(e) {
+        var activateForm = document.getElementById('activateForm');
+        if (activateForm) {
+        activateForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = this.querySelector('button[type=submit]');
+            const alc = document.getElementById('alertContainer');
             btn.disabled = true;
             const formData = new FormData(this);
+            const token = (formData.get('token') || '').toString().trim();
+            const password = (formData.get('password') || '').toString();
+            const passwordConfirm = (formData.get('password_confirm') || '').toString();
+
+            if (!token || !password || !passwordConfirm) {
+                alc.innerHTML = '<div class="alert alert-danger">Activation token, password, and confirmation are required.</div>';
+                btn.disabled = false;
+                return;
+            }
+
+            if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]{8,16}$/.test(password)) {
+                alc.innerHTML = '<div class="alert alert-danger">Password must be 8-16 characters and contain both letters and numbers.</div>';
+                btn.disabled = false;
+                return;
+            }
+
+            if (password !== passwordConfirm) {
+                alc.innerHTML = '<div class="alert alert-danger">Passwords do not match.</div>';
+                btn.disabled = false;
+                return;
+            }
+
             try {
                 const r = await fetch(API_URL + 'activate-account.php', {
                     method: 'POST',
                     body: formData
                 });
-                const data = await r.json();
-                const alc = document.getElementById('alertContainer');
+                const raw = await r.text();
+                let data;
+                try {
+                    data = JSON.parse(raw);
+                } catch (parseErr) {
+                    alc.innerHTML = '<div class="alert alert-danger">Invalid server response (' + r.status + '). Please try again.</div>';
+                    btn.disabled = false;
+                    return;
+                }
                 alc.innerHTML = '<div class="alert alert-' + (data.success ? 'success' : 'danger') + '">' + data.message + '</div>';
                 if (data.success) {
-                    setTimeout(() => { window.location.href = data.data?.redirect || '<?php echo BASE_URL; ?>login.php'; }, 1500);
+                    var redirectUrl = (data.data && data.data.redirect) ? data.data.redirect : '<?php echo BASE_URL; ?>login.php';
+                    setTimeout(function() { window.location.href = redirectUrl; }, 1500);
                 } else {
                     btn.disabled = false;
                 }
@@ -360,6 +393,7 @@ if (isLoggedIn() && !$token) {
                 btn.disabled = false;
             }
         });
+        }
     </script>
 </body>
 </html>
