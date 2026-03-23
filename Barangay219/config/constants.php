@@ -96,7 +96,7 @@ define('RESIDENT_INACTIVE', 'inactive');
 define('RESIDENT_DECEASED', 'deceased');
 define('RESIDENT_TRANSFERRED', 'transferred');
 
-// Indigent classification (household income threshold; overridable in System Settings)
+// Indigent classification fallback when DB `system_settings` has no row (default ₱12,000)
 define('DEFAULT_INDIGENT_THRESHOLD_MONTHLY', 12000);
 
 // Pagination
