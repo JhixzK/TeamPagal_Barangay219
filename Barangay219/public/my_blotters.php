@@ -28,25 +28,23 @@ include __DIR__ . '/../includes/sidebar.php';
       </div>
     </section>
 
-    <div class="card p-3">
-      <div class="table-responsive">
-        <table class="table align-middle">
+    <section class="card table-card">
+      <div class="table-wrap">
+        <table class="requests-table blotter-table">
           <thead>
             <tr>
               <th>Reference #</th>
               <th>Incident Type</th>
-              <th>Location</th>
-              <th>Incident Date</th>
+              <th>Date Reported</th>
               <th>Status</th>
-              <th class="text-end">Action</th>
             </tr>
           </thead>
           <tbody id="blotterRows">
-            <tr><td colspan="6" class="text-center text-muted py-4">Loading reports...</td></tr>
+            <tr><td colspan="4" class="text-center text-muted py-4">Loading reports...</td></tr>
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   </div>
 </div>
 
@@ -65,20 +63,104 @@ include __DIR__ . '/../includes/sidebar.php';
   </div>
 </div>
 
+<style>
+.resident-my-blotters-page .dashboard-hero {
+  border-radius: 16px;
+  background: radial-gradient(circle at 0% 0%, rgba(147, 197, 253, 0.24), transparent 36%), linear-gradient(140deg, #f8fbff 0%, #eef4ff 58%, #f4f7fb 100%);
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 16px 34px -24px rgba(37, 99, 235, 0.45);
+}
+
+.resident-my-blotters-page .table-card {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 8px 20px -12px rgba(15, 23, 42, 0.18);
+}
+
+.resident-my-blotters-page .table-wrap {
+  overflow-x: auto;
+}
+
+.resident-my-blotters-page .requests-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 720px;
+}
+
+.resident-my-blotters-page .requests-table th,
+.resident-my-blotters-page .requests-table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid #e2e9f4;
+  vertical-align: middle;
+}
+
+.resident-my-blotters-page .requests-table th {
+  font-size: 12px;
+  color: #637790;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.resident-my-blotters-page .blotter-table {
+  min-width: 720px;
+}
+
+.resident-my-blotters-page .blotter-row {
+  cursor: pointer;
+}
+
+.resident-my-blotters-page .blotter-row:hover {
+  background: #f8fafc;
+}
+
+.resident-my-blotters-page .status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.resident-my-blotters-page .status-pill.pending {
+  background: #fff4da;
+  color: #a86500;
+}
+
+.resident-my-blotters-page .status-pill.processing {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.resident-my-blotters-page .status-pill.settled {
+  background: #dcf7ec;
+  color: #127852;
+}
+
+.resident-my-blotters-page .status-pill.dismissed {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+@media (max-width: 768px) {
+  .resident-my-blotters-page .dashboard-hero .card-body {
+    padding: 1rem;
+  }
+}
+</style>
+
 <script>
 (function () {
   const LIST_API = '<?php echo API_URL; ?>blotter/list.php';
   const GET_API = '<?php echo API_URL; ?>blotter/get.php?id=';
   const rowsEl = document.getElementById('blotterRows');
   const detailBody = document.getElementById('blotterDetailBody');
-
-  const statusClass = {
-    pending: 'bg-warning text-dark',
-    investigation: 'bg-primary',
-    mediation: 'bg-info text-dark',
-    settled: 'bg-success',
-    dismissed: 'bg-secondary'
-  };
+  const detailModalEl = document.getElementById('blotterDetailModal');
+  const detailModal = (window.bootstrap && detailModalEl) ? bootstrap.Modal.getOrCreateInstance(detailModalEl) : null;
 
   function labelize(value) {
     return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -88,6 +170,21 @@ include __DIR__ . '/../includes/sidebar.php';
     const dt = new Date(value);
     if (Number.isNaN(dt.getTime())) return '-';
     return dt.toLocaleString();
+  }
+
+  function formatReportedDate(value) {
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return '-';
+    return dt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+  }
+
+  function statusPillClass(status) {
+    const s = String(status || '').toLowerCase();
+    if (s === 'pending') return 'pending';
+    if (s === 'investigation' || s === 'mediation') return 'processing';
+    if (s === 'settled') return 'settled';
+    if (s === 'dismissed') return 'dismissed';
+    return 'dismissed';
   }
 
   function decodeWitnesses(raw) {
@@ -101,37 +198,44 @@ include __DIR__ . '/../includes/sidebar.php';
     return String(raw).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
   }
 
+  function incidentTypeDisplay(type, detail) {
+    const base = String(type || '').toLowerCase();
+    const detailText = String(detail || '').trim();
+    if (base === 'other' && detailText !== '') {
+      return 'Other (' + detailText + ')';
+    }
+    return labelize(type);
+  }
+
   function loadList() {
     fetch(LIST_API, { credentials: 'same-origin' })
       .then(r => r.json())
       .then(d => {
         const records = d?.data?.records || [];
         if (!records.length) {
-          rowsEl.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No incident reports filed yet.</td></tr>';
+          rowsEl.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No incident reports filed yet.</td></tr>';
           return;
         }
 
         rowsEl.innerHTML = records.map(r => {
-          const cls = statusClass[r.status] || 'bg-light text-dark';
-          return '<tr>' +
+          const cls = statusPillClass(r.status);
+          return '<tr class="blotter-row" data-id="' + r.id + '">' +
             '<td><strong>' + (r.reference_no || '-') + '</strong></td>' +
-            '<td>' + labelize(r.incident_type) + '</td>' +
-            '<td>' + (r.incident_location || '-') + '</td>' +
-            '<td>' + formatDate(r.incident_datetime) + '</td>' +
-            '<td><span class="badge ' + cls + '">' + labelize(r.status) + '</span></td>' +
-            '<td class="text-end"><button class="btn btn-sm btn-outline-primary" data-id="' + r.id + '">View Details</button></td>' +
+            '<td>' + incidentTypeDisplay(r.incident_type, r.incident_type_detail) + '</td>' +
+            '<td>' + formatReportedDate(r.created_at) + '</td>' +
+            '<td><span class="status-pill ' + cls + '">' + labelize(r.status) + '</span></td>' +
           '</tr>';
         }).join('');
       })
       .catch(() => {
-        rowsEl.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Failed to load reports.</td></tr>';
+        rowsEl.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">Failed to load reports.</td></tr>';
       });
   }
 
   rowsEl.addEventListener('click', function (e) {
-    const btn = e.target.closest('button[data-id]');
-    if (!btn) return;
-    const id = btn.getAttribute('data-id');
+    const row = e.target.closest('tr[data-id]');
+    if (!row) return;
+    const id = row.getAttribute('data-id');
 
     fetch(GET_API + encodeURIComponent(id), { credentials: 'same-origin' })
       .then(r => r.json())
@@ -146,27 +250,45 @@ include __DIR__ . '/../includes/sidebar.php';
         const evidenceHtml = r.evidence_path
           ? '<a href="<?php echo BASE_URL; ?>' + String(r.evidence_path).replace(/^\/+/, '') + '" target="_blank" rel="noopener">View Uploaded Evidence</a>'
           : '-';
+        const resolutionHtml = r.resolution_file
+          ? '<a href="<?php echo BASE_URL; ?>' + String(r.resolution_file).replace(/^\/+/, '') + '" target="_blank" rel="noopener">View Signed Resolution</a>'
+          : '-';
 
         detailBody.innerHTML =
           '<div class="row g-3">' +
             '<div class="col-md-6"><strong>Reference #:</strong><br>' + (r.reference_no || '-') + '</div>' +
             '<div class="col-md-6"><strong>Status:</strong><br>' + labelize(r.status) + '</div>' +
-            '<div class="col-md-6"><strong>Incident Type:</strong><br>' + labelize(r.incident_type) + '</div>' +
+            '<div class="col-md-6"><strong>Incident Type:</strong><br>' + incidentTypeDisplay(r.incident_type, r.incident_type_detail) + '</div>' +
             '<div class="col-md-6"><strong>Incident Date:</strong><br>' + formatDate(r.incident_datetime) + '</div>' +
             '<div class="col-12"><strong>Location:</strong><br>' + (r.incident_location || '-') + '</div>' +
             '<div class="col-md-6"><strong>Respondent:</strong><br>' + respondentDisplay + '</div>' +
             '<div class="col-md-6"><strong>Action Requested:</strong><br>' + (r.action_requested || '-') + '</div>' +
+            '<div class="col-md-6"><strong>Hearing Date:</strong><br>' + formatDate(r.hearing_date) + '</div>' +
+            '<div class="col-md-6"><strong>Settlement Date:</strong><br>' + formatDate(r.settlement_date) + '</div>' +
             '<div class="col-12"><strong>Witnesses:</strong><br>' + (witnesses.startsWith('<li>') ? '<ul class="mb-0">' + witnesses + '</ul>' : witnesses) + '</div>' +
             '<div class="col-12"><strong>Narrative:</strong><div class="p-2 bg-light border rounded mt-1" style="white-space:pre-wrap">' + (r.narrative || '-') + '</div></div>' +
-            '<div class="col-12"><strong>Admin Updates:</strong><div class="p-2 bg-light border rounded mt-1" style="white-space:pre-wrap">' + (r.admin_updates || 'No updates yet.') + '</div></div>' +
+            '<div class="col-12"><strong>Dismissal Reason:</strong><div class="p-2 bg-light border rounded mt-1" style="white-space:pre-wrap">' + (r.dismissal_reason || '-') + '</div></div>' +
+            '<div class="col-12"><strong>Admin Remarks:</strong><div class="p-2 bg-light border rounded mt-1" style="white-space:pre-wrap">' + (r.admin_updates || 'No updates yet.') + '</div></div>' +
             '<div class="col-12"><strong>Evidence:</strong><br>' + evidenceHtml + '</div>' +
+            '<div class="col-12"><strong>Resolution File:</strong><br>' + resolutionHtml + '</div>' +
           '</div>';
 
-        const modal = new bootstrap.Modal(document.getElementById('blotterDetailModal'));
-        modal.show();
+        if (detailModal) {
+          detailModal.show();
+        }
       })
       .catch(() => alert('Unable to load details right now.'));
   });
+
+  if (detailModalEl) {
+    detailModalEl.addEventListener('hidden.bs.modal', function () {
+      document.body.classList.remove('modal-open');
+      document.body.style.removeProperty('padding-right');
+      document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+        el.remove();
+      });
+    });
+  }
 
   const params = new URLSearchParams(window.location.search);
   const submitted = params.get('submitted');
