@@ -222,49 +222,95 @@ function mapPositionToUserRole($position) {
 }
 
 /**
- * Find the login account for a resident: first by users.resident_id, then by username = residents.resident_code.
- * Links resident_id on the user row when it was missing (common with older or manual accounts).
+ * When an officials row has no resident_id (legacy data), resolve resident PK from stored full_name
+ * so demotion still updates users.role. Uses first_name + last_name match (single unambiguous row only).
  */
-function findUserRowForResident($db, $residentId) {
+function resolveResidentIdForOfficialDemotion($db, $residentId, $fullName) {
+    $rid = (int)$residentId;
+    if ($rid > 0) {
+        return $rid;
+    }
+    $fullName = trim(preg_replace('/\s+/', ' ', (string)$fullName));
+    if ($fullName === '') {
+        return 0;
+    }
+    $parts = preg_split('/\s+/', $fullName);
+    if (count($parts) < 2) {
+        return 0;
+    }
+    $first = $parts[0];
+    $last = $parts[count($parts) - 1];
+    try {
+        $rows = $db->fetchAll(
+            "SELECT id FROM residents WHERE status = 'active'
+             AND LOWER(TRIM(first_name)) = LOWER(?)
+             AND LOWER(TRIM(last_name)) = LOWER(?)",
+            [$first, $last]
+        );
+        if (count($rows) === 1) {
+            return (int)$rows[0]['id'];
+        }
+    } catch (Exception $e) {
+        return 0;
+    }
+    return 0;
+}
+
+/**
+ * All login rows for a resident: users.resident_id match and users.username = residents.resident_code.
+ * Links resident_id on user rows when missing (older accounts).
+ */
+function findAllUserRowsForResident($db, $residentId) {
     $residentId = (int)$residentId;
     if ($residentId <= 0 || !usersTableHasColumn($db, 'role')) {
-        return null;
+        return [];
     }
 
-    $user = $db->fetchOne(
-        "SELECT id, role, resident_id FROM users WHERE resident_id = ? ORDER BY id ASC LIMIT 1",
+    $seen = [];
+    $out = [];
+
+    $rows = $db->fetchAll(
+        "SELECT id, role, resident_id FROM users WHERE resident_id = ? ORDER BY id ASC",
         [$residentId]
     );
-    if ($user) {
-        return $user;
+    foreach ($rows as $u) {
+        $id = (int)$u['id'];
+        $seen[$id] = true;
+        $out[] = $u;
     }
 
     $res = $db->fetchOne("SELECT resident_code FROM residents WHERE id = ? LIMIT 1", [$residentId]);
     $code = trim((string)($res['resident_code'] ?? ''));
-    if ($code === '') {
-        return null;
-    }
-
-    $user = $db->fetchOne(
-        "SELECT id, role, resident_id FROM users WHERE username = ? ORDER BY id ASC LIMIT 1",
-        [$code]
-    );
-    if ($user && usersTableHasColumn($db, 'resident_id')) {
-        $uid = (int)$user['id'];
-        $linked = (int)($user['resident_id'] ?? 0);
-        if ($linked === 0) {
-            try {
-                $db->query(
-                    "UPDATE users SET resident_id = ? WHERE id = ? AND (resident_id IS NULL OR resident_id = 0)",
-                    [$residentId, $uid]
-                );
-            } catch (Exception $e) {
-                // ignore link repair failures
+    if ($code !== '') {
+        $rows = $db->fetchAll(
+            "SELECT id, role, resident_id FROM users WHERE username = ? ORDER BY id ASC",
+            [$code]
+        );
+        foreach ($rows as $u) {
+            $id = (int)$u['id'];
+            if (isset($seen[$id])) {
+                continue;
             }
+            $seen[$id] = true;
+            if (usersTableHasColumn($db, 'resident_id')) {
+                $linked = (int)($u['resident_id'] ?? 0);
+                if ($linked === 0) {
+                    try {
+                        $db->query(
+                            "UPDATE users SET resident_id = ? WHERE id = ? AND (resident_id IS NULL OR resident_id = 0)",
+                            [$residentId, $id]
+                        );
+                        $u['resident_id'] = $residentId;
+                    } catch (Exception $e) {
+                        // ignore link repair failures
+                    }
+                }
+            }
+            $out[] = $u;
         }
     }
 
-    return $user;
+    return $out;
 }
 
 function syncUserRoleForOfficial($db, $residentId, $position, $status, $fullName = '') {
@@ -279,28 +325,37 @@ function syncUserRoleForOfficial($db, $residentId, $position, $status, $fullName
     $targetRole = mapPositionToUserRole($position);
     if (!$targetRole) return;
 
-    $user = findUserRowForResident($db, $residentId);
-    if (!$user) return;
-    if (strtolower(trim((string)($user['role'] ?? ''))) === ROLE_SUPER_ADMIN) return;
+    $users = findAllUserRowsForResident($db, $residentId);
+    if (!$users) {
+        return;
+    }
 
-    $oldRole = $user['role'];
-    if (strtolower(trim((string)$oldRole)) === strtolower(trim((string)$targetRole))) return;
+    foreach ($users as $user) {
+        if (strtolower(trim((string)($user['role'] ?? ''))) === ROLE_SUPER_ADMIN) {
+            continue;
+        }
 
-    $db->query("UPDATE users SET role = ? WHERE id = ?", [$targetRole, $user['id']]);
+        $oldRole = $user['role'];
+        if (strtolower(trim((string)$oldRole)) === strtolower(trim((string)$targetRole))) {
+            continue;
+        }
 
-    try {
-        $label = $fullName ?: ('Resident #' . $residentId);
-        $posLabel = ucfirst(str_replace('_', ' ', $position));
-        logActivity('role_promoted', 'officials', $user['id'], [
-            'resident_id' => $residentId,
-            'from_role' => $oldRole,
-            'to_role' => $targetRole,
-            'description' => "$label promoted to $posLabel"
-        ]);
-    } catch (Exception $e) { /* logging is best-effort */ }
+        $db->query("UPDATE users SET role = ? WHERE id = ?", [$targetRole, $user['id']]);
 
-    if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === (int)$user['id']) {
-        $_SESSION['role'] = $targetRole;
+        try {
+            $label = $fullName ?: ('Resident #' . $residentId);
+            $posLabel = ucfirst(str_replace('_', ' ', $position));
+            logActivity('role_promoted', 'officials', $user['id'], [
+                'resident_id' => $residentId,
+                'from_role' => $oldRole,
+                'to_role' => $targetRole,
+                'description' => "$label promoted to $posLabel"
+            ]);
+        } catch (Exception $e) { /* logging is best-effort */ }
+
+        if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === (int)$user['id']) {
+            $_SESSION['role'] = $targetRole;
+        }
     }
 }
 
@@ -312,33 +367,41 @@ function demoteUserForOfficial($db, $residentId, $fullName = '') {
         return;
     }
 
-    $user = findUserRowForResident($db, $residentId);
-    if (!$user) return;
-
-    $currentRole = strtolower(trim((string)($user['role'] ?? '')));
-    if ($currentRole === ROLE_SUPER_ADMIN || $currentRole === ROLE_RESIDENT) return;
-
     $stillActive = $db->fetchOne(
         "SELECT id FROM officials WHERE resident_id = ? AND status = 'active' LIMIT 1",
         [$residentId]
     );
-    if ($stillActive) return;
+    if ($stillActive) {
+        return;
+    }
 
-    $db->query("UPDATE users SET role = ? WHERE id = ?", [ROLE_RESIDENT, $user['id']]);
+    $users = findAllUserRowsForResident($db, $residentId);
+    if (!$users) {
+        return;
+    }
 
-    try {
-        $label = $fullName ?: ('Resident #' . $residentId);
-        logActivity('role_demoted', 'officials', $user['id'], [
-            'resident_id' => $residentId,
-            'from_role' => $user['role'],
-            'to_role' => ROLE_RESIDENT,
-            'description' => "$label demoted to Resident"
-        ]);
-    } catch (Exception $e) { /* logging is best-effort */ }
+    foreach ($users as $user) {
+        $currentRole = strtolower(trim((string)($user['role'] ?? '')));
+        if ($currentRole === ROLE_SUPER_ADMIN || $currentRole === ROLE_RESIDENT) {
+            continue;
+        }
 
-    if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === (int)$user['id']) {
-        $_SESSION['role'] = ROLE_RESIDENT;
-        unset($_SESSION['view_mode']);
+        $db->query("UPDATE users SET role = ? WHERE id = ?", [ROLE_RESIDENT, $user['id']]);
+
+        try {
+            $label = $fullName ?: ('Resident #' . $residentId);
+            logActivity('role_demoted', 'officials', $user['id'], [
+                'resident_id' => $residentId,
+                'from_role' => $user['role'],
+                'to_role' => ROLE_RESIDENT,
+                'description' => "$label demoted to Resident"
+            ]);
+        } catch (Exception $e) { /* logging is best-effort */ }
+
+        if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === (int)$user['id']) {
+            $_SESSION['role'] = ROLE_RESIDENT;
+            unset($_SESSION['view_mode']);
+        }
     }
 }
 
@@ -493,8 +556,9 @@ function updateOfficial() {
         $becameInactive = ($oldStatus === 'active' && $status !== 'active');
 
         if ($residentChanged || $becameInactive) {
-            if ($oldResidentId > 0) {
-                demoteUserForOfficial($db, $oldResidentId, $oldFullName);
+            $demoteRid = resolveResidentIdForOfficialDemotion($db, $oldResidentId, $oldFullName);
+            if ($demoteRid > 0) {
+                demoteUserForOfficial($db, $demoteRid, $oldFullName);
             }
         }
 
@@ -542,8 +606,9 @@ function deleteOfficial() {
 
         $oldResidentId = (int)($existing['resident_id'] ?? 0);
         $oldFullName = $existing['full_name'] ?? '';
-        if ($oldResidentId > 0) {
-            demoteUserForOfficial($db, $oldResidentId, $oldFullName);
+        $demoteRid = resolveResidentIdForOfficialDemotion($db, $oldResidentId, $oldFullName);
+        if ($demoteRid > 0) {
+            demoteUserForOfficial($db, $demoteRid, $oldFullName);
         }
 
         try {
