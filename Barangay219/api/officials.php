@@ -338,6 +338,7 @@ function demoteUserForOfficial($db, $residentId, $fullName = '') {
 
     if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === (int)$user['id']) {
         $_SESSION['role'] = ROLE_RESIDENT;
+        unset($_SESSION['view_mode']);
     }
 }
 
