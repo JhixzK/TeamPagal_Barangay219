@@ -526,11 +526,13 @@ function handleGetHouseholdInfo($residentId) {
     $resFhcExpr = columnExists($db, 'residents', 'family_head_code') ? 'r.family_head_code,' : '';
     $resFcExpr = columnExists($db, 'residents', 'family_code') ? 'r.family_code,' : '';
     $resRoleExpr = columnExists($db, 'residents', 'household_role') ? 'r.household_role,' : '';
+    $resOccExpr = isset($residentCols['occupation']) ? 'r.occupation,' : '';
     $members = $db->fetchAll(
         "SELECT hm.id, hm.household_id, hm.resident_id, hm.relationship_to_head,
                 hm.`{$dateColumn}` AS date_of_birth, hm.gender, hm.civil_status,
                 hm.created_at, hm.updated_at,
                 r.first_name, r.middle_name, r.last_name, r.resident_code,
+                {$resOccExpr}
                 {$resFhcExpr}
                 {$resFcExpr}
                 {$resRoleExpr}
@@ -563,6 +565,7 @@ function handleGetHouseholdInfo($residentId) {
             'name' => $memberName,
             'relationship_to_head' => $displayRel,
             'household_role' => $resHouseholdRole !== '' ? $resHouseholdRole : null,
+            'occupation' => isset($residentCols['occupation']) ? trim((string)($member['occupation'] ?? '')) : '',
             'sex' => ucfirst(strtolower((string)($member['gender'] ?? ''))),
             'date_of_birth' => $member['date_of_birth'],
             'age' => $age,
@@ -594,9 +597,11 @@ function handleGetHouseholdInfo($residentId) {
     $linkedResFhc = columnExists($db, 'residents', 'family_head_code') ? 'r.family_head_code,' : '';
     $linkedResFc = columnExists($db, 'residents', 'family_code') ? 'r.family_code,' : '';
     $linkedResRole = columnExists($db, 'residents', 'household_role') ? 'r.household_role,' : '';
+    $linkedResOcc = isset($residentCols['occupation']) ? 'r.occupation,' : '';
     $linked = $db->fetchAll(
         "SELECT r.id AS resident_id, r.resident_code, r.first_name, r.middle_name, r.last_name,
-                r.birth_date AS date_of_birth, r.gender, {$linkedResFhc}
+                r.birth_date AS date_of_birth, r.gender, {$linkedResOcc}
+                {$linkedResFhc}
                 {$linkedResFc}
                 {$linkedResRole}
                 {$memberStatusExpr}, {$verificationExpr}, {$pwdExpr}, {$psExpr}, {$soloExpr}
@@ -622,6 +627,7 @@ function handleGetHouseholdInfo($residentId) {
             'name' => formatResidentName($residentRow),
             'relationship_to_head' => $linkedDisplayRel,
             'household_role' => $linkedRole !== '' ? $linkedRole : null,
+            'occupation' => isset($residentCols['occupation']) ? trim((string)($residentRow['occupation'] ?? '')) : '',
             'sex' => ucfirst(strtolower((string)($residentRow['gender'] ?? ''))),
             'date_of_birth' => $residentRow['date_of_birth'] ?? null,
             'age' => $age,
