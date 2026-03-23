@@ -258,11 +258,29 @@ function rcGetApprovedApplicationValidIdPath($conn, $residentId) {
 
 $certificateOptions = [
   'Barangay Certificate',
-  'Barangay Indigency'
+  'Transfer Request',
+  'Barangay Indigency',
+  'Barangay Clearance',
+  'Certificate of Residency'
 ];
 
 $purposeOptionsByType = [
   'Barangay Certificate' => [
+    'Application for Employment',
+    'School Admission/Requirement',
+    'Hospital Purpose',
+    'Processing of Calamity',
+    'Medical Purpose',
+    'For Livelihood Loan',
+    'Bank Transaction',
+    'Indigent Family',
+    'Organized Vending Permit',
+    'DSWD Requirement',
+    'For Travel Abroad',
+    'Transfer of Residence',
+    'Others'
+  ],
+  'Transfer Request' => [
     'Application for Employment',
     'School Admission/Requirement',
     'Hospital Purpose',
@@ -282,6 +300,36 @@ $purposeOptionsByType = [
     'Medical Purpose',
     'Hospital Purpose',
     'DSWD Requirement',
+    'Others'
+  ],
+  'Barangay Clearance' => [
+    'Application for Employment',
+    'School Admission/Requirement',
+    'Hospital Purpose',
+    'Processing of Calamity',
+    'Medical Purpose',
+    'For Livelihood Loan',
+    'Bank Transaction',
+    'Indigent Family',
+    'Organized Vending Permit',
+    'DSWD Requirement',
+    'For Travel Abroad',
+    'Transfer of Residence',
+    'Others'
+  ],
+  'Certificate of Residency' => [
+    'Application for Employment',
+    'School Admission/Requirement',
+    'Hospital Purpose',
+    'Processing of Calamity',
+    'Medical Purpose',
+    'For Livelihood Loan',
+    'Bank Transaction',
+    'Indigent Family',
+    'Organized Vending Permit',
+    'DSWD Requirement',
+    'For Travel Abroad',
+    'Transfer of Residence',
     'Others'
   ]
 ];
@@ -313,9 +361,12 @@ $formData = [
 
   $certificatePresetMap = [
     'barangay_certificate' => 'Barangay Certificate',
-    'barangay_clearance' => 'Barangay Certificate',
+    'transfer_request' => 'Transfer Request',
     'certificate_indigency' => 'Barangay Indigency',
-    'barangay_indigency' => 'Barangay Indigency'
+    'barangay_indigency' => 'Barangay Indigency',
+    'barangay_clearance' => 'Barangay Clearance',
+    'certificate_residency' => 'Certificate of Residency',
+    'certificate_of_residency' => 'Certificate of Residency'
   ];
 
   $presetKey = strtolower(trim((string)($_GET['certificate'] ?? '')));
