@@ -461,7 +461,7 @@ function getCertificateResidentOptions() {
     try {
         $db = Database::getInstance();
         $q = trim((string)($_GET['q'] ?? ''));
-        $limit = min(1000, max(50, (int)($_GET['limit'] ?? 500)));
+        $limit = min(100, max(10, (int)($_GET['limit'] ?? 20)));
 
         $params = [];
         $where = '';
@@ -471,7 +471,10 @@ function getCertificateResidentOptions() {
             $params = [$term, $term, $term, $term, $term];
         }
 
-        $sql = "SELECT id, first_name, middle_name, last_name
+        $sql = "SELECT id, first_name, middle_name, last_name,
+                   COALESCE(resident_code, '') AS resident_code,
+                   COALESCE(address, '') AS address,
+                   COALESCE(purok_sitio, '') AS purok_sitio
                 FROM residents
                 {$where}
                 ORDER BY last_name ASC, first_name ASC
