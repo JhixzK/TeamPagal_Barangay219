@@ -70,10 +70,13 @@ include __DIR__ . '/../includes/sidebar.php';
 
         <div class="col-12">
           <label class="form-label d-flex align-items-center gap-2">
-            Respondent (Person Reported) <span class="text-danger">*</span>
+            Respondents (Person/s Reported) <span class="text-danger">*</span>
           </label>
-          <input type="text" class="form-control" id="respondentNameRaw" name="respondent_name_raw" maxlength="150" required placeholder="Enter respondent full name">
-          <small class="text-muted">For privacy, resident records are not shown on this page.</small>
+          <div id="respondentsContainer" class="d-flex flex-column gap-2"></div>
+          <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="addRespondentBtn">
+            <i class="bi bi-plus-circle me-1"></i>Add Respondent
+          </button>
+          <small class="text-muted d-block mt-1">For privacy, resident records are not shown on this page.</small>
         </div>
 
         <div class="col-12">
@@ -170,7 +173,8 @@ include __DIR__ . '/../includes/sidebar.php';
   const incidentType = document.getElementById('incidentType');
   const otherTypeContainer = document.getElementById('otherTypeContainer');
   const incidentTypeDetail = document.getElementById('incident_type_detail');
-  const respondentNameRaw = document.getElementById('respondentNameRaw');
+  const respondentsContainer = document.getElementById('respondentsContainer');
+  const addRespondentBtn = document.getElementById('addRespondentBtn');
   const narrative = document.getElementById('narrative');
   const narrativeCounter = document.getElementById('narrativeCounter');
   const successRefEl = document.getElementById('successReferenceNo');
@@ -178,6 +182,49 @@ include __DIR__ . '/../includes/sidebar.php';
   const goToMyBlottersBtn = document.getElementById('goToMyBlottersBtn');
   const successModalEl = document.getElementById('submitSuccessModal');
   const successModal = (window.bootstrap && successModalEl) ? new bootstrap.Modal(successModalEl) : null;
+
+  function addRespondentRow(value = '') {
+    if (!respondentsContainer) return;
+    const row = document.createElement('div');
+    row.className = 'input-group respondent-row';
+    row.innerHTML =
+      '<input type="text" class="form-control respondent-name-input" maxlength="150" placeholder="Enter respondent full name" value="">' +
+      '<button type="button" class="btn btn-outline-danger remove-respondent-btn" aria-label="Remove respondent">Remove</button>';
+
+    const input = row.querySelector('.respondent-name-input');
+    const removeBtn = row.querySelector('.remove-respondent-btn');
+    if (input) {
+      input.value = String(value || '');
+    }
+    if (removeBtn) {
+      removeBtn.addEventListener('click', function () {
+        if (respondentsContainer.querySelectorAll('.respondent-row').length <= 1) {
+          alert('At least one respondent is required.');
+          return;
+        }
+        row.remove();
+      });
+    }
+
+    respondentsContainer.appendChild(row);
+  }
+
+  function collectRespondents() {
+    if (!respondentsContainer) return [];
+    const names = Array.from(respondentsContainer.querySelectorAll('.respondent-name-input'))
+      .map(function (input) { return String(input.value || '').trim(); })
+      .filter(Boolean);
+
+    return names.map(function (name) {
+      return {
+        name: name,
+        address: '',
+        contact: '',
+        residency: 'non_resident',
+        resident_id: null
+      };
+    });
+  }
 
   function todayBadge() {
     const b = document.getElementById('mainDateBadge');
@@ -212,12 +259,15 @@ include __DIR__ . '/../includes/sidebar.php';
   form.addEventListener('submit', function (e) {
     e.preventDefault();
 
-    if (!String(respondentNameRaw.value || '').trim()) {
-      alert('Respondent name is required.');
+    const respondents = collectRespondents();
+    if (!respondents.length) {
+      alert('At least one respondent is required.');
       return;
     }
 
     const fd = new FormData(form);
+    fd.append('respondents', JSON.stringify(respondents));
+    fd.append('respondent_name_raw', respondents[0].name);
 
     btn.disabled = true;
     fetch(API_CREATE, {
@@ -240,6 +290,10 @@ include __DIR__ . '/../includes/sidebar.php';
           alert('Report submitted. Reference #: ' + ref);
         }
         form.reset();
+        if (respondentsContainer) {
+          respondentsContainer.innerHTML = '';
+        }
+        addRespondentRow();
         toggleOtherIncidentType();
         updateNarrativeCounter();
       })
@@ -282,10 +336,17 @@ include __DIR__ . '/../includes/sidebar.php';
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
   }
 
+  if (addRespondentBtn) {
+    addRespondentBtn.addEventListener('click', function () {
+      addRespondentRow();
+    });
+  }
+
   incidentType.addEventListener('change', toggleOtherIncidentType);
   narrative.addEventListener('input', updateNarrativeCounter);
 
   todayBadge();
+  addRespondentRow();
   toggleOtherIncidentType();
   updateNarrativeCounter();
 })();
