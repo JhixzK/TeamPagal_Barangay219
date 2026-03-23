@@ -396,17 +396,39 @@ function viewResident(id) {
             const residentCode = r.resident_code ? escapeHtml(r.resident_code) : '-';
             const verificationStatus = normalizeVerificationStatus(r);
             const idDocLink = buildResidentFileLink(r.id_document_path, 'View Uploaded ID');
+            const voterStatus = r.registration_voter_status || '-';
+            const precinctNumber = r.registration_precinct_number || '-';
+            const houseType = r.registration_house_type || '-';
+            const houseOwnership = r.registration_house_ownership || '-';
+            const householdRole = r.registration_household_role || r.relationship_to_head || '-';
+            const residencyStart = r.residency_start_date || r.registration_residency_start_date || '';
+            const residencyLength = r.computed_length_of_residency || r.length_of_residency || r.registration_length_of_residency || '-';
+            const monthlyIncome = formatCurrency(r.registration_household_income);
+            const specialCategories = buildResidentSpecialCategories(r);
             document.getElementById('viewResidentBody').innerHTML = `
                 <table class="table table-sm">
                     <tr><td><strong>Resident ID</strong></td><td>${residentCode}</td></tr>
                     <tr><td><strong>Full Name</strong></td><td>${escapeHtml(toTitleCase(fullName))}</td></tr>
                     <tr><td><strong>Birth Date</strong></td><td>${formatDate(r.birth_date)} (${age} yrs)</td></tr>
+                    <tr><td><strong>Place of Birth</strong></td><td>${escapeHtml(toTitleCase(r.place_of_birth || '-'))}</td></tr>
                     <tr><td><strong>Gender</strong></td><td>${formatGender(r.gender)}</td></tr>
                     <tr><td><strong>Civil Status</strong></td><td>${escapeHtml(toTitleCase(r.civil_status || '-'))}</td></tr>
                     <tr><td><strong>Contact</strong></td><td>${escapeHtml(formatPhoneNumber(r.contact_number) || '-')}</td></tr>
+                    <tr><td><strong>Email</strong></td><td>${escapeHtml(r.email || '-')}</td></tr>
                     <tr><td><strong>Address</strong></td><td>${escapeHtml(toTitleCase(r.address || '-'))}</td></tr>
-                    <tr><td><strong>Occupation</strong></td><td>${escapeHtml(toTitleCase(r.occupation || '-'))}</td></tr>
                     <tr><td><strong>Citizenship</strong></td><td>${escapeHtml(toTitleCase(r.citizenship || '-'))}</td></tr>
+                    <tr><td><strong>Occupation</strong></td><td>${escapeHtml(toTitleCase(r.occupation || r.registration_occupation || '-'))}</td></tr>
+                    <tr><td><strong>Education</strong></td><td>${escapeHtml(toTitleCase(r.educational_attainment || r.registration_educational_attainment || '-'))}</td></tr>
+                    <tr><td><strong>Employment Status</strong></td><td>${escapeHtml(toTitleCase(r.employment_status || r.registration_employment_status || '-'))}</td></tr>
+                    <tr><td><strong>Household Role</strong></td><td>${escapeHtml(toTitleCase(householdRole || '-'))}</td></tr>
+                    <tr><td><strong>Voter Status</strong></td><td>${escapeHtml(toTitleCase(voterStatus))}</td></tr>
+                    <tr><td><strong>Precinct Number</strong></td><td>${escapeHtml(precinctNumber)}</td></tr>
+                    <tr><td><strong>Monthly Income</strong></td><td>${monthlyIncome}</td></tr>
+                    <tr><td><strong>House Type</strong></td><td>${escapeHtml(toTitleCase(houseType))}</td></tr>
+                    <tr><td><strong>House Ownership</strong></td><td>${escapeHtml(toTitleCase(houseOwnership))}</td></tr>
+                    <tr><td><strong>Residency Start</strong></td><td>${formatDate(residencyStart)}</td></tr>
+                    <tr><td><strong>Length of Residency</strong></td><td>${escapeHtml(residencyLength)}</td></tr>
+                    <tr><td><strong>Special Categories</strong></td><td>${escapeHtml(specialCategories)}</td></tr>
                     <tr><td><strong>Household</strong></td><td>${r.household_address ? 'Household #'+r.household_id+' ('+r.total_members+' members)' : 'None'}</td></tr>
                     <tr><td><strong>Household Code</strong></td><td>${r.household_code ? (escapeHtml(String(r.household_code)) + (String(r.is_household_head) === '1' ? ' <i class="bi bi-patch-check-fill text-success ms-1" title="Family Head" aria-label="Family Head"></i>' : '')) : '-'}</td></tr>
                     <tr><td><strong>Family Head Code</strong></td><td>${String(r.is_household_head) === '1' ? (r.family_head_code ? escapeHtml(String(r.family_head_code)) : '-') : ''}</td></tr>
@@ -716,6 +738,39 @@ function formatPhoneNumber(raw) {
 function formatPhoneForInput(raw) {
     const digits = normalizePhoneDigits(raw);
     return '+63 ' + digits;
+}
+
+function formatCurrency(value) {
+    if (value === null || value === undefined || value === '') return '-';
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return escapeHtml(String(value));
+    return 'PHP ' + numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function buildResidentSpecialCategories(row) {
+    const categories = [];
+    const isSenior = Number(row.is_senior_citizen || row.registration_is_senior_citizen || 0) === 1;
+    const isPwd = Number(row.is_pwd || row.registration_is_pwd || 0) === 1;
+    const isSoloParent = Number(row.is_solo_parent || row.registration_is_solo_parent || 0) === 1;
+    const isIp = Number(row.is_ip_member || row.registration_is_ip_member || 0) === 1;
+    const is4ps = Number(row.is_4ps_beneficiary || row.registration_is_4ps_beneficiary || 0) === 1;
+
+    if (isSenior) categories.push('Senior Citizen');
+    if (isPwd) {
+        const pwdId = (row.pwd_id_number || row.registration_pwd_id_number || '').toString().trim();
+        categories.push(pwdId ? `PWD (${pwdId})` : 'PWD');
+    }
+    if (isSoloParent) {
+        const soloId = (row.solo_parent_id_number || row.registration_solo_parent_id_number || '').toString().trim();
+        categories.push(soloId ? `Solo Parent (${soloId})` : 'Solo Parent');
+    }
+    if (isIp) {
+        const ipGroup = (row.ip_group || row.registration_ip_group || '').toString().trim();
+        categories.push(ipGroup ? `IP Member (${ipGroup})` : 'IP Member');
+    }
+    if (is4ps) categories.push('4Ps Beneficiary');
+
+    return categories.length ? categories.join(', ') : '-';
 }
 
 function escapeHtml(text) {
