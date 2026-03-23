@@ -9,6 +9,7 @@ define('ACCESS_ALLOWED', true);
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/../includes/indigent-classification.php';
 
 requireLogin();
 if (!canAccessModule('resident_applications')) {
@@ -871,6 +872,20 @@ function approveApplication() {
         $address = implode(', ', $addrParts);
         $appGender = $app['sex'] ?? ($app['gender'] ?? 'other');
 
+        ensureIndigentClassificationSchema($db);
+
+        $appMonthly = $app['monthly_income'] ?? null;
+        if (($appMonthly === null || $appMonthly === '') && isset($app['household_income']) && $app['household_income'] !== null && $app['household_income'] !== '') {
+            $appMonthly = $app['household_income'];
+        }
+        $monthlyIncomeDb = null;
+        if ($appMonthly !== null && $appMonthly !== '' && is_numeric($appMonthly)) {
+            $f = (float)$appMonthly;
+            if ($f >= 0) {
+                $monthlyIncomeDb = $f;
+            }
+        }
+
         // Insert resident (schema tolerant)
         $residentData = [
             'resident_code' => $residentCode,
@@ -912,6 +927,7 @@ function approveApplication() {
             'is_ip_member' => $app['is_ip_member'] ?? 0,
             'ip_group' => $app['ip_group'] ?? null,
             'is_4ps_beneficiary' => $app['is_4ps_beneficiary'] ?? 0,
+            'monthly_income' => $monthlyIncomeDb,
             'record_status' => 'active',
             'verification_status' => 'pending',
             'remarks' => $remarks ?: null,
