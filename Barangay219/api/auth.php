@@ -196,6 +196,16 @@ function handleViewMode() {
         return;
     }
 
+    refreshSessionRole();
+    if (normalizeRole(getRealUserRole()) === normalizeRole(ROLE_RESIDENT)) {
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            header('Location: ' . BASE_URL . 'resident_dashboard.php');
+            exit();
+        }
+        sendResponse(false, 'View mode is not available for resident accounts', null, 403);
+        return;
+    }
+
     $mode = sanitizeInput($_GET['mode'] ?? $_POST['mode'] ?? '');
     if ($mode !== 'resident' && $mode !== 'official') {
         $mode = 'official';
