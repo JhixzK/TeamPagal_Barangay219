@@ -445,9 +445,25 @@ $house_ownership = sanitize($_POST['house_ownership'] ?? '');
 $relationship_to_head = sanitize($_POST['relationship_to_head'] ?? ($household_role ?? ''));
 $household_members = isset($_POST['household_members']) ? (int)$_POST['household_members'] : null;
 $household_income_raw = trim((string)($_POST['household_income'] ?? ''));
+$monthly_income_raw = trim((string)($_POST['monthly_income'] ?? ''));
+// Legacy forms posted only household_income; treat as this applicant's monthly income when monthly_income is empty.
+if ($monthly_income_raw === '' && $household_income_raw !== '') {
+    $monthly_income_raw = $household_income_raw;
+}
 $income_per_member_raw = trim((string)($_POST['income_per_member'] ?? ''));
 $economic_classification = sanitize($_POST['economic_classification'] ?? '');
 $household_income = ($household_income_raw === '') ? null : (float)$household_income_raw;
+$monthly_income = null;
+if ($monthly_income_raw !== '') {
+    if (!is_numeric($monthly_income_raw)) {
+        $errors[] = 'Monthly income must be a valid non-negative number.';
+    } else {
+        $monthly_income = (float)$monthly_income_raw;
+        if ($monthly_income < 0) {
+            $errors[] = 'Monthly income cannot be negative.';
+        }
+    }
+}
 $income_per_member = ($income_per_member_raw === '') ? null : (float)$income_per_member_raw;
 $house_number = sanitize($_POST['house_number'] ?? '');
 $street = sanitize($_POST['street'] ?? '');
@@ -564,6 +580,10 @@ $economic_classification = '';
 $age = (int)date('Y') - (int)date('Y', strtotime($birth_date));
 $is_senior = $is_senior || $age >= 60;
 
+if (!empty($errors)) {
+    sendJson(false, implode(' ', $errors), ['errors' => $errors], 400);
+}
+
 try {
     // Generate application ref: APP-YYYYMMDD-NNNN
     $prefix = 'APP-' . date('Ymd') . '-';
@@ -581,6 +601,7 @@ try {
     addColumnIfMissing($db, 'resident_applications', 'household_type', "VARCHAR(80) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'household_members', "INT(11) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'household_income', "DECIMAL(12,2) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'monthly_income', "DECIMAL(12,2) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'income_per_member', "DECIMAL(12,2) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'economic_classification', "VARCHAR(30) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'length_of_residency', "VARCHAR(40) DEFAULT NULL");
@@ -612,6 +633,7 @@ try {
         'house_ownership' => $house_ownership ?: null,
         'household_members' => ($household_members !== null && $household_members > 0) ? $household_members : null,
         'household_income' => ($household_income !== null && $household_income >= 0) ? $household_income : null,
+        'monthly_income' => ($monthly_income !== null && $monthly_income >= 0) ? $monthly_income : null,
         'income_per_member' => ($income_per_member !== null && $income_per_member >= 0) ? $income_per_member : null,
         'economic_classification' => $economic_classification !== '' ? $economic_classification : null,
         'house_number' => $house_number ?: null,
