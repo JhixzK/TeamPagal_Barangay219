@@ -5,11 +5,21 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     blotterJson(false, 'POST required', null, 405);
 }
 
+function blotterLimitError(): void {
+    http_response_code(400);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Input exceeds maximum character limit.'
+    ]);
+    exit();
+}
+
 try {
     $complainantId = requireResidentSessionForBlotter();
     ensureBlotterRecordsSchema();
 
     $incidentType = mapIncidentType((string)($_POST['incident_type'] ?? 'other'));
+    $incidentTypeDetail = sanitizeInput((string)($_POST['incident_type_detail'] ?? ''));
     $incidentLocation = sanitizeInput((string)($_POST['incident_location'] ?? ''));
     $incidentDatetimeInput = trim((string)($_POST['incident_datetime'] ?? ''));
     $narrative = sanitizeInput((string)($_POST['narrative'] ?? ''));
@@ -19,6 +29,22 @@ try {
     $witnessesRaw = trim((string)($_POST['witnesses'] ?? ''));
     $isConfidential = ((string)($_POST['is_confidential'] ?? '0')) === '1' ? 1 : 0;
     $actionRequested = mapActionRequested((string)($_POST['action_requested'] ?? 'Mediation'));
+
+    if (strlen($incidentLocation) > 255) {
+        blotterLimitError();
+    }
+    if (strlen($incidentTypeDetail) > 100) {
+        blotterLimitError();
+    }
+    if (strlen($respondentNameRaw) > 150) {
+        blotterLimitError();
+    }
+    if (strlen($witnessesRaw) > 1000) {
+        blotterLimitError();
+    }
+    if (strlen($narrative) > 3000) {
+        blotterLimitError();
+    }
 
     if ($incidentLocation === '' || $narrative === '' || $incidentDatetimeInput === '') {
         blotterJson(false, 'Incident location, date/time, and narrative are required.', null, 400);
@@ -32,6 +58,10 @@ try {
 
     if ($respondentNameRaw === '') {
         blotterJson(false, 'Respondent name is required.', null, 400);
+    }
+
+    if ($incidentType === 'other' && $incidentTypeDetail === '') {
+        blotterJson(false, 'Please specify the incident type detail for Other.', null, 400);
     }
 
     $witnessesPayload = null;
@@ -54,6 +84,7 @@ try {
             reference_no,
             complainant_id,
             incident_type,
+            incident_type_detail,
             incident_location,
             incident_datetime,
             narrative,
@@ -65,11 +96,12 @@ try {
             is_confidential,
             action_requested,
             evidence_path
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             $referenceNo,
             $complainantId,
             $incidentType,
+            $incidentTypeDetail !== '' ? $incidentTypeDetail : null,
             $incidentLocation,
             $incidentDatetime,
             $narrative,
