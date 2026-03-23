@@ -58,6 +58,8 @@ let blotterFilters = { q: '', status: '', from: '', to: '' };
 let searchDebounceTimer = null;
 let residentDirectoryCache = null;
 let currentViewingCaseId = null;
+let currentViewingCaseData = null;
+let respondentSearchTimer = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     loadBlotters();
@@ -205,6 +207,7 @@ function viewBlotter(id) {
         .then(d => {
             if (d.success) {
                 const info = d.data;
+                currentViewingCaseData = info;
                 
                 // Populate Case Information
                 document.getElementById('viewCaseTitle').textContent = toTitleCase(info.case_title || '-') || '-';
@@ -268,6 +271,9 @@ function viewBlotter(id) {
                 // Populate Case Status
                 document.getElementById('viewStatus').textContent = info.status || '-';
                 document.getElementById('viewSettlementDate').textContent = formatDate(info.settlement_date) || '-';
+                document.getElementById('viewHearingDate').textContent = formatDate(info.hearing_date) || '-';
+                document.getElementById('viewDismissalReason').textContent = info.dismissal_reason || '-';
+                document.getElementById('viewResolutionFile').innerHTML = renderResolutionFileLink(info.resolution_file);
 
                 // Populate Admin Notes
                 const adminNotesEl = document.getElementById('viewAdminNotes');
@@ -321,6 +327,7 @@ function initDetailModalEditMode() {
     const btnCancel = document.getElementById('btnCancelEdit');
     const btnClearRespondent = document.getElementById('clearRespondentBtn');
     const searchInput = document.getElementById('editRespondentSearch');
+    const statusSelect = document.getElementById('editStatus');
     const caseForm = document.getElementById('caseDetailForm');
     const viewContent = document.getElementById('viewModeContent');
 
@@ -342,7 +349,9 @@ function initDetailModalEditMode() {
 
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            searchResidentsForRespondent(e.target.value);
+            const keyword = e.target.value;
+            if (respondentSearchTimer) clearTimeout(respondentSearchTimer);
+            respondentSearchTimer = setTimeout(() => searchResidentsForRespondent(keyword), 250);
         });
 
         searchInput.addEventListener('blur', (e) => {
@@ -356,7 +365,7 @@ function initDetailModalEditMode() {
         });
 
         searchInput.addEventListener('focus', () => {
-            if (searchInput.value.trim()) {
+            if (searchInput.value.trim().length >= 3) {
                 searchResidentsForRespondent(searchInput.value);
             }
         });
@@ -371,6 +380,12 @@ function initDetailModalEditMode() {
                 }
             });
         }
+    }
+
+    if (statusSelect) {
+        statusSelect.addEventListener('change', () => {
+            toggleProcessFieldsByStatus(statusSelect.value);
+        });
     }
 
     if (caseForm) {
@@ -388,6 +403,11 @@ function enableEditMode() {
     const viewContent = document.getElementById('viewModeContent');
     const statusEl = document.getElementById('editStatus');
     const adminNotesEl = document.getElementById('editAdminNotes');
+    const hearingDateEl = document.getElementById('editHearingDate');
+    const settlementDateEl = document.getElementById('editSettlementDate');
+    const dismissalReasonEl = document.getElementById('editDismissalReason');
+    const respondentSearchEl = document.getElementById('editRespondentSearch');
+    const respondentIdEl = document.getElementById('editRespondentId');
 
     if (viewContent && caseForm) {
         viewContent.style.display = 'none';
@@ -401,10 +421,25 @@ function enableEditMode() {
         if (statusEl) statusEl.value = mapAdminStatusToDB(currentStatus);
         if (adminNotesEl) adminNotesEl.value = currentAdminNotes;
 
-        // Load resident directory for search
-        getResidentDirectory().then(residents => {
-            window.residentsForSearch = residents || [];
-        });
+        if (currentViewingCaseData) {
+            const data = currentViewingCaseData;
+            if (hearingDateEl) hearingDateEl.value = formatDateTimeLocal(data.hearing_date || '');
+            if (settlementDateEl) settlementDateEl.value = (data.settlement_date || '').substring(0, 10);
+            if (dismissalReasonEl) dismissalReasonEl.value = data.dismissal_reason || '';
+
+            try {
+                const respondents = JSON.parse(data.respondent_name || '[]');
+                if (Array.isArray(respondents) && respondents.length > 0) {
+                    const primary = respondents[0] || {};
+                    if (respondentSearchEl) respondentSearchEl.value = primary.name || '';
+                    if (respondentIdEl) respondentIdEl.value = primary.resident_id || data.respondent_id || '';
+                }
+            } catch (e) {
+            }
+        }
+
+        toggleProcessFieldsByStatus(statusEl ? statusEl.value : 'pending');
+
     }
 }
 
@@ -416,42 +451,56 @@ function disableEditMode() {
         caseForm.style.display = 'none';
         viewContent.style.display = 'block';
         caseForm.reset();
+        toggleProcessFieldsByStatus('pending');
     }
+}
+
+function toggleProcessFieldsByStatus(status) {
+    const mediationFields = document.getElementById('mediationFields');
+    const settledFields = document.getElementById('settledFields');
+    const dismissedFields = document.getElementById('dismissedFields');
+
+    if (mediationFields) mediationFields.style.display = status === 'mediation' ? '' : 'none';
+    if (settledFields) settledFields.style.display = status === 'settled' ? '' : 'none';
+    if (dismissedFields) dismissedFields.style.display = status === 'dismissed' ? '' : 'none';
 }
 
 function searchResidentsForRespondent(keyword) {
     const resultsContainer = document.getElementById('respondentSearchResults');
-    const residents = window.residentsForSearch || [];
+    if (!resultsContainer) return;
 
-    if (!keyword.trim()) {
+    if (!keyword.trim() || keyword.trim().length < 3) {
         resultsContainer.innerHTML = '';
         resultsContainer.style.display = 'none';
         return;
     }
 
-    const term = keyword.toLowerCase();
-    const filtered = residents.filter(r => {
-        const fullName = `${r.first_name || ''} ${r.middle_name || ''} ${r.last_name || ''}`.toLowerCase();
-        const code = (r.resident_code || '').toLowerCase();
-        return fullName.includes(term) || code.includes(term);
-    }).slice(0, 15);
+    fetch(`${window.API_URL}residents/search.php?q=${encodeURIComponent(keyword.trim())}`)
+        .then(r => r.json())
+        .then(d => {
+            const residents = (d && d.success && Array.isArray(d.data)) ? d.data : [];
 
-    if (filtered.length === 0) {
-        resultsContainer.innerHTML = '<div class="list-group-item text-muted small">No matching residents</div>';
-        resultsContainer.style.display = 'block';
-        return;
-    }
+            if (residents.length === 0) {
+                resultsContainer.innerHTML = '<div class="list-group-item text-muted small">No matching residents</div>';
+                resultsContainer.style.display = 'block';
+                return;
+            }
 
-    resultsContainer.innerHTML = filtered.map(r => {
-        const fullName = `${r.first_name} ${r.middle_name || ''} ${r.last_name}`.trim();
-        const address = (r.address || '').substring(0, 50);
-        return `<button type="button" class="list-group-item list-group-item-action select-resident-btn" data-resident-id="${r.id}" data-resident-name="${escapeHtml(fullName)}" onmousedown="selectRespondentFromSearch(${r.id}, '${escapeHtml(fullName)}'); return false;">
-            <div class="fw-semibold">${escapeHtml(fullName)}</div>
-            <div class="small text-muted">${escapeHtml(address)}${address.length >= 50 ? '...' : ''}</div>
-        </button>`;
-    }).join('');
+            resultsContainer.innerHTML = residents.map(r => {
+                const fullName = String(r.full_name || '').trim();
+                const purok = String(r.purok_sitio || 'Not specified').trim();
+                return `<button type="button" class="list-group-item list-group-item-action select-resident-btn" data-resident-id="${r.id}" data-resident-name="${escapeHtml(fullName)}" onmousedown='selectRespondentFromSearch(${r.id}, ${JSON.stringify(fullName)}); return false;'>
+                    <div class="fw-semibold">${escapeHtml(fullName)}</div>
+                    <div class="small text-muted">Purok: ${escapeHtml(purok)}</div>
+                </button>`;
+            }).join('');
 
-    resultsContainer.style.display = 'block';
+            resultsContainer.style.display = 'block';
+        })
+        .catch(() => {
+            resultsContainer.innerHTML = '<div class="list-group-item text-danger small">Unable to search residents</div>';
+            resultsContainer.style.display = 'block';
+        });
 }
 
 function selectRespondentFromSearch(residentId, residentName) {
@@ -467,23 +516,40 @@ function submitCaseDetailUpdate(e) {
     const status = document.getElementById('editStatus').value;
     const respondentId = document.getElementById('editRespondentId').value || '';
     const adminNotes = document.getElementById('editAdminNotes').value;
+    const hearingDate = document.getElementById('editHearingDate')?.value || '';
+    const settlementDate = document.getElementById('editSettlementDate')?.value || '';
+    const dismissalReason = document.getElementById('editDismissalReason')?.value || '';
+    const resolutionFile = document.getElementById('editResolutionFile')?.files?.[0] || null;
+
+    if (status === 'mediation' && !hearingDate) {
+        alert('Hearing date is required when status is Mediation.');
+        return;
+    }
 
     const formData = new FormData();
     formData.append('case_id', caseId);
     formData.append('status', status);
     if (respondentId) formData.append('respondent_id', respondentId);
     formData.append('admin_notes', adminNotes);
+    formData.append('hearing_date', hearingDate);
+    formData.append('settlement_date', settlementDate);
+    formData.append('dismissal_reason', dismissalReason);
+    if (resolutionFile) formData.append('resolution_file', resolutionFile);
 
-    fetch(window.API_URL + 'blotter/update_case.php', {
+    fetch(window.API_URL + 'blotter/process_case.php', {
         method: 'POST',
         body: formData
     })
         .then(r => r.json())
         .then(d => {
             if (d.success) {
-                alert('Case updated successfully');
-                // Refresh the view data without closing/reopening modal
-                refreshBlotterDetailView(caseId);
+                const modalEl = document.getElementById('viewBlotterModal');
+                const modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+                if (modal) {
+                    modal.hide();
+                }
+                loadBlotters();
+                showBlotterSuccessToast('Case processed successfully.');
             } else {
                 alert('Error: ' + d.message);
             }
@@ -494,6 +560,47 @@ function submitCaseDetailUpdate(e) {
         });
 }
 
+function showBlotterSuccessToast(message) {
+    const existing = document.getElementById('blotterSuccessToast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'blotterSuccessToast';
+    toast.className = 'alert alert-success shadow';
+    toast.style.position = 'fixed';
+    toast.style.top = '20px';
+    toast.style.right = '20px';
+    toast.style.zIndex = '2000';
+    toast.style.minWidth = '260px';
+    toast.textContent = message || 'Saved successfully.';
+
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+}
+
+function formatDateTimeLocal(value) {
+    if (!value) return '';
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return '';
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mi = String(dt.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
+function renderResolutionFileLink(path) {
+    const filePath = String(path || '').trim();
+    if (!filePath) {
+        return 'No file uploaded';
+    }
+    const href = filePath.startsWith('http')
+        ? filePath
+        : (window.location.origin + '/TeamPagal_Barangay219/Barangay219/public/' + filePath.replace(/^\/+/, ''));
+    return `<a href="${href}" target="_blank" rel="noopener">View Signed Resolution</a>`;
+}
+
 function refreshBlotterDetailView(caseId) {
     // Fetch updated case data and refresh only the view section without remounting modal
     fetch(`${window.API_URL}blotter.php?action=get&id=${caseId}`)
@@ -501,6 +608,7 @@ function refreshBlotterDetailView(caseId) {
         .then(d => {
             if (d.success) {
                 const info = d.data;
+                currentViewingCaseData = info;
                 
                 // Update all view mode fields
                 document.getElementById('viewCaseTitle').textContent = toTitleCase(info.case_title || '-') || '-';
@@ -563,6 +671,9 @@ function refreshBlotterDetailView(caseId) {
                 // Update Status and Settlement Date
                 document.getElementById('viewStatus').textContent = info.status || '-';
                 document.getElementById('viewSettlementDate').textContent = formatDate(info.settlement_date) || '-';
+                document.getElementById('viewHearingDate').textContent = formatDate(info.hearing_date) || '-';
+                document.getElementById('viewDismissalReason').textContent = info.dismissal_reason || '-';
+                document.getElementById('viewResolutionFile').innerHTML = renderResolutionFileLink(info.resolution_file);
                 
                 // Update Admin Notes
                 const adminNotesEl = document.getElementById('viewAdminNotes');
