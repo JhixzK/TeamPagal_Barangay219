@@ -559,9 +559,9 @@ $barangay219_purok_options = [
                                     </div>
                                     <div class="row">
                                         <div class="col-md-6 mb-3" id="monthlyIncomeWrapper">
-                                            <label>Monthly Income (PHP) <span class="text-danger">*</span></label>
-                                            <input type="number" name="household_income" class="form-control" min="0" step="0.01" inputmode="decimal" placeholder="e.g., 15000" required>
-                                            <small class="text-muted">Enter your exact monthly salary/income amount.</small>
+                                            <label>Your monthly income (PHP)</label>
+                                            <input type="number" name="monthly_income" class="form-control" min="0" step="0.01" inputmode="decimal" placeholder="Optional — e.g., 15000">
+                                            <small class="text-muted">Optional. Per-person amount; the system adds all household members’ incomes for classification.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -1151,7 +1151,7 @@ if (civilStatusField) {
 function toggleMonthlyIncomeField() {
     const occupationField = document.getElementById('occupation');
     const monthlyIncomeWrapper = document.getElementById('monthlyIncomeWrapper');
-    const monthlyIncomeField = document.querySelector('input[name="household_income"]');
+    const monthlyIncomeField = document.querySelector('input[name="monthly_income"]');
     const employmentStatusWrapper = document.getElementById('employmentStatusWrapper');
     const employmentStatusField = document.getElementById('employment_status');
 
@@ -1400,7 +1400,7 @@ function populateReview() {
         setReviewFieldVisibility('house_ownership', !!isHead);
     setReviewFieldVisibility('precinct_number', !!shouldShowPrecinct);
     setReviewFieldVisibility('employment_status', !hideEmploymentIncome);
-    setReviewFieldVisibility('household_income', !hideEmploymentIncome);
+    setReviewFieldVisibility('monthly_income', !hideEmploymentIncome);
     };
 
     const reviewSections = [
@@ -1421,7 +1421,7 @@ function populateReview() {
                 { name: 'educational_attainment', label: 'Educational Attainment' },
                 { name: 'occupation', label: 'Occupation' },
                 { name: 'employment_status', label: 'Employment Status' },
-                { name: 'household_income', label: 'Monthly Income (PHP)' }
+                { name: 'monthly_income', label: 'Your monthly income (PHP)' }
             ]
         },
         {
