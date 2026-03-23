@@ -62,7 +62,7 @@ $userInfo = getUserInfo();
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark app-topbar">
         <div class="container-fluid">
-            <a class="navbar-brand" href="<?php echo BASE_URL; ?>dashboard.php">
+            <a class="navbar-brand" href="<?php echo BASE_URL; ?><?php echo normalizeRole(getRealUserRole()) === normalizeRole(ROLE_RESIDENT) ? 'resident_dashboard.php' : 'dashboard.php'; ?>">
                 <img src="<?php echo ASSETS_URL; ?>img/barangay_logo2.png" alt="Barangay Logo" class="app-navbar-logo">
                 <span class="app-brand-text">
                     <span class="app-brand-title"><?php echo APP_NAME; ?></span>
