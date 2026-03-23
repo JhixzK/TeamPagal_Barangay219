@@ -11,8 +11,16 @@ let pendingTransferHeadTarget = null; // { member_id?: number, resident_id?: num
 const RELATIONSHIP_MAP = {
   Father: "Parent",
   Mother: "Parent",
+  Stepfather: "Parent",
+  Stepmother: "Parent",
+  Grandfather: "Relative",
+  Grandmother: "Relative",
+  Grandparent: "Relative",
   Brother: "Sibling",
   Sister: "Sibling",
+  Partner: "Spouse",
+  Stepson: "Relative",
+  Stepdaughter: "Relative",
   Grandson: "Relative",
   Granddaughter: "Relative",
   Nephew: "Relative",
@@ -20,6 +28,10 @@ const RELATIONSHIP_MAP = {
   Uncle: "Relative",
   Aunt: "Relative",
   Cousin: "Relative",
+  "Father-in-law": "Relative",
+  "Mother-in-law": "Relative",
+  "Son-in-law": "Relative",
+  "Daughter-in-law": "Relative",
   "In-law": "Relative",
   Other: "Relative"
 };
