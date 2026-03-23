@@ -11,7 +11,7 @@ try {
 
     $db = Database::getInstance();
     $rows = $db->fetchAll(
-        'SELECT id, reference_no, incident_type, incident_location, incident_datetime, status, is_confidential, action_requested, created_at, updated_at
+        'SELECT id, reference_no, incident_type, incident_type_detail, incident_location, incident_datetime, status, is_confidential, action_requested, created_at, updated_at
          FROM blotter_records
          WHERE complainant_id = ?
          ORDER BY created_at DESC, id DESC',
