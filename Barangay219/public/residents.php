@@ -452,6 +452,11 @@ include __DIR__ . '/../includes/sidebar.php';
                             <label for="contact_number" class="form-label">Contact Number <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="contact_number" name="contact_number" value="+63 " maxlength="14" inputmode="numeric" pattern="\+63\s\d{10}" required placeholder="+63 9XXXXXXXXX">
                         </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="monthly_income" class="form-label">Monthly income (PHP)</label>
+                            <input type="number" class="form-control" id="monthly_income" name="monthly_income" min="0" step="0.01" inputmode="decimal" placeholder="Optional">
+                            <small class="text-muted">Per person; used for household indigent classification.</small>
+                        </div>
                     </div>
                     
                     <div class="row">
