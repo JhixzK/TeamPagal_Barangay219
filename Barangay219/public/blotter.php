@@ -105,12 +105,14 @@ include __DIR__ . '/../includes/sidebar.php';
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Respondent (Link)</label>
+                                <label class="form-label">Respondents (Link)</label>
                                 <div class="input-group">
                                     <input type="text" class="form-control" id="editRespondentSearch" placeholder="Search resident..." autocomplete="off">
-                                    <button class="btn btn-outline-secondary" type="button" id="clearRespondentBtn">Clear</button>
+                                    <button class="btn btn-outline-secondary" type="button" id="addRespondentLinkBtn">Add</button>
+                                    <button class="btn btn-outline-danger" type="button" id="clearRespondentBtn">Clear</button>
                                 </div>
-                                <input type="hidden" id="editRespondentId" name="respondent_id">
+                                <input type="hidden" id="editRespondentIds" name="respondent_ids">
+                                <div id="selectedRespondentsList" class="d-flex flex-wrap gap-2 mt-2"></div>
                                 <div id="respondentSearchResults" class="list-group mt-2" style="display:none; max-height:200px; overflow-y:auto;"></div>
                             </div>
                         </div>
