@@ -318,7 +318,7 @@ function editBlotter(id) {
             const incidentTypeEl = document.getElementById('incident_type');
             if (incidentTypeEl) {
                 const normalized = String(info.incident_type || '').trim().toLowerCase();
-                const known = ['physical_assault','verbal_threat','theft','property_damage','public_disturbance','domestic_dispute','harassment','other'];
+                const known = ['physical_assault','verbal_threat','vawc','theft','property_damage','public_disturbance','domestic_dispute','harassment','other'];
                 if (known.includes(normalized) && normalized !== '') {
                     incidentTypeEl.value = normalized;
                     const customInput = document.getElementById('incident_type_custom');
@@ -1041,6 +1041,7 @@ function formatIncidentType(type) {
     const labels = {
         physical_assault: 'Physical Assault',
         verbal_threat: 'Verbal Threat',
+        vawc: 'VAWC',
         theft: 'Theft',
         property_damage: 'Property Damage',
         public_disturbance: 'Public Disturbance',
