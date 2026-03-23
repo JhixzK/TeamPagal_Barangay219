@@ -478,8 +478,8 @@ $barangay219_purok_options = [
                                     </div>
                                     <div class="row">
                                         <div class="col-md-4 mb-3">
-                                            <label>Place of Birth</label>
-                                            <input type="text" name="place_of_birth" class="form-control" maxlength="100">
+                                            <label>Place of Birth <span class="text-danger">*</span></label>
+                                            <input type="text" name="place_of_birth" class="form-control" maxlength="100" required>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label>Civil Status <span class="text-danger">*</span></label>
@@ -692,8 +692,8 @@ $barangay219_purok_options = [
                                             <input type="tel" name="mobile_number" class="form-control" maxlength="14" inputmode="numeric" autocomplete="tel" required placeholder="+63 9XXXXXXXXX" value="+63 ">
                                         </div>
                                         <div class="col-md-6 mb-3">
-                                            <label>Email Address</label>
-                                            <input type="email" name="email" id="email" class="form-control" maxlength="100" autocomplete="email" placeholder="@gmail.com">
+                                            <label>Email Address <span class="text-danger">*</span></label>
+                                            <input type="email" name="email" id="email" class="form-control" maxlength="100" autocomplete="email" placeholder="@gmail.com" required>
                                             <div class="invalid-feedback">Please enter a valid Gmail address (@gmail.com).</div>
                                         </div>
                                     </div>
