@@ -1470,6 +1470,93 @@ body {
 .btn i:last-child {
     margin-right: 0;
 }
+/* ===== Role-Specific Badge Colors ===== */
+
+.role-pill.role-super-admin {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+}
+
+.role-pill.role-captain {
+    background: #ede9fe;
+    color: #5b21b6;
+    border: 1px solid #c4b5fd;
+}
+
+.role-pill.role-secretary {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
+}
+
+.role-pill.role-treasurer {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+}
+
+.role-pill.role-kagawad {
+    background: #e0e7ff;
+    color: #3730a3;
+    border: 1px solid #a5b4fc;
+}
+
+.role-pill.role-sk {
+    background: #fce7f3;
+    color: #9d174d;
+    border: 1px solid #f9a8d4;
+}
+
+.role-pill.role-resident {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+/* ===== Navbar View-Mode Switch ===== */
+
+.view-mode-switch-wrap {
+    white-space: nowrap;
+}
+
+.view-mode-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+.btn-view-switch {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.75rem;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.btn-view-switch:hover,
+.btn-view-switch:focus-visible {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.btn-view-switch:active {
+    transform: translateY(0);
+}
+
+@media (max-width: 991.98px) {
+    .view-mode-switch-wrap {
+        padding: 0.5rem 0;
+        justify-content: center;
+    }
+}
+
 /* Print Styles */
 @media print {
     .sidebar,
