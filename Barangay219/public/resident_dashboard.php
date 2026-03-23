@@ -42,17 +42,10 @@ function residentDashboardPrettyLabel($value) {
 }
 
 function residentDashboardTableExists($conn, $tableName) {
-  $sql = 'SHOW TABLES LIKE ?';
-  $stmt = $conn->prepare($sql);
-  if (!$stmt) {
-    return false;
-  }
-  $stmt->bind_param('s', $tableName);
-  $stmt->execute();
-  $result = $stmt->get_result();
-  $exists = $result && $result->num_rows > 0;
-  $stmt->close();
-  return $exists;
+  $escapedTable = $conn->real_escape_string($tableName);
+  $sql = "SHOW TABLES LIKE '{$escapedTable}'";
+  $result = $conn->query($sql);
+  return $result && $result->num_rows > 0;
 }
 
 function residentDashboardTableColumns($conn, $tableName) {
