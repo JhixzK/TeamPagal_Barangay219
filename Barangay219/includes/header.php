@@ -72,7 +72,27 @@ $userInfo = getUserInfo();
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav"></div>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <?php if (canSwitchToResidentView()): ?>
+                <div class="navbar-nav ms-auto align-items-center">
+                    <div class="view-mode-switch-wrap d-flex align-items-center gap-2">
+                        <?php if (isResidentView()): ?>
+                        <span class="view-mode-label text-white-50"><i class="bi bi-house-door me-1"></i>Resident View</span>
+                        <a href="<?php echo API_URL; ?>auth.php?action=view_mode&mode=official"
+                           class="btn btn-sm btn-view-switch" data-view-mode-switch="official">
+                            <i class="bi bi-shield-check me-1"></i>Switch to Official
+                        </a>
+                        <?php else: ?>
+                        <span class="view-mode-label text-white-50"><i class="bi bi-shield-check me-1"></i>Official View</span>
+                        <a href="<?php echo API_URL; ?>auth.php?action=view_mode&mode=resident"
+                           class="btn btn-sm btn-view-switch" data-view-mode-switch="resident">
+                            <i class="bi bi-house-door me-1"></i>Switch to Resident
+                        </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </div>
         </div>
     </nav>
     <script src="<?php echo ASSETS_URL; ?>css/js/view-mode-switch.js?v=<?php echo time(); ?>"></script>
