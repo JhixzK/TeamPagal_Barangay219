@@ -60,6 +60,7 @@ let residentDirectoryCache = null;
 let currentViewingCaseId = null;
 let currentViewingCaseData = null;
 let respondentSearchTimer = null;
+let editRespondentSelections = [];
 
 document.addEventListener('DOMContentLoaded', function() {
     loadBlotters();
@@ -326,6 +327,7 @@ function initDetailModalEditMode() {
     const btnEdit = document.getElementById('btnEnableEditMode');
     const btnCancel = document.getElementById('btnCancelEdit');
     const btnClearRespondent = document.getElementById('clearRespondentBtn');
+    const btnAddRespondent = document.getElementById('addRespondentLinkBtn');
     const searchInput = document.getElementById('editRespondentSearch');
     const statusSelect = document.getElementById('editStatus');
     const caseForm = document.getElementById('caseDetailForm');
@@ -341,9 +343,20 @@ function initDetailModalEditMode() {
 
     if (btnClearRespondent) {
         btnClearRespondent.addEventListener('click', () => {
-            document.getElementById('editRespondentId').value = '';
+            editRespondentSelections = [];
+            syncEditRespondentIdsField();
+            renderEditRespondentSelections();
             document.getElementById('editRespondentSearch').value = '';
             document.getElementById('respondentSearchResults').style.display = 'none';
+        });
+    }
+
+    if (btnAddRespondent) {
+        btnAddRespondent.addEventListener('click', () => {
+            const keyword = (searchInput?.value || '').trim();
+            if (keyword.length >= 3) {
+                searchResidentsForRespondent(keyword);
+            }
         });
     }
 
@@ -407,7 +420,6 @@ function enableEditMode() {
     const settlementDateEl = document.getElementById('editSettlementDate');
     const dismissalReasonEl = document.getElementById('editDismissalReason');
     const respondentSearchEl = document.getElementById('editRespondentSearch');
-    const respondentIdEl = document.getElementById('editRespondentId');
 
     if (viewContent && caseForm) {
         viewContent.style.display = 'none';
@@ -427,16 +439,50 @@ function enableEditMode() {
             if (settlementDateEl) settlementDateEl.value = (data.settlement_date || '').substring(0, 10);
             if (dismissalReasonEl) dismissalReasonEl.value = data.dismissal_reason || '';
 
+            editRespondentSelections = [];
             try {
                 const respondents = JSON.parse(data.respondent_name || '[]');
                 if (Array.isArray(respondents) && respondents.length > 0) {
-                    const primary = respondents[0] || {};
-                    if (respondentSearchEl) respondentSearchEl.value = primary.name || '';
-                    if (respondentIdEl) respondentIdEl.value = primary.resident_id || data.respondent_id || '';
+                    respondents.forEach((item) => {
+                        if (!item) return;
+                        const residentId = Number(item.resident_id || 0);
+                        const name = String(item.name || '').trim();
+                        if (!residentId && !name) return;
+                        editRespondentSelections.push({
+                            resident_id: residentId > 0 ? residentId : null,
+                            name: name,
+                            address: String(item.address || ''),
+                            contact: String(item.contact || ''),
+                            residency: String(item.residency || (residentId > 0 ? 'resident' : 'non_resident'))
+                        });
+                    });
+                } else if (data.respondent_id) {
+                    editRespondentSelections.push({
+                        resident_id: Number(data.respondent_id),
+                        name: String(data.respondent_name_raw || ''),
+                        address: '',
+                        contact: '',
+                        residency: 'resident'
+                    });
                 }
             } catch (e) {
+                if (data.respondent_id || data.respondent_name_raw) {
+                    editRespondentSelections.push({
+                        resident_id: data.respondent_id ? Number(data.respondent_id) : null,
+                        name: String(data.respondent_name_raw || ''),
+                        address: '',
+                        contact: '',
+                        residency: data.respondent_id ? 'resident' : 'non_resident'
+                    });
+                }
             }
         }
+
+        if (respondentSearchEl) {
+            respondentSearchEl.value = '';
+        }
+        syncEditRespondentIdsField();
+        renderEditRespondentSelections();
 
         toggleProcessFieldsByStatus(statusEl ? statusEl.value : 'pending');
 
@@ -451,6 +497,9 @@ function disableEditMode() {
         caseForm.style.display = 'none';
         viewContent.style.display = 'block';
         caseForm.reset();
+        editRespondentSelections = [];
+        syncEditRespondentIdsField();
+        renderEditRespondentSelections();
         toggleProcessFieldsByStatus('pending');
     }
 }
@@ -503,8 +552,57 @@ function searchResidentsForRespondent(keyword) {
         });
 }
 
+function syncEditRespondentIdsField() {
+    const idsField = document.getElementById('editRespondentIds');
+    if (!idsField) return;
+    const ids = editRespondentSelections
+        .map(item => Number(item.resident_id || 0))
+        .filter(id => id > 0);
+    idsField.value = JSON.stringify(ids);
+}
+
+function renderEditRespondentSelections() {
+    const container = document.getElementById('selectedRespondentsList');
+    if (!container) return;
+    if (!editRespondentSelections.length) {
+        container.innerHTML = '<span class="text-muted small">No respondents linked.</span>';
+        return;
+    }
+
+    container.innerHTML = editRespondentSelections.map((item, index) => {
+        const label = escapeHtml(String(item.name || ('Respondent #' + (index + 1))));
+        const linked = Number(item.resident_id || 0) > 0;
+        const badgeClass = linked ? 'bg-primary-subtle text-primary-emphasis' : 'bg-secondary-subtle text-secondary-emphasis';
+        const title = linked ? 'Resident linked' : 'Name-only respondent';
+        return `<span class="badge ${badgeClass}" title="${title}">${label} <button type="button" class="btn btn-sm p-0 border-0 bg-transparent align-baseline ms-1" data-remove-respondent-index="${index}" aria-label="Remove">&times;</button></span>`;
+    }).join('');
+
+    container.querySelectorAll('[data-remove-respondent-index]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = Number(btn.getAttribute('data-remove-respondent-index'));
+            if (Number.isNaN(idx)) return;
+            editRespondentSelections.splice(idx, 1);
+            syncEditRespondentIdsField();
+            renderEditRespondentSelections();
+        });
+    });
+}
+
 function selectRespondentFromSearch(residentId, residentName) {
-    document.getElementById('editRespondentId').value = residentId;
+    const id = Number(residentId || 0);
+    if (!id) return;
+    const exists = editRespondentSelections.some(item => Number(item.resident_id || 0) === id);
+    if (!exists) {
+        editRespondentSelections.push({
+            resident_id: id,
+            name: String(residentName || '').trim(),
+            address: '',
+            contact: '',
+            residency: 'resident'
+        });
+    }
+    syncEditRespondentIdsField();
+    renderEditRespondentSelections();
     document.getElementById('editRespondentSearch').value = residentName;
     document.getElementById('respondentSearchResults').style.display = 'none';
 }
@@ -514,7 +612,7 @@ function submitCaseDetailUpdate(e) {
 
     const caseId = document.getElementById('editCaseId').value;
     const status = document.getElementById('editStatus').value;
-    const respondentId = document.getElementById('editRespondentId').value || '';
+    const respondentsJson = JSON.stringify(editRespondentSelections);
     const adminNotes = document.getElementById('editAdminNotes').value;
     const hearingDate = document.getElementById('editHearingDate')?.value || '';
     const settlementDate = document.getElementById('editSettlementDate')?.value || '';
@@ -526,10 +624,15 @@ function submitCaseDetailUpdate(e) {
         return;
     }
 
+    if (!editRespondentSelections.length) {
+        alert('Please link at least one respondent.');
+        return;
+    }
+
     const formData = new FormData();
     formData.append('case_id', caseId);
     formData.append('status', status);
-    if (respondentId) formData.append('respondent_id', respondentId);
+    formData.append('respondents', respondentsJson);
     formData.append('admin_notes', adminNotes);
     formData.append('hearing_date', hearingDate);
     formData.append('settlement_date', settlementDate);
