@@ -157,6 +157,13 @@ if ($isResidentSidebar) {
             'url' => 'users.php',
             'module' => 'users',
             'section' => 'Administration'
+        ],
+        [
+            'title' => 'System Settings',
+            'icon' => 'bi-sliders',
+            'url' => 'system-settings.php',
+            'section' => 'Administration',
+            'roles' => [ROLE_SUPER_ADMIN, ROLE_BARANGAY_CAPTAIN]
         ]
     ];
 
@@ -175,7 +182,10 @@ if ($isResidentSidebar) {
             }
             return false;
         }
-        return canAccessModule($item['module']);
+        if (isset($item['module'])) {
+            return canAccessModule($item['module']);
+        }
+        return true;
     });
 }
 // Current user info and avatar
