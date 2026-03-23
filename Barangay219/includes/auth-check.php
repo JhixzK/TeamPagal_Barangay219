@@ -64,30 +64,29 @@ function requireLogin() {
 }
 
 /**
- * Re-read the user's role from DB if it may have changed (e.g. promotion/demotion).
- * Throttled to once per 60 seconds to avoid unnecessary DB queries.
+ * Re-read the user's role from DB on every authenticated request (promotion/demotion must apply immediately).
+ * Pure residents never keep staff view_mode or dual-access UI.
  */
 function refreshSessionRole() {
-    $now = time();
-    $lastCheck = $_SESSION['role_checked_at'] ?? 0;
-    if (($now - $lastCheck) < 60) {
+    $userId = $_SESSION['user_id'] ?? null;
+    if (!$userId) {
         return;
     }
-    $_SESSION['role_checked_at'] = $now;
-
-    $userId = $_SESSION['user_id'] ?? null;
-    if (!$userId) return;
 
     try {
         $db = Database::getInstance();
         $row = $db->fetchOne("SELECT role FROM users WHERE id = ? LIMIT 1", [$userId]);
-        if ($row && isset($row['role']) && $row['role'] !== $_SESSION['role']) {
-            $_SESSION['role'] = $row['role'];
-            if ($row['role'] === ROLE_RESIDENT) {
-                unset($_SESSION['view_mode']);
-            } elseif (!isset($_SESSION['view_mode'])) {
-                $_SESSION['view_mode'] = 'official';
-            }
+        if (!$row || !isset($row['role'])) {
+            return;
+        }
+        $dbRole = $row['role'];
+        if ($dbRole !== ($_SESSION['role'] ?? null)) {
+            $_SESSION['role'] = $dbRole;
+        }
+        if (normalizeRole($dbRole) === normalizeRole(ROLE_RESIDENT)) {
+            unset($_SESSION['view_mode']);
+        } elseif (!isset($_SESSION['view_mode'])) {
+            $_SESSION['view_mode'] = 'official';
         }
     } catch (Exception $e) {
         // DB unavailable -- keep existing session role
@@ -202,6 +201,7 @@ function reconcileUserRoleWithOfficialsTable($db, array &$userRow) {
             $userRow['role'] = ROLE_RESIDENT;
             if ($userId === (int)(getCurrentUserId() ?? 0)) {
                 $_SESSION['role'] = ROLE_RESIDENT;
+                unset($_SESSION['view_mode']);
             }
         }
     } catch (Exception $e) {
