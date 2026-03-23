@@ -101,6 +101,15 @@ include __DIR__ . '/../includes/sidebar.php';
     return String(raw).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
   }
 
+  function incidentTypeDisplay(type, detail) {
+    const base = String(type || '').toLowerCase();
+    const detailText = String(detail || '').trim();
+    if (base === 'other' && detailText !== '') {
+      return 'Other (' + detailText + ')';
+    }
+    return labelize(type);
+  }
+
   function loadList() {
     fetch(LIST_API, { credentials: 'same-origin' })
       .then(r => r.json())
@@ -115,7 +124,7 @@ include __DIR__ . '/../includes/sidebar.php';
           const cls = statusClass[r.status] || 'bg-light text-dark';
           return '<tr>' +
             '<td><strong>' + (r.reference_no || '-') + '</strong></td>' +
-            '<td>' + labelize(r.incident_type) + '</td>' +
+            '<td>' + incidentTypeDisplay(r.incident_type, r.incident_type_detail) + '</td>' +
             '<td>' + (r.incident_location || '-') + '</td>' +
             '<td>' + formatDate(r.incident_datetime) + '</td>' +
             '<td><span class="badge ' + cls + '">' + labelize(r.status) + '</span></td>' +
@@ -151,7 +160,7 @@ include __DIR__ . '/../includes/sidebar.php';
           '<div class="row g-3">' +
             '<div class="col-md-6"><strong>Reference #:</strong><br>' + (r.reference_no || '-') + '</div>' +
             '<div class="col-md-6"><strong>Status:</strong><br>' + labelize(r.status) + '</div>' +
-            '<div class="col-md-6"><strong>Incident Type:</strong><br>' + labelize(r.incident_type) + '</div>' +
+            '<div class="col-md-6"><strong>Incident Type:</strong><br>' + incidentTypeDisplay(r.incident_type, r.incident_type_detail) + '</div>' +
             '<div class="col-md-6"><strong>Incident Date:</strong><br>' + formatDate(r.incident_datetime) + '</div>' +
             '<div class="col-12"><strong>Location:</strong><br>' + (r.incident_location || '-') + '</div>' +
             '<div class="col-md-6"><strong>Respondent:</strong><br>' + respondentDisplay + '</div>' +
