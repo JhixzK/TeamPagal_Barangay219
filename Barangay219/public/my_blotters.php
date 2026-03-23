@@ -12,6 +12,7 @@ $page_title = 'My Blotters';
 require_once __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
+<link rel="stylesheet" href="<?php echo BASE_URL; ?>my_requests.css?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/my_requests.css')); ?>">
 
 <div class="main-content module-page resident-my-blotters-page resident-theme">
   <div class="container-fluid">
@@ -28,25 +29,23 @@ include __DIR__ . '/../includes/sidebar.php';
       </div>
     </section>
 
-    <div class="card p-3">
-      <div class="table-responsive">
-        <table class="table align-middle">
+    <section class="card table-card">
+      <div class="table-wrap">
+        <table class="requests-table blotter-table">
           <thead>
             <tr>
               <th>Reference #</th>
               <th>Incident Type</th>
-              <th>Location</th>
-              <th>Incident Date</th>
+              <th>Date Reported</th>
               <th>Status</th>
-              <th class="text-end">Action</th>
             </tr>
           </thead>
           <tbody id="blotterRows">
-            <tr><td colspan="6" class="text-center text-muted py-4">Loading reports...</td></tr>
+            <tr><td colspan="4" class="text-center text-muted py-4">Loading reports...</td></tr>
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   </div>
 </div>
 
@@ -65,20 +64,69 @@ include __DIR__ . '/../includes/sidebar.php';
   </div>
 </div>
 
+<style>
+.resident-my-blotters-page .dashboard-hero {
+  border-radius: 16px;
+  background: radial-gradient(circle at 0% 0%, rgba(147, 197, 253, 0.24), transparent 36%), linear-gradient(140deg, #f8fbff 0%, #eef4ff 58%, #f4f7fb 100%);
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 16px 34px -24px rgba(37, 99, 235, 0.45);
+}
+
+.resident-my-blotters-page .table-card {
+  border-radius: 14px;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 8px 20px -12px rgba(15, 23, 42, 0.18);
+}
+
+.resident-my-blotters-page .blotter-table {
+  min-width: 720px;
+}
+
+.resident-my-blotters-page .blotter-row {
+  cursor: pointer;
+}
+
+.resident-my-blotters-page .blotter-row:hover {
+  background: #f8fafc;
+}
+
+.resident-my-blotters-page .status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.resident-my-blotters-page .status-pill.pending {
+  background: #fff4da;
+  color: #a86500;
+}
+
+.resident-my-blotters-page .status-pill.processing {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.resident-my-blotters-page .status-pill.settled {
+  background: #dcf7ec;
+  color: #127852;
+}
+
+.resident-my-blotters-page .status-pill.dismissed {
+  background: #e5e7eb;
+  color: #374151;
+}
+</style>
+
 <script>
 (function () {
   const LIST_API = '<?php echo API_URL; ?>blotter/list.php';
   const GET_API = '<?php echo API_URL; ?>blotter/get.php?id=';
   const rowsEl = document.getElementById('blotterRows');
   const detailBody = document.getElementById('blotterDetailBody');
-
-  const statusClass = {
-    pending: 'bg-warning text-dark',
-    investigation: 'bg-primary',
-    mediation: 'bg-info text-dark',
-    settled: 'bg-success',
-    dismissed: 'bg-secondary'
-  };
 
   function labelize(value) {
     return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -88,6 +136,21 @@ include __DIR__ . '/../includes/sidebar.php';
     const dt = new Date(value);
     if (Number.isNaN(dt.getTime())) return '-';
     return dt.toLocaleString();
+  }
+
+  function formatReportedDate(value) {
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return '-';
+    return dt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+  }
+
+  function statusPillClass(status) {
+    const s = String(status || '').toLowerCase();
+    if (s === 'pending') return 'pending';
+    if (s === 'investigation' || s === 'mediation') return 'processing';
+    if (s === 'settled') return 'settled';
+    if (s === 'dismissed') return 'dismissed';
+    return 'dismissed';
   }
 
   function decodeWitnesses(raw) {
@@ -116,31 +179,29 @@ include __DIR__ . '/../includes/sidebar.php';
       .then(d => {
         const records = d?.data?.records || [];
         if (!records.length) {
-          rowsEl.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No incident reports filed yet.</td></tr>';
+          rowsEl.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No incident reports filed yet.</td></tr>';
           return;
         }
 
         rowsEl.innerHTML = records.map(r => {
-          const cls = statusClass[r.status] || 'bg-light text-dark';
-          return '<tr>' +
+          const cls = statusPillClass(r.status);
+          return '<tr class="blotter-row" data-id="' + r.id + '">' +
             '<td><strong>' + (r.reference_no || '-') + '</strong></td>' +
             '<td>' + incidentTypeDisplay(r.incident_type, r.incident_type_detail) + '</td>' +
-            '<td>' + (r.incident_location || '-') + '</td>' +
-            '<td>' + formatDate(r.incident_datetime) + '</td>' +
-            '<td><span class="badge ' + cls + '">' + labelize(r.status) + '</span></td>' +
-            '<td class="text-end"><button class="btn btn-sm btn-outline-primary" data-id="' + r.id + '">View Details</button></td>' +
+            '<td>' + formatReportedDate(r.created_at) + '</td>' +
+            '<td><span class="status-pill ' + cls + '">' + labelize(r.status) + '</span></td>' +
           '</tr>';
         }).join('');
       })
       .catch(() => {
-        rowsEl.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Failed to load reports.</td></tr>';
+        rowsEl.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">Failed to load reports.</td></tr>';
       });
   }
 
   rowsEl.addEventListener('click', function (e) {
-    const btn = e.target.closest('button[data-id]');
-    if (!btn) return;
-    const id = btn.getAttribute('data-id');
+    const row = e.target.closest('tr[data-id]');
+    if (!row) return;
+    const id = row.getAttribute('data-id');
 
     fetch(GET_API + encodeURIComponent(id), { credentials: 'same-origin' })
       .then(r => r.json())
@@ -167,7 +228,7 @@ include __DIR__ . '/../includes/sidebar.php';
             '<div class="col-md-6"><strong>Action Requested:</strong><br>' + (r.action_requested || '-') + '</div>' +
             '<div class="col-12"><strong>Witnesses:</strong><br>' + (witnesses.startsWith('<li>') ? '<ul class="mb-0">' + witnesses + '</ul>' : witnesses) + '</div>' +
             '<div class="col-12"><strong>Narrative:</strong><div class="p-2 bg-light border rounded mt-1" style="white-space:pre-wrap">' + (r.narrative || '-') + '</div></div>' +
-            '<div class="col-12"><strong>Admin Updates:</strong><div class="p-2 bg-light border rounded mt-1" style="white-space:pre-wrap">' + (r.admin_updates || 'No updates yet.') + '</div></div>' +
+            '<div class="col-12"><strong>Admin Remarks:</strong><div class="p-2 bg-light border rounded mt-1" style="white-space:pre-wrap">' + (r.admin_updates || 'No updates yet.') + '</div></div>' +
             '<div class="col-12"><strong>Evidence:</strong><br>' + evidenceHtml + '</div>' +
           '</div>';
 
