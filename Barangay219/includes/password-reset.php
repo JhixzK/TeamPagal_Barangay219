@@ -189,11 +189,12 @@ function checkRateLimit($user_id = null, $action = 'request', $max_attempts = MA
                 'remaining' => max(0, $max_attempts - ($record['request_count'] + 1))
             ];
         } else {
-            // Create new rate limit record
+            // Create new rate limit record (use current time for window_start; do not reuse mutated $now)
+            $windowStart = (new DateTime())->format('Y-m-d H:i:s');
             $db->query(
                 "INSERT INTO password_reset_rate_limit (user_id, ip_address, action, request_count, last_request, window_start) 
                  VALUES (?, ?, ?, 1, NOW(), ?)",
-                [$user_id, $ip, $action, $now->format('Y-m-d H:i:s')]
+                [$user_id, $ip, $action, $windowStart]
             );
             
             return [
@@ -240,7 +241,7 @@ function sendOTPViaSMS($phone_number, $otp) {
  * @param string $email Email address
  * @param string $token Reset token
  * @param string $reset_link Full reset link URL
- * @return bool Success status
+ * @return array{sent: bool, skipped: bool, error: ?string}
  */
 function sendResetLinkViaEmail($email, $token, $reset_link) {
     try {
@@ -266,19 +267,25 @@ function sendResetLinkViaEmail($email, $token, $reset_link) {
 
         $result = sendHtmlMailToResident($email, $subject, $html, $plain);
         if (!($result['sent'] ?? false)) {
-            error_log('Password reset email send failed: ' . ($result['error'] ?? 'unknown'));
-            return false;
+            $err = (string)($result['error'] ?? 'unknown');
+            error_log('Password reset email send failed: ' . $err);
+            return [
+                'sent' => false,
+                'skipped' => (bool)($result['skipped'] ?? false),
+                'error' => $err,
+            ];
         }
 
         error_log("SMTP reset email sent to {$email}: Reset token: {$token}");
-        return true;
+        return ['sent' => true, 'skipped' => false, 'error' => null];
     } catch (Exception $e) {
         error_log("Email send error: " . $e->getMessage());
-        return false;
+        return ['sent' => false, 'skipped' => false, 'error' => $e->getMessage()];
     }
 }
 
 /**
+<<<<<<< HEAD
  * Issue and send a replacement email reset link for expired tokens.
  * Returns true only when a new token was created and email was sent.
  *
@@ -325,6 +332,35 @@ function sendReplacementResetLinkForExpiredToken($user_id, $email) {
         error_log('Replacement reset token send error: ' . $e->getMessage());
         return false;
     }
+=======
+ * User-facing message when the reset email could not be sent (SMTP / config).
+ */
+function buildPasswordResetEmailFailureUserMessage(array $mailOut) {
+    $code = (string)($mailOut['error'] ?? '');
+    $skipped = !empty($mailOut['skipped']);
+
+    if ($skipped) {
+        if ($code === 'smtp_disabled') {
+            return 'Email sending is turned off on this server. Please contact the barangay office to reset your password.';
+        }
+        if ($code === 'smtp_credentials_incomplete') {
+            return 'The mail server is not fully configured. Please contact the barangay office.';
+        }
+        if ($code === 'from_email_not_configured') {
+            return 'The mail “from” address is not configured. Please contact the barangay office.';
+        }
+        if ($code === 'invalid_or_missing_email') {
+            return 'The email on file is not valid for sending. Please contact the barangay office.';
+        }
+        return 'We could not send the reset email. Please contact the barangay office.';
+    }
+
+    if (defined('DEBUG_MODE') && DEBUG_MODE && $code !== '') {
+        return 'Could not send the reset email (debug): ' . $code;
+    }
+
+    return 'We could not send the reset email. Please try again later or contact the barangay office.';
+>>>>>>> 8e8c86f3018294db4e18a41cd2c46caa1a51b595
 }
 
 /**
@@ -409,21 +445,52 @@ function initiatePasswordReset($user_identifier, $method) {
             $token_hash = hash('sha256', $token);
 
             // Use database time for consistency with token validation.
-            $db->query(
+            $insertOk = $db->query(
                 "INSERT INTO password_reset_tokens (user_id, token, method, identifier, expires_at)
                  VALUES (?, ?, ?, ?, TIMESTAMPADD(MINUTE, ?, CURRENT_TIMESTAMP))",
                 [$user_id, $token_hash, $method, $email, TOKEN_EXPIRY_MINUTES]
             );
-            
+
+            if ($insertOk === false) {
+                logPasswordResetActivity($user_id, 'request_failed', $method, $email, ['reason' => 'token_insert_failed']);
+                return [
+                    'success' => false,
+                    'message' => (defined('DEBUG_MODE') && DEBUG_MODE)
+                        ? 'Could not save reset token. Run migration database/migrations/003_password_reset_system.sql or check the PHP error log.'
+                        : 'Password reset is temporarily unavailable. Please contact the barangay office.',
+                    'code' => 'DB_TOKEN_INSERT_FAILED',
+                ];
+            }
+
             $token_id = $db->lastInsertId();
-            
+
             // Generate reset link
-            $reset_link = BASE_URL . "verify-reset.php?token=" . urlencode($token) . "&type=email";
-            
-            // Send email
-            $send_result = sendResetLinkViaEmail($email, $token, $reset_link);
-            
-            logPasswordResetActivity($user_id, 'token_sent', $method, $email, ['token_id' => $token_id, 'sent' => $send_result]);
+            $reset_link = BASE_URL . 'verify-reset.php?token=' . urlencode($token) . '&type=email';
+
+            $mailOut = sendResetLinkViaEmail($email, $token, $reset_link);
+            $sentOk = !empty($mailOut['sent']);
+
+            logPasswordResetActivity($user_id, 'token_sent', $method, $email, [
+                'token_id' => $token_id,
+                'sent' => $sentOk,
+                'error' => $mailOut['error'] ?? null,
+            ]);
+
+            if (!$sentOk) {
+                try {
+                    if ($token_id) {
+                        $db->query('DELETE FROM password_reset_tokens WHERE id = ?', [$token_id]);
+                    }
+                } catch (Exception $eDel) {
+                    error_log('password reset token rollback: ' . $eDel->getMessage());
+                }
+                logPasswordResetActivity($user_id, 'token_send_failed', $method, $email, ['token_id' => $token_id, 'error' => $mailOut['error'] ?? null]);
+                return [
+                    'success' => false,
+                    'message' => buildPasswordResetEmailFailureUserMessage($mailOut),
+                    'code' => 'EMAIL_SEND_FAILED',
+                ];
+            }
             
         } else { // SMS
             $otp = generateOTP();
@@ -451,13 +518,15 @@ function initiatePasswordReset($user_identifier, $method) {
             'identifier_hint' => maskIdentifier($method === 'email' ? $email : $phone, $method)
         ];
         
-    } catch (Exception $e) {
-        error_log("Password reset initiation error: " . $e->getMessage());
+    } catch (Throwable $e) {
+        error_log('Password reset initiation error: ' . $e->getMessage());
         logPasswordResetActivity(null, 'request_error', $method ?? 'unknown', $user_identifier, ['error' => $e->getMessage()]);
         return [
             'success' => false,
-            'message' => 'An error occurred. Please try again later.',
-            'code' => 'ERROR'
+            'message' => (defined('DEBUG_MODE') && DEBUG_MODE)
+                ? ('Error: ' . $e->getMessage())
+                : 'An error occurred. Please try again later.',
+            'code' => 'ERROR',
         ];
     }
 }
@@ -968,11 +1037,13 @@ function logPasswordResetActivity($user_id, $action, $method, $identifier, $deta
         $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? null;
         
         $details_json = is_array($details) || is_object($details) ? json_encode($details) : $details;
+        // Table column user_id is NOT NULL — use 0 when the user is unknown (avoids failed INSERTs).
+        $logUserId = $user_id !== null && $user_id !== '' ? (int)$user_id : 0;
         
         $db->query(
             "INSERT INTO password_reset_logs (user_id, action, method, identifier, ip_address, user_agent, details) 
              VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [$user_id, $action, $method, $identifier, $ip, $user_agent, $details_json]
+            [$logUserId, $action, $method, $identifier, $ip, $user_agent, $details_json]
         );
     } catch (Exception $e) {
         error_log("Activity log error: " . $e->getMessage());
