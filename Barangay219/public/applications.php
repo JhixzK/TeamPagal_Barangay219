@@ -22,8 +22,8 @@ include __DIR__ . '/../includes/sidebar.php';
                     <h2 class="mb-1"><i class="bi bi-file-earmark-person me-2"></i>Certificate Applications</h2>
                     <p class="module-subtitle mb-0">Manage requests, approvals, releases, and certificate records.</p>
                 </div>
-                <button class="btn btn-primary" id="btnOpenCreate" data-bs-toggle="modal" data-bs-target="#createModal">
-                    <i class="bi bi-plus-lg"></i> New Application
+                <button class="btn btn-primary" id="btnOpenWalkIn" data-bs-toggle="modal" data-bs-target="#walkinModal">
+                    <i class="bi bi-lightning-charge"></i> New Walk-in Request
                 </button>
             </div>
         </div>
@@ -433,41 +433,44 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 </style>
 
-<!-- Create Application Modal -->
-<div class="modal fade" id="createModal" tabindex="-1">
+<!-- Direct Issue Walk-in Modal -->
+<div class="modal fade" id="walkinModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">New Certificate Application</h5>
+                <h5 class="modal-title">New Walk-in Request</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
                     <label class="form-label">Resident <span class="text-danger">*</span></label>
-                    <select class="form-select" id="createResidentId" required>
-                        <option value="">-- Select Resident --</option>
-                    </select>
-                    <small class="text-muted">Or <a href="<?php echo BASE_URL; ?>residents.php">add new resident</a> first</small>
+                    <div id="walkinResidentSelect2Wrap" class="d-none">
+                        <select class="form-select" id="walkinResidentIdSelect" required>
+                            <option value="">-- Select Resident --</option>
+                        </select>
+                    </div>
+                    <div id="walkinResidentDatalistWrap">
+                        <input type="text" class="form-control" id="walkinResidentLookup" list="walkinResidentList" placeholder="Type resident name..." autocomplete="off">
+                        <datalist id="walkinResidentList"></datalist>
+                    </div>
+                    <input type="hidden" id="walkinResidentId" value="">
                 </div>
-                <div class="mb-3">
+                <div class="mb-0">
                     <label class="form-label">Certificate Type <span class="text-danger">*</span></label>
-                    <select class="form-select" id="createCertType" required>
+                    <select class="form-select" id="walkinCertType" required>
                         <option value="">-- Select Type --</option>
+                        <option value="barangay_certificate">Barangay Certificate</option>
+                        <option value="transfer_request">Transfer Request</option>
+                        <option value="barangay_indigency">Barangay Indigency</option>
                         <option value="barangay_clearance">Barangay Clearance</option>
                         <option value="certificate_residency">Certificate of Residency</option>
-                        <option value="certificate_indigency">Certificate of Indigency</option>
-                        <option value="certificate_good_moral">Certificate of Good Moral</option>
-                        <option value="transfer_request">Transfer Request</option>
                     </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Purpose</label>
-                    <input type="text" class="form-control" id="createPurpose" placeholder="e.g., Employment, Scholarship">
+                    <small class="text-muted">This will issue directly to Ready for Pickup and open print preview.</small>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="btnCreate"><i class="bi bi-check"></i> Create Application</button>
+                <button type="button" class="btn btn-success" id="btnDirectIssue"><i class="bi bi-printer"></i> Direct Issue & Print</button>
             </div>
         </div>
     </div>
@@ -546,11 +549,11 @@ include __DIR__ . '/../includes/sidebar.php';
                     <label class="form-label">Certificate Type</label>
                     <select class="form-select" id="filterType">
                         <option value="">All</option>
+                        <option value="barangay_certificate">Barangay Certificate</option>
+                        <option value="transfer_request">Transfer Request</option>
+                        <option value="barangay_indigency">Barangay Indigency</option>
                         <option value="barangay_clearance">Barangay Clearance</option>
                         <option value="certificate_residency">Certificate of Residency</option>
-                        <option value="certificate_indigency">Certificate of Indigency</option>
-                        <option value="certificate_good_moral">Certificate of Good Moral</option>
-                        <option value="transfer_request">Transfer Request</option>
                     </select>
                 </div>
                 <div class="mb-3">
@@ -584,25 +587,22 @@ include __DIR__ . '/../includes/sidebar.php';
     let currentReleaseCertificateType = '';
     let currentReleaseBirthDate = '';
     let currentReleaseCivilStatus = '';
+    let walkInUseSelect2 = false;
+    let walkInResidentLabelToId = {};
     const APP_PERMS = {
-        canCreate: window.canModulePermission
-            ? (window.canModulePermission('applications', 'can_create') || window.canModulePermission('certificates', 'can_create'))
-            : true,
         canEdit: window.canModulePermission
             ? (window.canModulePermission('applications', 'can_edit') || window.canModulePermission('certificates', 'can_edit'))
             : true
     };
 
     function applyApplicationPermissions() {
-        if (!APP_PERMS.canCreate) {
-            const openBtn = document.getElementById('btnOpenCreate');
-            if (openBtn) openBtn.style.display = 'none';
-            const createBtn = document.getElementById('btnCreate');
-            if (createBtn) createBtn.style.display = 'none';
-        }
         if (!APP_PERMS.canEdit) {
             const releaseBtn = document.getElementById('btnRelease');
             if (releaseBtn) releaseBtn.style.display = 'none';
+            const walkInOpenBtn = document.getElementById('btnOpenWalkIn');
+            if (walkInOpenBtn) walkInOpenBtn.style.display = 'none';
+            const directIssueBtn = document.getElementById('btnDirectIssue');
+            if (directIssueBtn) directIssueBtn.style.display = 'none';
         }
     }
 
@@ -867,9 +867,12 @@ include __DIR__ . '/../includes/sidebar.php';
             || normalizedType === 'barangay_clearance'
         );
         const isIndigencyCertificate = (
+            normalizedType === 'barangay indigency'
+            ||
             normalizedType === 'certificate of indigency'
             || normalizedType === 'certificate indigency'
             || normalizedType === 'certificate_indigency'
+            || normalizedType === 'barangay_indigency'
         );
 
         if (isBarangayCertificate) {
@@ -1327,46 +1330,172 @@ include __DIR__ . '/../includes/sidebar.php';
             });
     });
 
-    // Load residents for create dropdown
+    function buildResidentLabel(resident) {
+        const lastName = String(resident.last_name || '').trim();
+        const firstName = String(resident.first_name || '').trim();
+        const middleName = String(resident.middle_name || '').trim();
+        const full = `${lastName}, ${firstName}${middleName ? ' ' + middleName : ''}`.trim();
+        return full.replace(/\s+/g, ' ');
+    }
+
+    function getWalkInSelectedResidentId() {
+        if (walkInUseSelect2) {
+            return document.getElementById('walkinResidentIdSelect')?.value || '';
+        }
+        return document.getElementById('walkinResidentId')?.value || '';
+    }
+
+    function resetWalkInResidentSelection() {
+        if (walkInUseSelect2) {
+            const select = document.getElementById('walkinResidentIdSelect');
+            if (select) {
+                if (window.jQuery && window.jQuery(select).data('select2')) {
+                    window.jQuery(select).val('').trigger('change');
+                } else {
+                    select.value = '';
+                }
+            }
+        } else {
+            const lookup = document.getElementById('walkinResidentLookup');
+            const hidden = document.getElementById('walkinResidentId');
+            if (lookup) lookup.value = '';
+            if (hidden) hidden.value = '';
+        }
+    }
+
+    function bindWalkInDatalistResolver() {
+        const lookup = document.getElementById('walkinResidentLookup');
+        const hidden = document.getElementById('walkinResidentId');
+        if (!lookup || !hidden) return;
+
+        const resolve = () => {
+            const value = String(lookup.value || '').trim();
+            hidden.value = walkInResidentLabelToId[value] ? String(walkInResidentLabelToId[value]) : '';
+        };
+
+        lookup.removeEventListener('input', resolve);
+        lookup.removeEventListener('change', resolve);
+        lookup.addEventListener('input', resolve);
+        lookup.addEventListener('change', resolve);
+    }
+
+    // Load residents for walk-in searchable field
     function loadResidents() {
-        fetch(API_URL + 'resident.php?action=list&limit=500')
+        fetch(API_URL + 'certificates.php?action=resident_options&limit=500')
             .then(r => r.json())
             .then(d => {
                 if (d.success && d.data && d.data.residents) {
-                    const sel = document.getElementById('createResidentId');
-                    sel.innerHTML = '<option value="">-- Select Resident --</option>' +
-                        d.data.residents.map(r => `<option value="${r.id}">${esc(r.last_name + ', ' + r.first_name + ' ' + (r.middle_name||''))}</option>`).join('');
+                    const residents = d.data.residents;
+                    const select2Wrap = document.getElementById('walkinResidentSelect2Wrap');
+                    const datalistWrap = document.getElementById('walkinResidentDatalistWrap');
+                    const select = document.getElementById('walkinResidentIdSelect');
+                    const datalist = document.getElementById('walkinResidentList');
+
+                    walkInUseSelect2 = !!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2 && select);
+
+                    if (walkInUseSelect2) {
+                        if (select2Wrap) select2Wrap.classList.remove('d-none');
+                        if (datalistWrap) datalistWrap.classList.add('d-none');
+
+                        const optionsHtml = '<option value="">-- Select Resident --</option>' +
+                            residents.map(r => `<option value="${r.id}">${esc(buildResidentLabel(r))}</option>`).join('');
+                        select.innerHTML = optionsHtml;
+
+                        const $select = window.jQuery(select);
+                        if ($select.data('select2')) {
+                            $select.select2('destroy');
+                        }
+                        $select.select2({
+                            width: '100%',
+                            placeholder: '-- Select Resident --',
+                            dropdownParent: window.jQuery('#walkinModal')
+                        });
+                    } else {
+                        if (select2Wrap) select2Wrap.classList.add('d-none');
+                        if (datalistWrap) datalistWrap.classList.remove('d-none');
+
+                        walkInResidentLabelToId = {};
+                        const datalistHtml = residents.map(r => {
+                            const label = buildResidentLabel(r);
+                            walkInResidentLabelToId[label] = r.id;
+                            return `<option value="${esc(label)}"></option>`;
+                        }).join('');
+
+                        if (datalist) datalist.innerHTML = datalistHtml;
+                        bindWalkInDatalistResolver();
+                    }
+                } else {
+                    const datalist = document.getElementById('walkinResidentList');
+                    const select = document.getElementById('walkinResidentIdSelect');
+                    if (datalist) datalist.innerHTML = '';
+                    if (select) select.innerHTML = '<option value="">No residents available</option>';
+                    const hidden = document.getElementById('walkinResidentId');
+                    if (hidden) {
+                        hidden.value = '';
+                    }
                 }
+            })
+            .catch(() => {
+                const datalist = document.getElementById('walkinResidentList');
+                const select = document.getElementById('walkinResidentIdSelect');
+                if (datalist) datalist.innerHTML = '';
+                if (select) {
+                    select.innerHTML = '<option value="">Failed to load residents</option>';
+                }
+                const hidden = document.getElementById('walkinResidentId');
+                if (hidden) hidden.value = '';
             });
     }
 
-    document.getElementById('btnCreate').addEventListener('click', function() {
-        if (!APP_PERMS.canCreate) { alert('Access denied'); return; }
-        const residentId = document.getElementById('createResidentId').value;
-        const certType = document.getElementById('createCertType').value;
-        const purpose = document.getElementById('createPurpose').value;
-        if (!residentId || !certType) { alert('Resident and certificate type required'); return; }
-        const fd = new FormData();
-        fd.append('action', 'create');
-        fd.append('resident_id', residentId);
-        fd.append('certificate_type', certType);
-        fd.append('purpose', toTitleCase(purpose));
-        this.disabled = true;
-        fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
-            .then(r => r.json())
-            .then(d => {
-                this.disabled = false;
-                if (d.success) {
-                    bootstrap.Modal.getInstance(document.getElementById('createModal')).hide();
-                    document.getElementById('createResidentId').value = '';
-                    document.getElementById('createCertType').value = '';
-                    document.getElementById('createPurpose').value = '';
-                    alert('Application created. Ref: ' + (d.data?.application_ref || d.data?.id));
+    const btnDirectIssue = document.getElementById('btnDirectIssue');
+    if (btnDirectIssue) {
+        btnDirectIssue.addEventListener('click', function() {
+            if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
+
+            const residentId = getWalkInSelectedResidentId();
+            const certType = document.getElementById('walkinCertType')?.value || '';
+
+            if (!residentId || !certType) {
+                alert('Resident and certificate type are required.');
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('action', 'direct_issue');
+            fd.append('resident_id', residentId);
+            fd.append('certificate_type', certType);
+
+            btnDirectIssue.disabled = true;
+            fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(d => {
+                    btnDirectIssue.disabled = false;
+                    if (!d.success) {
+                        alert(d.message || 'Failed to issue walk-in request.');
+                        return;
+                    }
+
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('walkinModal'));
+                    if (modal) modal.hide();
+
+                    const walkInType = document.getElementById('walkinCertType');
+                    resetWalkInResidentSelection();
+                    if (walkInType) walkInType.value = '';
+
+                    const issuedId = d?.data?.id;
+                    if (issuedId) {
+                        const printUrl = d?.data?.print_url || ('<?php echo BASE_URL; ?>certificate-print.php?id=' + encodeURIComponent(String(issuedId)));
+                        window.open(printUrl, '_blank', 'noopener');
+                    }
+
                     loadApplications();
-                } else alert(d.message || 'Error');
-            })
-            .catch(() => { this.disabled = false; alert('Error'); });
-    });
+                })
+                .catch(() => {
+                    btnDirectIssue.disabled = false;
+                    alert('Error issuing walk-in request.');
+                });
+        });
+    }
 
     document.querySelectorAll('#statusTabs .nav-link').forEach(link => {
         link.addEventListener('click', function(e) {
