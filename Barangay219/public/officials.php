@@ -198,6 +198,25 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </div>
 
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="confirmModalTitle">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="confirmModalBody">
+                Are you sure?
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="confirmModalOk">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php include __DIR__ . '/../includes/footer.php'; ?>
 <script src="<?php echo ASSETS_URL; ?>css/js/officials.js?v=<?php echo time(); ?>"></script>
 
