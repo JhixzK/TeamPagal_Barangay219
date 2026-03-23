@@ -64,6 +64,7 @@ function ensureBlotterRecordsSchema(): void {
             reference_no VARCHAR(20) NOT NULL,
             complainant_id INT(11) NOT NULL,
             incident_type ENUM('physical_assault','theft','threat','harassment','property_damage','domestic_dispute','public_disturbance','other') NOT NULL DEFAULT 'other',
+            incident_type_detail VARCHAR(100) DEFAULT NULL,
             incident_location VARCHAR(255) NOT NULL,
             incident_datetime DATETIME NOT NULL,
             narrative TEXT NOT NULL,
@@ -90,6 +91,11 @@ function ensureBlotterRecordsSchema(): void {
     $hasRawNameColumn = $db->fetchOne("SHOW COLUMNS FROM blotter_records LIKE 'respondent_name_raw'");
     if (!$hasRawNameColumn) {
         $db->query("ALTER TABLE blotter_records ADD COLUMN respondent_name_raw VARCHAR(255) DEFAULT NULL AFTER status");
+    }
+
+    $hasIncidentTypeDetailColumn = $db->fetchOne("SHOW COLUMNS FROM blotter_records LIKE 'incident_type_detail'");
+    if (!$hasIncidentTypeDetailColumn) {
+        $db->query("ALTER TABLE blotter_records ADD COLUMN incident_type_detail VARCHAR(100) DEFAULT NULL AFTER incident_type");
     }
 }
 
@@ -121,8 +127,8 @@ function saveBlotterEvidence(array $file): ?string {
     }
 
     $size = (int)($file['size'] ?? 0);
-    if ($size > 10 * 1024 * 1024) {
-        blotterJson(false, 'Evidence file must be 10MB or below.', null, 400);
+    if ($size >= 10 * 1024 * 1024) {
+        blotterJson(false, 'Evidence file must be under 10MB.', null, 400);
     }
 
     $ext = strtolower(pathinfo((string)($file['name'] ?? ''), PATHINFO_EXTENSION));
