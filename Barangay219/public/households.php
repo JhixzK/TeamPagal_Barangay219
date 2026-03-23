@@ -267,7 +267,8 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .households-page .action-icon-btn,
-#viewHouseholdModal .action-icon-btn {
+#viewHouseholdModal .action-icon-btn,
+#householdModal .action-icon-btn {
     width: 32px;
     height: 32px;
     border: 1px solid #e6ebf2;
@@ -279,13 +280,19 @@ include __DIR__ . '/../includes/sidebar.php';
     justify-content: center;
     padding: 0;
     line-height: 1;
+    box-sizing: border-box;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
     transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .households-page .action-icon-btn:hover,
 .households-page .action-icon-btn:focus-visible,
 #viewHouseholdModal .action-icon-btn:hover,
-#viewHouseholdModal .action-icon-btn:focus-visible {
+#viewHouseholdModal .action-icon-btn:focus-visible,
+#householdModal .action-icon-btn:hover,
+#householdModal .action-icon-btn:focus-visible {
     background: #f5f9ff;
     border-color: #d6e4ff;
     color: #2f4f95;
@@ -293,15 +300,19 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .households-page .action-icon-btn i,
-#viewHouseholdModal .action-icon-btn i {
-    font-size: 0.92rem;
+#viewHouseholdModal .action-icon-btn i,
+#householdModal .action-icon-btn i {
+    font-size: 1rem;
     line-height: 1;
+    display: block;
 }
 
 .households-page .action-icon-btn.action-delete:hover,
 .households-page .action-icon-btn.action-delete:focus-visible,
 #viewHouseholdModal .action-icon-btn.action-delete:hover,
-#viewHouseholdModal .action-icon-btn.action-delete:focus-visible {
+#viewHouseholdModal .action-icon-btn.action-delete:focus-visible,
+#householdModal .action-icon-btn.action-delete:hover,
+#householdModal .action-icon-btn.action-delete:focus-visible {
     background: #fff1f3;
     border-color: #f6ccd3;
     color: #9f2f3e;
@@ -316,7 +327,8 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 /* Family Groups head tabs — match module app-tabs (outline pills, soft active), not Bootstrap nav-pills fill */
-#viewHouseholdModal .household-head-tabs {
+#viewHouseholdModal .household-head-tabs,
+#householdModal .household-head-tabs {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
     gap: 0.45rem;
@@ -324,12 +336,14 @@ include __DIR__ . '/../includes/sidebar.php';
     flex-wrap: unset;
 }
 
-#viewHouseholdModal .household-head-tabs .nav-item {
+#viewHouseholdModal .household-head-tabs .nav-item,
+#householdModal .household-head-tabs .nav-item {
     margin: 0;
     min-width: 0;
 }
 
-#viewHouseholdModal .household-head-tabs .nav-link {
+#viewHouseholdModal .household-head-tabs .nav-link,
+#householdModal .household-head-tabs .nav-link {
     width: 100%;
     display: inline-flex;
     align-items: center;
@@ -347,19 +361,23 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 #viewHouseholdModal .household-head-tabs .nav-link:hover,
-#viewHouseholdModal .household-head-tabs .nav-link:focus-visible {
+#viewHouseholdModal .household-head-tabs .nav-link:focus-visible,
+#householdModal .household-head-tabs .nav-link:hover,
+#householdModal .household-head-tabs .nav-link:focus-visible {
     color: #1d4ed8;
     background: #f8fafc;
     border-color: #c7d7ee;
 }
 
-#viewHouseholdModal .household-head-tabs .nav-link.active {
+#viewHouseholdModal .household-head-tabs .nav-link.active,
+#householdModal .household-head-tabs .nav-link.active {
     color: #1d4ed8;
     background: #e8f0ff;
     border-color: #bfdbfe;
 }
 
-#viewHouseholdModal .household-head-tabs .household-head-tab-label {
+#viewHouseholdModal .household-head-tabs .household-head-tab-label,
+#householdModal .household-head-tabs .household-head-tab-label {
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -367,19 +385,38 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 @media (max-width: 576px) {
-    #viewHouseholdModal .household-head-tabs {
+    #viewHouseholdModal .household-head-tabs,
+    #householdModal .household-head-tabs {
         grid-template-columns: 1fr;
     }
 }
 
-/* Add-member block: separate from main form, no oversized empty list */
-#householdModal .hh-add-member-card {
-    background: #f8fafc;
-    border-color: #e2e8f0 !important;
+#householdModal .hh-edit-members-scroll {
+    max-height: 220px;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
 }
-#householdModal .hh-add-member-card .card-title {
-    font-size: 1rem;
-    font-weight: 600;
+
+#householdModal .hh-edit-members-table {
+    font-size: 0.8125rem;
+}
+
+#householdModal .hh-edit-members-table th {
+    white-space: nowrap;
+}
+
+#householdModal .hh-edit-members-table td.household-detail-actions {
+    vertical-align: middle;
+    width: 1%;
+    text-align: end;
+}
+
+#householdModal .hh-edit-members-table td.household-detail-actions .action-icon-btn + .action-icon-btn {
+    margin-left: 0.35rem;
+}
+
+#householdModal #editHouseholdAddMemberCollapse {
+    background: #f8fafc;
 }
 </style>
 
@@ -393,25 +430,7 @@ include __DIR__ . '/../includes/sidebar.php';
             <form id="householdForm">
                 <div class="modal-body">
                     <input type="hidden" id="householdId" name="id">
-                    <div class="card border-0 shadow-sm mb-3">
-                        <div class="card-header bg-primary text-white">
-                            <span><i class="bi bi-house-heart me-2"></i>Household Details</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-12">
-                                    <label for="family_head_id" class="form-label">Family Head (Resident ID)</label>
-                                    <select class="form-select" id="family_head_id" name="family_head_id">
-                                        <option value="">-- Select Resident --</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="registration_date" class="form-label">Registration Date</label>
-                                    <input type="date" class="form-control" id="registration_date" name="registration_date">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <input type="hidden" id="family_head_id" name="family_head_id" value="">
 
                     <div class="card border-0 shadow-sm">
                         <div class="card-header bg-light">
@@ -483,60 +502,79 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <label for="total_members" class="form-label">Total Members</label>
                                     <input type="number" min="0" class="form-control" id="total_members" name="total_members" value="0">
                                 </div>
+                                <div class="col-md-6">
+                                    <label for="registration_date" class="form-label">Registration Date</label>
+                                    <input type="date" class="form-control" id="registration_date" name="registration_date">
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div id="joinHouseholdSection" class="mt-3">
-                        <div class="card hh-add-member-card border shadow-sm">
-                            <div class="card-body">
-                                <h6 class="card-title mb-3"><i class="bi bi-person-plus me-1"></i> Add resident to household</h6>
-                                <label for="addMemberResidentSearch" class="form-label">Find resident</label>
-                                <div class="input-group mb-3">
-                                    <span class="input-group-text bg-white"><i class="bi bi-search" aria-hidden="true"></i></span>
-                                    <input type="search" class="form-control" id="addMemberResidentSearch" placeholder="Search by name or resident code…" autocomplete="off">
+                    <div id="editHouseholdMembersCard" class="card border-0 shadow-sm mb-3 d-none">
+                        <div class="card-header bg-light d-flex align-items-center justify-content-between flex-wrap gap-2 py-2 px-3">
+                            <strong class="mb-0"><i class="bi bi-people me-2"></i>Household members</strong>
+                            <button type="button" class="btn btn-sm btn-primary" id="btnToggleAddMemberEdit" data-bs-toggle="collapse" data-bs-target="#editHouseholdAddMemberCollapse" aria-expanded="false" aria-controls="editHouseholdAddMemberCollapse">
+                                <i class="bi bi-person-plus me-1"></i>Add member
+                            </button>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="editHouseholdMembersTableWrap" class="hh-edit-members-scroll">
+                                <div id="editHouseholdMembersHost" class="px-2 py-2 px-md-3"></div>
+                            </div>
+                            <p class="text-muted small mb-0 p-3 d-none" id="editHouseholdMembersEmpty">No members recorded yet.</p>
+                            <div class="collapse border-top" id="editHouseholdAddMemberCollapse">
+                                <div class="p-3 hh-add-member-inline">
+                                    <fieldset id="editHouseholdAddMemberFieldset" class="border-0 p-0 m-0 min-w-0">
+                                        <legend class="visually-hidden">Add resident to household</legend>
+                                        <label for="addMemberResidentSearch" class="form-label">Find resident</label>
+                                        <div class="input-group mb-3">
+                                            <span class="input-group-text bg-white"><i class="bi bi-search" aria-hidden="true"></i></span>
+                                            <input type="search" class="form-control" id="addMemberResidentSearch" placeholder="Search by name or resident code…" autocomplete="off">
+                                        </div>
+                                        <label for="addMemberResidentEdit" class="form-label">Resident</label>
+                                        <select class="form-select mb-3" id="addMemberResidentEdit" aria-label="Choose resident to add">
+                                            <option value="">— Choose a resident —</option>
+                                        </select>
+                                        <div class="mb-3" id="addMemberRelationshipGroup">
+                                            <label for="addMemberRelationshipToHead" class="form-label">Relationship to head</label>
+                                            <select class="form-select" id="addMemberRelationshipToHead">
+                                                <option value="">Select relationship</option>
+                                                <option value="Spouse">Spouse</option>
+                                                <option value="Son">Son</option>
+                                                <option value="Daughter">Daughter</option>
+                                                <option value="Mother">Mother</option>
+                                                <option value="Father">Father</option>
+                                                <option value="Brother">Brother</option>
+                                                <option value="Sister">Sister</option>
+                                                <option value="Grandchild">Grandchild</option>
+                                                <option value="Grandparent">Grandparent</option>
+                                                <option value="Son-in-Law">Son-in-Law</option>
+                                                <option value="Daughter-in-Law">Daughter-in-Law</option>
+                                                <option value="Sibling-in-Law">Sibling-in-Law</option>
+                                                <option value="Nephew">Nephew</option>
+                                                <option value="Niece">Niece</option>
+                                                <option value="Uncle">Uncle</option>
+                                                <option value="Aunt">Aunt</option>
+                                                <option value="Cousin">Cousin</option>
+                                                <option value="Boarder">Boarder</option>
+                                                <option value="Tenant">Tenant</option>
+                                                <option value="Helper">Helper</option>
+                                                <option value="Non-Relative">Non-Relative</option>
+                                                <option value="Other">Other</option>
+                                                <option value="Relative">Relative</option>
+                                                <option value="Member">Member</option>
+                                            </select>
+                                            <p class="small text-muted mb-0 mt-1 d-none" id="addMemberRelationshipHeadNote">This resident will be set as the household head; relationship is recorded as Head.</p>
+                                        </div>
+                                    </fieldset>
+                                    <button type="button" class="btn btn-primary mt-2" id="btnAddMemberEdit">
+                                        <i class="bi bi-person-plus me-1"></i>Add to household
+                                    </button>
                                 </div>
-                                <label for="addMemberResidentEdit" class="form-label">Resident</label>
-                                <select class="form-select mb-3" id="addMemberResidentEdit" aria-label="Choose resident to add">
-                                    <option value="">— Choose a resident —</option>
-                                </select>
-                                <div class="mb-3" id="addMemberRelationshipGroup">
-                                    <label for="addMemberRelationshipToHead" class="form-label">Relationship to head</label>
-                                    <select class="form-select" id="addMemberRelationshipToHead">
-                                        <option value="">Select relationship</option>
-                                        <option value="Spouse">Spouse</option>
-                                        <option value="Son">Son</option>
-                                        <option value="Daughter">Daughter</option>
-                                        <option value="Mother">Mother</option>
-                                        <option value="Father">Father</option>
-                                        <option value="Brother">Brother</option>
-                                        <option value="Sister">Sister</option>
-                                        <option value="Grandchild">Grandchild</option>
-                                        <option value="Grandparent">Grandparent</option>
-                                        <option value="Son-in-Law">Son-in-Law</option>
-                                        <option value="Daughter-in-Law">Daughter-in-Law</option>
-                                        <option value="Sibling-in-Law">Sibling-in-Law</option>
-                                        <option value="Nephew">Nephew</option>
-                                        <option value="Niece">Niece</option>
-                                        <option value="Uncle">Uncle</option>
-                                        <option value="Aunt">Aunt</option>
-                                        <option value="Cousin">Cousin</option>
-                                        <option value="Boarder">Boarder</option>
-                                        <option value="Tenant">Tenant</option>
-                                        <option value="Helper">Helper</option>
-                                        <option value="Non-Relative">Non-Relative</option>
-                                        <option value="Other">Other</option>
-                                        <option value="Relative">Relative</option>
-                                        <option value="Member">Member</option>
-                                    </select>
-                                    <p class="small text-muted mb-0 mt-1 d-none" id="addMemberRelationshipHeadNote">This resident will be set as the household head; relationship is recorded as Head.</p>
-                                </div>
-                                <button type="button" class="btn btn-primary w-100" id="btnAddMemberEdit">
-                                    <i class="bi bi-person-plus me-1"></i> Add to household
-                                </button>
                             </div>
                         </div>
                     </div>
+                    <p class="small text-muted border-top pt-2 mt-3 mb-0 px-1"><i class="bi bi-info-circle me-1"></i>Address, registration, and other fields above, and residents you add with <strong>Add member</strong>, are only written to the server when you click <strong>Save household details</strong>.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
