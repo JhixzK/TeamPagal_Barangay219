@@ -117,7 +117,19 @@ function ordinalDay(int $day): string {
     }
 }
 
+function formatOrdinalDateText(int $year, int $month, int $day): string {
+    if (!checkdate($month, $day, $year)) {
+        return '';
+    }
+    $ts = strtotime(sprintf('%04d-%02d-%02d', $year, $month, $day));
+    if ($ts === false) {
+        return '';
+    }
+    return ordinalDay((int)date('j', $ts)) . ' day of ' . date('F Y', $ts);
+}
+
 $issuedOrdinal = ordinalDay($issuedDay);
+$issuedDateBody = $issuedOrdinal . ' day of ' . $issuedMonthYear;
 
 $certificateBackgroundUrl = null;
 $backgroundCandidates = [
@@ -161,7 +173,7 @@ $placeholderValues = [
     '[NAME]' => $fullName,
     '[ADDRESS]' => $certAddress,
     '[PURPOSE]' => ($purposeText !== '' ? $purposeText : 'legal purpose'),
-    '[DATE_ISSUED]' => $issuedDate,
+    '[DATE_ISSUED]' => $issuedDateBody,
     '[CONTROL_NUMBER]' => $controlNum
 ];
 
@@ -312,6 +324,16 @@ if ($certBody !== '') {
     $resolvedBody = preg_replace('/(postal\s+address\s+at\s+[^.]*\bManila)\s*,\s*Manila(\.)/i', '$1$2', $resolvedBody) ?? $resolvedBody;
     // Remove Metro Manila suffix in address phrases for cleaner output.
     $resolvedBody = preg_replace('/,\s*Metro\s+Manila(\.)/i', '$1', $resolvedBody) ?? $resolvedBody;
+    // Convert legacy numeric dates in saved bodies (e.g., 03/23/2026) to ordinal long form.
+    $resolvedBody = preg_replace_callback('/\b(0?[1-9]|1[0-2])\/(0?[1-9]|[12]\d|3[01])\/(\d{4})\b/', function ($m) {
+        $formatted = formatOrdinalDateText((int)$m[3], (int)$m[1], (int)$m[2]);
+        return $formatted !== '' ? $formatted : $m[0];
+    }, $resolvedBody) ?? $resolvedBody;
+    // Convert ISO dates too, if present in older snapshots.
+    $resolvedBody = preg_replace_callback('/\b(\d{4})-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])\b/', function ($m) {
+        $formatted = formatOrdinalDateText((int)$m[1], (int)$m[2], (int)$m[3]);
+        return $formatted !== '' ? $formatted : $m[0];
+    }, $resolvedBody) ?? $resolvedBody;
     // Treat saved body as final snapshot text. Split by blank lines into printable paragraphs.
     $blocks = preg_split('/\R{2,}/', trim($resolvedBody));
     $paragraphs = [];
