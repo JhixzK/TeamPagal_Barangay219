@@ -162,6 +162,7 @@ function getUser() {
         
         unset($user['password']);
         $user['full_name'] = trim(($user['first_name'] ?? '') . ' ' . ($user['middle_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+        reconcileUserRoleWithOfficialsTable($db, $user);
         
         sendResponse(true, 'User retrieved successfully', $user);
         
