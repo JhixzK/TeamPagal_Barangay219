@@ -14,6 +14,62 @@ function blotterLimitError(): void {
     exit();
 }
 
+function normalizeRespondentsPayload($raw, string $fallback): array {
+    if ($raw === null || $raw === '') {
+        $name = trim($fallback);
+        return $name !== '' ? [[
+            'name' => sanitizeInput($name),
+            'address' => '',
+            'contact' => '',
+            'residency' => 'non_resident',
+            'resident_id' => null,
+        ]] : [];
+    }
+
+    $decoded = json_decode((string)$raw, true);
+    if (!is_array($decoded)) {
+        $name = trim((string)$raw);
+        return $name !== '' ? [[
+            'name' => sanitizeInput($name),
+            'address' => '',
+            'contact' => '',
+            'residency' => 'non_resident',
+            'resident_id' => null,
+        ]] : [];
+    }
+
+    $respondents = [];
+    foreach ($decoded as $entry) {
+        if (is_array($entry)) {
+            $name = sanitizeInput((string)($entry['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $respondents[] = [
+                'name' => $name,
+                'address' => sanitizeInput((string)($entry['address'] ?? '')),
+                'contact' => sanitizeInput((string)($entry['contact'] ?? '')),
+                'residency' => (($entry['residency'] ?? '') === 'resident') ? 'resident' : 'non_resident',
+                'resident_id' => isset($entry['resident_id']) ? (int)$entry['resident_id'] : null,
+            ];
+            continue;
+        }
+
+        $name = sanitizeInput((string)$entry);
+        if ($name !== '') {
+            $respondents[] = [
+                'name' => $name,
+                'address' => '',
+                'contact' => '',
+                'residency' => 'non_resident',
+                'resident_id' => null,
+            ];
+        }
+    }
+
+    return $respondents;
+}
+
 try {
     $complainantId = requireResidentSessionForBlotter();
     ensureBlotterRecordsSchema();
@@ -25,6 +81,7 @@ try {
     $narrative = sanitizeInput((string)($_POST['narrative'] ?? ''));
 
     $respondentNameRaw = sanitizeInput((string)($_POST['respondent_name_raw'] ?? ''));
+    $respondentsRaw = $_POST['respondents'] ?? null;
 
     $witnessesRaw = trim((string)($_POST['witnesses'] ?? ''));
     $isConfidential = ((string)($_POST['is_confidential'] ?? '0')) === '1' ? 1 : 0;
@@ -56,9 +113,17 @@ try {
     }
     $incidentDatetime = date('Y-m-d H:i:s', $incidentTs);
 
-    if ($respondentNameRaw === '') {
+    $respondents = normalizeRespondentsPayload($respondentsRaw, $respondentNameRaw);
+    if (empty($respondents)) {
         blotterJson(false, 'Respondent name is required.', null, 400);
     }
+    foreach ($respondents as $respondent) {
+        if (strlen((string)($respondent['name'] ?? '')) > 150) {
+            blotterLimitError();
+        }
+    }
+
+    $primaryRespondentName = (string)($respondents[0]['name'] ?? '');
 
     if ($incidentType === 'other' && $incidentTypeDetail === '') {
         blotterJson(false, 'Please specify the incident type detail for Other.', null, 400);
@@ -106,8 +171,8 @@ try {
             $incidentDatetime,
             $narrative,
             'pending',
-            $respondentNameRaw,
-            $respondentNameRaw,
+            $primaryRespondentName,
+            json_encode($respondents, JSON_UNESCAPED_UNICODE),
             null,
             $witnessesPayload,
             $isConfidential,
