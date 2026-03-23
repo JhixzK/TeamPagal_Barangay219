@@ -75,6 +75,12 @@ function calculateAge(dob) {
   return Math.max(0, age);
 }
 
+function occupationBadge(occupation) {
+  const t = (occupation || "").toString().trim();
+  const label = t || "—";
+  return `<span class="badge text-bg-light border">${escapeHtml(label)}</span>`;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setupEventListeners();
   loadHouseholdInfo();
@@ -239,7 +245,7 @@ function renderMembersTable(members, isHead) {
   if (!tbody) return;
 
   if (!members.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-row">No members found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-row">No members found.</td></tr>';
     return;
   }
 
@@ -260,6 +266,7 @@ function renderMembersTable(members, isHead) {
           <td>${roleBadge}</td>
           <td>${escapeHtml(member.sex || "-")}</td>
           <td>${member.age ?? calculateAge(member.date_of_birth) ?? "-"}</td>
+          <td>${occupationBadge(member.occupation)}</td>
           <td><span class="badge text-bg-light border">${escapeHtml(member.status || "Active")}</span></td>
         </tr>
       `;
@@ -391,7 +398,7 @@ function renderManageMembersTable(members) {
   const tbody = document.getElementById("manageMembersTableBody");
   if (!tbody) return;
   if (!members.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-row">No members found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-row">No members found.</td></tr>';
     return;
   }
 
@@ -442,6 +449,7 @@ function renderManageMembersTable(members) {
       <tr>
         <td>${escapeHtml(member.name || "Unknown")}${isSelf ? ' <span class="self-tag">(You)</span>' : ""}</td>
         <td>${roleBadge}</td>
+        <td>${occupationBadge(member.occupation)}</td>
         <td>${escapeHtml(age)}</td>
         <td>${escapeHtml(birthDateLabel)}</td>
         <td>${actions.join(" ")}</td>
