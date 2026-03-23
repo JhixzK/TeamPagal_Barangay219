@@ -44,7 +44,8 @@ function normalizeAlphaNum($value) {
 }
 
 function hasTable($db, $table) {
-    $row = $db->fetchOne('SHOW TABLES LIKE ?', [$table]);
+    $quotedTable = $db->getConnection()->quote($table);
+    $row = $db->fetchOne("SHOW TABLES LIKE {$quotedTable}");
     return !empty($row);
 }
 
