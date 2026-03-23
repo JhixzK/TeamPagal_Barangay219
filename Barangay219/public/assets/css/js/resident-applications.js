@@ -525,7 +525,9 @@ function viewApplication(id) {
             const proofDoc = buildFilePreview(proofPath, 'Proof of Residency');
 
             const roleInfo = getHouseholdRoleInfo(app);
-            const incomeDisplay = formatCurrency(app.household_income);
+            const incomeDisplay = formatCurrency(
+                (app.monthly_income != null && app.monthly_income !== '') ? app.monthly_income : app.household_income
+            );
             const specialCategories = buildSpecialCategories(app);
             document.getElementById('viewModalBody').innerHTML = `
                 <div class="row g-3">
@@ -545,7 +547,7 @@ function viewApplication(id) {
                     <div class="col-md-6"><strong>Education:</strong> ${esc(toTitleCase(app.educational_attainment || '-'))}</div>
                     <div class="col-md-6"><strong>Occupation:</strong> ${esc(toTitleCase(app.occupation || '-'))}</div>
                     <div class="col-md-6"><strong>Employment Status:</strong> ${esc(toTitleCase(app.employment_status || '-'))}</div>
-                    <div class="col-md-6"><strong>Monthly Income:</strong> ${incomeDisplay}</div>
+                    <div class="col-md-6"><strong>Monthly income (applicant):</strong> ${incomeDisplay}</div>
                     <div class="col-md-6"><strong>Residency Start:</strong> ${formatDate(app.residency_start_date)}</div>
                     <div class="col-md-6"><strong>Length of Residency:</strong> ${esc(app.length_of_residency || '-')}</div>
                     <div class="col-md-6"><strong>House Type:</strong> ${esc(toTitleCase(app.house_type || '-'))}</div>
