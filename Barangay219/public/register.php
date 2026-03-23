@@ -1559,8 +1559,10 @@ document.getElementById('registerForm').addEventListener('submit', async functio
             btn.style.display = 'none';
             document.getElementById('nextBtn').style.display = 'none';
             document.getElementById('prevBtn').style.display = 'none';
+            const stepIndicator = document.querySelector('.step-indicator');
             const finalStepContent = document.querySelector('.step-content[data-step="4"]');
             const finalStepIndicator = document.querySelector('.step[data-step="4"]');
+            if (stepIndicator) stepIndicator.style.display = 'none';
             if (finalStepContent) finalStepContent.style.display = 'none';
             if (finalStepIndicator) finalStepIndicator.style.display = 'none';
         } else {
