@@ -59,6 +59,18 @@ if ($isResidentSidebar) {
             'section' => 'Cases'
         ],
         [
+            'title' => 'Report Incident',
+            'icon' => 'bi-journal-plus',
+            'url' => 'report_incident.php',
+            'section' => 'Cases'
+        ],
+        [
+            'title' => 'My Blotters',
+            'icon' => 'bi-journal-check',
+            'url' => 'my_blotters.php',
+            'section' => 'Cases'
+        ],
+        [
             'title' => 'Announcements',
             'icon' => 'bi-megaphone',
             'url' => 'resident_announcements.php',
