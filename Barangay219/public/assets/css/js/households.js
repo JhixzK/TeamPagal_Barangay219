@@ -80,6 +80,82 @@ function memberMonthlyIncomeNote(m) {
     return '<span class="badge bg-light text-dark border ms-2">' + escapeHtml(toTitleCase(occ)) + '</span>';
 }
 
+/** Edit modal: add-member is enabled only after a successful "Save household details". */
+window.__editHouseholdAddUnlocked = false;
+
+function renderEditModalMembersList(h) {
+    const tbody = document.getElementById('editHouseholdMembersTbody');
+    const emptyEl = document.getElementById('editHouseholdMembersEmpty');
+    const wrap = document.getElementById('editHouseholdMembersTableWrap');
+    if (!tbody) return;
+    const members = Array.isArray(h.members) ? h.members.slice() : [];
+    const designatedHeadId = Number(h.family_head_id ?? 0);
+    const isHead = (m) => {
+        if (Number(m.id) === designatedHeadId) return true;
+        const hmHead = m.hm_is_head;
+        if (hmHead === 1 || hmHead === true || hmHead === '1') return true;
+        const rel = (m.relationship_to_head ?? m.hm_relationship_to_head ?? '').toString().toLowerCase();
+        if (rel.includes('head')) return true;
+        return false;
+    };
+    if (!members.length) {
+        tbody.innerHTML = '';
+        if (emptyEl) emptyEl.classList.remove('d-none');
+        if (wrap) wrap.classList.add('d-none');
+        return;
+    }
+    if (emptyEl) emptyEl.classList.add('d-none');
+    if (wrap) wrap.classList.remove('d-none');
+    members.sort((a, b) => {
+        const ah = isHead(a) ? 0 : 1;
+        const bh = isHead(b) ? 0 : 1;
+        if (ah !== bh) return ah - bh;
+        const na = `${a.last_name || ''}, ${a.first_name || ''}`.trim();
+        const nb = `${b.last_name || ''}, ${b.first_name || ''}`.trim();
+        return na.localeCompare(nb);
+    });
+    tbody.innerHTML = members.map((m) => {
+        const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
+        const head = isHead(m);
+        const role = head
+            ? '<span class="badge bg-primary">Head</span>'
+            : '<span class="badge bg-light text-dark border">Member</span>';
+        const rel = (m.relationship_to_head ?? m.hm_relationship_to_head ?? '').toString().trim();
+        const relDisp = head ? '—' : escapeHtml(toTitleCase(rel || '—'));
+        const sexRaw = (m.sex || m.gender || '').toString().trim();
+        const sexDisp = sexRaw ? escapeHtml(toTitleCase(sexRaw)) : '—';
+        const dob = m.birth_date || m.date_of_birth;
+        const ageVal = calculateAge(dob);
+        const ageDisp = typeof ageVal === 'number' && !Number.isNaN(ageVal) ? String(ageVal) : '—';
+        return `<tr><td>${escapeHtml(toTitleCase(name))}</td><td>${role}</td><td>${relDisp}</td><td>${sexDisp}</td><td>${ageDisp}</td></tr>`;
+    }).join('');
+}
+
+function setEditModalAddMemberLocked(locked) {
+    const fs = document.getElementById('editHouseholdAddMemberFieldset');
+    const hint = document.getElementById('editHouseholdAddMemberHint');
+    if (fs) fs.disabled = !!locked;
+    if (hint) hint.classList.toggle('d-none', !locked);
+}
+
+function refreshEditHouseholdModalData(householdId) {
+    const id = parseInt(householdId, 10) || 0;
+    if (id <= 0) return Promise.resolve();
+    return fetch(window.API_URL + 'households.php?action=get&id=' + encodeURIComponent(String(id)), HOUSEHOLD_FETCH_INIT)
+        .then(parseHouseholdApiJson)
+        .then((d) => {
+            if (!d.success || !d.data) return;
+            const h = d.data;
+            renderEditModalMembersList(h);
+            const tm = document.getElementById('total_members');
+            if (tm) {
+                tm.value = (h.total_members === null || typeof h.total_members === 'undefined') ? 0 : h.total_members;
+            }
+            loadResidentsForAddMember(id, (h.members || []).map((m) => m.id));
+            updateAddMemberRelationshipVisibility(h);
+        });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     initHouseholdTilesDelegation();
     renderBreadcrumb();
@@ -102,6 +178,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const addMemberEditBtn = document.getElementById('btnAddMemberEdit');
     if (addMemberEditBtn) {
         addMemberEditBtn.addEventListener('click', addMemberToHousehold);
+    }
+    const householdModalEl = document.getElementById('householdModal');
+    if (householdModalEl) {
+        householdModalEl.addEventListener('hidden.bs.modal', function () {
+            window.__editHouseholdAddUnlocked = false;
+            const hint = document.getElementById('editHouseholdAddMemberHint');
+            if (hint) hint.classList.add('d-none');
+            const fs = document.getElementById('editHouseholdAddMemberFieldset');
+            if (fs) fs.disabled = true;
+        });
     }
     const hhSearchInput = document.getElementById('hhHouseholdSearchInput');
     if (hhSearchInput) {
@@ -313,6 +399,9 @@ function newHouseholdForContext() {
     if (totalMembersGroup) totalMembersGroup.style.display = 'none';
     const joinSection = document.getElementById('joinHouseholdSection');
     if (joinSection) joinSection.style.display = 'none';
+    const memCardNew = document.getElementById('editHouseholdMembersCard');
+    if (memCardNew) memCardNew.classList.add('d-none');
+    window.__editHouseholdAddUnlocked = false;
     if (householdNavLevel === 'households' && selectedStreetToken && selectedStreetToken !== '__EMPTY__') {
         setStreetSelectValue(selectedStreetToken);
     }
@@ -675,7 +764,9 @@ document.addEventListener('change', function (e) {
 
 function saveHousehold() {
     applyTitleCaseToForm();
-    const householdId = document.getElementById('householdId').value;
+    const householdIdEl = document.getElementById('householdId');
+    const householdId = (householdIdEl.value || '').trim();
+    const isUpdate = !!householdId;
     if (!householdId && !HOUSEHOLD_PERMS.canCreate) { alert('Access denied'); return; }
     if (householdId && !HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
     const form = document.getElementById('householdForm');
@@ -688,10 +779,21 @@ function saveHousehold() {
         .then(r => r.json())
         .then(d => {
             if (d.success) {
-                bootstrap.Modal.getInstance(document.getElementById('householdModal')).hide();
-                refreshCurrentView();
-                form.reset();
-                document.getElementById('householdId').value = '';
+                if (isUpdate) {
+                    showHouseholdToast(d.message || 'Household saved.', 'success');
+                    refreshCurrentView();
+                    refreshEditHouseholdModalData(parseInt(householdId, 10))
+                        .then(() => {
+                            window.__editHouseholdAddUnlocked = true;
+                            setEditModalAddMemberLocked(false);
+                        });
+                } else {
+                    bootstrap.Modal.getInstance(document.getElementById('householdModal')).hide();
+                    refreshCurrentView();
+                    form.reset();
+                    householdIdEl.value = '';
+                    window.__editHouseholdAddUnlocked = false;
+                }
             } else {
                 alert('Error: ' + (d.message || 'Failed to save'));
             }
@@ -1124,6 +1226,11 @@ function updateAddMemberRelationshipVisibility(h) {
 
 function addMemberToHousehold() {
     if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
+    const formHid = (document.getElementById('householdId')?.value || '').trim();
+    if (formHid && !window.__editHouseholdAddUnlocked) {
+        alert('Save household details first (Save household details button). After saving, you can add members.');
+        return;
+    }
     const sel = document.getElementById('addMemberResidentEdit');
     if (!sel) { alert('Member selector not available'); return; }
     const residentId = sel.value;
@@ -1158,6 +1265,7 @@ function addMemberToHousehold() {
                     .then((householdData) => {
                         if (!householdData.success) return;
                         const h = householdData.data;
+                        renderEditModalMembersList(h);
                         loadResidentsForAddMember(parseInt(householdId, 10), (h.members || []).map(m => m.id));
                         updateAddMemberRelationshipVisibility(h);
                         const relSel = document.getElementById('addMemberRelationshipToHead');
@@ -1363,6 +1471,11 @@ function editHousehold(id) {
             if (totalMembersGroup) totalMembersGroup.style.display = '';
             const joinSection = document.getElementById('joinHouseholdSection');
             if (joinSection) joinSection.style.display = '';
+            const memCard = document.getElementById('editHouseholdMembersCard');
+            if (memCard) memCard.classList.remove('d-none');
+            window.__editHouseholdAddUnlocked = false;
+            renderEditModalMembersList(h);
+            setEditModalAddMemberLocked(true);
             loadResidentsForAddMember(h.id, (h.members || []).map(m => m.id));
             updateAddMemberRelationshipVisibility(h);
             new bootstrap.Modal(modalEl).show();
@@ -1385,6 +1498,19 @@ function resetForm() {
     document.getElementById('householdForm').reset();
     document.getElementById('householdId').value = '';
     document.getElementById('householdModalTitle').textContent = 'Edit Household';
+    window.__editHouseholdAddUnlocked = false;
+    const memCard = document.getElementById('editHouseholdMembersCard');
+    if (memCard) memCard.classList.add('d-none');
+    const editTbody = document.getElementById('editHouseholdMembersTbody');
+    if (editTbody) editTbody.innerHTML = '';
+    const editEmpty = document.getElementById('editHouseholdMembersEmpty');
+    const editWrap = document.getElementById('editHouseholdMembersTableWrap');
+    if (editEmpty) editEmpty.classList.add('d-none');
+    if (editWrap) editWrap.classList.remove('d-none');
+    const editHint = document.getElementById('editHouseholdAddMemberHint');
+    if (editHint) editHint.classList.add('d-none');
+    const editFs = document.getElementById('editHouseholdAddMemberFieldset');
+    if (editFs) editFs.disabled = false;
     const sel = document.getElementById('addMemberResidentEdit');
     if (sel) {
         sel.innerHTML = '<option value="">' + ADD_MEMBER_PLACEHOLDER + '</option>';
