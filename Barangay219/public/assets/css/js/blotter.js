@@ -57,12 +57,14 @@ const BLOTTER_PERMS = {
 let blotterFilters = { q: '', status: '', from: '', to: '' };
 let searchDebounceTimer = null;
 let residentDirectoryCache = null;
+let currentViewingCaseId = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     loadBlotters();
     initBlotterModal();
     applyBlotterPermissions();
     initBlotterStatFilters();
+    initDetailModalEditMode();
     
     // Add search functionality
     const searchInput = document.getElementById('searchInput');
@@ -197,6 +199,7 @@ function syncBlotterStatusTabs() {
 }
 
 function viewBlotter(id) {
+    currentViewingCaseId = id;
     fetch(`${window.API_URL}blotter.php?action=get&id=${id}`)
         .then(r => r.json())
         .then(d => {
@@ -266,6 +269,12 @@ function viewBlotter(id) {
                 document.getElementById('viewStatus').textContent = info.status || '-';
                 document.getElementById('viewSettlementDate').textContent = formatDate(info.settlement_date) || '-';
 
+                // Populate Admin Notes
+                const adminNotesEl = document.getElementById('viewAdminNotes');
+                if (adminNotesEl) {
+                    adminNotesEl.textContent = info.admin_updates || 'No admin notes yet.';
+                }
+
                 // Populate Hearings
                 let hearingsHTML = '';
                 if (Array.isArray(info.hearings) && info.hearings.length > 0) {
@@ -292,12 +301,348 @@ function viewBlotter(id) {
                 }
                 document.getElementById('viewHearingsInfo').innerHTML = hearingsHTML;
                 
+                // Load audit log
+                loadAuditLog(id);
+                
                 // Show modal
                 const modal = new bootstrap.Modal(document.getElementById('viewBlotterModal'));
                 modal.show();
             }
         })
         .catch(err => { console.error(err); alert('Error loading blotter details'); });
+}
+
+// Initialize detail modal edit/view mode functionality
+function initDetailModalEditMode() {
+    const modal = document.getElementById('viewBlotterModal');
+    if (!modal) return;
+
+    const btnEdit = document.getElementById('btnEnableEditMode');
+    const btnCancel = document.getElementById('btnCancelEdit');
+    const btnClearRespondent = document.getElementById('clearRespondentBtn');
+    const searchInput = document.getElementById('editRespondentSearch');
+    const caseForm = document.getElementById('caseDetailForm');
+    const viewContent = document.getElementById('viewModeContent');
+
+    if (btnEdit) {
+        btnEdit.addEventListener('click', () => enableEditMode());
+    }
+
+    if (btnCancel) {
+        btnCancel.addEventListener('click', () => disableEditMode());
+    }
+
+    if (btnClearRespondent) {
+        btnClearRespondent.addEventListener('click', () => {
+            document.getElementById('editRespondentId').value = '';
+            document.getElementById('editRespondentSearch').value = '';
+            document.getElementById('respondentSearchResults').style.display = 'none';
+        });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            searchResidentsForRespondent(e.target.value);
+        });
+
+        searchInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                document.getElementById('respondentSearchResults').style.display = 'none';
+            }, 200);
+        });
+
+        searchInput.addEventListener('focus', () => {
+            if (searchInput.value.trim()) {
+                searchResidentsForRespondent(searchInput.value);
+            }
+        });
+    }
+
+    if (caseForm) {
+        caseForm.addEventListener('submit', (e) => submitCaseDetailUpdate(e));
+    }
+}
+
+function enableEditMode() {
+    if (!currentViewingCaseId) {
+        alert('No case loaded');
+        return;
+    }
+
+    const caseForm = document.getElementById('caseDetailForm');
+    const viewContent = document.getElementById('viewModeContent');
+    const statusEl = document.getElementById('editStatus');
+    const adminNotesEl = document.getElementById('editAdminNotes');
+
+    if (viewContent && caseForm) {
+        viewContent.style.display = 'none';
+        caseForm.style.display = 'block';
+
+        // Populate form with current values
+        const currentStatus = document.getElementById('viewStatus').textContent || 'pending';
+        const currentAdminNotes = document.getElementById('viewAdminNotes').textContent || '';
+
+        document.getElementById('editCaseId').value = currentViewingCaseId;
+        if (statusEl) statusEl.value = mapAdminStatusToDB(currentStatus);
+        if (adminNotesEl) adminNotesEl.value = currentAdminNotes;
+
+        // Load resident directory for search
+        getResidentDirectory().then(residents => {
+            window.residentsForSearch = residents || [];
+        });
+    }
+}
+
+function disableEditMode() {
+    const caseForm = document.getElementById('caseDetailForm');
+    const viewContent = document.getElementById('viewModeContent');
+
+    if (caseForm && viewContent) {
+        caseForm.style.display = 'none';
+        viewContent.style.display = 'block';
+        caseForm.reset();
+    }
+}
+
+function searchResidentsForRespondent(keyword) {
+    const resultsContainer = document.getElementById('respondentSearchResults');
+    const residents = window.residentsForSearch || [];
+
+    if (!keyword.trim()) {
+        resultsContainer.innerHTML = '';
+        resultsContainer.style.display = 'none';
+        return;
+    }
+
+    const term = keyword.toLowerCase();
+    const filtered = residents.filter(r => {
+        const fullName = `${r.first_name || ''} ${r.middle_name || ''} ${r.last_name || ''}`.toLowerCase();
+        const code = (r.resident_code || '').toLowerCase();
+        return fullName.includes(term) || code.includes(term);
+    }).slice(0, 15);
+
+    if (filtered.length === 0) {
+        resultsContainer.innerHTML = '<div class="list-group-item text-muted small">No matching residents</div>';
+        resultsContainer.style.display = 'block';
+        return;
+    }
+
+    resultsContainer.innerHTML = filtered.map(r => {
+        const fullName = `${r.first_name} ${r.middle_name || ''} ${r.last_name}`.trim();
+        const address = (r.address || '').substring(0, 50);
+        return `<button type="button" class="list-group-item list-group-item-action" data-resident-id="${r.id}" onclick="selectRespondentFromSearch(${r.id}, '${escapeHtml(fullName)}'); return false;">
+            <div class="fw-semibold">${escapeHtml(fullName)}</div>
+            <div class="small text-muted">${escapeHtml(address)}${address.length >= 50 ? '...' : ''}</div>
+        </button>`;
+    }).join('');
+
+    resultsContainer.style.display = 'block';
+}
+
+function selectRespondentFromSearch(residentId, residentName) {
+    document.getElementById('editRespondentId').value = residentId;
+    document.getElementById('editRespondentSearch').value = residentName;
+    document.getElementById('respondentSearchResults').style.display = 'none';
+}
+
+function submitCaseDetailUpdate(e) {
+    e.preventDefault();
+
+    const caseId = document.getElementById('editCaseId').value;
+    const status = document.getElementById('editStatus').value;
+    const respondentId = document.getElementById('editRespondentId').value || '';
+    const adminNotes = document.getElementById('editAdminNotes').value;
+
+    const formData = new FormData();
+    formData.append('case_id', caseId);
+    formData.append('status', status);
+    if (respondentId) formData.append('respondent_id', respondentId);
+    formData.append('admin_notes', adminNotes);
+
+    fetch(window.API_URL + 'blotter/update_case.php', {
+        method: 'POST',
+        body: formData
+    })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                alert('Case updated successfully');
+                // Refresh the view data without closing/reopening modal
+                refreshBlotterDetailView(caseId);
+            } else {
+                alert('Error: ' + d.message);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error updating case: ' + err.message);
+        });
+}
+
+function refreshBlotterDetailView(caseId) {
+    // Fetch updated case data and refresh only the view section without remounting modal
+    fetch(`${window.API_URL}blotter.php?action=get&id=${caseId}`)
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                const info = d.data;
+                
+                // Update all view mode fields
+                document.getElementById('viewCaseTitle').textContent = toTitleCase(info.case_title || '-') || '-';
+                document.getElementById('viewIncidentDate').textContent = formatDate(info.incident_date) || '-';
+                document.getElementById('viewIncidentType').textContent = info.incident_type ? formatIncidentType(info.incident_type) : 'Not specified';
+                document.getElementById('viewIncidentLocation').textContent = toTitleCase(info.incident_location || '-') || '-';
+                document.getElementById('viewDescription').textContent = toTitleCase(info.description || '-') || '-';
+                
+                const proofPath = info.proof_of_incident_path || '';
+                const proofEl = document.getElementById('viewIncidentProof');
+                if (proofEl) {
+                    if (proofPath) {
+                        const href = proofPath.startsWith('http') ? proofPath : (window.location.origin + '/TeamPagal_Barangay219/Barangay219/public/' + String(proofPath).replace(/^\/+/, ''));
+                        proofEl.innerHTML = `<a href="${href}" target="_blank" rel="noopener">View Proof</a>`;
+                    } else {
+                        proofEl.textContent = 'No proof uploaded';
+                    }
+                }
+                
+                // Update Complainants
+                let complainantsHTML = '';
+                try {
+                    const comps = JSON.parse(info.complainant_name);
+                    if (Array.isArray(comps)) {
+                        complainantsHTML = comps.map((c, idx) => `
+                            <div class="card mb-2">
+                                <div class="card-body py-2">
+                                    <p class="mb-1"><strong>Complainant ${idx + 1}:</strong> ${toTitleCase(c.name || '-') || '-'}</p>
+                                    <p class="mb-1"><strong>Address:</strong> ${toTitleCase(c.address || '-') || '-'}</p>
+                                    <p class="mb-0"><strong>Contact:</strong> ${formatPhoneNumber(c.contact) || '-'}</p>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                } catch(e) {
+                    complainantsHTML = `<p>${toTitleCase(info.complainant_name || '-') || '-'}</p>`;
+                }
+                document.getElementById('viewComplainantsInfo').innerHTML = complainantsHTML || '<p>-</p>';
+                
+                // Update Respondents
+                let respondentsHTML = '';
+                try {
+                    const resps = JSON.parse(info.respondent_name);
+                    if (Array.isArray(resps)) {
+                        respondentsHTML = resps.map((r, idx) => `
+                            <div class="card mb-2">
+                                <div class="card-body py-2">
+                                    <p class="mb-1"><strong>Respondent ${idx + 1}:</strong> ${toTitleCase(r.name || '-') || '-'}</p>
+                                    <p class="mb-1"><strong>Address:</strong> ${toTitleCase(r.address || '-') || '-'}</p>
+                                    <p class="mb-0"><strong>Contact:</strong> ${formatPhoneNumber(r.contact) || '-'}</p>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                } catch(e) {
+                    respondentsHTML = `<p>${toTitleCase(info.respondent_name || '-') || '-'}</p>`;
+                }
+                document.getElementById('viewRespondentsInfo').innerHTML = respondentsHTML || '<p>-</p>';
+                
+                // Update Status and Settlement Date
+                document.getElementById('viewStatus').textContent = info.status || '-';
+                document.getElementById('viewSettlementDate').textContent = formatDate(info.settlement_date) || '-';
+                
+                // Update Admin Notes
+                const adminNotesEl = document.getElementById('viewAdminNotes');
+                if (adminNotesEl) {
+                    adminNotesEl.textContent = info.admin_updates || 'No admin notes yet.';
+                }
+                
+                // Update Hearings
+                let hearingsHTML = '';
+                if (Array.isArray(info.hearings) && info.hearings.length > 0) {
+                    hearingsHTML = info.hearings.map((h, idx) => {
+                        const hearingDate = formatDate(h.hearing_date);
+                        const nextHearingDate = formatDate(h.next_hearing_date);
+                        const status = h.status ? escapeHtml(h.status) : '-';
+                        const outcome = h.outcome ? escapeHtml(h.outcome) : '-';
+                        const notes = h.notes ? escapeHtml(h.notes) : '-';
+                        return `
+                            <div class="card mb-2">
+                                <div class="card-body py-2">
+                                    <p class="mb-1"><strong>Hearing ${idx + 1} Date:</strong> ${hearingDate}</p>
+                                    <p class="mb-1"><strong>Status:</strong> ${status}</p>
+                                    <p class="mb-1"><strong>Outcome:</strong> ${outcome}</p>
+                                    <p class="mb-1"><strong>Notes:</strong> ${notes}</p>
+                                    <p class="mb-0"><strong>Next Hearing:</strong> ${nextHearingDate}</p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    hearingsHTML = '<p>-</p>';
+                }
+                document.getElementById('viewHearingsInfo').innerHTML = hearingsHTML;
+                
+                // Reload audit log
+                loadAuditLog(caseId);
+                
+                // Switch back to view mode
+                disableEditMode();
+            }
+        })
+        .catch(err => {
+            console.error('Error refreshing blotter detail:', err);
+            alert('Error refreshing case details');
+        });
+}
+
+function loadAuditLog(caseId) {
+    fetch(window.API_URL + 'blotter/audit-log.php?case_id=' + caseId)
+        .then(r => r.json())
+        .then(d => {
+            const auditContainer = document.getElementById('viewAuditLog');
+            if (!auditContainer) return;
+
+            if (!d.success || !Array.isArray(d.data) || d.data.length === 0) {
+                auditContainer.innerHTML = '<p class="text-muted">No changes recorded yet.</p>';
+                return;
+            }
+
+            auditContainer.innerHTML = d.data
+                .slice()
+                .reverse()
+                .map(log => {
+                    const timestamp = new Date(log.timestamp).toLocaleString();
+                    const action = log.action === 'status_change' ? '🔄 Status Changed' :
+                                  log.action === 'respondent_link' ? '🔗 Respondent Linked' :
+                                  log.action === 'admin_notes' ? '📝 Notes Updated' : log.action;
+                    return `<div class="mb-2 pb-2 border-bottom">
+                        <strong>${action}</strong> by ${log.admin_name}<br>
+                        <small class="text-muted">${timestamp}</small><br>
+                        ${log.notes ? `<small>${escapeHtml(log.notes)}</small>` : ''}
+                    </div>`;
+                })
+                .join('');
+        })
+        .catch(err => {
+            console.error('Error loading audit log:', err);
+            const auditContainer = document.getElementById('viewAuditLog');
+            if (auditContainer) auditContainer.innerHTML = '<p class="text-muted">Unable to load audit log.</p>';
+        });
+}
+
+function mapAdminStatusToDB(adminStatus) {
+    const mapping = {
+        'Pending': 'pending',
+        'Under Investigation': 'investigation',
+        'Mediation': 'mediation',
+        'Settled': 'settled',
+        'Dismissed': 'dismissed',
+        'pending': 'pending',
+        'investigation': 'investigation',
+        'mediation': 'mediation',
+        'settled': 'settled',
+        'dismissed': 'dismissed'
+    };
+    return mapping[adminStatus] || 'pending';
 }
 
 function editBlotter(id) {
