@@ -12,7 +12,6 @@ $page_title = 'My Blotters';
 require_once __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
-<link rel="stylesheet" href="<?php echo BASE_URL; ?>my_requests.css?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/my_requests.css')); ?>">
 
 <div class="main-content module-page resident-my-blotters-page resident-theme">
   <div class="container-fluid">
@@ -73,9 +72,36 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .resident-my-blotters-page .table-card {
+  padding: 14px;
   border-radius: 14px;
   border: 1px solid #e2e8f0 !important;
   box-shadow: 0 8px 20px -12px rgba(15, 23, 42, 0.18);
+}
+
+.resident-my-blotters-page .table-wrap {
+  overflow-x: auto;
+}
+
+.resident-my-blotters-page .requests-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 720px;
+}
+
+.resident-my-blotters-page .requests-table th,
+.resident-my-blotters-page .requests-table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid #e2e9f4;
+  vertical-align: middle;
+}
+
+.resident-my-blotters-page .requests-table th {
+  font-size: 12px;
+  color: #637790;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .resident-my-blotters-page .blotter-table {
@@ -119,6 +145,12 @@ include __DIR__ . '/../includes/sidebar.php';
   background: #e5e7eb;
   color: #374151;
 }
+
+@media (max-width: 768px) {
+  .resident-my-blotters-page .dashboard-hero .card-body {
+    padding: 1rem;
+  }
+}
 </style>
 
 <script>
@@ -127,6 +159,8 @@ include __DIR__ . '/../includes/sidebar.php';
   const GET_API = '<?php echo API_URL; ?>blotter/get.php?id=';
   const rowsEl = document.getElementById('blotterRows');
   const detailBody = document.getElementById('blotterDetailBody');
+  const detailModalEl = document.getElementById('blotterDetailModal');
+  const detailModal = (window.bootstrap && detailModalEl) ? bootstrap.Modal.getOrCreateInstance(detailModalEl) : null;
 
   function labelize(value) {
     return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -232,11 +266,22 @@ include __DIR__ . '/../includes/sidebar.php';
             '<div class="col-12"><strong>Evidence:</strong><br>' + evidenceHtml + '</div>' +
           '</div>';
 
-        const modal = new bootstrap.Modal(document.getElementById('blotterDetailModal'));
-        modal.show();
+        if (detailModal) {
+          detailModal.show();
+        }
       })
       .catch(() => alert('Unable to load details right now.'));
   });
+
+  if (detailModalEl) {
+    detailModalEl.addEventListener('hidden.bs.modal', function () {
+      document.body.classList.remove('modal-open');
+      document.body.style.removeProperty('padding-right');
+      document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+        el.remove();
+      });
+    });
+  }
 
   const params = new URLSearchParams(window.location.search);
   const submitted = params.get('submitted');
