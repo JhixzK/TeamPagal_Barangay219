@@ -973,7 +973,6 @@ function approveApplication() {
 
         // Create user account with Resident ID as username, placeholder password until activation
         $activationToken = bin2hex(random_bytes(32));
-        $activationExpires = date('Y-m-d H:i:s', strtotime('+7 days'));
         $placeholderHash = password_hash('PENDING_' . $activationToken, PASSWORD_DEFAULT);
 
         $userData = [
@@ -982,9 +981,7 @@ function approveApplication() {
             'email' => $app['email'] ?? null,
             'role' => ROLE_RESIDENT,
             'resident_id' => $residentId,
-            'status' => 'active',
-            'activation_token' => $activationToken,
-            'activation_expires' => $activationExpires
+            'status' => 'active'
         ];
         $userInsertCols = [];
         $userInsertParams = [];
@@ -999,7 +996,13 @@ function approveApplication() {
         }
         $userColSql = '`' . implode('`,`', $userInsertCols) . '`';
         $userPlaceholders = implode(',', array_fill(0, count($userInsertCols), '?'));
-        $db->query("INSERT INTO users ($userColSql) VALUES ($userPlaceholders)", $userInsertParams);
+        
+        // Use database time for activation expiry to ensure timezone consistency
+        $db->query("INSERT INTO users ($userColSql, activation_token, activation_expires) VALUES ("
+            . implode(',', array_fill(0, count($userInsertCols), '?')) 
+            . ", ?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 7 DAY))", 
+            array_merge($userInsertParams, [$activationToken])
+        );
 
         // Update application
         $updates = ["`$statusCol`='approved'"];
