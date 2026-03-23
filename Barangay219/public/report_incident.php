@@ -45,6 +45,10 @@ include __DIR__ . '/../includes/sidebar.php';
             <option value="public_disturbance">Public Disturbance</option>
             <option value="other">Other</option>
           </select>
+          <div class="mt-2 d-none" id="otherTypeContainer">
+            <label class="form-label mb-1" for="incident_type_detail">Please specify incident type</label>
+            <input type="text" class="form-control" id="incident_type_detail" name="incident_type_detail" maxlength="100" placeholder="e.g., Illegal Parking">
+          </div>
         </div>
         <div class="col-md-6">
           <label class="form-label">Action Requested</label>
@@ -68,19 +72,20 @@ include __DIR__ . '/../includes/sidebar.php';
           <label class="form-label d-flex align-items-center gap-2">
             Respondent (Person Reported) <span class="text-danger">*</span>
           </label>
-          <input type="text" class="form-control" id="respondentNameRaw" name="respondent_name_raw" maxlength="255" required placeholder="Enter respondent full name">
+          <input type="text" class="form-control" id="respondentNameRaw" name="respondent_name_raw" maxlength="150" required placeholder="Enter respondent full name">
           <small class="text-muted">For privacy, resident records are not shown on this page.</small>
         </div>
 
         <div class="col-12">
           <label class="form-label">Witnesses (Optional)</label>
-          <textarea class="form-control" id="witnesses" name="witnesses" rows="3" placeholder="Example:&#10;Juan Dela Cruz - Nickname 'Jun' - 09171234567&#10;Aling Nena (Sari-sari store owner across the street)"></textarea>
+          <textarea class="form-control" id="witnesses" name="witnesses" rows="3" maxlength="1000" placeholder="Example:&#10;Juan Dela Cruz - Nickname 'Jun' - 09171234567&#10;Aling Nena (Sari-sari store owner across the street)"></textarea>
           <small class="text-muted">Include nicknames, descriptions, or contact numbers to help the Barangay locate them faster.</small>
         </div>
 
         <div class="col-12">
           <label class="form-label">Incident Narrative <span class="text-danger">*</span></label>
-          <textarea class="form-control" id="narrative" name="narrative" rows="6" maxlength="5000" required placeholder="Describe what happened, where, and when."></textarea>
+          <textarea class="form-control" id="narrative" name="narrative" rows="6" maxlength="3000" required placeholder="Describe what happened, where, and when."></textarea>
+          <small id="narrativeCounter" class="small text-muted">0 / 3000 characters</small>
         </div>
 
         <div class="col-md-8">
@@ -109,19 +114,53 @@ include __DIR__ . '/../includes/sidebar.php';
   </div>
 </div>
 
+<style>
+.resident-incident-page textarea.form-control {
+  resize: none;
+}
+</style>
+
 <script>
 (function () {
   const API_CREATE = '<?php echo API_URL; ?>blotter/create.php';
 
   const form = document.getElementById('incidentForm');
   const btn = document.getElementById('submitIncidentBtn');
+  const incidentType = document.getElementById('incidentType');
+  const otherTypeContainer = document.getElementById('otherTypeContainer');
+  const incidentTypeDetail = document.getElementById('incident_type_detail');
   const respondentNameRaw = document.getElementById('respondentNameRaw');
+  const narrative = document.getElementById('narrative');
+  const narrativeCounter = document.getElementById('narrativeCounter');
 
   function todayBadge() {
     const b = document.getElementById('mainDateBadge');
     if (!b) return;
     const now = new Date();
     b.innerHTML = '<i class="bi bi-calendar3 me-1"></i>' + now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+  }
+
+  function toggleOtherIncidentType() {
+    const value = String(incidentType?.value || '').toLowerCase();
+    const isOther = value === 'other';
+    otherTypeContainer.classList.toggle('d-none', !isOther);
+    incidentTypeDetail.required = isOther;
+    if (!isOther) {
+      incidentTypeDetail.value = '';
+    }
+  }
+
+  function updateNarrativeCounter() {
+    const max = 3000;
+    const len = String(narrative?.value || '').length;
+    narrativeCounter.textContent = len + ' / ' + max + ' characters';
+    if (len >= max) {
+      narrativeCounter.classList.remove('text-muted');
+      narrativeCounter.classList.add('text-danger');
+    } else {
+      narrativeCounter.classList.remove('text-danger');
+      narrativeCounter.classList.add('text-muted');
+    }
   }
 
   form.addEventListener('submit', function (e) {
@@ -143,7 +182,7 @@ include __DIR__ . '/../includes/sidebar.php';
       .then(r => r.json())
       .then(d => {
         btn.disabled = false;
-        if (!d.success) {
+        if (d?.status === 'error' || d?.success === false || !d?.success) {
           alert(d.message || 'Submission failed.');
           return;
         }
@@ -160,7 +199,12 @@ include __DIR__ . '/../includes/sidebar.php';
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
   }
 
+  incidentType.addEventListener('change', toggleOtherIncidentType);
+  narrative.addEventListener('input', updateNarrativeCounter);
+
   todayBadge();
+  toggleOtherIncidentType();
+  updateNarrativeCounter();
 })();
 </script>
 
