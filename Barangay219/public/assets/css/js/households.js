@@ -62,6 +62,40 @@ function parseHouseholdApiJson(r) {
     });
 }
 
+/**
+ * Always use getOrCreateInstance for #householdModal. Each `new bootstrap.Modal(el)` overwrites the
+ * stored instance with a fresh object where _isShown is false, so hide() becomes a no-op while the dialog stays visible.
+ */
+function showHouseholdFormModal() {
+    const el = document.getElementById('householdModal');
+    if (el && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(el).show();
+    }
+}
+
+function hideHouseholdFormModal() {
+    const el = document.getElementById('householdModal');
+    if (!el || typeof bootstrap === 'undefined' || !bootstrap.Modal) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(el);
+    modal.hide();
+    window.setTimeout(function () {
+        if (!el.classList.contains('show')) return;
+        el.classList.remove('show');
+        el.setAttribute('aria-hidden', 'true');
+        el.removeAttribute('aria-modal');
+        el.removeAttribute('role');
+        el.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('padding-right');
+        document.querySelectorAll('.modal-backdrop').forEach(function (b) {
+            b.remove();
+        });
+        try {
+            modal.dispose();
+        } catch (e) { /* ignore */ }
+    }, 450);
+}
+
 function householdIndigentBadge(status) {
     if (status === 'indigent') {
         return '<span class="badge rounded-pill bg-white text-dark border border-warning">Indigent</span>';
@@ -78,6 +112,334 @@ function memberMonthlyIncomeNote(m) {
         return '<span class="badge bg-light text-secondary border ms-2">—</span>';
     }
     return '<span class="badge bg-light text-dark border ms-2">' + escapeHtml(toTitleCase(occ)) + '</span>';
+}
+
+function refreshEditHouseholdModalData(householdId) {
+    const id = parseInt(householdId, 10) || 0;
+    if (id <= 0) return Promise.resolve();
+    return fetch(window.API_URL + 'households.php?action=get&id=' + encodeURIComponent(String(id)), HOUSEHOLD_FETCH_INIT)
+        .then(parseHouseholdApiJson)
+        .then((d) => {
+            if (!d.success || !d.data) return;
+            const h = d.data;
+            window.__editHouseholdLastPayload = h;
+            renderEditModalMembersList(h);
+            const tm = document.getElementById('total_members');
+            if (tm) {
+                tm.value = (h.total_members === null || typeof h.total_members === 'undefined') ? 0 : h.total_members;
+            }
+            loadResidentsForAddMember(id, (h.members || []).map((m) => m.id));
+            updateAddMemberRelationshipVisibility(h);
+        });
+}
+
+/**
+ * Group residents by family head (same rules as view household: family_head_resident_id, family_code, primary head bucket).
+ */
+function computeHouseholdHeadGroups(h) {
+    const members = Array.isArray(h.members) ? h.members : [];
+    const designatedHeadId = Number(h.family_head_id ?? 0);
+    const householdFhCode = ((h.family_head_code ?? '').toString().trim() || '-');
+
+    const isHead = (m) => {
+        if (Number(m.id) === designatedHeadId) return true;
+        const hmHead = m.hm_is_head;
+        if (hmHead === 1 || hmHead === true || hmHead === '1') return true;
+        const rel = (m.relationship_to_head ?? m.hm_relationship_to_head ?? '').toString().toLowerCase();
+        if (rel.includes('head')) return true;
+        return false;
+    };
+
+    const heads = members.filter(isHead);
+    if (designatedHeadId > 0) {
+        heads.sort((a, b) => (Number(b.id) === designatedHeadId ? 1 : 0) - (Number(a.id) === designatedHeadId ? 1 : 0));
+    }
+    const memberList = members.filter((m) => !isHead(m));
+
+    const getFamilyCode = (m) => (m.family_code ?? '').toString().trim();
+    const getMemberHeadRef = (m) => Number(m.family_head_resident_id || 0);
+    const shownMemberIds = new Set();
+
+    const headGroups = heads.map((head, idx) => {
+        const headResidentId = Number(head.id);
+        const headOwnFhc = (head.family_head_code ?? '').toString().trim();
+        const headDisplayCode = (headOwnFhc !== '' && headOwnFhc !== '-') ? headOwnFhc : householdFhCode;
+        const headFc = getFamilyCode(head);
+        const headMembers = memberList.filter((m) => {
+            if (shownMemberIds.has(Number(m.id))) return false;
+            const ref = getMemberHeadRef(m);
+            if (ref > 0) {
+                if (ref === headResidentId) { shownMemberIds.add(Number(m.id)); return true; }
+                return false;
+            }
+            if (headFc && getFamilyCode(m) === headFc) { shownMemberIds.add(Number(m.id)); return true; }
+            return false;
+        });
+        const isPrimary = Number(head.id) === designatedHeadId;
+        return { head, idx, headDisplayCode, headMembers, isPrimary, headResidentId };
+    });
+
+    const remainingMembers = memberList.filter((m) => !shownMemberIds.has(Number(m.id)));
+    if (remainingMembers.length > 0 && headGroups.length > 0) {
+        const primaryGroup = headGroups.find((g) => g.isPrimary) || headGroups[0];
+        remainingMembers.forEach((m) => {
+            primaryGroup.headMembers.push(m);
+            shownMemberIds.add(Number(m.id));
+        });
+    }
+    const ungrouped = memberList.filter((m) => !shownMemberIds.has(Number(m.id)));
+
+    return {
+        members,
+        heads,
+        headGroups,
+        ungrouped,
+        designatedHeadId,
+        householdFhCode,
+        isHead
+    };
+}
+
+function editModalMemberTableHead() {
+    return `<thead class="table-light"><tr>
+        <th>Name</th>
+        <th>Role</th>
+        <th>Relationship</th>
+        <th>Sex</th>
+        <th>Age</th>
+        <th class="text-end">Actions</th>
+    </tr></thead>`;
+}
+
+function editModalRowHtml(m, asHead, ctx) {
+    const allowEdit = !!(ctx && ctx.allowEdit);
+    const transferTargetHeadId = ctx && ctx.transferTargetHeadId ? Number(ctx.transferTargetHeadId) : 0;
+    const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
+    const role = asHead
+        ? '<span class="badge bg-primary">Head</span>'
+        : '<span class="badge bg-light text-dark border">Member</span>';
+    const rel = (m.relationship_to_head ?? m.hm_relationship_to_head ?? '').toString().trim();
+    const relDisp = asHead ? '—' : escapeHtml(toTitleCase(rel || '—'));
+    const sexRaw = (m.sex || m.gender || '').toString().trim();
+    const sexDisp = sexRaw ? escapeHtml(toTitleCase(sexRaw)) : '—';
+    const dob = m.birth_date || m.date_of_birth;
+    const ageVal = calculateAge(dob);
+    const ageDisp = typeof ageVal === 'number' && !Number.isNaN(ageVal) ? String(ageVal) : '—';
+    let actionsHtml = '';
+    if (allowEdit) {
+        if (asHead) {
+            actionsHtml = `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${Number(m.id)})"><i class="bi bi-person-dash"></i></button>`;
+        } else {
+            const canTransfer = transferTargetHeadId > 0 && residentMeetsMinimumHeadAge(m);
+            const transferBtn = canTransfer
+                ? `<button type="button" class="action-icon-btn" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${Number(m.id)}, ${transferTargetHeadId})"><i class="bi bi-person-badge"></i></button>`
+                : '';
+            const removeBtn = `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${Number(m.id)})"><i class="bi bi-person-dash"></i></button>`;
+            actionsHtml = transferBtn + removeBtn;
+        }
+    }
+    return `<tr><td>${escapeHtml(toTitleCase(name))}</td><td>${role}</td><td>${relDisp}</td><td>${sexDisp}</td><td>${ageDisp}</td><td class="text-end text-nowrap household-detail-actions">${actionsHtml}</td></tr>`;
+}
+
+function getEditHouseholdPendingAdds() {
+    if (!Array.isArray(window.__editHouseholdPendingAdds)) {
+        window.__editHouseholdPendingAdds = [];
+    }
+    return window.__editHouseholdPendingAdds;
+}
+
+function clearEditHouseholdPendingAdds() {
+    window.__editHouseholdPendingAdds = [];
+}
+
+function editModalPendingRowHtml(p) {
+    const rel = escapeHtml(toTitleCase((p.relationship || '').trim() || '—'));
+    const name = escapeHtml((p.displayName || '').trim() || '—');
+    return `<tr><td>${name}</td><td><span class="badge bg-light text-dark border">Member</span> <span class="badge bg-secondary">Pending save</span></td><td>${rel}</td><td>—</td><td>—</td><td class="text-muted small text-end">—</td></tr>`;
+}
+
+function appendPendingMembersSectionHtml(options) {
+    const pending = getEditHouseholdPendingAdds();
+    if (!pending.length) return '';
+    const onlyPending = options && options.onlyPending;
+    const wrapClass = onlyPending ? 'px-2 px-md-3 pb-3 pt-2' : 'mt-3 pt-2 border-top px-2 px-md-3 pb-3';
+    const rows = pending.map(editModalPendingRowHtml).join('');
+    const tableInner = `<table class="table table-sm table-hover mb-0 hh-edit-members-table">${editModalMemberTableHead()}<tbody>${rows}</tbody></table>`;
+    return `<div class="${wrapClass}">
+        <p class="small text-warning mb-2"><i class="bi bi-hourglass-split me-1"></i>Not saved yet — included when you click <strong>Save household details</strong>.</p>
+        ${tableInner}
+    </div>`;
+}
+
+function flushPendingMemberAdds(householdId) {
+    const pending = getEditHouseholdPendingAdds();
+    if (!pending.length) return Promise.resolve({ ok: true });
+    const hid = parseInt(householdId, 10) || 0;
+    if (hid <= 0) return Promise.resolve({ ok: false, message: 'Invalid household' });
+
+    function addNext() {
+        if (!pending.length) {
+            return Promise.resolve({ ok: true });
+        }
+        const item = pending[0];
+        const fd = new FormData();
+        fd.append('action', 'add_member');
+        fd.append('household_id', String(hid));
+        fd.append('resident_id', String(item.resident_id));
+        fd.append('relationship_to_head', item.relationship || '');
+        return fetch(window.API_URL + 'households.php', Object.assign({ method: 'POST', body: fd }, HOUSEHOLD_FETCH_INIT))
+            .then(parseHouseholdApiJson)
+            .then((res) => {
+                if (!res.success) {
+                    return { ok: false, message: res.message || 'Failed to add a resident' };
+                }
+                pending.shift();
+                return addNext();
+            })
+            .catch((err) => ({
+                ok: false,
+                message: (err && err.message) ? err.message : 'Network error while adding members'
+            }));
+    }
+
+    return addNext();
+}
+
+function renderEditModalMembersList(h) {
+    const host = document.getElementById('editHouseholdMembersHost');
+    const emptyEl = document.getElementById('editHouseholdMembersEmpty');
+    const wrap = document.getElementById('editHouseholdMembersTableWrap');
+    if (!host) return;
+
+    const pending = getEditHouseholdPendingAdds();
+    const { members, headGroups, ungrouped, isHead, designatedHeadId } = computeHouseholdHeadGroups(h);
+    const allowEdit = HOUSEHOLD_PERMS.canEdit;
+    const rowCtx = (transferTargetHeadId) => ({ allowEdit, transferTargetHeadId });
+
+    if (!members.length && !pending.length) {
+        host.innerHTML = '';
+        if (emptyEl) emptyEl.classList.remove('d-none');
+        if (wrap) wrap.classList.add('d-none');
+        return;
+    }
+    if (emptyEl) emptyEl.classList.add('d-none');
+    if (wrap) wrap.classList.remove('d-none');
+
+    if (!members.length && pending.length) {
+        host.innerHTML = '<p class="small text-muted mb-2 pt-2">No saved members on file yet.</p>' +
+            appendPendingMembersSectionHtml({ onlyPending: true });
+        return;
+    }
+
+    const toName = (m) => {
+        const n = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
+        return toTitleCase(n);
+    };
+
+    const tableShell = (tbodyInner) =>
+        `<table class="table table-sm table-hover mb-0 hh-edit-members-table">${editModalMemberTableHead()}<tbody>${tbodyInner}</tbody></table>`;
+
+    let html = '';
+
+    if (headGroups.length === 0) {
+        const sorted = members.slice().sort((a, b) => {
+            const na = `${a.last_name || ''}, ${a.first_name || ''}`.trim();
+            const nb = `${b.last_name || ''}, ${b.first_name || ''}`.trim();
+            return na.localeCompare(nb);
+        });
+        html += '<p class="small text-muted mb-2 mb-md-3">All household members</p>';
+        html += tableShell(sorted.map((m) => {
+            const asHead = isHead(m);
+            const tt = !asHead && designatedHeadId > 0 ? designatedHeadId : 0;
+            return editModalRowHtml(m, asHead, rowCtx(tt));
+        }).join(''));
+    } else if (headGroups.length === 1) {
+        const g = headGroups[0];
+        const sub = [editModalRowHtml(g.head, true, rowCtx(0))]
+            .concat(
+                g.headMembers
+                    .slice()
+                    .sort((a, b) => {
+                        const na = `${a.last_name || ''}, ${a.first_name || ''}`.trim();
+                        const nb = `${b.last_name || ''}, ${b.first_name || ''}`.trim();
+                        return na.localeCompare(nb);
+                    })
+                    .map((m) => editModalRowHtml(m, false, rowCtx(Number(g.head.id))))
+            )
+            .join('');
+        html += `<p class="small fw-semibold text-secondary mb-2">${escapeHtml(toName(g.head))} <span class="badge bg-primary">Head</span> <span class="text-muted fw-normal">(${escapeHtml(g.headDisplayCode)})</span></p>`;
+        html += tableShell(sub);
+        if (ungrouped.length) {
+            html += '<p class="small fw-semibold text-secondary mt-3 mb-2">Unassigned to a family head</p>';
+            html += tableShell(
+                ungrouped
+                    .slice()
+                    .sort((a, b) => {
+                        const na = `${a.last_name || ''}, ${a.first_name || ''}`.trim();
+                        const nb = `${b.last_name || ''}, ${b.first_name || ''}`.trim();
+                        return na.localeCompare(nb);
+                    })
+                    .map((m) => editModalRowHtml(m, false, rowCtx(designatedHeadId > 0 ? designatedHeadId : 0)))
+                    .join('')
+            );
+        }
+    } else {
+        html += '<p class="small text-muted mb-2">One table per family head — switch tabs to see each group.</p>';
+        html += '<ul class="nav household-head-tabs mb-2" role="tablist">';
+        let panes = '<div class="tab-content">';
+        headGroups.forEach((g, i) => {
+            const tabId = 'hhEditHeadTab' + i;
+            const paneId = 'hhEditHeadPane' + i;
+            const active = i === 0;
+            const label = toName(g.head);
+            html += `<li class="nav-item" role="presentation">
+                <button class="nav-link${active ? ' active' : ''}" id="${tabId}" data-bs-toggle="pill" data-bs-target="#${paneId}" type="button" role="tab" aria-controls="${paneId}" aria-selected="${active ? 'true' : 'false'}">
+                    <span class="household-head-tab-label">${escapeHtml(label)}</span>
+                </button>
+            </li>`;
+            const sub = [editModalRowHtml(g.head, true, rowCtx(0))]
+                .concat(
+                    g.headMembers
+                        .slice()
+                        .sort((a, b) => {
+                            const na = `${a.last_name || ''}, ${a.first_name || ''}`.trim();
+                            const nb = `${b.last_name || ''}, ${b.first_name || ''}`.trim();
+                            return na.localeCompare(nb);
+                        })
+                        .map((m) => editModalRowHtml(m, false, rowCtx(Number(g.head.id))))
+                )
+                .join('');
+            panes += `<div class="tab-pane fade${active ? ' show active' : ''}" id="${paneId}" role="tabpanel" aria-labelledby="${tabId}">${tableShell(sub)}</div>`;
+        });
+        if (ungrouped.length) {
+            const ugTab = 'hhEditHeadTabUngrouped';
+            const ugPane = 'hhEditHeadPaneUngrouped';
+            html += `<li class="nav-item" role="presentation">
+                <button class="nav-link" id="${ugTab}" data-bs-toggle="pill" data-bs-target="#${ugPane}" type="button" role="tab" aria-controls="${ugPane}" aria-selected="false">
+                    <span class="household-head-tab-label">Unassigned</span>
+                </button>
+            </li>`;
+            panes += `<div class="tab-pane fade" id="${ugPane}" role="tabpanel" aria-labelledby="${ugTab}">
+                <p class="small text-muted mb-2">Members not linked to a specific head.</p>
+                ${tableShell(
+                    ungrouped
+                        .slice()
+                        .sort((a, b) => {
+                            const na = `${a.last_name || ''}, ${a.first_name || ''}`.trim();
+                            const nb = `${b.last_name || ''}, ${b.first_name || ''}`.trim();
+                            return na.localeCompare(nb);
+                        })
+                        .map((m) => editModalRowHtml(m, false, rowCtx(designatedHeadId > 0 ? designatedHeadId : 0)))
+                        .join('')
+                )}
+            </div>`;
+        }
+        html += '</ul>';
+        panes += '</div>';
+        html += panes;
+    }
+
+    host.innerHTML = html;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -102,6 +464,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const addMemberEditBtn = document.getElementById('btnAddMemberEdit');
     if (addMemberEditBtn) {
         addMemberEditBtn.addEventListener('click', addMemberToHousehold);
+    }
+    const householdModalEl = document.getElementById('householdModal');
+    if (householdModalEl) {
+        householdModalEl.addEventListener('hidden.bs.modal', function () {
+            clearEditHouseholdPendingAdds();
+            delete window.__editHouseholdLastPayload;
+            const collapseEl = document.getElementById('editHouseholdAddMemberCollapse');
+            if (collapseEl && typeof bootstrap !== 'undefined') {
+                const inst = bootstrap.Collapse.getInstance(collapseEl);
+                if (inst) inst.hide();
+            }
+        });
     }
     const hhSearchInput = document.getElementById('hhHouseholdSearchInput');
     if (hhSearchInput) {
@@ -311,12 +685,12 @@ function newHouseholdForContext() {
     if (reg && !reg.value) reg.value = formatDateInput(new Date());
     const totalMembersGroup = document.getElementById('totalMembersGroup');
     if (totalMembersGroup) totalMembersGroup.style.display = 'none';
-    const joinSection = document.getElementById('joinHouseholdSection');
-    if (joinSection) joinSection.style.display = 'none';
+    const memCardNew = document.getElementById('editHouseholdMembersCard');
+    if (memCardNew) memCardNew.classList.add('d-none');
     if (householdNavLevel === 'households' && selectedStreetToken && selectedStreetToken !== '__EMPTY__') {
         setStreetSelectValue(selectedStreetToken);
     }
-    new bootstrap.Modal(document.getElementById('householdModal')).show();
+    showHouseholdFormModal();
     loadResidentsForDropdown();
 }
 
@@ -333,6 +707,8 @@ function applyHouseholdPermissions() {
     if (!HOUSEHOLD_PERMS.canEdit) {
         const addMemberBtn = document.getElementById('btnAddMemberEdit');
         if (addMemberBtn) addMemberBtn.style.display = 'none';
+        const toggleAdd = document.getElementById('btnToggleAddMemberEdit');
+        if (toggleAdd) toggleAdd.style.display = 'none';
     }
 }
 
@@ -445,79 +821,6 @@ function loadHouseholds() {
         });
 }
 
-function buildFamilyHeadOptionHtml(r) {
-    const name = `${r.last_name || ''}, ${r.first_name || ''} ${r.middle_name || ''}`.trim();
-    const fullAddress = (r.address || r.household_address || '').trim();
-    const houseNumber = r.house_number || '';
-    const street = r.street || '';
-    const purok = r.purok_sitio || '';
-    const regHt = (r.registration_house_type ?? '').toString();
-    const regOwn = (r.registration_house_ownership ?? '').toString();
-    const hhHt = (r.current_household_house_type ?? '').toString();
-    const hhHs = (r.current_household_housing_status ?? '').toString();
-    return `<option value="${r.id}"
-                data-address="${escapeHtml(fullAddress)}"
-                data-house-number="${escapeHtml(houseNumber)}"
-                data-street="${escapeHtml(street)}"
-                data-purok="${escapeHtml(purok)}"
-                data-reg-house-type="${escapeHtml(regHt)}"
-                data-reg-house-ownership="${escapeHtml(regOwn)}"
-                data-hh-house-type="${escapeHtml(hhHt)}"
-                data-hh-housing-status="${escapeHtml(hhHs)}"
-            >${escapeHtml(toTitleCase(name))}</option>`;
-}
-
-/** Same rules as view household: designated head, hm_is_head, or relationship containing "head". */
-function isHouseholdMemberHead(m, designatedHeadId) {
-    if (Number(m.id) === designatedHeadId) return true;
-    const hmHead = m.hm_is_head;
-    if (hmHead === 1 || hmHead === true || hmHead === '1') return true;
-    const rel = (m.relationship_to_head ?? m.hm_relationship_to_head ?? '').toString().toLowerCase();
-    if (rel.includes('head')) return true;
-    return false;
-}
-
-/**
- * All residents in the household for the family-head dropdown (designated head and co-heads first).
- * Includes everyone linked to the household, not only rows flagged as "head" in enrichment.
- */
-function collectFamilyHeadSelectMemberRows(h) {
-    const members = h.members || [];
-    const designatedHeadId = Number(h.family_head_id ?? 0);
-    return [...members].sort((a, b) => {
-        const rank = (m) => {
-            const id = Number(m.id);
-            if (id === designatedHeadId) return 3;
-            if (isHouseholdMemberHead(m, designatedHeadId)) return 2;
-            return 1;
-        };
-        const diff = rank(b) - rank(a);
-        if (diff !== 0) return diff;
-        const na = `${a.last_name || ''}, ${a.first_name || ''}`.trim();
-        const nb = `${b.last_name || ''}, ${b.first_name || ''}`.trim();
-        return na.localeCompare(nb);
-    });
-}
-
-/** Map household member row to the shape expected by buildFamilyHeadOptionHtml. */
-function memberRowToFamilyHeadOptionShape(m) {
-    return {
-        id: m.id,
-        last_name: m.last_name,
-        first_name: m.first_name,
-        middle_name: m.middle_name,
-        address: m.address,
-        household_address: m.address,
-        house_number: m.house_number,
-        street: m.street,
-        purok_sitio: m.purok_sitio,
-        registration_house_type: m.registration_house_type ?? m.registration_household_type ?? '',
-        registration_house_ownership: m.registration_house_ownership ?? '',
-        current_household_house_type: m.current_household_house_type ?? '',
-        current_household_housing_status: m.current_household_housing_status ?? ''
-    };
-}
-
 function formatStructureHouseTypeLabel(raw) {
     if (raw === null || raw === undefined || String(raw).trim() === '') {
         return '--';
@@ -599,22 +902,7 @@ function applyHeadHousingFromSelection(selected) {
 }
 
 function loadResidentsForDropdown() {
-    const sel = document.getElementById('family_head_id');
-    if (!sel) return;
-    const hid = document.getElementById('householdId');
-    if (hid && String(hid.value || '').trim() !== '') {
-        return;
-    }
-    const currentVal = sel.value;
-    fetch(window.API_URL + 'resident.php?action=list&limit=500&head_account_only=1', HOUSEHOLD_FETCH_INIT)
-        .then(r => r.json())
-        .then(d => {
-            const list = d.success && d.data && Array.isArray(d.data.residents) ? d.data.residents : [];
-            sel.innerHTML = '<option value="">-- Select Resident --</option>' +
-                list.map(r => buildFamilyHeadOptionHtml(r)).join('');
-            if (currentVal) sel.value = currentVal;
-        })
-        .catch(() => {});
+    // Family head is stored in hidden #family_head_id (set on edit load); no resident picker in the modal.
 }
 
 function setStreetSelectValue(rawStreet) {
@@ -641,7 +929,7 @@ function setStreetSelectValue(rawStreet) {
 
 document.addEventListener('change', function (e) {
     const target = e.target;
-    if (!target || target.id !== 'family_head_id') return;
+    if (!target || target.id !== 'family_head_id' || target.tagName !== 'SELECT') return;
     const selected = target.selectedOptions && target.selectedOptions[0];
     if (!selected) return;
 
@@ -675,7 +963,9 @@ document.addEventListener('change', function (e) {
 
 function saveHousehold() {
     applyTitleCaseToForm();
-    const householdId = document.getElementById('householdId').value;
+    const householdIdEl = document.getElementById('householdId');
+    const householdId = (householdIdEl.value || '').trim();
+    const isUpdate = !!householdId;
     if (!householdId && !HOUSEHOLD_PERMS.canCreate) { alert('Access denied'); return; }
     if (householdId && !HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
     const form = document.getElementById('householdForm');
@@ -687,13 +977,37 @@ function saveHousehold() {
     fetch(window.API_URL + 'households.php', { method: 'POST', body: formData })
         .then(r => r.json())
         .then(d => {
-            if (d.success) {
-                bootstrap.Modal.getInstance(document.getElementById('householdModal')).hide();
+            if (!d.success) {
+                alert('Error: ' + (d.message || 'Failed to save'));
+                return;
+            }
+            if (isUpdate) {
+                const hid = parseInt(householdId, 10);
+                const pending = getEditHouseholdPendingAdds();
+                const finishAndClose = () => {
+                    refreshCurrentView();
+                    hideHouseholdFormModal();
+                    resetForm();
+                };
+                if (!pending.length) {
+                    showHouseholdToast(d.message || 'Household saved.', 'success');
+                    finishAndClose();
+                    return;
+                }
+                flushPendingMemberAdds(hid).then((flushRes) => {
+                    if (flushRes.ok) {
+                        showHouseholdToast('Household details and pending members saved.', 'success');
+                    } else {
+                        showHouseholdToast('Household saved, but some members failed to add: ' + (flushRes.message || 'Unknown error'), 'danger');
+                    }
+                    finishAndClose();
+                });
+            } else {
+                hideHouseholdFormModal();
                 refreshCurrentView();
                 form.reset();
-                document.getElementById('householdId').value = '';
-            } else {
-                alert('Error: ' + (d.message || 'Failed to save'));
+                householdIdEl.value = '';
+                clearEditHouseholdPendingAdds();
             }
         })
         .catch(() => alert('Error saving household'));
@@ -716,30 +1030,20 @@ function viewHousehold(id) {
                 return;
             }
             const h = d.data;
-            const members = h.members || [];
             const allowEditMembers = HOUSEHOLD_PERMS.canEdit;
-            const designatedHeadId = Number(h.family_head_id ?? 0);
-            const householdFhCode = ((h.family_head_code ?? '').toString().trim() || '-');
+            const {
+                members,
+                heads,
+                headGroups,
+                ungrouped,
+                designatedHeadId,
+                householdFhCode
+            } = computeHouseholdHeadGroups(h);
 
             const toName = (m) => {
                 const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
                 return toTitleCase(name);
             };
-
-            const isHead = (m) => {
-                if (Number(m.id) === designatedHeadId) return true;
-                const hmHead = m.hm_is_head;
-                if (hmHead === 1 || hmHead === true || hmHead === '1') return true;
-                const rel = (m.relationship_to_head ?? m.hm_relationship_to_head ?? '').toString().toLowerCase();
-                if (rel.includes('head')) return true;
-                return false;
-            };
-
-            const heads = members.filter(isHead);
-            if (designatedHeadId > 0) {
-                heads.sort((a, b) => (Number(b.id) === designatedHeadId ? 1 : 0) - (Number(a.id) === designatedHeadId ? 1 : 0));
-            }
-            const memberList = members.filter(m => !isHead(m));
 
             const householdTypeVal = (h.household_type || '').toString().trim();
 
@@ -793,40 +1097,6 @@ function viewHousehold(id) {
                 <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
                 ${indigentSection}
             `;
-
-            const getFamilyCode = (m) => (m.family_code ?? '').toString().trim();
-            const getMemberHeadRef = (m) => Number(m.family_head_resident_id || 0);
-            const shownMemberIds = new Set();
-
-            const headGroups = heads.map((head, idx) => {
-                const headResidentId = Number(head.id);
-                const headOwnFhc = (head.family_head_code ?? '').toString().trim();
-                const headDisplayCode = (headOwnFhc !== '' && headOwnFhc !== '-') ? headOwnFhc : householdFhCode;
-                const headFc = getFamilyCode(head);
-                const headMembers = memberList.filter(m => {
-                    if (shownMemberIds.has(Number(m.id))) return false;
-                    const ref = getMemberHeadRef(m);
-                    if (ref > 0) {
-                        if (ref === headResidentId) { shownMemberIds.add(Number(m.id)); return true; }
-                        return false;
-                    }
-                    if (headFc && getFamilyCode(m) === headFc) { shownMemberIds.add(Number(m.id)); return true; }
-                    return false;
-                });
-                const isPrimary = Number(head.id) === designatedHeadId;
-                return { head, idx, headDisplayCode, headMembers, isPrimary, headResidentId };
-            });
-
-            // Members not matched to any head go under the designated head (first group)
-            const remainingMembers = memberList.filter(m => !shownMemberIds.has(Number(m.id)));
-            if (remainingMembers.length > 0 && headGroups.length > 0) {
-                const primaryGroup = headGroups.find(g => g.isPrimary) || headGroups[0];
-                remainingMembers.forEach(m => {
-                    primaryGroup.headMembers.push(m);
-                    shownMemberIds.add(Number(m.id));
-                });
-            }
-            const ungrouped = memberList.filter(m => !shownMemberIds.has(Number(m.id)));
 
             // Set initial household type for the first head now that groups are built
             if (headGroups.length > 0) {
@@ -1062,7 +1332,8 @@ function loadResidentsForAddMember(householdId, excludeIds) {
     if (searchEl) {
         searchEl.value = "";
     }
-    const exclude = new Set((excludeIds || []).map((id) => Number(id)));
+    const pendingIds = getEditHouseholdPendingAdds().map((p) => Number(p.resident_id));
+    const exclude = new Set((excludeIds || []).map((id) => Number(id)).concat(pendingIds));
     const hid = parseInt(householdId, 10) || 0;
     let url = window.API_URL + "resident.php?action=list&limit=5000";
     if (hid > 0) {
@@ -1137,94 +1408,165 @@ function addMemberToHousehold() {
         alert('Select a resident to add.');
         return;
     }
+    const rid = Number(residentId);
     const relGroup = document.getElementById('addMemberRelationshipGroup');
     let relationship = '';
     if (relGroup && !relGroup.classList.contains('d-none')) {
         relationship = (document.getElementById('addMemberRelationshipToHead')?.value || '').trim();
+        if (!relationship) {
+            alert('Select relationship to head.');
+            return;
+        }
     }
-    const fd = new FormData();
-    fd.append('action', 'add_member');
-    fd.append('household_id', householdId);
-    fd.append('resident_id', residentId);
-    fd.append('relationship_to_head', relationship);
-    fetch(window.API_URL + 'households.php', Object.assign({ method: 'POST', body: fd }, HOUSEHOLD_FETCH_INIT))
-        .then(parseHouseholdApiJson)
-        .then(d => {
-            if (d.success) {
-                showHouseholdToast('Resident added to household.', 'success');
-                refreshCurrentView();
-                fetch(window.API_URL + 'households.php?action=get&id=' + encodeURIComponent(householdId), HOUSEHOLD_FETCH_INIT)
-                    .then(parseHouseholdApiJson)
-                    .then((householdData) => {
-                        if (!householdData.success) return;
-                        const h = householdData.data;
-                        loadResidentsForAddMember(parseInt(householdId, 10), (h.members || []).map(m => m.id));
-                        updateAddMemberRelationshipVisibility(h);
-                        const relSel = document.getElementById('addMemberRelationshipToHead');
-                        if (relSel) relSel.value = '';
-                        const tm = document.getElementById('total_members');
-                        if (tm) tm.value = (h.total_members === null || typeof h.total_members === 'undefined') ? 0 : h.total_members;
-                    })
-                    .catch(() => {});
-            } else {
-                alert('Error: ' + (d.message || 'Failed'));
-            }
-        })
-        .catch(function(err) {
-            alert((err && err.message) ? err.message : 'Could not add member. Check your connection and try again.');
-        });
+    const payload = window.__editHouseholdLastPayload;
+    const membersForUi = (payload && payload.members) ? payload.members : [];
+    const existingIds = new Set(membersForUi.map((m) => Number(m.id)));
+    getEditHouseholdPendingAdds().forEach((p) => existingIds.add(Number(p.resident_id)));
+    if (existingIds.has(rid)) {
+        alert('This resident is already in the household or in your pending list.');
+        return;
+    }
+    const opt = sel.selectedOptions && sel.selectedOptions[0];
+    const displayName = opt ? (opt.textContent || '').trim() : '';
+    getEditHouseholdPendingAdds().push({
+        resident_id: rid,
+        relationship: relationship,
+        displayName: displayName || ('Resident #' + rid)
+    });
+    showHouseholdToast('Queued — click Save household details to apply.', 'success');
+    const hForList = payload || {
+        members: [],
+        family_head_id: document.getElementById('family_head_id')?.value || null
+    };
+    renderEditModalMembersList(hForList);
+    loadResidentsForAddMember(parseInt(householdId, 10), membersForUi.map((m) => m.id));
+    const relSel = document.getElementById('addMemberRelationshipToHead');
+    if (relSel) relSel.value = '';
+    sel.value = '';
+    rebuildAddMemberSelect((document.getElementById('addMemberResidentSearch')?.value || '').trim());
 }
 
+/** If user cancels transfer/remove confirm, restore the view or edit household modal. */
+let householdMemberActionParent = null;
+
 let pendingTransferHead = null;
+
+function getHouseholdIdForMemberActions() {
+    const formHid = parseInt(document.getElementById('householdId')?.value || '', 10);
+    if (formHid > 0) return formHid;
+    const vid = parseInt(currentViewHouseholdId, 10) || 0;
+    return vid;
+}
+
+function applyHouseholdDataToEditForm(h) {
+    if (!h) return;
+    window.__editHouseholdLastPayload = h;
+    const headEl = document.getElementById('family_head_id');
+    if (headEl) headEl.value = h.family_head_id != null && h.family_head_id !== '' ? String(h.family_head_id) : '';
+    const tmEl = document.getElementById('total_members');
+    if (tmEl) tmEl.value = (h.total_members === null || typeof h.total_members === 'undefined') ? 0 : h.total_members;
+    renderEditModalMembersList(h);
+    const hid = parseInt(h.id, 10);
+    if (hid > 0) {
+        loadResidentsForAddMember(hid, (h.members || []).map((m) => m.id));
+    }
+    updateAddMemberRelationshipVisibility(h);
+}
 
 function transferHeadTo(newHeadResidentId, oldHeadResidentId) {
     if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
     pendingTransferHead = { newHeadResidentId, oldHeadResidentId };
     window._householdSwitchingToConfirm = true;
     const viewEl = document.getElementById('viewHouseholdModal');
-    const viewModal = bootstrap.Modal.getInstance(viewEl);
+    const editEl = document.getElementById('householdModal');
+    const viewModal = viewEl ? bootstrap.Modal.getInstance(viewEl) : null;
     const showTransferModal = () => {
         window._householdSwitchingToConfirm = false;
         const el = document.getElementById('transferHeadModal');
         let m = bootstrap.Modal.getInstance(el);
         if (!m) m = new bootstrap.Modal(el);
         el.addEventListener('hidden.bs.modal', function onHidden() {
-            if (pendingTransferHead) pendingTransferHead = null;
-            if (viewModal && currentViewHouseholdId) viewModal.show();
+            if (pendingTransferHead) {
+                pendingTransferHead = null;
+                if (householdMemberActionParent === 'view' && viewModal && currentViewHouseholdId) {
+                    viewModal.show();
+                } else if (householdMemberActionParent === 'edit') {
+                    showHouseholdFormModal();
+                }
+            }
+            householdMemberActionParent = null;
             el.removeEventListener('hidden.bs.modal', onHidden);
         }, { once: true });
         m.show();
     };
-    if (viewModal && viewEl.classList.contains('show')) {
+    const editOpen = editEl && editEl.classList.contains('show');
+    const viewOpen = viewEl && viewEl.classList.contains('show');
+    if (editOpen) {
+        householdMemberActionParent = 'edit';
+        editEl.addEventListener('hidden.bs.modal', showTransferModal, { once: true });
+        hideHouseholdFormModal();
+    } else if (viewOpen && viewModal) {
+        householdMemberActionParent = 'view';
         viewEl.addEventListener('hidden.bs.modal', showTransferModal, { once: true });
         viewModal.hide();
     } else {
+        householdMemberActionParent = null;
         showTransferModal();
     }
 }
 
 function confirmTransferHead() {
     if (!pendingTransferHead) return;
+    const returnContext = householdMemberActionParent;
+    householdMemberActionParent = null;
     const { newHeadResidentId, oldHeadResidentId } = pendingTransferHead;
     pendingTransferHead = null;
     const btn = document.getElementById('transferHeadConfirmBtn');
     if (btn) btn.disabled = true;
+    const hid = getHouseholdIdForMemberActions();
     bootstrap.Modal.getInstance(document.getElementById('transferHeadModal'))?.hide();
     const fd = new FormData();
     fd.append('action', 'assign_head_official');
-    fd.append('household_id', currentViewHouseholdId);
+    fd.append('household_id', String(hid));
     fd.append('new_head_resident_id', newHeadResidentId);
     if (oldHeadResidentId) fd.append('old_head_resident_id', oldHeadResidentId);
+    function restoreAfterFailedConfirm() {
+        if (returnContext === 'edit') {
+            showHouseholdFormModal();
+        } else if (returnContext === 'view' && currentViewHouseholdId) {
+            const ve = document.getElementById('viewHouseholdModal');
+            const vm = ve ? bootstrap.Modal.getInstance(ve) : null;
+            if (vm) vm.show();
+        }
+    }
     fetch(window.API_URL + 'households.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(d => {
-            if (d.success) {
-                showHouseholdToast('Head role transferred successfully.');
-                viewHousehold(currentViewHouseholdId);
-                refreshCurrentView();
-            } else alert('Error: ' + (d.message || 'Failed'));
+            if (!d.success) {
+                alert('Error: ' + (d.message || 'Failed'));
+                restoreAfterFailedConfirm();
+                return;
+            }
+            showHouseholdToast('Head role transferred successfully.');
+            refreshCurrentView();
+            if (returnContext === 'edit' && hid > 0) {
+                fetch(window.API_URL + 'households.php?action=get&id=' + encodeURIComponent(String(hid)), HOUSEHOLD_FETCH_INIT)
+                    .then(parseHouseholdApiJson)
+                    .then((hd) => {
+                        if (hd.success && hd.data) applyHouseholdDataToEditForm(hd.data);
+                        showHouseholdFormModal();
+                    })
+                    .catch(() => {
+                        showHouseholdFormModal();
+                    });
+            } else {
+                viewHousehold(hid || currentViewHouseholdId);
+            }
         })
-        .catch(() => alert('Error transferring head'))
+        .catch(() => {
+            alert('Error transferring head');
+            restoreAfterFailedConfirm();
+        })
         .finally(() => { if (btn) btn.disabled = false; });
 }
 
@@ -1235,114 +1577,122 @@ function removeMember(residentId) {
     pendingRemoveMemberId = residentId;
     window._householdSwitchingToConfirm = true;
     const viewEl = document.getElementById('viewHouseholdModal');
-    const viewModal = bootstrap.Modal.getInstance(viewEl);
+    const editEl = document.getElementById('householdModal');
+    const viewModal = viewEl ? bootstrap.Modal.getInstance(viewEl) : null;
     const showRemoveModal = () => {
         window._householdSwitchingToConfirm = false;
         const el = document.getElementById('removeMemberModal');
         let m = bootstrap.Modal.getInstance(el);
         if (!m) m = new bootstrap.Modal(el);
         el.addEventListener('hidden.bs.modal', function onHidden() {
-            if (pendingRemoveMemberId !== null) pendingRemoveMemberId = null;
-            if (viewModal && currentViewHouseholdId) viewModal.show();
+            if (pendingRemoveMemberId !== null) {
+                pendingRemoveMemberId = null;
+                if (householdMemberActionParent === 'view' && viewModal && currentViewHouseholdId) {
+                    viewModal.show();
+                } else if (householdMemberActionParent === 'edit') {
+                    showHouseholdFormModal();
+                }
+            }
+            householdMemberActionParent = null;
             el.removeEventListener('hidden.bs.modal', onHidden);
         }, { once: true });
         m.show();
     };
-    if (viewModal && viewEl.classList.contains('show')) {
+    const editOpen = editEl && editEl.classList.contains('show');
+    const viewOpen = viewEl && viewEl.classList.contains('show');
+    if (editOpen) {
+        householdMemberActionParent = 'edit';
+        editEl.addEventListener('hidden.bs.modal', showRemoveModal, { once: true });
+        hideHouseholdFormModal();
+    } else if (viewOpen && viewModal) {
+        householdMemberActionParent = 'view';
         viewEl.addEventListener('hidden.bs.modal', showRemoveModal, { once: true });
         viewModal.hide();
     } else {
+        householdMemberActionParent = null;
         showRemoveModal();
     }
 }
 
 function confirmRemoveMember() {
     if (pendingRemoveMemberId === null) return;
+    const returnContext = householdMemberActionParent;
+    householdMemberActionParent = null;
     const residentId = pendingRemoveMemberId;
     pendingRemoveMemberId = null;
     const btn = document.getElementById('removeMemberConfirmBtn');
     if (btn) btn.disabled = true;
+    const hid = getHouseholdIdForMemberActions();
     bootstrap.Modal.getInstance(document.getElementById('removeMemberModal'))?.hide();
     const fd = new FormData();
     fd.append('action', 'remove_member');
     fd.append('resident_id', residentId);
+    function restoreAfterFailedConfirm() {
+        if (returnContext === 'edit') {
+            showHouseholdFormModal();
+        } else if (returnContext === 'view' && currentViewHouseholdId) {
+            const ve = document.getElementById('viewHouseholdModal');
+            const vm = ve ? bootstrap.Modal.getInstance(ve) : null;
+            if (vm) vm.show();
+        }
+    }
     fetch(window.API_URL + 'households.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(d => {
-            if (d.success) {
-                showHouseholdToast('Member removed from household.');
-                viewHousehold(currentViewHouseholdId);
-                refreshCurrentView();
-            } else alert('Error: ' + (d.message || 'Failed'));
+            if (!d.success) {
+                alert('Error: ' + (d.message || 'Failed'));
+                restoreAfterFailedConfirm();
+                return;
+            }
+            showHouseholdToast('Member removed from household.');
+            refreshCurrentView();
+            if (returnContext === 'edit' && hid > 0) {
+                fetch(window.API_URL + 'households.php?action=get&id=' + encodeURIComponent(String(hid)), HOUSEHOLD_FETCH_INIT)
+                    .then(parseHouseholdApiJson)
+                    .then((hd) => {
+                        if (hd.success && hd.data) applyHouseholdDataToEditForm(hd.data);
+                        showHouseholdFormModal();
+                    })
+                    .catch(() => {
+                        showHouseholdFormModal();
+                    });
+            } else {
+                viewHousehold(hid || currentViewHouseholdId);
+            }
         })
-        .catch(() => alert('Error removing member'))
+        .catch(() => {
+            alert('Error removing member');
+            restoreAfterFailedConfirm();
+        })
         .finally(() => { if (btn) btn.disabled = false; });
 }
 
 function editHousehold(id) {
     if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
+    clearEditHouseholdPendingAdds();
     fetch(window.API_URL + 'households.php?action=get&id=' + id, HOUSEHOLD_FETCH_INIT)
         .then(parseHouseholdApiJson)
-        .then(async (householdData) => {
+        .then((householdData) => {
             if (!householdData.success || !householdData.data) {
                 alert(householdData.message || 'Could not load household.');
                 return;
             }
             const h = householdData.data;
-            const sel = document.getElementById('family_head_id');
+            window.__editHouseholdLastPayload = h;
+            const headEl = document.getElementById('family_head_id');
             const hidEl = document.getElementById('householdId');
             const addrEl = document.getElementById('address');
             const tmEl = document.getElementById('total_members');
             const regEl = document.getElementById('registration_date');
             const titleEl = document.getElementById('householdModalTitle');
             const modalEl = document.getElementById('householdModal');
-            if (!sel || !hidEl || !modalEl) {
+            if (!headEl || !hidEl || !modalEl) {
                 alert('Household form is not available.');
                 return;
             }
 
-            const headOptionRows = collectFamilyHeadSelectMemberRows(h).map(memberRowToFamilyHeadOptionShape);
-
-            let residents = [];
-            try {
-                const rr = await fetch(window.API_URL + 'resident.php?action=list&limit=500&head_account_only=1', HOUSEHOLD_FETCH_INIT);
-                if (rr.ok) {
-                    const residentsData = await parseHouseholdApiJson(rr);
-                    if (residentsData.success && residentsData.data && residentsData.data.residents) {
-                        residents = residentsData.data.residents;
-                    }
-                }
-            } catch (e) { /* optional list */ }
-
-            const seenHeadSelectIds = new Set(headOptionRows.map(r => Number(r.id)));
-            for (const r of residents) {
-                const rid = Number(r.id);
-                if (!seenHeadSelectIds.has(rid)) {
-                    seenHeadSelectIds.add(rid);
-                    headOptionRows.push(r);
-                }
-            }
-
-            if (headOptionRows.length) {
-                sel.innerHTML = '<option value="">-- Select Resident --</option>' +
-                    headOptionRows.map(r => buildFamilyHeadOptionHtml(r)).join('');
-            } else {
-                sel.innerHTML = '<option value="">-- Select Resident --</option>';
-            }
-
-            const headId = Number(h.family_head_id || 0);
-            if (headId > 0 && !seenHeadSelectIds.has(headId)) {
-                try {
-                    const rr = await fetch(window.API_URL + 'resident.php?action=get&id=' + headId, HOUSEHOLD_FETCH_INIT);
-                    if (!rr.ok) throw new Error('bad');
-                    const rj = await parseHouseholdApiJson(rr);
-                    if (rj.success && rj.data) {
-                        sel.insertAdjacentHTML('beforeend', buildFamilyHeadOptionHtml(rj.data));
-                    }
-                } catch (e) { /* ignore */ }
-            }
             hidEl.value = h.id;
-            sel.value = h.family_head_id || '';
+            headEl.value = h.family_head_id != null && h.family_head_id !== '' ? String(h.family_head_id) : '';
             if (addrEl) addrEl.value = toTitleCase(h.address || '');
             if (tmEl) tmEl.value = (h.total_members === null || typeof h.total_members === 'undefined') ? 0 : h.total_members;
             if (regEl) regEl.value = h.registration_date || '';
@@ -1361,11 +1711,12 @@ function editHousehold(id) {
             if (titleEl) titleEl.textContent = 'Edit Household';
             const totalMembersGroup = document.getElementById('totalMembersGroup');
             if (totalMembersGroup) totalMembersGroup.style.display = '';
-            const joinSection = document.getElementById('joinHouseholdSection');
-            if (joinSection) joinSection.style.display = '';
+            const memCard = document.getElementById('editHouseholdMembersCard');
+            if (memCard) memCard.classList.remove('d-none');
+            renderEditModalMembersList(h);
             loadResidentsForAddMember(h.id, (h.members || []).map(m => m.id));
             updateAddMemberRelationshipVisibility(h);
-            new bootstrap.Modal(modalEl).show();
+            showHouseholdFormModal();
         })
         .catch(() => alert('Error loading household'));
 }
@@ -1385,6 +1736,14 @@ function resetForm() {
     document.getElementById('householdForm').reset();
     document.getElementById('householdId').value = '';
     document.getElementById('householdModalTitle').textContent = 'Edit Household';
+    const memCard = document.getElementById('editHouseholdMembersCard');
+    if (memCard) memCard.classList.add('d-none');
+    const editHost = document.getElementById('editHouseholdMembersHost');
+    if (editHost) editHost.innerHTML = '';
+    const editEmpty = document.getElementById('editHouseholdMembersEmpty');
+    const editWrap = document.getElementById('editHouseholdMembersTableWrap');
+    if (editEmpty) editEmpty.classList.add('d-none');
+    if (editWrap) editWrap.classList.remove('d-none');
     const sel = document.getElementById('addMemberResidentEdit');
     if (sel) {
         sel.innerHTML = '<option value="">' + ADD_MEMBER_PLACEHOLDER + '</option>';
@@ -1405,10 +1764,10 @@ function resetForm() {
     if (relG) relG.classList.remove('d-none');
     if (relNote) relNote.classList.add('d-none');
     delete window.__addMemberEligibleRows;
+    clearEditHouseholdPendingAdds();
+    delete window.__editHouseholdLastPayload;
     const totalMembersGroup = document.getElementById('totalMembersGroup');
     if (totalMembersGroup) totalMembersGroup.style.display = '';
-    const joinSection = document.getElementById('joinHouseholdSection');
-    if (joinSection) joinSection.style.display = '';
 }
 
 function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
