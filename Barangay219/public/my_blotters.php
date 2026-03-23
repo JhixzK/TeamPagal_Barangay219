@@ -142,6 +142,7 @@ include __DIR__ . '/../includes/sidebar.php';
         }
         const r = d.data.record;
         const witnesses = decodeWitnesses(r.witnesses);
+        const respondentDisplay = r.respondent_name_raw || r.respondent_name || '-';
         const evidenceHtml = r.evidence_path
           ? '<a href="<?php echo BASE_URL; ?>' + String(r.evidence_path).replace(/^\/+/, '') + '" target="_blank" rel="noopener">View Uploaded Evidence</a>'
           : '-';
@@ -153,7 +154,7 @@ include __DIR__ . '/../includes/sidebar.php';
             '<div class="col-md-6"><strong>Incident Type:</strong><br>' + labelize(r.incident_type) + '</div>' +
             '<div class="col-md-6"><strong>Incident Date:</strong><br>' + formatDate(r.incident_datetime) + '</div>' +
             '<div class="col-12"><strong>Location:</strong><br>' + (r.incident_location || '-') + '</div>' +
-            '<div class="col-md-6"><strong>Respondent:</strong><br>' + (r.respondent_name || '-') + '</div>' +
+            '<div class="col-md-6"><strong>Respondent:</strong><br>' + respondentDisplay + '</div>' +
             '<div class="col-md-6"><strong>Action Requested:</strong><br>' + (r.action_requested || '-') + '</div>' +
             '<div class="col-12"><strong>Witnesses:</strong><br>' + (witnesses.startsWith('<li>') ? '<ul class="mb-0">' + witnesses + '</ul>' : witnesses) + '</div>' +
             '<div class="col-12"><strong>Narrative:</strong><div class="p-2 bg-light border rounded mt-1" style="white-space:pre-wrap">' + (r.narrative || '-') + '</div></div>' +
