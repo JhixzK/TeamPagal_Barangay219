@@ -67,6 +67,25 @@ try {
     if ($respondentId !== null && $respondentId !== (int)($currentCase['respondent_id'] ?? 0)) {
         $updates[] = 'respondent_id = ?';
         $params[] = $respondentId;
+
+        // Also fetch and update respondent_name JSON field
+        $resident = $db->fetchOne(
+            'SELECT id, first_name, middle_name, last_name, address, contact_number FROM residents WHERE id = ?',
+            [$respondentId]
+        );
+        if ($resident) {
+            $respondentNameData = [
+                [
+                    'name' => trim(($resident['first_name'] ?? '') . ' ' . ($resident['middle_name'] ?? '') . ' ' . ($resident['last_name'] ?? '')),
+                    'address' => $resident['address'] ?? '',
+                    'contact' => $resident['contact_number'] ?? '',
+                    'residency' => 'resident',
+                    'resident_id' => $respondentId
+                ]
+            ];
+            $updates[] = 'respondent_name = ?';
+            $params[] = json_encode($respondentNameData, JSON_UNESCAPED_UNICODE);
+        }
     }
 
     if ($adminNotes !== '') {
