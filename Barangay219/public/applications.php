@@ -467,6 +467,26 @@ include __DIR__ . '/../includes/sidebar.php';
                     </select>
                     <small class="text-muted">This will issue directly to Ready for Pickup and open print preview.</small>
                 </div>
+                <div class="mt-3 d-none" id="walkinPurposeWrap">
+                    <label class="form-label">Certificate Purpose <span class="text-danger">*</span></label>
+                    <select class="form-select" id="walkinPurposeSelect">
+                        <option value="">-- Select Purpose --</option>
+                        <option value="Application for Employment">Application for Employment</option>
+                        <option value="School Admission/Requirement">School Admission/Requirement</option>
+                        <option value="Hospital Purpose">Hospital Purpose</option>
+                        <option value="Processing of Calamity">Processing of Calamity</option>
+                        <option value="Medical Purpose">Medical Purpose</option>
+                        <option value="For Livelihood Loan">For Livelihood Loan</option>
+                        <option value="Bank Transaction">Bank Transaction</option>
+                        <option value="Indigent Family">Indigent Family</option>
+                        <option value="Organized Vending Permit">Organized Vending Permit</option>
+                        <option value="DSWD Requirement">DSWD Requirement</option>
+                        <option value="For Travel Abroad">For Travel Abroad</option>
+                        <option value="Transfer of Residence">Transfer of Residence</option>
+                        <option value="Others">Others</option>
+                    </select>
+                    <input type="text" class="form-control mt-2 d-none" id="walkinPurposeOther" placeholder="Specify purpose for Others">
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -1379,6 +1399,33 @@ include __DIR__ . '/../includes/sidebar.php';
         lookup.addEventListener('change', resolve);
     }
 
+    function updateWalkInPurposeVisibility() {
+        const certType = document.getElementById('walkinCertType')?.value || '';
+        const wrap = document.getElementById('walkinPurposeWrap');
+        const purposeSelect = document.getElementById('walkinPurposeSelect');
+        const purposeOther = document.getElementById('walkinPurposeOther');
+        const requiresPurpose = certType === 'barangay_certificate';
+
+        if (wrap) {
+            wrap.classList.toggle('d-none', !requiresPurpose);
+        }
+
+        if (!requiresPurpose) {
+            if (purposeSelect) purposeSelect.value = '';
+            if (purposeOther) {
+                purposeOther.value = '';
+                purposeOther.classList.add('d-none');
+            }
+            return;
+        }
+
+        if (purposeOther) {
+            const isOthers = (purposeSelect?.value || '') === 'Others';
+            purposeOther.classList.toggle('d-none', !isOthers);
+            if (!isOthers) purposeOther.value = '';
+        }
+    }
+
     // Load residents for walk-in searchable field
     function loadResidents() {
         fetch(API_URL + 'certificates.php?action=resident_options&limit=500')
@@ -1454,9 +1501,22 @@ include __DIR__ . '/../includes/sidebar.php';
 
             const residentId = getWalkInSelectedResidentId();
             const certType = document.getElementById('walkinCertType')?.value || '';
+            const purposeSelectVal = document.getElementById('walkinPurposeSelect')?.value || '';
+            const purposeOtherVal = (document.getElementById('walkinPurposeOther')?.value || '').trim();
+            const requiresPurpose = certType === 'barangay_certificate';
 
             if (!residentId || !certType) {
                 alert('Resident and certificate type are required.');
+                return;
+            }
+
+            if (requiresPurpose && !purposeSelectVal) {
+                alert('Certificate purpose is required for Barangay Certificate.');
+                return;
+            }
+
+            if (requiresPurpose && purposeSelectVal === 'Others' && !purposeOtherVal) {
+                alert('Please specify purpose for Others.');
                 return;
             }
 
@@ -1464,6 +1524,12 @@ include __DIR__ . '/../includes/sidebar.php';
             fd.append('action', 'direct_issue');
             fd.append('resident_id', residentId);
             fd.append('certificate_type', certType);
+            if (requiresPurpose) {
+                fd.append('purpose', purposeSelectVal);
+                if (purposeSelectVal === 'Others') {
+                    fd.append('purpose_other', purposeOtherVal);
+                }
+            }
 
             btnDirectIssue.disabled = true;
             fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
@@ -1479,8 +1545,16 @@ include __DIR__ . '/../includes/sidebar.php';
                     if (modal) modal.hide();
 
                     const walkInType = document.getElementById('walkinCertType');
+                    const walkInPurpose = document.getElementById('walkinPurposeSelect');
+                    const walkInPurposeOther = document.getElementById('walkinPurposeOther');
                     resetWalkInResidentSelection();
                     if (walkInType) walkInType.value = '';
+                    if (walkInPurpose) walkInPurpose.value = '';
+                    if (walkInPurposeOther) {
+                        walkInPurposeOther.value = '';
+                        walkInPurposeOther.classList.add('d-none');
+                    }
+                    updateWalkInPurposeVisibility();
 
                     const issuedId = d?.data?.id;
                     if (issuedId) {
@@ -1497,6 +1571,16 @@ include __DIR__ . '/../includes/sidebar.php';
         });
     }
 
+    const walkInCertType = document.getElementById('walkinCertType');
+    if (walkInCertType) {
+        walkInCertType.addEventListener('change', updateWalkInPurposeVisibility);
+    }
+
+    const walkInPurposeSelect = document.getElementById('walkinPurposeSelect');
+    if (walkInPurposeSelect) {
+        walkInPurposeSelect.addEventListener('change', updateWalkInPurposeVisibility);
+    }
+
     document.querySelectorAll('#statusTabs .nav-link').forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
@@ -1510,6 +1594,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
     applyApplicationPermissions();
     initApplicationStatFilters();
+    updateWalkInPurposeVisibility();
     loadResidents();
     loadApplications();
 })();
