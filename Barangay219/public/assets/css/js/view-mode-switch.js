@@ -6,15 +6,24 @@
     return window.location.origin + '/TeamPagal_Barangay219/Barangay219/api/';
   };
 
-  const handleToggle = (toggle) => {
-    const mode = toggle.checked ? 'resident' : 'official';
+  const switchTo = (mode) => {
     const apiUrl = buildApiUrl();
     window.location.href = `${apiUrl}auth.php?action=view_mode&mode=${mode}`;
   };
 
   document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-view-mode-toggle]').forEach(toggle => {
-      toggle.addEventListener('change', () => handleToggle(toggle));
+      toggle.addEventListener('change', () => {
+        switchTo(toggle.checked ? 'resident' : 'official');
+      });
+    });
+
+    document.querySelectorAll('[data-view-mode-switch]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const mode = btn.getAttribute('data-view-mode-switch');
+        switchTo(mode);
+      });
     });
   });
 })();
