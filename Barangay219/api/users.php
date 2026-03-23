@@ -108,7 +108,7 @@ function listUsers() {
             $params[] = $status;
         }
         
-        $sql = "SELECT u.id, u.username, u.email, u.role, u.status, u.created_at,
+        $sql = "SELECT u.id, u.username, u.email, u.role, u.status, u.created_at, u.resident_id,
                        r.first_name, r.last_name, r.middle_name
                 FROM users u
                 LEFT JOIN residents r ON u.resident_id = r.id
@@ -117,11 +117,13 @@ function listUsers() {
         
         $users = $db->fetchAll($sql, $params);
         
-        // Remove sensitive data
+        // Remove sensitive data; align role with active officials (fixes stale Resident when assigned as official)
         foreach ($users as &$user) {
             unset($user['password']);
             $user['full_name'] = trim(($user['first_name'] ?? '') . ' ' . ($user['middle_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+            reconcileUserRoleWithOfficialsTable($db, $user);
         }
+        unset($user);
         
         sendResponse(true, 'Users retrieved successfully', $users);
         
