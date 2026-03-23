@@ -10,11 +10,14 @@ if (!canAccessModule('certificates') && !canAccessModule('applications') && !has
 }
 
 const CERT_ALLOWED_TYPES = [
+    'barangay_certificate',
+    'barangay_indigency',
     CERT_BARANGAY_CLEARANCE,
-    CERT_INDIGENCY,
     CERT_RESIDENCY,
-    CERT_GOOD_MORAL,
-    CERT_TRANSFER_REQUEST
+    CERT_TRANSFER_REQUEST,
+    // Legacy compatibility aliases still accepted in API inputs.
+    CERT_INDIGENCY,
+    CERT_GOOD_MORAL
 ];
 
 const CERT_ALLOWED_STATUSES = [
@@ -41,11 +44,26 @@ switch ($action) {
         submitResidentCertificateRequest();
         break;
 
+    case 'resident_options':
+        if (!canPerformModulePermission('certificates', 'can_edit') && !canPerformModulePermission('applications', 'can_edit')
+            && !canPerformModulePermission('certificates', 'can_create') && !canPerformModulePermission('applications', 'can_create')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        getCertificateResidentOptions();
+        break;
+
     case 'create':
         if (!canPerformModulePermission('certificates', 'can_create') && !canPerformModulePermission('applications', 'can_create')) {
             sendResponse(false, 'Access denied', null, 403);
         }
         createCertificateByAdmin();
+        break;
+
+    case 'direct_issue':
+        if (!canPerformModulePermission('certificates', 'can_edit') && !canPerformModulePermission('applications', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        directIssueCertificateByAdmin();
         break;
 
     case 'update':
@@ -266,8 +284,21 @@ function normalizeStatus(string $status): string {
 }
 
 function normalizeCertificateType(string $type): string {
-    $type = strtolower(trim($type));
-    return str_replace(' ', '_', $type);
+    $normalized = strtolower(trim(str_replace(['-', '__'], [' ', '_'], $type)));
+    $normalized = preg_replace('/\s+/', '_', $normalized);
+
+    $aliases = [
+        'barangay_certificate' => 'barangay_certificate',
+        'certificate_of_residency' => 'certificate_residency',
+        'certificate_residency' => 'certificate_residency',
+        'barangay_indigency' => 'barangay_indigency',
+        'certificate_indigency' => 'barangay_indigency',
+        'certificate_of_indigency' => 'barangay_indigency',
+        'barangay_clearance' => 'barangay_clearance',
+        'transfer_request' => 'transfer_request'
+    ];
+
+    return $aliases[$normalized] ?? $normalized;
 }
 
 function resolvePurpose(string $purposeOption, string $purposeOther): string {
@@ -352,7 +383,7 @@ function getCertificateBodyTemplate(string $certificateType): string {
         ]);
     }
 
-    if ($normalized === 'certificate indigency' || $normalized === 'certificate of indigency') {
+    if ($normalized === 'certificate indigency' || $normalized === 'certificate of indigency' || $normalized === 'barangay indigency') {
         return implode("\n", [
             'TO WHOM IT MAY CONCERN:',
             '',
@@ -392,6 +423,30 @@ function buildCertificateBody(string $certificateType, string $name, ?int $age, 
     return strtr($template, $replacements);
 }
 
+function formatIssuedDateForBody(string $dateValue): string {
+    $ts = strtotime($dateValue);
+    if ($ts === false) {
+        $ts = time();
+    }
+
+    $day = (int)date('j', $ts);
+    $monthYear = date('F Y', $ts);
+    $mod100 = $day % 100;
+
+    if ($mod100 >= 11 && $mod100 <= 13) {
+        $suffix = 'th';
+    } else {
+        $suffix = match ($day % 10) {
+            1 => 'st',
+            2 => 'nd',
+            3 => 'rd',
+            default => 'th',
+        };
+    }
+
+    return $day . $suffix . ' day of ' . $monthYear;
+}
+
 function getResidentCivilStatus(int $residentId): string {
     if ($residentId <= 0) {
         return '';
@@ -400,6 +455,33 @@ function getResidentCivilStatus(int $residentId): string {
     $db = Database::getInstance();
     $row = $db->fetchOne("SELECT civil_status FROM residents WHERE id = ? LIMIT 1", [$residentId]);
     return trim((string)($row['civil_status'] ?? ''));
+}
+
+function getCertificateResidentOptions() {
+    try {
+        $db = Database::getInstance();
+        $q = trim((string)($_GET['q'] ?? ''));
+        $limit = min(1000, max(50, (int)($_GET['limit'] ?? 500)));
+
+        $params = [];
+        $where = '';
+        if ($q !== '') {
+            $term = '%' . $q . '%';
+            $where = "WHERE (first_name LIKE ? OR middle_name LIKE ? OR last_name LIKE ? OR CONCAT(first_name, ' ', last_name) LIKE ? OR CONCAT(last_name, ', ', first_name) LIKE ? )";
+            $params = [$term, $term, $term, $term, $term];
+        }
+
+        $sql = "SELECT id, first_name, middle_name, last_name
+                FROM residents
+                {$where}
+                ORDER BY last_name ASC, first_name ASC
+                LIMIT {$limit}";
+
+        $rows = $db->fetchAll($sql, $params);
+        sendResponse(true, 'Resident options retrieved', ['residents' => $rows]);
+    } catch (Exception $e) {
+        sendResponse(false, 'Error loading resident options: ' . $e->getMessage(), null, 500);
+    }
 }
 
 function listCertificates(bool $pendingOnly = false) {
@@ -661,6 +743,164 @@ function createCertificateByAdmin() {
     }
 }
 
+function directIssueCertificateByAdmin() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'POST required', null, 405);
+    }
+
+    $residentId = (int)($_POST['resident_id'] ?? 0);
+    $certificateType = normalizeCertificateType((string)($_POST['certificate_type'] ?? ''));
+    $purposeOption = trim((string)($_POST['purpose'] ?? 'Walk-in issuance'));
+    $purposeOther = trim((string)($_POST['purpose_other'] ?? ''));
+
+    if ($residentId <= 0 || !in_array($certificateType, CERT_ALLOWED_TYPES, true)) {
+        sendResponse(false, 'Resident and valid certificate type are required', null, 400);
+    }
+
+    $purpose = resolvePurpose($purposeOption !== '' ? $purposeOption : 'Walk-in issuance', $purposeOther);
+
+    try {
+        $db = Database::getInstance();
+        ensureCertificateWorkflowSchema();
+
+        $resident = $db->fetchOne(
+            "SELECT first_name, middle_name, last_name, birth_date, address, civil_status
+             FROM residents
+             WHERE id = ?
+             LIMIT 1",
+            [$residentId]
+        );
+
+        if (!$resident) {
+            sendResponse(false, 'Resident not found', null, 404);
+        }
+
+        $certName = trim(
+            ((string)($resident['first_name'] ?? '')) . ' '
+            . ((string)($resident['middle_name'] ?? '') !== '' ? ((string)$resident['middle_name'] . ' ') : '')
+            . ((string)($resident['last_name'] ?? ''))
+        );
+        if ($certName === '') {
+            $certName = 'N/A';
+        }
+
+        $certAddress = trim((string)($resident['address'] ?? ''));
+        if ($certAddress === '') {
+            $certAddress = 'Barangay 219, Tondo, Manila';
+        }
+
+        $certAge = null;
+        $birthDateRaw = trim((string)($resident['birth_date'] ?? ''));
+        if ($birthDateRaw !== '') {
+            $birthTs = strtotime($birthDateRaw);
+            if ($birthTs !== false) {
+                $birthDate = new DateTime(date('Y-m-d', $birthTs));
+                $todayDate = new DateTime('today');
+                $computedAge = (int)$birthDate->diff($todayDate)->y;
+                if ($computedAge > 0) {
+                    $certAge = $computedAge;
+                }
+            }
+        }
+
+        $civilStatus = trim((string)($resident['civil_status'] ?? ''));
+        $issueDate = date('Y-m-d');
+        $controlNumber = generateControlNumber();
+        $certBody = buildCertificateBody(
+            $certificateType,
+            $certName,
+            $certAge,
+            $civilStatus,
+            $certAddress,
+            $purpose,
+            formatIssuedDateForBody($issueDate),
+            $controlNumber
+        );
+
+        $db->beginTransaction();
+
+        $db->query(
+            "INSERT INTO certificate_requests (
+                resident_id,
+                requested_by,
+                certificate_type,
+                purpose,
+                status,
+                cert_name,
+                cert_age,
+                cert_address,
+                cert_purpose,
+                cert_body,
+                purpose_option,
+                purpose_other,
+                date_issued,
+                issued_date,
+                approved_at,
+                ready_for_pickup_at,
+                admin_id,
+                control_number
+             ) VALUES (?, ?, ?, ?, 'ready_for_pickup', ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?)",
+            [
+                $residentId,
+                (int)getCurrentUserId(),
+                $certificateType,
+                $purpose,
+                $certName,
+                $certAge,
+                $certAddress,
+                $purpose,
+                $certBody,
+                $purposeOption,
+                $purposeOther !== '' ? $purposeOther : null,
+                $issueDate,
+                $issueDate,
+                (int)getCurrentUserId(),
+                $controlNumber
+            ]
+        );
+
+        $id = (int)$db->lastInsertId();
+        $appRef = generateApplicationRefForId($id);
+        $refNo = generateReferenceNumberForId($id);
+
+        $db->query(
+            "UPDATE certificate_requests SET application_ref = ?, reference_number = ? WHERE id = ?",
+            [$appRef, $refNo, $id]
+        );
+
+        $db->commit();
+
+        sendResidentNotification(
+            $residentId,
+            'Certificate Ready for Pickup',
+            'A walk-in certificate request has been prepared and is ready for pickup. Control number: ' . $controlNumber,
+            'success'
+        );
+
+        logActivity('direct_issue', 'certificates', $id, [
+            'status' => 'ready_for_pickup',
+            'control_number' => $controlNumber,
+            'source' => 'walk_in'
+        ]);
+
+        sendResponse(true, 'Walk-in certificate request issued successfully', [
+            'id' => $id,
+            'application_ref' => $appRef,
+            'reference_number' => $refNo,
+            'status' => 'ready_for_pickup',
+            'control_number' => $controlNumber,
+            'issuance_date' => $issueDate,
+            'print_url' => BASE_URL . 'certificate-print.php?id=' . $id
+        ]);
+    } catch (Exception $e) {
+        try {
+            Database::getInstance()->rollback();
+        } catch (Exception $rollbackErr) {
+        }
+        sendResponse(false, 'Error issuing walk-in certificate: ' . $e->getMessage(), null, 500);
+    }
+}
+
 function updateCertificateWorkflow() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         sendResponse(false, 'POST required', null, 405);
@@ -918,7 +1158,7 @@ function approveAndPrepareForPickup() {
                 $civilStatus,
                 $resolvedAddress,
                 $resolvedPurpose,
-                date('m/d/Y', strtotime($issueDate)),
+                formatIssuedDateForBody($issueDate),
                 $controlNumber
             );
         }
