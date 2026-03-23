@@ -20,6 +20,10 @@ define('DB_CHARSET', 'utf8mb4');
 define('APP_NAME', 'E-Barangay Information Management System');
 define('APP_VERSION', '1.0.0');
 define('BARANGAY_NAME', 'Barangay 219, Tondo, Manila');
+define('APP_TIMEZONE', 'Asia/Manila');
+
+// Keep PHP clock aligned with local deployment time used by database/app flows.
+date_default_timezone_set(APP_TIMEZONE);
 
 // Base URLs
 // Auto-detect the correct path based on the current script location
