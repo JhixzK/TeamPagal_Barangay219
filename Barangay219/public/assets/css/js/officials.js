@@ -241,15 +241,17 @@ function renderOfficialTile(o) {
     const icon = getPositionIcon(o.position);
     const isCaptain = String(o.position || '').toLowerCase() === 'barangay_captain';
     const isSuper = isSuperAdminClient();
+    const nameJs = escapeHtml(o.full_name || '').replace(/'/g, "\\'");
+    const posJs = escapeHtml(o.position || '').replace(/'/g, "\\'");
     const deleteButton = isCaptain
         ? (isSuper
-            ? `<button class="action-icon-btn action-delete" title="Remove (Super Admin only)" aria-label="Remove" onclick="deleteOfficial(${o.id})">
+            ? `<button class="action-icon-btn action-delete" title="Remove (Super Admin only)" aria-label="Remove" onclick="deleteOfficial(${o.id}, '${nameJs}', '${posJs}')">
                     <i class="bi bi-trash"></i>
                </button>`
             : `<button class="action-icon-btn" title="Protected (Super Admin only)" aria-label="Protected" disabled>
                     <i class="bi bi-shield-lock"></i>
                </button>`)
-        : `<button class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="deleteOfficial(${o.id})">
+        : `<button class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="deleteOfficial(${o.id}, '${nameJs}', '${posJs}')">
                 <i class="bi bi-trash"></i>
            </button>`;
     return `
@@ -354,11 +356,29 @@ function editOfficial(id) {
         .catch(() => showOfficialsAlert('error', 'Error loading official'));
 }
 
+function showConfirmModal(title, body, btnClass, onConfirm) {
+    const modal = document.getElementById('confirmModal');
+    if (!modal) { if (confirm(body)) onConfirm(); return; }
+    document.getElementById('confirmModalTitle').textContent = title;
+    document.getElementById('confirmModalBody').innerHTML = body;
+    const okBtn = document.getElementById('confirmModalOk');
+    okBtn.className = 'btn btn-sm ' + (btnClass || 'btn-primary');
+    okBtn.textContent = title.startsWith('Remove') ? 'Remove' : 'Confirm';
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+    const handler = () => {
+        okBtn.removeEventListener('click', handler);
+        bsModal.hide();
+        onConfirm();
+    };
+    okBtn.replaceWith(okBtn.cloneNode(true));
+    document.getElementById('confirmModalOk').addEventListener('click', handler);
+    bsModal.show();
+}
+
 function saveOfficial() {
     const form = document.getElementById('officialForm');
     const fd = new FormData(form);
     const id = fd.get('id');
-    fd.append('action', id ? 'update' : 'create');
     const residentId = String(fd.get('resident_id') || '').trim();
     if (!residentId) {
         showOfficialsAlert('error', 'Please select a resident first.');
@@ -370,37 +390,57 @@ function saveOfficial() {
         return;
     }
 
-    fetch(window.API_URL + 'officials.php', { method: 'POST', body: fd })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) {
-                showOfficialsAlert('success', d.message || 'Saved');
-                bootstrap.Modal.getInstance(document.getElementById('officialModal')).hide();
-                resetOfficialForm();
-                loadOfficials();
-            } else {
-                showOfficialsAlert('error', d.message || 'Failed to save');
-            }
-        })
-        .catch(() => showOfficialsAlert('error', 'Error saving official'));
+    const name = escapeHtml(fd.get('full_name') || 'this resident');
+    const posLabel = escapeHtml(formatPosition(position));
+    const action = id ? 'update' : 'assign';
+    const msg = id
+        ? `Are you sure you want to update <strong>${name}</strong> as <strong>${posLabel}</strong>?`
+        : `Are you sure you want to assign <strong>${name}</strong> as <strong>${posLabel}</strong>?<br><small class="text-muted">Their role will be promoted automatically.</small>`;
+
+    showConfirmModal(
+        id ? 'Update Official' : 'Assign Official',
+        msg,
+        'btn-primary',
+        () => {
+            fd.append('action', id ? 'update' : 'create');
+            fetch(window.API_URL + 'officials.php', { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success) {
+                        showOfficialsAlert('success', d.message || 'Saved');
+                        bootstrap.Modal.getInstance(document.getElementById('officialModal')).hide();
+                        resetOfficialForm();
+                        loadOfficials();
+                    } else {
+                        showOfficialsAlert('error', d.message || 'Failed to save');
+                    }
+                })
+                .catch(() => showOfficialsAlert('error', 'Error saving official'));
+        }
+    );
 }
 
-function deleteOfficial(id) {
-    if (!confirm('Remove this official?')) return;
-    const fd = new FormData();
-    fd.append('action', 'delete');
-    fd.append('id', id);
-    fetch(window.API_URL + 'officials.php', { method: 'POST', body: fd })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) {
-                showOfficialsAlert('success', d.message || 'Removed');
-                loadOfficials();
-            } else {
-                showOfficialsAlert('error', d.message || 'Failed to remove');
-            }
-        })
-        .catch(() => showOfficialsAlert('error', 'Error removing official'));
+function deleteOfficial(id, name, position) {
+    const label = name ? escapeHtml(name) : 'this official';
+    const posLabel = position ? escapeHtml(formatPosition(position)) : 'their position';
+    const msg = `Are you sure you want to remove <strong>${label}</strong> from <strong>${posLabel}</strong>?<br><small class="text-muted">They will be demoted back to Resident.</small>`;
+
+    showConfirmModal('Remove Official', msg, 'btn-danger', () => {
+        const fd = new FormData();
+        fd.append('action', 'delete');
+        fd.append('id', id);
+        fetch(window.API_URL + 'officials.php', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    showOfficialsAlert('success', d.message || 'Removed');
+                    loadOfficials();
+                } else {
+                    showOfficialsAlert('error', d.message || 'Failed to remove');
+                }
+            })
+            .catch(() => showOfficialsAlert('error', 'Error removing official'));
+    });
 }
 
 function resetOfficialForm() {
