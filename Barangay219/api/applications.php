@@ -997,10 +997,10 @@ function approveApplication() {
         $userColSql = '`' . implode('`,`', $userInsertCols) . '`';
         $userPlaceholders = implode(',', array_fill(0, count($userInsertCols), '?'));
         
-        // Use database time for activation expiry to ensure timezone consistency
+        // Keep activation links valid until used (token is invalidated on successful activation).
         $db->query("INSERT INTO users ($userColSql, activation_token, activation_expires) VALUES ("
             . implode(',', array_fill(0, count($userInsertCols), '?')) 
-            . ", ?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 7 DAY))", 
+            . ", ?, NULL)", 
             array_merge($userInsertParams, [$activationToken])
         );
 
@@ -1490,7 +1490,11 @@ function getActivationLink() {
 
         // Map approved application to resident user using strong identity fields.
         $user = $db->fetchOne(
-            "SELECT u.id, u.username, u.activation_token, u.activation_expires
+            "SELECT u.id, u.username, u.activation_token, u.activation_expires,
+                    CASE
+                        WHEN u.activation_expires IS NULL OR u.activation_expires <= CURRENT_TIMESTAMP THEN 1
+                        ELSE 0
+                    END AS activation_is_expired
              FROM users u
              JOIN residents r ON r.id = u.resident_id
              WHERE u.role = ?
@@ -1528,16 +1532,20 @@ function getActivationLink() {
         }
 
         $expires = $user['activation_expires'] ?? null;
-        $isExpired = !$expires || strtotime($expires) <= time();
+        $isExpired = ((int)($user['activation_is_expired'] ?? 1)) === 1;
 
         if ($isExpired) {
             $token = bin2hex(random_bytes(32));
-            $newExpiry = date('Y-m-d H:i:s', strtotime('+7 days'));
             $db->query(
-                "UPDATE users SET activation_token = ?, activation_expires = ? WHERE id = ?",
-                [$token, $newExpiry, $user['id']]
+                "UPDATE users
+                 SET activation_token = ?,
+                     activation_expires = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 7 DAY)
+                 WHERE id = ?",
+                [$token, $user['id']]
             );
-            $expires = $newExpiry;
+
+            $updated = $db->fetchOne("SELECT activation_expires FROM users WHERE id = ?", [$user['id']]);
+            $expires = $updated['activation_expires'] ?? null;
         }
 
         sendResponse(true, 'Activation link retrieved.', [
