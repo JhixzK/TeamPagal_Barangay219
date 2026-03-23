@@ -64,8 +64,12 @@ function handleInitiateReset() {
         return;
     }
     
-    $data = json_decode(file_get_contents('php://input'), true);
-    $identifier = trim($data['identifier'] ?? '');
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw, true);
+    if (!is_array($data)) {
+        $data = [];
+    }
+    $identifier = trim((string)($data['identifier'] ?? ''));
     $method = sanitizeInput($data['method'] ?? '');
     
     if (empty($identifier) || empty($method)) {
