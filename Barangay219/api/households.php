@@ -10,6 +10,7 @@ define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 require_once __DIR__ . '/../includes/household_head_transfer_guard.php';
+require_once __DIR__ . '/../includes/indigent-classification.php';
 
 requireLogin();
 requireModuleAccess('households');
@@ -1084,7 +1085,8 @@ function getHousehold() {
     
     try {
         $db = Database::getInstance();
-        
+        ensureIndigentClassificationSchema($db);
+
         $sql = "SELECT h.*, 
                        CONCAT(r.first_name, ' ', COALESCE(r.middle_name, ''), ' ', r.last_name) as family_head_name
                 FROM households h
@@ -1252,6 +1254,8 @@ function getHousehold() {
         $household['members'] = $members;
         $household['household_type'] = resolveHouseholdTypeForAdminApi($household, $members, $rawHouseholdTypeForDisplay);
         $household = enrichStructureHouseTypeFromHeadApplication($db, $household, $members);
+
+        attachIndigentFieldsToHouseholdArray($db, $household, $members);
 
         sendResponse(true, 'Household retrieved successfully', $household);
         
