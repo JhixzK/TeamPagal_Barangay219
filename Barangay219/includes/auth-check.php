@@ -64,14 +64,21 @@ function requireLogin() {
 }
 
 /**
- * Re-read the user's role from DB on every authenticated request (promotion/demotion must apply immediately).
+ * Re-read the user's role from DB once per request (promotion/demotion must apply immediately).
  * Pure residents never keep staff view_mode or dual-access UI.
  */
 function refreshSessionRole() {
+    static $syncedThisRequest = false;
+    if ($syncedThisRequest) {
+        return;
+    }
+
     $userId = $_SESSION['user_id'] ?? null;
     if (!$userId) {
         return;
     }
+
+    $syncedThisRequest = true;
 
     try {
         $db = Database::getInstance();
@@ -259,23 +266,42 @@ function isResidentView() {
 }
 
 /**
- * Check if current user can switch view mode
+ * Barangay positions that may use Official ↔ Resident view switching (promoted officials only).
+ */
+function getBarangayOfficialRolesForViewSwitch() {
+    return [
+        normalizeRole(ROLE_BARANGAY_CAPTAIN),
+        normalizeRole(ROLE_SECRETARY),
+        normalizeRole(ROLE_TREASURER),
+        normalizeRole(ROLE_KAGAWA),
+        normalizeRole(ROLE_SK_CHAIRMAN),
+    ];
+}
+
+/**
+ * Check if current user can switch view mode (true barangay officials only; not residents or super_admin).
  */
 function canSwitchToResidentView() {
     if (!isLoggedIn()) {
         return false;
     }
 
+    refreshSessionRole();
     $realRole = normalizeRole(getRealUserRole());
-    return $realRole !== null && $realRole !== normalizeRole(ROLE_RESIDENT);
+    if ($realRole === null || $realRole === normalizeRole(ROLE_RESIDENT)) {
+        return false;
+    }
+    return in_array($realRole, getBarangayOfficialRolesForViewSwitch(), true);
 }
 
 /**
  * Set view mode for non-resident users
  */
 function setViewMode($mode) {
+    refreshSessionRole();
+
     if (!canSwitchToResidentView()) {
-        $_SESSION['view_mode'] = 'official';
+        unset($_SESSION['view_mode']);
         return false;
     }
 
@@ -334,6 +360,14 @@ function requireRole($role) {
  */
 function requireAnyRole($roles) {
     requireLogin();
+    refreshSessionRole();
+    if (normalizeRole(getRealUserRole()) === normalizeRole(ROLE_RESIDENT)) {
+        if (isApiScriptRequest()) {
+            sendJsonAuthResponse(403, 'Access denied');
+        }
+        header('Location: ' . BASE_URL . 'resident_dashboard.php?error=access_denied');
+        exit();
+    }
     if (!hasAnyRole($roles)) {
         header('Location: ' . BASE_URL . 'dashboard.php?error=access_denied');
         exit();
@@ -376,6 +410,12 @@ function canAccessModule($module) {
         return false;
     }
 
+    refreshSessionRole();
+    // Demoted users: DB role is resident — never grant staff module access (even if session/view_mode was stale).
+    if (normalizeRole(getRealUserRole()) === normalizeRole(ROLE_RESIDENT)) {
+        return false;
+    }
+
     // Lock down sensitive modules to system admins only.
     if ($module === 'officials') {
         return isSystemAdmin();
@@ -397,6 +437,22 @@ function canAccessModule($module) {
     }
 
     return false;
+}
+
+/**
+ * Redirect when a staff-only gate fails (residents go to resident portal).
+ */
+function redirectStaffPortalAccessDenied() {
+    if (isApiScriptRequest()) {
+        sendJsonAuthResponse(403, 'Access denied');
+    }
+    refreshSessionRole();
+    if (normalizeRole(getRealUserRole()) === normalizeRole(ROLE_RESIDENT)) {
+        header('Location: ' . BASE_URL . 'resident_dashboard.php?error=access_denied');
+    } else {
+        header('Location: ' . BASE_URL . 'dashboard.php?error=access_denied');
+    }
+    exit();
 }
 
 /**
@@ -423,6 +479,11 @@ function requireModuleAccess($module) {
  */
 function canPerformModulePermission($module, $permission) {
     if (!isLoggedIn()) {
+        return false;
+    }
+
+    refreshSessionRole();
+    if (normalizeRole(getRealUserRole()) === normalizeRole(ROLE_RESIDENT)) {
         return false;
     }
 
