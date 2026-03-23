@@ -68,28 +68,14 @@ include __DIR__ . '/../includes/sidebar.php';
           <label class="form-label d-flex align-items-center gap-2">
             Respondent (Person Reported) <span class="text-danger">*</span>
           </label>
-          <div class="form-check mb-2">
-            <input class="form-check-input" type="checkbox" id="respondentNonResident" name="respondent_non_resident" value="1">
-            <label class="form-check-label" for="respondentNonResident">
-              Respondent is not a resident
-            </label>
-          </div>
-
-          <div id="respondentResidentWrap">
-            <input type="text" class="form-control" id="respondentLookup" list="respondentList" placeholder="Type respondent resident name..." autocomplete="off">
-            <datalist id="respondentList"></datalist>
-            <input type="hidden" id="respondentId" name="respondent_id" value="">
-            <small class="text-muted">Search and select from resident records.</small>
-          </div>
-
-          <div id="respondentNameWrap" class="d-none">
-            <input type="text" class="form-control" id="respondentName" name="respondent_name" maxlength="255" placeholder="Enter respondent full name">
-          </div>
+          <input type="text" class="form-control" id="respondentNameRaw" name="respondent_name_raw" maxlength="255" required placeholder="Enter respondent full name">
+          <small class="text-muted">For privacy, resident records are not shown on this page.</small>
         </div>
 
         <div class="col-12">
           <label class="form-label">Witnesses (Optional)</label>
-          <textarea class="form-control" id="witnesses" name="witnesses" rows="3" placeholder="One witness per line"></textarea>
+          <textarea class="form-control" id="witnesses" name="witnesses" rows="3" placeholder="Example:&#10;Juan Dela Cruz - Nickname 'Jun' - 09171234567&#10;Aling Nena (Sari-sari store owner across the street)"></textarea>
+          <small class="text-muted">Include nicknames, descriptions, or contact numbers to help the Barangay locate them faster.</small>
         </div>
 
         <div class="col-12">
@@ -126,19 +112,10 @@ include __DIR__ . '/../includes/sidebar.php';
 <script>
 (function () {
   const API_CREATE = '<?php echo API_URL; ?>blotter/create.php';
-  const API_RESPONDENTS = '<?php echo API_URL; ?>blotter/resident-options.php?limit=200';
 
   const form = document.getElementById('incidentForm');
   const btn = document.getElementById('submitIncidentBtn');
-  const respondentNonResident = document.getElementById('respondentNonResident');
-  const respondentResidentWrap = document.getElementById('respondentResidentWrap');
-  const respondentNameWrap = document.getElementById('respondentNameWrap');
-  const respondentLookup = document.getElementById('respondentLookup');
-  const respondentList = document.getElementById('respondentList');
-  const respondentId = document.getElementById('respondentId');
-  const respondentName = document.getElementById('respondentName');
-
-  const nameMap = {};
+  const respondentNameRaw = document.getElementById('respondentNameRaw');
 
   function todayBadge() {
     const b = document.getElementById('mainDateBadge');
@@ -147,54 +124,11 @@ include __DIR__ . '/../includes/sidebar.php';
     b.innerHTML = '<i class="bi bi-calendar3 me-1"></i>' + now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
   }
 
-  function toggleRespondentMode() {
-    const nonResident = respondentNonResident.checked;
-    respondentResidentWrap.classList.toggle('d-none', nonResident);
-    respondentNameWrap.classList.toggle('d-none', !nonResident);
-    if (nonResident) {
-      respondentLookup.value = '';
-      respondentId.value = '';
-    } else {
-      respondentName.value = '';
-    }
-  }
-
-  function loadRespondents() {
-    fetch(API_RESPONDENTS)
-      .then(r => r.json())
-      .then(d => {
-        const rows = d?.data?.residents || [];
-        respondentList.innerHTML = '';
-        rows.forEach(item => {
-          const label = [item.last_name, ', ', item.first_name, item.middle_name ? ' ' + item.middle_name : ''].join('').replace(/\s+/g, ' ').trim();
-          nameMap[label] = String(item.id);
-          const opt = document.createElement('option');
-          opt.value = label;
-          respondentList.appendChild(opt);
-        });
-      });
-  }
-
-  respondentLookup.addEventListener('input', function () {
-    const val = String(this.value || '').trim();
-    respondentId.value = nameMap[val] || '';
-  });
-
-  respondentLookup.addEventListener('change', function () {
-    const val = String(this.value || '').trim();
-    respondentId.value = nameMap[val] || '';
-  });
-
   form.addEventListener('submit', function (e) {
     e.preventDefault();
 
-    const nonResident = respondentNonResident.checked;
-    if (!nonResident && !respondentId.value) {
-      alert('Please select a resident respondent from suggestions.');
-      return;
-    }
-    if (nonResident && !String(respondentName.value || '').trim()) {
-      alert('Respondent name is required for non-resident respondent.');
+    if (!String(respondentNameRaw.value || '').trim()) {
+      alert('Respondent name is required.');
       return;
     }
 
@@ -226,11 +160,7 @@ include __DIR__ . '/../includes/sidebar.php';
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
   }
 
-  respondentNonResident.addEventListener('change', toggleRespondentMode);
-
   todayBadge();
-  toggleRespondentMode();
-  loadRespondents();
 })();
 </script>
 
