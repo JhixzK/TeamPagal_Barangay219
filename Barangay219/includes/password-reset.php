@@ -17,7 +17,7 @@ require_once __DIR__ . '/mail-helper.php';
 // Password Reset Configuration
 define('OTP_LENGTH', 6);  // 6-digit OTP (required)
 define('OTP_EXPIRY_MINUTES', 5);  // 3-5 minutes expiry
-define('TOKEN_EXPIRY_MINUTES', 5);  // Reset link expires after 5 minutes
+define('TOKEN_EXPIRY_MINUTES', 30);  // Reset link expires after 30 minutes
 define('MAX_OTP_ATTEMPTS', 5);  // 3-5 attempts allowed
 define('RATE_LIMIT_WINDOW_MINUTES', 60);
 define('MAX_RESET_REQUESTS_PER_HOUR', 3);
@@ -274,6 +274,55 @@ function sendResetLinkViaEmail($email, $token, $reset_link) {
         return true;
     } catch (Exception $e) {
         error_log("Email send error: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Issue and send a replacement email reset link for expired tokens.
+ * Returns true only when a new token was created and email was sent.
+ *
+ * @param int $user_id
+ * @param string $email
+ * @return bool
+ */
+function sendReplacementResetLinkForExpiredToken($user_id, $email) {
+    try {
+        $user_id = (int)$user_id;
+        $email = trim((string)$email);
+        if ($user_id <= 0 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        $db = Database::getInstance();
+        $token = generateResetToken();
+        $token_hash = hash('sha256', $token);
+
+        // Invalidate previous unused email tokens to avoid confusion with multiple links.
+        $db->query(
+            "UPDATE password_reset_tokens
+             SET is_used = 1, used_at = NOW()
+             WHERE user_id = ? AND method = 'email' AND is_used = 0",
+            [$user_id]
+        );
+
+        $db->query(
+            "INSERT INTO password_reset_tokens (user_id, token, method, identifier, expires_at)
+             VALUES (?, ?, 'email', ?, TIMESTAMPADD(MINUTE, ?, CURRENT_TIMESTAMP))",
+            [$user_id, $token_hash, $email, TOKEN_EXPIRY_MINUTES]
+        );
+
+        $reset_link = BASE_URL . "verify-reset.php?token=" . urlencode($token) . "&type=email";
+        $sent = sendResetLinkViaEmail($email, $token, $reset_link);
+
+        logPasswordResetActivity($user_id, 'token_sent', 'email', $email, [
+            'reason' => 'expired_token_reissue',
+            'sent' => $sent
+        ]);
+
+        return $sent;
+    } catch (Exception $e) {
+        error_log('Replacement reset token send error: ' . $e->getMessage());
         return false;
     }
 }
@@ -731,6 +780,20 @@ function resetPasswordWithToken($token, $new_password, $confirm_password) {
 
         if ((int)$token_state['is_expired'] === 1) {
             logPasswordResetActivity((int)$token_state['user_id'], 'reset_failed', 'email', (string)$token_state['identifier'], 'token_expired');
+
+            $resent = sendReplacementResetLinkForExpiredToken(
+                (int)$token_state['user_id'],
+                (string)($token_state['identifier'] ?? '')
+            );
+
+            if ($resent) {
+                return [
+                    'success' => false,
+                    'message' => 'This reset link has expired. A new reset link has been sent to your email address.',
+                    'code' => 'TOKEN_EXPIRED_REISSUED'
+                ];
+            }
+
             return [
                 'success' => false,
                 'message' => 'This reset link has expired. Please request a new one.',
@@ -870,31 +933,16 @@ function getResetTokenState($token) {
 function validatePassword($password) {
     $errors = [];
     $requirements = [
-        'min_length' => 'At least 8 characters',
-        'uppercase' => 'At least one uppercase letter',
-        'lowercase' => 'At least one lowercase letter',
-        'number' => 'At least one number',
-        'special' => 'At least one special character (!@#$%^&*)'
+        'length' => 'Password must be ' . PASSWORD_MIN_LENGTH . '-' . PASSWORD_MAX_LENGTH . ' characters',
+        'letters_numbers' => 'Password must contain both letters and numbers'
     ];
-    
-    if (strlen($password) < 8) {
-        $errors[] = $requirements['min_length'];
+
+    if (strlen($password) < PASSWORD_MIN_LENGTH || strlen($password) > PASSWORD_MAX_LENGTH) {
+        $errors[] = $requirements['length'];
     }
-    
-    if (!preg_match('/[A-Z]/', $password)) {
-        $errors[] = $requirements['uppercase'];
-    }
-    
-    if (!preg_match('/[a-z]/', $password)) {
-        $errors[] = $requirements['lowercase'];
-    }
-    
-    if (!preg_match('/\d/', $password)) {
-        $errors[] = $requirements['number'];
-    }
-    
-    if (!preg_match('/[!@#$%^&*()_+=\[\]{};:\'",.<>?\\|`~\-]/', $password)) {
-        $errors[] = $requirements['special'];
+
+    if (!preg_match('/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]{' . PASSWORD_MIN_LENGTH . ',' . PASSWORD_MAX_LENGTH . '}$/', $password)) {
+        $errors[] = $requirements['letters_numbers'];
     }
     
     return [
