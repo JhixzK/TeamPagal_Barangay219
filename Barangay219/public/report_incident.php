@@ -114,6 +114,33 @@ include __DIR__ . '/../includes/sidebar.php';
   </div>
 </div>
 
+<div class="modal fade" id="submitSuccessModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-check-circle-fill text-success me-2"></i>Report Submitted</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2">Your blotter report has been received successfully.</p>
+        <div class="alert alert-success mb-0 d-flex align-items-center justify-content-between gap-2">
+          <div>
+            <small class="d-block text-muted">Reference Number</small>
+            <strong id="successReferenceNo" class="fs-5">-</strong>
+          </div>
+          <button type="button" class="btn btn-outline-success btn-sm" id="copyReferenceBtn">
+            <i class="bi bi-clipboard me-1"></i>Copy to Clipboard
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="goToMyBlottersBtn">Go to My Blotters</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <style>
 .resident-incident-page textarea.form-control {
   resize: none;
@@ -136,6 +163,7 @@ include __DIR__ . '/../includes/sidebar.php';
 <script>
 (function () {
   const API_CREATE = '<?php echo API_URL; ?>blotter/create.php';
+  const BASE = '<?php echo BASE_URL; ?>';
 
   const form = document.getElementById('incidentForm');
   const btn = document.getElementById('submitIncidentBtn');
@@ -145,6 +173,11 @@ include __DIR__ . '/../includes/sidebar.php';
   const respondentNameRaw = document.getElementById('respondentNameRaw');
   const narrative = document.getElementById('narrative');
   const narrativeCounter = document.getElementById('narrativeCounter');
+  const successRefEl = document.getElementById('successReferenceNo');
+  const copyReferenceBtn = document.getElementById('copyReferenceBtn');
+  const goToMyBlottersBtn = document.getElementById('goToMyBlottersBtn');
+  const successModalEl = document.getElementById('submitSuccessModal');
+  const successModal = (window.bootstrap && successModalEl) ? new bootstrap.Modal(successModalEl) : null;
 
   function todayBadge() {
     const b = document.getElementById('mainDateBadge');
@@ -200,12 +233,49 @@ include __DIR__ . '/../includes/sidebar.php';
           return;
         }
         const ref = d?.data?.reference_no || '';
-        window.location.href = '<?php echo BASE_URL; ?>my_blotters.php?submitted=' + encodeURIComponent(ref);
+        successRefEl.textContent = ref || '-';
+        if (successModal) {
+          successModal.show();
+        } else {
+          alert('Report submitted. Reference #: ' + ref);
+        }
+        form.reset();
+        toggleOtherIncidentType();
+        updateNarrativeCounter();
       })
       .catch(() => {
         btn.disabled = false;
         alert('Unable to submit report right now.');
       });
+  });
+
+  copyReferenceBtn.addEventListener('click', function () {
+    const ref = String(successRefEl.textContent || '').trim();
+    if (!ref || ref === '-') {
+      return;
+    }
+
+    const restoreLabel = copyReferenceBtn.innerHTML;
+    const copiedLabel = '<i class="bi bi-clipboard-check me-1"></i>Copied';
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ref).then(function () {
+        copyReferenceBtn.innerHTML = copiedLabel;
+        setTimeout(function () {
+          copyReferenceBtn.innerHTML = restoreLabel;
+        }, 1400);
+      }).catch(function () {
+        alert('Unable to copy automatically. Please copy the reference number manually.');
+      });
+      return;
+    }
+
+    alert('Clipboard access is unavailable on this browser. Please copy the reference number manually.');
+  });
+
+  goToMyBlottersBtn.addEventListener('click', function () {
+    const ref = String(successRefEl.textContent || '').trim();
+    window.location.href = BASE + 'my_blotters.php' + (ref && ref !== '-' ? ('?submitted=' + encodeURIComponent(ref)) : '');
   });
 
   if (window.bootstrap && bootstrap.Tooltip) {
