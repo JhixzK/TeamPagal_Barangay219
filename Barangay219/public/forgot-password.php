@@ -1,7 +1,7 @@
 <?php
 /**
  * E-Barangay Information Management System
- * Forgot Password - Choose Verification Method
+ * Forgot Password - Email Verification
  */
 
 define('ACCESS_ALLOWED', true);
@@ -101,7 +101,7 @@ if (isLoggedIn()) {
             margin-bottom: 0;
         }
         
-        /* Verification Method Selection (Email/SMS) */
+        /* Verification Method Selection */
         .method-btn {
             flex: 1;
             padding: 12px 10px;
@@ -239,26 +239,12 @@ if (isLoggedIn()) {
                     <h3 class="card-title mt-3">Forgot Password</h3>
                     <p class="card-subtitle">Barangay 219 e-Portal</p>
                 </div>
-                <p class="text-muted small mb-3 text-center">Reset your password using your registered email or phone number.</p>
+                <p class="text-muted small mb-3 text-center">Reset your password using your registered email address.</p>
 
                 <div id="alertContainer"></div>
 
-                <!-- Choose Verification Method -->
                 <form id="forgotPasswordForm">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">How would you like to verify?</label>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="method-btn active" id="emailMethodBtn" onclick="selectMethod('email'); return false;">
-                                <i class="bi bi-envelope-fill"></i> Email
-                                <small>Get a link via email</small>
-                            </button>
-                            <button type="button" class="method-btn" id="smsMethodBtn" onclick="selectMethod('sms'); return false;">
-                                <i class="bi bi-phone-fill"></i> SMS
-                                <small>Get code via text</small>
-                            </button>
-                        </div>
-                        <input type="hidden" id="selectedMethod" name="method" value="email">
-                    </div>
+                    <input type="hidden" id="selectedMethod" name="method" value="email">
 
                 <!-- Email Input Section -->
                 <div id="emailSection" class="mb-3">
@@ -279,31 +265,13 @@ if (isLoggedIn()) {
                     <div class="valid-feedback">Valid Gmail address.</div>
                 </div>
 
-                <!-- Mobile Input Section -->
-                <div id="mobileSection" class="mb-3" style="display:none;">
-                    <label for="userMobile" class="form-label">Registered Mobile Number</label>
-                    <input
-                        type="text"
-                        class="form-control"
-                        id="userMobile"
-                        name="mobile"
-                        placeholder="+63 9XXXXXXXXX"
-                        autocomplete="off"
-                        maxlength="14"
-                        inputmode="numeric"
-                    >
-                    <div class="form-text">Please type your registered mobile number.</div>
-                    <div class="invalid-feedback" id="mobileErrorText"></div>
-                    <div class="valid-feedback">Valid mobile number.</div>
-                </div>
-
                     <button type="submit" class="btn btn-primary w-100" id="submitBtn">
-                        <i class="bi bi-send"></i> Send Reset Code
+                        <i class="bi bi-send"></i> Send Reset Link
                     </button>
 
                     <div id="loadingSpinner" class="text-center text-primary mt-3" style="display:none;">
                         <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                        Sending code...
+                        Sending reset link...
                     </div>
                 </form>
 
@@ -373,66 +341,9 @@ if (isLoggedIn()) {
             emailErrorText.textContent = '';
         }
 
-        function selectMethod(method) {
-            const emailBtn = document.getElementById('emailMethodBtn');
-            const smsBtn = document.getElementById('smsMethodBtn');
-            const emailSec = document.getElementById('emailSection');
-            const mobileSec = document.getElementById('mobileSection');
-
-            if (method === 'sms') {
-                emailBtn.classList.remove('active');
-                smsBtn.classList.add('active');
-                emailSec.style.display = 'none';
-                mobileSec.style.display = 'block';
-                document.getElementById('selectedMethod').value = 'sms';
-                clearEmailError();
-                clearMobileError();
-                setTimeout(() => document.getElementById('userMobile').focus(), 50);
-            } else {
-                emailBtn.classList.add('active');
-                smsBtn.classList.remove('active');
-                emailSec.style.display = 'block';
-                mobileSec.style.display = 'none';
-                document.getElementById('selectedMethod').value = 'email';
-                clearEmailError();
-                clearMobileError();
-                setTimeout(() => document.getElementById('userEmail').focus(), 50);
-            }
-        }
-
         function isValidEmail(email) {
             // Gmail-only format for this flow
             return /^[a-zA-Z0-9._%+\-]+@gmail\.com$/i.test(email);
-        }
-
-        function normalizePhoneDigits(raw) {
-            if (!raw) return '';
-            let digits = String(raw).replace(/\D/g, '');
-            if (digits.startsWith('63')) digits = digits.slice(2);
-            if (digits.startsWith('0')) digits = digits.slice(1);
-            return digits.slice(0, 10);
-        }
-
-        function formatPhoneInput(raw) {
-            const digits = normalizePhoneDigits(raw);
-            return '+63 ' + digits;
-        }
-
-        function setMobileError(message) {
-            const mobileField = document.getElementById('userMobile');
-            const mobileErrorText = document.getElementById('mobileErrorText');
-            if (!mobileField || !mobileErrorText) return;
-            mobileField.classList.add('is-invalid');
-            mobileField.classList.remove('is-valid');
-            mobileErrorText.textContent = message;
-        }
-
-        function clearMobileError() {
-            const mobileField = document.getElementById('userMobile');
-            const mobileErrorText = document.getElementById('mobileErrorText');
-            if (!mobileField || !mobileErrorText) return;
-            mobileField.classList.remove('is-invalid');
-            mobileErrorText.textContent = '';
         }
 
         // Real-time email validation feedback
@@ -449,82 +360,23 @@ if (isLoggedIn()) {
             }
         });
 
-        // Mobile input - enforce +63 style (same pattern used in registration)
-        const mobileInput = document.getElementById('userMobile');
-        if (mobileInput) {
-            if (!mobileInput.value || mobileInput.value.trim() === '+63') {
-                mobileInput.value = '+63 ';
-            }
-
-            mobileInput.addEventListener('focus', function() {
-                if (!this.value || this.value.trim() === '+63') {
-                    this.value = '+63 ';
-                }
-            });
-
-            mobileInput.addEventListener('input', function() {
-                const digits = normalizePhoneDigits(this.value);
-                this.value = '+63 ' + digits;
-                clearMobileError();
-                if (digits.length === 10 && digits.startsWith('9')) {
-                    this.classList.add('is-valid');
-                } else {
-                    this.classList.remove('is-valid');
-                }
-            });
-
-            mobileInput.addEventListener('blur', function() {
-                const digits = normalizePhoneDigits(this.value);
-                this.value = digits ? ('+63 ' + digits) : '+63 ';
-                if (digits.length === 10 && digits.startsWith('9')) {
-                    this.classList.add('is-valid');
-                } else {
-                    this.classList.remove('is-valid');
-                }
-            });
-        }
-
         // Form submission
         document.getElementById('forgotPasswordForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const method = document.getElementById('selectedMethod').value;
-            let identifier = '';
-
-            if (method === 'email') {
-                identifier = document.getElementById('userEmail').value.trim();
-                if (!identifier) {
-                    setEmailError('Please enter your email address.');
-                    document.getElementById('userEmail').focus();
-                    return;
-                }
-                if (!isValidEmail(identifier)) {
-                    setEmailError('Please enter a valid email address (e.g. yourname@gmail.com).');
-                    document.getElementById('userEmail').focus();
-                    return;
-                }
-                clearEmailError();
-            } else {
-                const raw = document.getElementById('userMobile').value.trim();
-                const digits = normalizePhoneDigits(raw);
-                if (!digits) {
-                    setMobileError('Please enter your mobile number.');
-                    document.getElementById('userMobile').focus();
-                    return;
-                }
-                if (digits.length !== 10) {
-                    setMobileError('Please enter a complete mobile number (10 digits after +63).');
-                    document.getElementById('userMobile').focus();
-                    return;
-                }
-                if (!digits.startsWith('9')) {
-                    setMobileError('Mobile number must start with 9 (example: +63 9XXXXXXXXX).');
-                    document.getElementById('userMobile').focus();
-                    return;
-                }
-                clearMobileError();
-                identifier = '+63' + digits;
+            const method = 'email';
+            const identifier = document.getElementById('userEmail').value.trim();
+            if (!identifier) {
+                setEmailError('Please enter your email address.');
+                document.getElementById('userEmail').focus();
+                return;
             }
+            if (!isValidEmail(identifier)) {
+                setEmailError('Please enter a valid email address (e.g. yourname@gmail.com).');
+                document.getElementById('userEmail').focus();
+                return;
+            }
+            clearEmailError();
 
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.disabled = true;
@@ -537,13 +389,21 @@ if (isLoggedIn()) {
                     body: JSON.stringify({ identifier, method })
                 });
 
-                const result = await response.json();
+                const raw = await response.text();
+                let result = null;
+                try {
+                    result = JSON.parse(raw);
+                } catch (parseError) {
+                    showAlert('Unable to process server response. Please try again or contact support if it continues.', 'danger');
+                    submitBtn.disabled = false;
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                    return;
+                }
 
                 if (result.success) {
-                    showAlert('success', '&#10003; Code sent! Redirecting&hellip;');
-                    setTimeout(() => {
-                        window.location.href = '<?php echo BASE_URL; ?>verify-reset.php?method=' + method + '&identifier=' + encodeURIComponent(identifier);
-                    }, 1200);
+                    showAlert('success', '&#10003; Reset link sent. Please check your email and click the link to continue.');
+                    submitBtn.disabled = false;
+                    document.getElementById('loadingSpinner').style.display = 'none';
                 } else {
                     showAlert('danger', result.message || 'Failed to send code. Please try again.');
                     submitBtn.disabled = false;
