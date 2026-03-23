@@ -180,7 +180,10 @@ function getBlotter() {
             'description' => (string)($row['narrative'] ?? ''),
             'witnesses' => witnessesToMultiline((string)($row['witnesses'] ?? '')),
             'status' => mapDbStatusToAdminStatus((string)($row['status'] ?? 'pending')),
+            'hearing_date' => (string)($row['hearing_date'] ?? ''),
             'settlement_date' => (string)($row['settlement_date'] ?? ''),
+            'dismissal_reason' => (string)($row['dismissal_reason'] ?? ''),
+            'resolution_file' => (string)($row['resolution_file'] ?? ''),
             'proof_of_incident_path' => $row['evidence_path'] ?? null,
             'admin_updates' => (string)($row['admin_updates'] ?? ''),
             'complainant_name' => json_encode(buildComplainantPayload($row)),
@@ -747,10 +750,13 @@ function ensureBlotterRecordsBridgeSchema($db) {
             status VARCHAR(30) NOT NULL DEFAULT 'pending',
             respondent_name_raw VARCHAR(255) DEFAULT NULL,
             respondent_name TEXT DEFAULT NULL,
+            respondent_id INT(11) DEFAULT NULL,
             witnesses TEXT DEFAULT NULL,
-            hearing_date DATE DEFAULT NULL,
+            hearing_date DATETIME DEFAULT NULL,
             hearings_json TEXT DEFAULT NULL,
             settlement_date DATE DEFAULT NULL,
+            dismissal_reason TEXT DEFAULT NULL,
+            resolution_file VARCHAR(255) DEFAULT NULL,
             is_confidential TINYINT(1) NOT NULL DEFAULT 0,
             action_requested VARCHAR(50) DEFAULT NULL,
             evidence_path VARCHAR(255) DEFAULT NULL,
@@ -760,7 +766,8 @@ function ensureBlotterRecordsBridgeSchema($db) {
             PRIMARY KEY (id),
             UNIQUE KEY uniq_blotter_reference_no (reference_no),
             KEY idx_blotter_complainant (complainant_id),
-            KEY idx_blotter_status (status)
+            KEY idx_blotter_status (status),
+            KEY idx_blotter_respondent_id (respondent_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
@@ -776,19 +783,40 @@ function ensureBlotterRecordsBridgeSchema($db) {
         'source' => "ALTER TABLE blotter_records ADD COLUMN source VARCHAR(20) NOT NULL DEFAULT 'resident' AFTER reference_no",
         'case_title' => "ALTER TABLE blotter_records ADD COLUMN case_title VARCHAR(255) DEFAULT NULL AFTER source",
         'complainant_name_raw' => "ALTER TABLE blotter_records ADD COLUMN complainant_name_raw VARCHAR(255) DEFAULT NULL AFTER complainant_id",
-        'hearing_date' => "ALTER TABLE blotter_records ADD COLUMN hearing_date DATE DEFAULT NULL AFTER witnesses",
+        'respondent_id' => "ALTER TABLE blotter_records ADD COLUMN respondent_id INT(11) DEFAULT NULL AFTER respondent_name",
+        'hearing_date' => "ALTER TABLE blotter_records ADD COLUMN hearing_date DATETIME DEFAULT NULL AFTER witnesses",
         'hearings_json' => "ALTER TABLE blotter_records ADD COLUMN hearings_json TEXT DEFAULT NULL AFTER hearing_date",
         'settlement_date' => "ALTER TABLE blotter_records ADD COLUMN settlement_date DATE DEFAULT NULL AFTER hearings_json",
+        'dismissal_reason' => "ALTER TABLE blotter_records ADD COLUMN dismissal_reason TEXT DEFAULT NULL AFTER settlement_date",
+        'resolution_file' => "ALTER TABLE blotter_records ADD COLUMN resolution_file VARCHAR(255) DEFAULT NULL AFTER dismissal_reason",
     ];
 
     foreach ($requiredColumns as $col => $sql) {
         try {
-            $exists = $db->fetchOne("SHOW COLUMNS FROM blotter_records LIKE ?", [$col]);
-            if (!$exists) {
+            $exists = $db->fetchOne(
+                "SELECT COUNT(*) AS cnt
+                 FROM information_schema.columns
+                 WHERE table_schema = DATABASE() AND table_name = 'blotter_records' AND column_name = ?",
+                [$col]
+            );
+            if ((int)($exists['cnt'] ?? 0) === 0) {
                 $db->query($sql);
             }
         } catch (Exception $e) {
         }
+    }
+
+    try {
+        $hearingColumn = $db->fetchOne(
+            "SELECT data_type
+             FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = 'blotter_records' AND column_name = 'hearing_date'"
+        );
+        $hearingType = strtolower((string)($hearingColumn['data_type'] ?? ''));
+        if ($hearingType !== '' && $hearingType !== 'datetime') {
+            $db->query("ALTER TABLE blotter_records MODIFY hearing_date DATETIME NULL");
+        }
+    } catch (Exception $e) {
     }
 }
 
