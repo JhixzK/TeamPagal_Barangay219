@@ -259,7 +259,7 @@ function buildPurposeChecklistHtml(string $selectedPurpose): string {
     $isOther = $selectedPurpose === '' || !in_array($normalized, $knownItems, true);
 
     $mark = fn(string $item): string =>
-        strtolower($item) === $normalized ? '(&#10003;)' : '(&nbsp;)';
+        strtolower($item) === $normalized ? '(✓)' : '(&nbsp;&nbsp;&nbsp;)';
 
     $colgroup = '<colgroup>'
         . '<col style="width:46%">'
@@ -280,7 +280,7 @@ function buildPurposeChecklistHtml(string $selectedPurpose): string {
             . "</tr>\n";
     }
 
-    $othersCheck = $isOther ? '(&#10003;)' : '(&nbsp;)';
+    $othersCheck = $isOther ? '(✓)' : '(&nbsp;&nbsp;&nbsp;)';
     $othersValue = $isOther && $selectedPurpose !== ''
         ? ': <strong>' . htmlspecialchars($selectedPurpose) . '</strong>'
         : ': ______________________________';
@@ -391,6 +391,9 @@ if ($certBody !== '') {
                 $paragraphs[] = buildPurposeChecklistHtml($purposeText);
                 continue;
             }
+
+            // Keep visual spacing for unchecked checklist marks in legacy saved text blocks.
+            $paragraphBlock = preg_replace('/\(\s*\)/', '(   )', $paragraphBlock) ?? $paragraphBlock;
 
             $escaped = nl2br(htmlspecialchars($paragraphBlock));
             $escaped = str_replace('TO WHOM IT MAY CONCERN:', '<strong>TO WHOM IT MAY CONCERN:</strong>', $escaped);
