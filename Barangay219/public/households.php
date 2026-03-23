@@ -606,6 +606,9 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
-<script>if (typeof window.API_URL === 'undefined') window.API_URL = '<?php echo addslashes(API_URL); ?>';</script>
+<script>
+if (typeof window.API_URL === 'undefined') window.API_URL = '<?php echo addslashes(API_URL); ?>';
+if (typeof window.BASE_URL === 'undefined') window.BASE_URL = '<?php echo addslashes(BASE_URL); ?>';
+</script>
 <script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/households.js?v=<?php echo time(); ?>"></script>
