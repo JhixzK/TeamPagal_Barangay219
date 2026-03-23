@@ -39,15 +39,23 @@ function getRequestBodyData() {
 }
 
 function requireResidentHouseholdSession() {
-    if (!isset($_SESSION['user_id'], $_SESSION['role'], $_SESSION['resident_id'])) {
+    if (!isset($_SESSION['user_id'], $_SESSION['role'])) {
         householdJsonResponse(false, null, 'Unauthorized', 401);
     }
 
-    if (normalizeRole($_SESSION['role']) !== normalizeRole(ROLE_RESIDENT)) {
+    // True residents always pass. Officials/staff in "Resident View" keep their real role in session
+    // (e.g. secretary) but must still access resident household APIs — allow when view_mode is resident.
+    $realRole = normalizeRole(getRealUserRole());
+    $isTrueResident = ($realRole === normalizeRole(ROLE_RESIDENT));
+    $isStaffInResidentView = !$isTrueResident
+        && function_exists('isResidentView')
+        && isResidentView();
+
+    if (!$isTrueResident && !$isStaffInResidentView) {
         householdJsonResponse(false, null, 'Forbidden', 403);
     }
 
-    $residentId = (int)$_SESSION['resident_id'];
+    $residentId = (int)($_SESSION['resident_id'] ?? 0);
     if ($residentId <= 0) {
         householdJsonResponse(false, null, 'Invalid resident session', 401);
     }
