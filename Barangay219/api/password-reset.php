@@ -35,6 +35,10 @@ switch ($action) {
     case 'reset-password':
         handleResetPassword();
         break;
+
+    case 'reset-with-token':
+        handleResetWithToken();
+        break;
     
     case 'resend-otp':
         handleResendOTP();
@@ -147,11 +151,13 @@ function handleVerifyToken() {
     }
     
     $result = verifyResetToken($token);
-    
+
+    $statusCode = $result['success'] ? 200 : mapTokenErrorStatusCode($result['code'] ?? '');
+
     sendResponse($result['success'], $result['message'], [
         'code' => $result['code'],
         'reset_token' => $result['reset_token'] ?? null
-    ], $result['success'] ? 200 : 400);
+    ], $statusCode);
 }
 
 /**
@@ -198,6 +204,60 @@ function handleResetPassword() {
         'code' => $result['code'],
         'requirements' => $result['requirements'] ?? null
     ], $result['success'] ? 200 : 400);
+}
+
+/**
+ * Handle direct password reset with token (single-step).
+ * POST /api/password-reset.php?action=reset-with-token
+ * Body: { token, new_password, confirm_password }
+ */
+function handleResetWithToken() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'Invalid request method', null, 405);
+        return;
+    }
+
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw, true);
+    if (!is_array($data)) {
+        $data = $_POST;
+    }
+
+    $token = sanitizeInput($data['token'] ?? '');
+    $new_password = $data['new_password'] ?? '';
+    $confirm_password = $data['confirm_password'] ?? '';
+
+    if (empty($token) || empty($new_password) || empty($confirm_password)) {
+        sendResponse(false, 'Token, password, and confirmation are required', null, 400);
+        return;
+    }
+
+    $result = resetPasswordWithToken($token, $new_password, $confirm_password);
+
+    $statusCode = $result['success'] ? 200 : mapTokenErrorStatusCode($result['code'] ?? '');
+
+    sendResponse($result['success'], $result['message'], [
+        'code' => $result['code'],
+        'requirements' => $result['requirements'] ?? null
+    ], $statusCode);
+}
+
+/**
+ * Map token-related reset errors to clearer HTTP status codes.
+ */
+function mapTokenErrorStatusCode($code) {
+    switch ($code) {
+        case 'INVALID_TOKEN':
+            return 404;
+        case 'TOKEN_EXPIRED':
+            return 410;
+        case 'TOKEN_ALREADY_USED':
+            return 409;
+        case 'ERROR':
+            return 500;
+        default:
+            return 400;
+    }
 }
 
 /**
