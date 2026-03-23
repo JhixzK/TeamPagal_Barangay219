@@ -45,6 +45,10 @@ include __DIR__ . '/../includes/sidebar.php';
             <option value="public_disturbance">Public Disturbance</option>
             <option value="other">Other</option>
           </select>
+          <div class="mt-2 d-none" id="otherTypeContainer">
+            <label class="form-label mb-1" for="incident_type_detail">Please specify incident type</label>
+            <input type="text" class="form-control" id="incident_type_detail" name="incident_type_detail" maxlength="100" placeholder="e.g., Illegal Parking">
+          </div>
         </div>
         <div class="col-md-6">
           <label class="form-label">Action Requested</label>
@@ -68,19 +72,20 @@ include __DIR__ . '/../includes/sidebar.php';
           <label class="form-label d-flex align-items-center gap-2">
             Respondent (Person Reported) <span class="text-danger">*</span>
           </label>
-          <input type="text" class="form-control" id="respondentNameRaw" name="respondent_name_raw" maxlength="255" required placeholder="Enter respondent full name">
+          <input type="text" class="form-control" id="respondentNameRaw" name="respondent_name_raw" maxlength="150" required placeholder="Enter respondent full name">
           <small class="text-muted">For privacy, resident records are not shown on this page.</small>
         </div>
 
         <div class="col-12">
           <label class="form-label">Witnesses (Optional)</label>
-          <textarea class="form-control" id="witnesses" name="witnesses" rows="3" placeholder="Example:&#10;Juan Dela Cruz - Nickname 'Jun' - 09171234567&#10;Aling Nena (Sari-sari store owner across the street)"></textarea>
+          <textarea class="form-control" id="witnesses" name="witnesses" rows="3" maxlength="1000" placeholder="Example:&#10;Juan Dela Cruz - Nickname 'Jun' - 09171234567&#10;Aling Nena (Sari-sari store owner across the street)"></textarea>
           <small class="text-muted">Include nicknames, descriptions, or contact numbers to help the Barangay locate them faster.</small>
         </div>
 
         <div class="col-12">
           <label class="form-label">Incident Narrative <span class="text-danger">*</span></label>
-          <textarea class="form-control" id="narrative" name="narrative" rows="6" maxlength="5000" required placeholder="Describe what happened, where, and when."></textarea>
+          <textarea class="form-control" id="narrative" name="narrative" rows="6" maxlength="3000" required placeholder="Describe what happened, where, and when."></textarea>
+          <small id="narrativeCounter" class="small text-muted">0 / 3000 characters</small>
         </div>
 
         <div class="col-md-8">
@@ -109,19 +114,99 @@ include __DIR__ . '/../includes/sidebar.php';
   </div>
 </div>
 
+<div class="modal fade" id="submitSuccessModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-check-circle-fill text-success me-2"></i>Report Submitted</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2">Your blotter report has been received successfully.</p>
+        <div class="alert alert-success mb-0 d-flex align-items-center justify-content-between gap-2">
+          <div>
+            <small class="d-block text-muted">Reference Number</small>
+            <strong id="successReferenceNo" class="fs-5">-</strong>
+          </div>
+          <button type="button" class="btn btn-outline-success btn-sm" id="copyReferenceBtn">
+            <i class="bi bi-clipboard me-1"></i>Copy to Clipboard
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="goToMyBlottersBtn">Go to My Blotters</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.resident-incident-page textarea.form-control {
+  resize: none;
+}
+
+.resident-incident-page .form-check-input[type="checkbox"] {
+  border-color: #9aa4b2;
+}
+
+.resident-incident-page .form-check-input[type="checkbox"]:checked {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+  background-size: 0.8rem 0.8rem;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+</style>
+
 <script>
 (function () {
   const API_CREATE = '<?php echo API_URL; ?>blotter/create.php';
+  const BASE = '<?php echo BASE_URL; ?>';
 
   const form = document.getElementById('incidentForm');
   const btn = document.getElementById('submitIncidentBtn');
+  const incidentType = document.getElementById('incidentType');
+  const otherTypeContainer = document.getElementById('otherTypeContainer');
+  const incidentTypeDetail = document.getElementById('incident_type_detail');
   const respondentNameRaw = document.getElementById('respondentNameRaw');
+  const narrative = document.getElementById('narrative');
+  const narrativeCounter = document.getElementById('narrativeCounter');
+  const successRefEl = document.getElementById('successReferenceNo');
+  const copyReferenceBtn = document.getElementById('copyReferenceBtn');
+  const goToMyBlottersBtn = document.getElementById('goToMyBlottersBtn');
+  const successModalEl = document.getElementById('submitSuccessModal');
+  const successModal = (window.bootstrap && successModalEl) ? new bootstrap.Modal(successModalEl) : null;
 
   function todayBadge() {
     const b = document.getElementById('mainDateBadge');
     if (!b) return;
     const now = new Date();
     b.innerHTML = '<i class="bi bi-calendar3 me-1"></i>' + now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+  }
+
+  function toggleOtherIncidentType() {
+    const value = String(incidentType?.value || '').toLowerCase();
+    const isOther = value === 'other';
+    otherTypeContainer.classList.toggle('d-none', !isOther);
+    incidentTypeDetail.required = isOther;
+    if (!isOther) {
+      incidentTypeDetail.value = '';
+    }
+  }
+
+  function updateNarrativeCounter() {
+    const max = 3000;
+    const len = String(narrative?.value || '').length;
+    narrativeCounter.textContent = len + ' / ' + max + ' characters';
+    if (len >= max) {
+      narrativeCounter.classList.remove('text-muted');
+      narrativeCounter.classList.add('text-danger');
+    } else {
+      narrativeCounter.classList.remove('text-danger');
+      narrativeCounter.classList.add('text-muted');
+    }
   }
 
   form.addEventListener('submit', function (e) {
@@ -143,12 +228,20 @@ include __DIR__ . '/../includes/sidebar.php';
       .then(r => r.json())
       .then(d => {
         btn.disabled = false;
-        if (!d.success) {
+        if (d?.status === 'error' || d?.success === false || !d?.success) {
           alert(d.message || 'Submission failed.');
           return;
         }
         const ref = d?.data?.reference_no || '';
-        window.location.href = '<?php echo BASE_URL; ?>my_blotters.php?submitted=' + encodeURIComponent(ref);
+        successRefEl.textContent = ref || '-';
+        if (successModal) {
+          successModal.show();
+        } else {
+          alert('Report submitted. Reference #: ' + ref);
+        }
+        form.reset();
+        toggleOtherIncidentType();
+        updateNarrativeCounter();
       })
       .catch(() => {
         btn.disabled = false;
@@ -156,11 +249,45 @@ include __DIR__ . '/../includes/sidebar.php';
       });
   });
 
+  copyReferenceBtn.addEventListener('click', function () {
+    const ref = String(successRefEl.textContent || '').trim();
+    if (!ref || ref === '-') {
+      return;
+    }
+
+    const restoreLabel = copyReferenceBtn.innerHTML;
+    const copiedLabel = '<i class="bi bi-clipboard-check me-1"></i>Copied';
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ref).then(function () {
+        copyReferenceBtn.innerHTML = copiedLabel;
+        setTimeout(function () {
+          copyReferenceBtn.innerHTML = restoreLabel;
+        }, 1400);
+      }).catch(function () {
+        alert('Unable to copy automatically. Please copy the reference number manually.');
+      });
+      return;
+    }
+
+    alert('Clipboard access is unavailable on this browser. Please copy the reference number manually.');
+  });
+
+  goToMyBlottersBtn.addEventListener('click', function () {
+    const ref = String(successRefEl.textContent || '').trim();
+    window.location.href = BASE + 'my_blotters.php' + (ref && ref !== '-' ? ('?submitted=' + encodeURIComponent(ref)) : '');
+  });
+
   if (window.bootstrap && bootstrap.Tooltip) {
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
   }
 
+  incidentType.addEventListener('change', toggleOtherIncidentType);
+  narrative.addEventListener('input', updateNarrativeCounter);
+
   todayBadge();
+  toggleOtherIncidentType();
+  updateNarrativeCounter();
 })();
 </script>
 
