@@ -60,6 +60,153 @@ function requireLogin() {
         header('Location: ' . BASE_URL . 'index.php');
         exit();
     }
+    refreshSessionRole();
+}
+
+/**
+ * Re-read the user's role from DB if it may have changed (e.g. promotion/demotion).
+ * Throttled to once per 60 seconds to avoid unnecessary DB queries.
+ */
+function refreshSessionRole() {
+    $now = time();
+    $lastCheck = $_SESSION['role_checked_at'] ?? 0;
+    if (($now - $lastCheck) < 60) {
+        return;
+    }
+    $_SESSION['role_checked_at'] = $now;
+
+    $userId = $_SESSION['user_id'] ?? null;
+    if (!$userId) return;
+
+    try {
+        $db = Database::getInstance();
+        $row = $db->fetchOne("SELECT role FROM users WHERE id = ? LIMIT 1", [$userId]);
+        if ($row && isset($row['role']) && $row['role'] !== $_SESSION['role']) {
+            $_SESSION['role'] = $row['role'];
+            if ($row['role'] === ROLE_RESIDENT) {
+                unset($_SESSION['view_mode']);
+            } elseif (!isset($_SESSION['view_mode'])) {
+                $_SESSION['view_mode'] = 'official';
+            }
+        }
+    } catch (Exception $e) {
+        // DB unavailable -- keep existing session role
+    }
+}
+
+/**
+ * Whether the officials table exists (for role reconciliation).
+ */
+function officialsTableExistsForRoleSync() {
+    static $exists = null;
+    if ($exists !== null) {
+        return $exists;
+    }
+    try {
+        $db = Database::getInstance();
+        $row = $db->fetchOne("SHOW TABLES LIKE 'officials'");
+        $exists = !empty($row);
+    } catch (Exception $e) {
+        $exists = false;
+    }
+    return $exists;
+}
+
+/**
+ * Map officials.position to users.role enum value.
+ */
+function mapOfficialPositionToUserRoleEnum($position) {
+    $p = strtolower(trim((string)$position));
+    if ($p === 'barangay_captain') {
+        return ROLE_BARANGAY_CAPTAIN;
+    }
+    if ($p === 'kagawad') {
+        return ROLE_KAGAWA;
+    }
+    if ($p === 'sk_chairperson') {
+        return ROLE_SK_CHAIRMAN;
+    }
+    if ($p === 'secretary') {
+        return ROLE_SECRETARY;
+    }
+    if ($p === 'treasurer') {
+        return ROLE_TREASURER;
+    }
+    return null;
+}
+
+/**
+ * Resolve resident PK for a user row (resident_id or username = residents.resident_code).
+ */
+function resolveResidentIdForUserRow($db, array $userRow) {
+    $rid = (int)($userRow['resident_id'] ?? 0);
+    if ($rid > 0) {
+        return $rid;
+    }
+    $uname = trim((string)($userRow['username'] ?? ''));
+    if ($uname === '') {
+        return 0;
+    }
+    try {
+        $res = $db->fetchOne('SELECT id FROM residents WHERE resident_code = ? LIMIT 1', [$uname]);
+        return $res ? (int)$res['id'] : 0;
+    } catch (Exception $e) {
+        return 0;
+    }
+}
+
+/**
+ * Align users.role with active officials assignment (self-heal when listing users).
+ * Does not modify super_admin. Does not auto-demote barangay_captain.
+ */
+function reconcileUserRoleWithOfficialsTable($db, array &$userRow) {
+    if (!officialsTableExistsForRoleSync()) {
+        return;
+    }
+    $userId = (int)($userRow['id'] ?? 0);
+    if ($userId <= 0) {
+        return;
+    }
+    $current = strtolower(trim((string)($userRow['role'] ?? '')));
+    if ($current === ROLE_SUPER_ADMIN) {
+        return;
+    }
+
+    $residentId = resolveResidentIdForUserRow($db, $userRow);
+    if ($residentId <= 0) {
+        return;
+    }
+
+    try {
+        $off = $db->fetchOne(
+            "SELECT position FROM officials WHERE resident_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1",
+            [$residentId]
+        );
+        $expected = $off ? mapOfficialPositionToUserRoleEnum($off['position'] ?? '') : null;
+
+        $demotable = [ROLE_SECRETARY, ROLE_TREASURER, ROLE_KAGAWA, ROLE_SK_CHAIRMAN];
+
+        if ($expected !== null) {
+            if ($current !== strtolower($expected)) {
+                $db->query('UPDATE users SET role = ? WHERE id = ?', [$expected, $userId]);
+                $userRow['role'] = $expected;
+                if ($userId === (int)(getCurrentUserId() ?? 0)) {
+                    $_SESSION['role'] = $expected;
+                }
+            }
+            return;
+        }
+
+        if (in_array($current, $demotable, true)) {
+            $db->query('UPDATE users SET role = ? WHERE id = ?', [ROLE_RESIDENT, $userId]);
+            $userRow['role'] = ROLE_RESIDENT;
+            if ($userId === (int)(getCurrentUserId() ?? 0)) {
+                $_SESSION['role'] = ROLE_RESIDENT;
+            }
+        }
+    } catch (Exception $e) {
+        error_log('reconcileUserRoleWithOfficialsTable: ' . $e->getMessage());
+    }
 }
 
 /**
