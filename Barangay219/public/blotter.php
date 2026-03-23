@@ -115,6 +115,30 @@ include __DIR__ . '/../includes/sidebar.php';
                             </div>
                         </div>
 
+                        <div id="mediationFields" class="row g-2 mb-3" style="display:none;">
+                            <div class="col-md-6">
+                                <label class="form-label">Hearing Date & Time <span class="text-danger">*</span></label>
+                                <input type="datetime-local" class="form-control" id="editHearingDate" name="hearing_date">
+                            </div>
+                        </div>
+
+                        <div id="settledFields" class="row g-2 mb-3" style="display:none;">
+                            <div class="col-md-6">
+                                <label class="form-label">Settlement Date</label>
+                                <input type="date" class="form-control" id="editSettlementDate" name="settlement_date">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Signed Resolution</label>
+                                <input type="file" class="form-control" id="editResolutionFile" name="resolution_file" accept=".pdf,.jpg,.jpeg,.png">
+                                <div class="form-text">Allowed: PDF, JPG, JPEG, PNG (max 5MB)</div>
+                            </div>
+                        </div>
+
+                        <div id="dismissedFields" class="mb-3" style="display:none;">
+                            <label class="form-label">Dismissal Reason</label>
+                            <textarea class="form-control" id="editDismissalReason" name="dismissal_reason" rows="3" placeholder="Provide reason for case dismissal"></textarea>
+                        </div>
+
                         <hr>
                         <h6>Admin Notes</h6>
                         <textarea class="form-control mb-3" id="editAdminNotes" name="admin_notes" rows="3" placeholder="Add processing notes, mediation outcomes, etc."></textarea>
@@ -178,6 +202,20 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <label class="form-label fw-bold">Settlement Date:</label>
                                 <p id="viewSettlementDate"></p>
                             </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Hearing Date:</label>
+                                <p id="viewHearingDate"></p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Resolution File:</label>
+                                <p id="viewResolutionFile"></p>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Dismissal Reason:</label>
+                            <p id="viewDismissalReason" style="white-space:pre-wrap;"></p>
                         </div>
 
                         <hr>
