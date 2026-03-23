@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS blotter_records (
     incident_datetime DATETIME NOT NULL,
     narrative TEXT NOT NULL,
     status ENUM('pending','investigation','mediation','settled','dismissed') NOT NULL DEFAULT 'pending',
+    respondent_name_raw VARCHAR(255) DEFAULT NULL,
     respondent_name VARCHAR(255) DEFAULT NULL,
     respondent_id INT(11) DEFAULT NULL,
     witnesses TEXT DEFAULT NULL,
