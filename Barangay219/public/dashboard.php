@@ -112,7 +112,7 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <!-- Row 2: Service Requests -->
-        <div class="row g-3 mb-4">
+        <div class="row g-3 mb-3 dash-chart-row">
             <div class="col-xl-8">
                 <div class="card dash-panel h-100">
                     <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
@@ -136,8 +136,8 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <!-- Row 3: Demographics -->
-        <div class="row g-3 mb-4">
-            <div class="col-xl-4">
+        <div class="row g-3 mb-3 dash-chart-row">
+            <div class="col-lg-6">
                 <div class="card dash-panel h-100">
                     <div class="card-header bg-white border-0">
                         <h6 class="mb-0"><i class="bi bi-gender-ambiguous me-2 text-primary"></i>Gender Distribution</h6>
@@ -147,7 +147,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     </div>
                 </div>
             </div>
-            <div class="col-xl-4">
+            <div class="col-lg-6">
                 <div class="card dash-panel h-100">
                     <div class="card-header bg-white border-0">
                         <h6 class="mb-0"><i class="bi bi-bar-chart me-2 text-primary"></i>Population by Purok / Zone</h6>
@@ -157,31 +157,11 @@ include __DIR__ . '/../includes/sidebar.php';
                     </div>
                 </div>
             </div>
-            <div class="col-xl-4">
-                <div class="card dash-panel h-100">
-                    <div class="card-header bg-white border-0">
-                        <h6 class="mb-0"><i class="bi bi-file-text me-2 text-primary"></i>Document Types Requested</h6>
-                    </div>
-                    <div class="card-body pt-0">
-                        <div class="chart-wrap"><canvas id="chartDocTypes"></canvas></div>
-                    </div>
-                </div>
-            </div>
         </div>
 
-        <!-- Row 4: Household Analytics -->
-        <div class="row g-3 mb-4">
-            <div class="col-xl-5">
-                <div class="card dash-panel h-100">
-                    <div class="card-header bg-white border-0">
-                        <h6 class="mb-0"><i class="bi bi-houses me-2 text-primary"></i>Household Types</h6>
-                    </div>
-                    <div class="card-body pt-0">
-                        <div class="chart-wrap"><canvas id="chartHouseholdTypes"></canvas></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-7">
+        <!-- Row 4: Household registration trend -->
+        <div class="row g-3 mb-3 dash-chart-row">
+            <div class="col-12">
                 <div class="card dash-panel h-100">
                     <div class="card-header bg-white border-0">
                         <h6 class="mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Household Registration Trends</h6>
@@ -193,9 +173,9 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <!-- Row 5: Age & System Activity + Recent Activities -->
-        <div class="row g-3 mb-4">
-            <div class="col-xl-4">
+        <!-- Row 5: Age + Recent Activities -->
+        <div class="row g-3 mb-3 dash-chart-row">
+            <div class="col-lg-6">
                 <div class="card dash-panel h-100">
                     <div class="card-header bg-white border-0">
                         <h6 class="mb-0"><i class="bi bi-person-lines-fill me-2 text-primary"></i>Age Distribution</h6>
@@ -205,17 +185,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     </div>
                 </div>
             </div>
-            <div class="col-xl-4">
-                <div class="card dash-panel h-100">
-                    <div class="card-header bg-white border-0">
-                        <h6 class="mb-0"><i class="bi bi-activity me-2 text-primary"></i>Daily Logins (30 days)</h6>
-                    </div>
-                    <div class="card-body pt-0">
-                        <div class="chart-wrap"><canvas id="chartLogins"></canvas></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-4">
+            <div class="col-lg-6">
                 <div class="card dash-panel h-100">
                     <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
                         <h6 class="mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>Recent Activities</h6>
@@ -231,7 +201,7 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <!-- Row 6: Special Categories -->
-        <div class="row g-3 mb-4" id="specialCategoriesRow">
+        <div class="row g-3 mb-3" id="specialCategoriesRow">
             <div class="col-12">
                 <div class="card dash-panel">
                     <div class="card-header bg-white border-0">
@@ -285,15 +255,16 @@ include __DIR__ . '/../includes/sidebar.php';
 
 /* ---- Chart Panels ---- */
 .dash-panel { border-radius: 14px; border: 1px solid #e2e8f0 !important; box-shadow: 0 8px 20px -12px rgba(15,23,42,.18); }
-.dash-panel .card-header { padding: .85rem 1rem .6rem; border-bottom: 1px solid #f1f5f9; }
-.dash-panel .card-header h6 { font-size: .85rem; font-weight: 700; color: #1e293b; }
-.chart-wrap { border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; padding: .75rem .6rem .4rem; position: relative; }
-.chart-wrap canvas { max-height: 240px; }
-.chart-wrap-doughnut { width: 100%; max-width: 260px; }
-.chart-wrap-doughnut canvas { max-height: 240px; }
+.dash-chart-row .dash-panel .card-body { padding-bottom: 0.65rem; }
+.dash-panel .card-header { padding: .65rem 1rem .5rem; border-bottom: 1px solid #f1f5f9; }
+.dash-panel .card-header h6 { font-size: .8rem; font-weight: 700; color: #1e293b; }
+.chart-wrap { border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; padding: .45rem .45rem .3rem; position: relative; min-height: 0; }
+.chart-wrap canvas { max-height: 168px !important; }
+.chart-wrap-doughnut { width: 100%; max-width: 200px; margin: 0 auto; }
+.chart-wrap-doughnut canvas { max-height: 168px !important; }
 
 /* ---- Activity List ---- */
-.dash-activity-list { max-height: 340px; overflow-y: auto; }
+.dash-activity-list { max-height: 280px; overflow-y: auto; }
 .dash-activity-list .list-group-item { border-left: 0; border-right: 0; border-color: #f1f5f9; padding: .65rem .85rem; font-size: .8rem; }
 .dash-activity-list .act-user { font-weight: 600; color: #334155; font-size: .75rem; }
 .dash-activity-list .act-action { color: #0f172a; font-weight: 500; margin: 1px 0; }
@@ -306,7 +277,7 @@ include __DIR__ . '/../includes/sidebar.php';
 .special-cat-card .sc-icon { font-size: 1.1rem; color: #3b82f6; margin-bottom: 4px; }
 
 /* ---- No Data ---- */
-.chart-no-data { display: flex; align-items: center; justify-content: center; height: 180px; color: #94a3b8; font-size: .85rem; }
+.chart-no-data { display: flex; align-items: center; justify-content: center; height: 140px; color: #94a3b8; font-size: .8rem; }
 
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
@@ -314,7 +285,7 @@ include __DIR__ . '/../includes/sidebar.php';
     .dashboard-page .hero-meta { text-align: left !important; width: 100%; }
     .dashboard-page .kpi-value { font-size: 1.4rem; }
     .dashboard-page .dashboard-kpi-card { min-height: 88px; padding: .7rem .8rem .6rem; }
-    .chart-wrap canvas, .chart-wrap-doughnut canvas { max-height: 200px; }
+    .chart-wrap canvas, .chart-wrap-doughnut canvas { max-height: 150px !important; }
 }
 </style>
 
