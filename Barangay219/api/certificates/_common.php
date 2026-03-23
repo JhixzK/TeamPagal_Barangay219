@@ -25,15 +25,21 @@ function certJsonResponse($success, $data = null, $message = '', $httpCode = 200
 }
 
 function requireResidentSession() {
-    if (!isset($_SESSION['user_id'], $_SESSION['role'], $_SESSION['resident_id'])) {
+    if (!isset($_SESSION['user_id'], $_SESSION['role'])) {
         certJsonResponse(false, null, 'Unauthorized', 401);
     }
 
-    if (normalizeRole($_SESSION['role']) !== normalizeRole(ROLE_RESIDENT)) {
+    $realRole = normalizeRole(getRealUserRole());
+    $isTrueResident = ($realRole === normalizeRole(ROLE_RESIDENT));
+    $isStaffInResidentView = !$isTrueResident
+        && function_exists('isResidentView')
+        && isResidentView();
+
+    if (!$isTrueResident && !$isStaffInResidentView) {
         certJsonResponse(false, null, 'Forbidden', 403);
     }
 
-    $residentId = (int)$_SESSION['resident_id'];
+    $residentId = (int)($_SESSION['resident_id'] ?? 0);
     if ($residentId <= 0) {
         certJsonResponse(false, null, 'Resident session is invalid', 401);
     }
