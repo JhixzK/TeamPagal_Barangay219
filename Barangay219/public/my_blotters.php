@@ -250,6 +250,9 @@ include __DIR__ . '/../includes/sidebar.php';
         const evidenceHtml = r.evidence_path
           ? '<a href="<?php echo BASE_URL; ?>' + String(r.evidence_path).replace(/^\/+/, '') + '" target="_blank" rel="noopener">View Uploaded Evidence</a>'
           : '-';
+        const resolutionHtml = r.resolution_file
+          ? '<a href="<?php echo BASE_URL; ?>' + String(r.resolution_file).replace(/^\/+/, '') + '" target="_blank" rel="noopener">View Signed Resolution</a>'
+          : '-';
 
         detailBody.innerHTML =
           '<div class="row g-3">' +
@@ -260,10 +263,14 @@ include __DIR__ . '/../includes/sidebar.php';
             '<div class="col-12"><strong>Location:</strong><br>' + (r.incident_location || '-') + '</div>' +
             '<div class="col-md-6"><strong>Respondent:</strong><br>' + respondentDisplay + '</div>' +
             '<div class="col-md-6"><strong>Action Requested:</strong><br>' + (r.action_requested || '-') + '</div>' +
+            '<div class="col-md-6"><strong>Hearing Date:</strong><br>' + formatDate(r.hearing_date) + '</div>' +
+            '<div class="col-md-6"><strong>Settlement Date:</strong><br>' + formatDate(r.settlement_date) + '</div>' +
             '<div class="col-12"><strong>Witnesses:</strong><br>' + (witnesses.startsWith('<li>') ? '<ul class="mb-0">' + witnesses + '</ul>' : witnesses) + '</div>' +
             '<div class="col-12"><strong>Narrative:</strong><div class="p-2 bg-light border rounded mt-1" style="white-space:pre-wrap">' + (r.narrative || '-') + '</div></div>' +
+            '<div class="col-12"><strong>Dismissal Reason:</strong><div class="p-2 bg-light border rounded mt-1" style="white-space:pre-wrap">' + (r.dismissal_reason || '-') + '</div></div>' +
             '<div class="col-12"><strong>Admin Remarks:</strong><div class="p-2 bg-light border rounded mt-1" style="white-space:pre-wrap">' + (r.admin_updates || 'No updates yet.') + '</div></div>' +
             '<div class="col-12"><strong>Evidence:</strong><br>' + evidenceHtml + '</div>' +
+            '<div class="col-12"><strong>Resolution File:</strong><br>' + resolutionHtml + '</div>' +
           '</div>';
 
         if (detailModal) {
