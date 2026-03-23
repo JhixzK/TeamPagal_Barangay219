@@ -11,6 +11,11 @@ if (!defined('ACCESS_ALLOWED')) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/auth-check.php';
 
+// Sync role from DB before any UI that depends on role (some pages include this header before requireLogin()).
+if (isLoggedIn()) {
+    refreshSessionRole();
+}
+
 // Get current page
 $current_page = basename($_SERVER['PHP_SELF']);
 $userInfo = getUserInfo();
