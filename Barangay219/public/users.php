@@ -218,7 +218,6 @@ include __DIR__ . '/../includes/sidebar.php';
                 <table class="table table-hover users-table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th class="text-center">ID</th>
                             <th class="text-center">Username</th>
                             <th class="text-center">Name</th>
                             <th class="text-center">Email</th>
@@ -230,7 +229,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     </thead>
                     <tbody id="usersTableBody">
                         <tr>
-                            <td colspan="8" class="text-center">
+                            <td colspan="7" class="text-center">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
