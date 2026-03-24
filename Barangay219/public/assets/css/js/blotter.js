@@ -394,6 +394,13 @@ function initDetailModalEditMode() {
         statusSelect.addEventListener('change', (e) => toggleProcessFieldsByStatus(statusSelect.value));
     }
 
+    // Ensure Complete Hearing button is wired in view/edit modal
+    const btnComplete = document.getElementById('btnCompleteHearing');
+    if (btnComplete) {
+        btnComplete.removeEventListener('click', markHearingCompleteAndScheduleNext);
+        btnComplete.addEventListener('click', markHearingCompleteAndScheduleNext);
+    }
+
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             const keyword = e.target.value;
@@ -572,6 +579,10 @@ function enableEditMode() {
         const editAlert = document.getElementById('editModeAlert');
         if (editAlert) editAlert.style.display = '';
 
+        // Hide the Edit/Process button to avoid re-triggering edit mode
+        const btnEdit = document.getElementById('btnEnableEditMode');
+        if (btnEdit) btnEdit.style.display = 'none';
+
         toggleProcessFieldsByStatus(statusEl ? statusEl.value : 'pending');
 
         // Ensure the Complete Hearing section is visible and focused for Mediation status only
@@ -615,6 +626,10 @@ function disableEditMode() {
 
         const editAlert = document.getElementById('editModeAlert');
         if (editAlert) editAlert.style.display = 'none';
+
+        // Show the Edit/Process button again
+        const btnEdit = document.getElementById('btnEnableEditMode');
+        if (btnEdit) btnEdit.style.display = '';
     }
 }
 
@@ -856,6 +871,7 @@ function submitCaseDetailUpdate(e) {
                 loadBlotters();
                 showBlotterSuccessToast('Case processed successfully.');
                 // Always reset modal to view mode after save
+                try { document.getElementById('btnCompleteHearing').disabled = false; } catch (e) {}
                 disableEditMode();
             } else {
                 alert('Error: ' + d.message);
@@ -1053,7 +1069,8 @@ function collectEditHearings() {
     const out = [];
     document.querySelectorAll('#hearingsContainer .hearing-row').forEach(row => {
         try {
-            const date = row.querySelector('[data-hearing-date]')?.value?.trim() || '';
+            const raw = row.querySelector('[data-hearing-date]')?.value?.trim() || '';
+            const date = raw ? fromDateTimeLocalToServer(raw) : '';
             const status = row.querySelector('[data-hearing-status]')?.value || '';
             const outcome = row.querySelector('[data-hearing-outcome]')?.value?.trim() || '';
             const notes = row.querySelector('[data-hearing-notes]')?.value?.trim() || '';
@@ -1096,77 +1113,106 @@ function markHearingCompleteAndScheduleNext() {
 
     const outcome = (document.getElementById('completeHearingOutcome')?.value || '').trim();
     const notes = (document.getElementById('completeHearingNotes')?.value || '').trim();
-    const container = document.getElementById('hearingsContainer');
-    if (!container) { alert('No hearings area found'); return; }
 
-    const rows = Array.from(container.querySelectorAll('.hearing-row'));
-    if (rows.length === 0) { alert('No hearing entries available to complete.'); return; }
+    const caseForm = document.getElementById('caseDetailForm');
+
+    // Inner worker that performs the completion operation (requires edit form to be visible)
+    const performComplete = () => {
+        // Build collected hearings either from DOM rows (when present) or from currentViewingCaseData
+        const container = document.getElementById('hearingsContainer');
+        let collected = [];
+        if (container) {
+            const rows = Array.from(container.querySelectorAll('.hearing-row'));
+            if (rows.length > 0) {
+                collected = collectEditHearings();
+            }
+        }
+    if ((!Array.isArray(collected) || collected.length === 0) && Array.isArray(currentViewingCaseData && currentViewingCaseData.hearings)) {
+        // deep copy to avoid mutating original until save
+        collected = JSON.parse(JSON.stringify(currentViewingCaseData.hearings || []));
+    }
+
+    if (!Array.isArray(collected) || collected.length === 0) {
+        // nothing to operate on: create a blank scheduled entry and treat it as target
+        collected = [{ date: '', status: 'scheduled', outcome: '', notes: '' }];
+    }
 
     // find last non-completed hearing
     let targetIdx = -1;
-    for (let i = rows.length - 1; i >= 0; i--) {
-        const s = String(rows[i].querySelector('[data-hearing-status]')?.value || '').toLowerCase();
+    for (let i = collected.length - 1; i >= 0; i--) {
+        const s = String(collected[i].status || '').toLowerCase();
         if (s !== 'completed') { targetIdx = i; break; }
     }
-    if (targetIdx === -1) targetIdx = rows.length - 1;
+    if (targetIdx === -1) targetIdx = collected.length - 1;
 
-    const targetRow = rows[targetIdx];
-    if (!targetRow) { alert('Unable to locate target hearing row.'); return; }
+    // Apply completion values to the target hearing
+    collected[targetIdx].status = 'completed';
+    if (outcome) collected[targetIdx].outcome = outcome;
+    if (notes) collected[targetIdx].notes = notes;
 
-    // Apply completion values to the target row
-    const statusEl = targetRow.querySelector('[data-hearing-status]');
-    const outcomeEl = targetRow.querySelector('[data-hearing-outcome]');
-    const notesEl = targetRow.querySelector('[data-hearing-notes]');
-    if (statusEl) statusEl.value = 'completed';
-    if (outcomeEl && outcome) outcomeEl.value = outcome;
-    if (notesEl && notes) notesEl.value = notes;
+    // Append a new scheduled hearing for the user
+    collected.push({ date: '', status: 'scheduled', outcome: '', notes: '' });
 
-    // Append a new scheduled hearing row for the user to pick a date
-    addHearingRow({ date: '', status: 'scheduled', outcome: '', notes: '' });
-
-    // Prepare payload and save to backend (without closing the modal)
-    const payload = new FormData();
-    payload.append('case_id', caseId);
-    payload.append('status', document.getElementById('editStatus')?.value || 'pending');
-    payload.append('respondents_json', JSON.stringify(editRespondentSelections || []));
-    payload.append('admin_notes', document.getElementById('editAdminNotes')?.value || '');
-    let collected = collectEditHearings();
-    const hasAnyDate = Array.isArray(collected) && collected.some(h => String(h.date || '').trim() !== '');
-    if (!hasAnyDate) {
-        const hearingDate = document.getElementById('editHearingDate')?.value || '';
-        if (hearingDate) {
-            if (!Array.isArray(collected) || collected.length === 0) {
-                collected = [{ date: hearingDate, status: 'scheduled', outcome: '', notes: '' }];
-            } else {
-                collected[0].date = hearingDate;
+    // If DOM container exists, re-render the editable rows to reflect changes
+    if (container) {
+        container.innerHTML = '';
+        collected.forEach(h => addHearingRow({ date: h.date || '', status: h.status || 'scheduled', outcome: h.outcome || '', notes: h.notes || '' }));
+        // Focus the newly added scheduled hearing's date input (last row)
+        try {
+            const lastDateInput = container.querySelector('.hearing-row:last-child [data-hearing-date]');
+            if (lastDateInput) {
+                // Focus the input but avoid programmatically opening native picker (can be positioned oddly in some browsers)
+                lastDateInput.focus();
             }
+            // Ensure the newly appended row is visible inside the modal
+            try {
+                const lastRow = container.querySelector('.hearing-row:last-child');
+                if (lastRow) {
+                    lastRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    console.log('Appended hearing row visible:', lastRow);
+                }
+            } catch (e) { /* ignore scroll errors */ }
+        } catch (e) { /* ignore */ }
+    }
+
+        // Do not auto-save on Complete: update local state and DOM only. User must click "Save Changes" to persist.
+        try {
+            // Update cached data
+            currentViewingCaseData = currentViewingCaseData || {};
+            currentViewingCaseData.hearings = collected;
+
+            // If DOM container exists, ensure last appended row is visible
+            if (document.getElementById('hearingsContainer')) {
+                const lastRow = document.querySelector('#hearingsContainer .hearing-row:last-child');
+                if (lastRow) {
+                    lastRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            // Update view pane to show immediate changes
+            renderViewHearingsFromArray(currentViewingCaseData.hearings);
+
+            // Disable the Complete button to avoid duplicate clicks and inform the user
+            const btn = document.getElementById('btnCompleteHearing');
+            if (btn) { btn.disabled = true; }
+
+            showBlotterSuccessToast('Marked hearing completed locally. Click Save Changes to persist the new schedule.');
+        } catch (e) {
+            console.error('Error updating local hearing state:', e);
+            alert('Error updating hearing locally');
         }
-    }
-    payload.append('hearings', JSON.stringify(collected));
-    if (collected && collected[0] && collected[0].date) {
-        payload.append('hearing_date', collected[0].date);
-    }
-    const resolutionFile = document.getElementById('editResolutionFile')?.files?.[0];
-    if (resolutionFile) payload.append('resolution_file', resolutionFile);
+    };
 
-    fetch(window.API_URL + 'blotter/process_case.php', { method: 'POST', body: payload })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) {
-                // Update local view with returned hearings where possible
-                const newHearings = Array.isArray(d.data && d.data.hearings) ? d.data.hearings : collectEditHearings();
-                currentViewingCaseData = currentViewingCaseData || {};
-                currentViewingCaseData.hearings = newHearings;
-                renderViewHearingsFromArray(newHearings);
-                showBlotterSuccessToast('Hearing completed and next scheduled.');
-            } else {
-                alert('Error: ' + d.message);
-            }
-        })
-        .catch(err => {
-            console.error('Error saving hearing completion:', err);
-            alert('Error saving hearing completion');
-        });
+    // If the edit form is not visible, enable edit mode first so the hearingsContainer exists in DOM
+    if (caseForm && window.getComputedStyle(caseForm).display === 'none') {
+        enableEditMode();
+        // Give the modal a moment to render the form, then perform the completion
+        setTimeout(performComplete, 200);
+        return;
+    }
+
+    // Otherwise perform immediately
+    performComplete();
 }
 
 function loadAuditLog(caseId) {
@@ -1366,7 +1412,51 @@ function formatStatusLabel(status) {
         .join(' ');
 }
 
-function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
+function formatDate(d) { return d ? new Date(d).toLocaleString() : '-'; }
+
+// Convert an incoming date string to a value suitable for `datetime-local` inputs: YYYY-MM-DDTHH:MM
+function toDateTimeLocalValue(src) {
+    if (!src) return '';
+    try {
+        // Accept both 'YYYY-MM-DD HH:MM:SS' and ISO strings
+        let s = String(src).trim();
+        // Replace space between date and time with 'T' if necessary
+        if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(:\d{2})?$/.test(s)) {
+            s = s.replace(/\s+/, 'T');
+        }
+        const dt = new Date(s);
+        if (isNaN(dt.getTime())) return '';
+        const pad = (n) => String(n).padStart(2, '0');
+        const yyyy = dt.getFullYear();
+        const mm = pad(dt.getMonth() + 1);
+        const dd = pad(dt.getDate());
+        const hh = pad(dt.getHours());
+        const min = pad(dt.getMinutes());
+        return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+    } catch (e) { return ''; }
+}
+
+// Convert datetime-local value to server-friendly 'YYYY-MM-DD HH:MM:SS'
+function fromDateTimeLocalToServer(v) {
+    if (!v) return '';
+    try {
+        // v is like 'YYYY-MM-DDTHH:MM' or 'YYYY-MM-DDTHH:MM:SS'
+        const s = String(v).trim().replace('T', ' ');
+        if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}$/.test(s)) return s + ':00';
+        if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/.test(s)) return s;
+        // fallback to Date parsing
+        const dt = new Date(v);
+        if (isNaN(dt.getTime())) return '';
+        const pad = (n) => String(n).padStart(2, '0');
+        const yyyy = dt.getFullYear();
+        const mm = pad(dt.getMonth() + 1);
+        const dd = pad(dt.getDate());
+        const hh = pad(dt.getHours());
+        const min = pad(dt.getMinutes());
+        const ss = pad(dt.getSeconds());
+        return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+    } catch (e) { return ''; }
+}
 
 // --- Blotter modal / create handling ---
 function initBlotterModal() {
@@ -1738,8 +1828,8 @@ function addHearingRow(data = {}) {
     div.className = 'row mb-3 g-2 hearing-row';
     div.innerHTML = `
         <div class="col-12 col-md-3">
-            <label class="form-label">Hearing Date</label>
-            <input type="date" class="form-control" data-hearing-date>
+            <label class="form-label">Hearing Date & Time</label>
+            <input type="datetime-local" class="form-control" data-hearing-date>
         </div>
         <div class="col-12 col-md-2">
             <label class="form-label">Status</label>
@@ -1763,7 +1853,7 @@ function addHearingRow(data = {}) {
         </div>
     `;
 
-    if (data.date) div.querySelector('[data-hearing-date]').value = data.date;
+    if (data.date) div.querySelector('[data-hearing-date]').value = toDateTimeLocalValue(data.date);
     if (data.status) div.querySelector('[data-hearing-status]').value = data.status;
     if (data.outcome) div.querySelector('[data-hearing-outcome]').value = toTitleCase(data.outcome);
     if (data.notes) div.querySelector('[data-hearing-notes]').value = toTitleCase(data.notes);
