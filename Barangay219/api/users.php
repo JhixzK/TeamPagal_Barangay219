@@ -108,8 +108,10 @@ function listUsers() {
             $params[] = $status;
         }
         
+        $tfCol = userTableHasColumn($db, 'two_factor_enabled') ? ', u.two_factor_enabled' : '';
         $sql = "SELECT u.id, u.username, u.email, u.role, u.status, u.created_at, u.resident_id,
                        r.first_name, r.last_name, r.middle_name
+                       $tfCol
                 FROM users u
                 LEFT JOIN residents r ON u.resident_id = r.id
                 WHERE $where
@@ -147,8 +149,10 @@ function getUser() {
     try {
         $db = Database::getInstance();
         
+        $tfCol = userTableHasColumn($db, 'two_factor_enabled') ? ', u.two_factor_enabled' : '';
         $sql = "SELECT u.id, u.username, u.email, u.role, u.status, u.resident_id, u.created_at,
                        r.first_name, r.last_name, r.middle_name
+                       $tfCol
                 FROM users u
                 LEFT JOIN residents r ON u.resident_id = r.id
                 WHERE u.id = ?";
@@ -279,6 +283,10 @@ function userTableHasColumn($db, $column) {
     return $cache[$column];
 }
 
+function canManageOtherUserTwoFactor() {
+    return isSuperAdmin() || hasRole(ROLE_SECRETARY);
+}
+
 /**
  * Update user
  */
@@ -381,6 +389,21 @@ function updateUser() {
             $updates[] = "password = ?";
             $params[] = password_hash($password, PASSWORD_DEFAULT);
         }
+
+        if (!empty($_POST['two_factor_field_present']) && userTableHasColumn($db, 'two_factor_enabled') && canManageOtherUserTwoFactor()) {
+            $en = !empty($_POST['two_factor_enabled']) && $_POST['two_factor_enabled'] !== '0';
+            if ($en) {
+                $targetEmail = $db->fetchOne("SELECT email FROM users WHERE id = ?", [$id]);
+                $em = trim((string)($targetEmail['email'] ?? ''));
+                if ($em === '' || !filter_var($em, FILTER_VALIDATE_EMAIL)) {
+                    sendResponse(false, 'Cannot enable email 2FA: user has no valid email address.', null, 400);
+                    return;
+                }
+            }
+            $updates[] = 'two_factor_enabled = ?';
+            $params[] = $en ? 1 : 0;
+            $updates[] = $en ? 'two_factor_enabled_at = NOW()' : 'two_factor_enabled_at = NULL';
+        }
         
         if (empty($updates)) {
             sendResponse(false, 'No fields to update', null, 400);
@@ -393,8 +416,8 @@ function updateUser() {
         $db->query($sql, $params);
         logActivity('update', 'users', $id);
         
-        // Get updated user
-        $user = $db->fetchOne("SELECT id, username, email, role, status FROM users WHERE id = ?", [$id]);
+        $tf = userTableHasColumn($db, 'two_factor_enabled') ? ', two_factor_enabled' : '';
+        $user = $db->fetchOne("SELECT id, username, email, role, status $tf FROM users WHERE id = ?", [$id]);
         
         sendResponse(true, 'User updated successfully', $user);
         
