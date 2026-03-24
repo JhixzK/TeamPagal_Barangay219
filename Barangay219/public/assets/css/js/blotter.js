@@ -591,16 +591,14 @@ function renderEditRespondentSelections() {
 function selectRespondentFromSearch(residentId, residentName) {
     const id = Number(residentId || 0);
     if (!id) return;
-    const exists = editRespondentSelections.some(item => Number(item.resident_id || 0) === id);
-    if (!exists) {
-        editRespondentSelections.push({
-            resident_id: id,
-            name: String(residentName || '').trim(),
-            address: '',
-            contact: '',
-            residency: 'resident'
-        });
-    }
+    // Allow adding the same resident multiple times
+    editRespondentSelections.push({
+        resident_id: id,
+        name: String(residentName || '').trim(),
+        address: '',
+        contact: '',
+        residency: 'resident'
+    });
     syncEditRespondentIdsField();
     renderEditRespondentSelections();
     document.getElementById('editRespondentSearch').value = residentName;
