@@ -286,7 +286,13 @@ include __DIR__ . '/../includes/sidebar.php';
             '<div class="col-12"><strong>Location:</strong><br>' + (r.incident_location || '-') + '</div>' +
             '<div class="col-md-6"><strong>Respondents:</strong><br>' + respondentDisplay + '</div>' +
             '<div class="col-md-6"><strong>Action Requested:</strong><br>' + (r.action_requested || '-') + '</div>' +
-            '<div class="col-md-6"><strong>Hearing Date:</strong><br>' + formatDate(r.hearing_date) + '</div>' +
+            '<div class="col-md-6"><strong>Hearing Date:</strong><br>' + (function(){
+              try {
+                const hs = JSON.parse(r.hearings || '[]');
+                if (Array.isArray(hs) && hs.length && hs[0].date) return formatDate(hs[0].date);
+              } catch (e) {}
+              return formatDate(r.hearing_date);
+            })() + '</div>' +
             '<div class="col-md-6"><strong>Settlement Date:</strong><br>' + formatDate(r.settlement_date) + '</div>' +
             '<div class="col-12"><strong>Witnesses:</strong><br>' + (witnesses.startsWith('<li>') ? '<ul class="mb-0">' + witnesses + '</ul>' : witnesses) + '</div>' +
             '<div class="col-12"><strong>Narrative:</strong><div class="p-2 bg-light border rounded mt-1" style="white-space:pre-wrap">' + (r.narrative || '-') + '</div></div>' +
