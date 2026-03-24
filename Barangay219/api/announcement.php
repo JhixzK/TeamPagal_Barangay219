@@ -3,6 +3,7 @@ header('Content-Type: application/json');
 define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/../includes/notifications-store.php';
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
@@ -210,8 +211,16 @@ function createAnnouncement() {
             "INSERT INTO announcements (" . implode(', ', $insertColumns) . ") VALUES (" . $placeholders . ")",
             $insertValues
         );
-        logActivity('create', 'announcements', $db->lastInsertId());
-        sendResponse(true, 'Created', ['id' => $db->lastInsertId()]);
+        $newAnnId = (int)$db->lastInsertId();
+        logActivity('create', 'announcements', $newAnnId);
+        if ($status === 'published') {
+            try {
+                notificationsNotifyResidentsAnnouncement($newAnnId, $title);
+            } catch (Throwable $annN) {
+                error_log('Announcement publish notifications: ' . $annN->getMessage());
+            }
+        }
+        sendResponse(true, 'Created', ['id' => $newAnnId]);
     } catch (Throwable $e) {
         error_log('[Announcements] Error creating: ' . $e->getMessage());
         sendResponse(false, 'Error creating announcement', null, 500);
@@ -325,6 +334,16 @@ function updateAnnouncement() {
             deleteAnnouncementImageFile($existingImagePath);
         }
 
+        if ($requestedStatus === 'published' && mapDbStatusToApiStatus($current['status'] ?? 'draft') !== 'published') {
+            $titleRow = $db->fetchOne("SELECT title FROM announcements WHERE id = ?", [$id]);
+            $t = (string)($titleRow['title'] ?? '');
+            try {
+                notificationsNotifyResidentsAnnouncement($id, $t);
+            } catch (Throwable $annN) {
+                error_log('Announcement update publish notifications: ' . $annN->getMessage());
+            }
+        }
+
         sendResponse(true, 'Updated');
     } catch (Throwable $e) {
         error_log('[Announcements] Error updating: ' . $e->getMessage());
@@ -426,8 +445,20 @@ function updateStatus($newStatus) {
     try {
         $db = Database::getInstance();
         $columns = getAnnouncementColumns($db);
+        $row = $db->fetchOne("SELECT title, status FROM announcements WHERE id = ?", [$id]);
+        if (!$row) {
+            sendResponse(false, 'Announcement not found', null, 404);
+        }
+        $wasPublished = mapDbStatusToApiStatus($row['status'] ?? 'draft') === 'published';
         $dbStatus = mapApiStatusToDbStatus($newStatus, $columns);
         $db->query("UPDATE announcements SET status = ? WHERE id = ?", [$dbStatus, $id]);
+        if ($newStatus === 'published' && !$wasPublished) {
+            try {
+                notificationsNotifyResidentsAnnouncement($id, (string)($row['title'] ?? ''));
+            } catch (Throwable $annN) {
+                error_log('Announcement status publish notifications: ' . $annN->getMessage());
+            }
+        }
         sendResponse(true, 'Status updated to ' . $newStatus);
     } catch (Exception $e) {
         error_log('[Announcements] Error updating status: ' . $e->getMessage());
