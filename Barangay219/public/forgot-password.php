@@ -250,7 +250,7 @@ if (isLoggedIn()) {
                 <div id="emailSection" class="mb-3">
                     <label for="userEmail" class="form-label">Registered Email Address</label>
                     <input
-                        type="text"
+                        type="email"
                         class="form-control"
                         id="userEmail"
                         name="email"
@@ -262,7 +262,7 @@ if (isLoggedIn()) {
                         <span>Please type your registered email address.</span>
                     </div>
                     <div class="invalid-feedback" id="emailErrorText"></div>
-                    <div class="valid-feedback">Valid Gmail address.</div>
+                    <div class="valid-feedback">Valid email address.</div>
                 </div>
 
                     <button type="submit" class="btn btn-primary w-100" id="submitBtn">
@@ -342,8 +342,8 @@ if (isLoggedIn()) {
         }
 
         function isValidEmail(email) {
-            // Gmail-only format for this flow
-            return /^[a-zA-Z0-9._%+\-]+@gmail\.com$/i.test(email);
+            // Accept common RFC-like email formats for account lookup.
+            return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email);
         }
 
         // Real-time email validation feedback
@@ -372,7 +372,7 @@ if (isLoggedIn()) {
                 return;
             }
             if (!isValidEmail(identifier)) {
-                setEmailError('Please enter a valid email address (e.g. yourname@gmail.com).');
+                setEmailError('Please enter a valid email address (e.g. yourname@example.com).');
                 document.getElementById('userEmail').focus();
                 return;
             }
@@ -394,7 +394,7 @@ if (isLoggedIn()) {
                 try {
                     result = JSON.parse(raw);
                 } catch (parseError) {
-                    showAlert('Unable to process server response. Please try again or contact support if it continues.', 'danger');
+                    showAlert('danger', 'Unable to process server response. Please try again or contact support if it continues.');
                     submitBtn.disabled = false;
                     document.getElementById('loadingSpinner').style.display = 'none';
                     return;
