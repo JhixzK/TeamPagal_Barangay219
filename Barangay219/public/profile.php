@@ -85,6 +85,8 @@ if ($fullName === '' || $fullName === 'N/A N/A') {
 $email = pick($user, ['email'], pick($resident, ['email'], 'N/A'));
 $accountStatus = ucfirst(pick($user, ['status'], 'active'));
 $createdAt = formatDate(pick($user, ['created_at'], ''));
+$twoFaAvailable = array_key_exists('two_factor_enabled', $user);
+$twoFaOn = $twoFaAvailable && (int)$user['two_factor_enabled'] === 1;
 
 $successMsg = '';
 $errorMsg = '';
@@ -419,6 +421,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="mt-3"><button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check-lg me-1"></i>Update Password</button></div>
                 </form>
             </div>
+
+            <?php if ($twoFaAvailable): ?>
+            <div class="profile-card">
+                <div class="profile-card-header">
+                    <h5><i class="bi bi-envelope-check"></i> Email verification at login</h5>
+                </div>
+                <p class="text-muted small mb-2">When enabled, a one-time code is sent to your account email each time you sign in.</p>
+                <p class="mb-2"><span class="info-label me-2">Status</span><span id="profileTwoFaStatus" class="fw-semibold"><?php echo $twoFaOn ? 'Enabled' : 'Disabled'; ?></span></p>
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label small mb-1" for="profileTwoFaPassword">Confirm with password</label>
+                        <input type="password" class="form-control form-control-sm" id="profileTwoFaPassword" autocomplete="current-password" placeholder="Your current password">
+                    </div>
+                    <div class="col-md-7 d-flex flex-wrap gap-2 align-items-center pt-md-4">
+                        <button type="button" class="btn btn-primary btn-sm" id="profileTwoFaEnableBtn" <?php echo $twoFaOn ? 'style="display:none;"' : ''; ?>>Enable</button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" id="profileTwoFaDisableBtn" <?php echo $twoFaOn ? '' : 'style="display:none;"'; ?>>Disable</button>
+                    </div>
+                </div>
+                <div id="profileTwoFaMsg" class="small mt-2 text-muted"></div>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
@@ -463,6 +486,52 @@ document.querySelectorAll('.toggle-edit-btn').forEach(function(btn) {
         }
     });
 });
+
+(function() {
+    var api = window.API_URL || '';
+    var pwd = document.getElementById('profileTwoFaPassword');
+    var msg = document.getElementById('profileTwoFaMsg');
+    var st = document.getElementById('profileTwoFaStatus');
+    var btnEn = document.getElementById('profileTwoFaEnableBtn');
+    var btnDis = document.getElementById('profileTwoFaDisableBtn');
+    if (!api || !pwd || !btnEn || !btnDis) return;
+
+    function setUi(enabled) {
+        if (st) st.textContent = enabled ? 'Enabled' : 'Disabled';
+        btnEn.style.display = enabled ? 'none' : '';
+        btnDis.style.display = enabled ? '' : 'none';
+    }
+
+    function callToggle(enable) {
+        var p = pwd.value || '';
+        if (!p) {
+            if (msg) { msg.textContent = 'Enter your current password.'; msg.className = 'small mt-2 text-danger'; }
+            return;
+        }
+        if (msg) { msg.textContent = 'Updating…'; msg.className = 'small mt-2 text-muted'; }
+        var fd = new FormData();
+        fd.append('action', 'toggle_two_factor');
+        fd.append('password', p);
+        fd.append('enable', enable ? '1' : '0');
+        fetch(api + 'auth.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) {
+                    pwd.value = '';
+                    setUi(!!(d.data && d.data.two_factor_enabled));
+                    if (msg) { msg.textContent = d.message || 'Saved.'; msg.className = 'small mt-2 text-success'; }
+                } else {
+                    if (msg) { msg.textContent = d.message || 'Could not update.'; msg.className = 'small mt-2 text-danger'; }
+                }
+            })
+            .catch(function() {
+                if (msg) { msg.textContent = 'Network error.'; msg.className = 'small mt-2 text-danger'; }
+            });
+    }
+
+    btnEn.addEventListener('click', function() { callToggle(true); });
+    btnDis.addEventListener('click', function() { callToggle(false); });
+})();
 </script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
