@@ -116,3 +116,33 @@ function sendResidentRegistrationActivationEmail($toEmail, $residentName, $activ
 
     return sendHtmlMailToResident($toEmail, $subject, $html);
 }
+
+/**
+ * Login email verification (6-digit code).
+ *
+ * @return array{sent: bool, skipped: bool, error: ?string}
+ */
+function sendLoginOtpEmail($toEmail, $otpCode, $usernameHint = '') {
+    $code = preg_replace('/\D/', '', (string)$otpCode);
+    if (strlen($code) !== 6) {
+        return ['sent' => false, 'skipped' => false, 'error' => 'invalid_otp_format'];
+    }
+
+    $codeEsc = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
+    $barangayEsc = htmlspecialchars(BARANGAY_NAME, ENT_QUOTES, 'UTF-8');
+    $hint = trim((string)$usernameHint);
+    $hintEsc = htmlspecialchars($hint, ENT_QUOTES, 'UTF-8');
+    $hintBlock = $hint !== ''
+        ? '<p><small>Account: <strong>' . $hintEsc . '</strong></small></p>'
+        : '';
+
+    $subject = APP_NAME . ' — Your login verification code';
+    $html = '<p>Hello,</p>'
+        . $hintBlock
+        . '<p>Your one-time login code is:</p>'
+        . '<p style="font-size:1.75rem;letter-spacing:0.25em;font-weight:700;">' . $codeEsc . '</p>'
+        . '<p>This code expires in <strong>10 minutes</strong>. If you did not try to sign in, ignore this email.</p>'
+        . '<p>— ' . $barangayEsc . '</p>';
+
+    return sendHtmlMailToResident($toEmail, $subject, $html);
+}
