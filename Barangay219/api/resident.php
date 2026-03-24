@@ -306,6 +306,11 @@ function getResident() {
             sendResponse(false, 'Resident not found', null, 404);
             return;
         }
+
+        $registrationSnapshot = getLatestApprovedRegistrationSnapshot($db, $resident);
+        if (!empty($registrationSnapshot)) {
+            $resident = array_merge($resident, $registrationSnapshot);
+        }
         
         // Compute length_of_residency from residency_start_date if available
         if (!empty($resident['residency_start_date'])) {
@@ -331,6 +336,113 @@ function getResident() {
         error_log("Get resident error: " . $e->getMessage());
         sendResponse(false, 'Error retrieving resident', null, 500);
     }
+}
+
+/**
+ * Return latest approved registration data for a resident, mapped to
+ * registration_* keys consumed by the Residents admin detail modal.
+ */
+function getLatestApprovedRegistrationSnapshot($db, array $resident) {
+    if (!tableExists($db, 'resident_applications')) {
+        return [];
+    }
+
+    $appCols = array_flip(getTableColumns($db, 'resident_applications'));
+    if (empty($appCols)) {
+        return [];
+    }
+
+    $statusCol = isset($appCols['record_status']) ? 'record_status' : (isset($appCols['status']) ? 'status' : null);
+
+    $neededMap = [
+        'occupation' => 'registration_occupation',
+        'educational_attainment' => 'registration_educational_attainment',
+        'employment_status' => 'registration_employment_status',
+        'voter_status' => 'registration_voter_status',
+        'precinct_number' => 'registration_precinct_number',
+        'house_type' => 'registration_house_type',
+        'house_ownership' => 'registration_house_ownership',
+        'household_role' => 'registration_household_role',
+        'relationship_to_head' => 'registration_relationship_to_head',
+        'residency_start_date' => 'registration_residency_start_date',
+        'length_of_residency' => 'registration_length_of_residency',
+        'monthly_income' => 'registration_monthly_income',
+        'household_income' => 'registration_household_income',
+        'place_of_birth' => 'registration_place_of_birth',
+        'is_senior_citizen' => 'registration_is_senior_citizen',
+        'is_pwd' => 'registration_is_pwd',
+        'pwd_id_number' => 'registration_pwd_id_number',
+        'is_solo_parent' => 'registration_is_solo_parent',
+        'solo_parent_id_number' => 'registration_solo_parent_id_number',
+        'is_ip_member' => 'registration_is_ip_member',
+        'ip_group' => 'registration_ip_group',
+        'is_4ps_beneficiary' => 'registration_is_4ps_beneficiary',
+    ];
+
+    $selectCols = [];
+    foreach ($neededMap as $source => $target) {
+        if (isset($appCols[$source])) {
+            $selectCols[] = $source;
+        }
+    }
+    if (empty($selectCols)) {
+        return [];
+    }
+
+    $selectSql = '`' . implode('`,`', $selectCols) . '`';
+    $statusSql = $statusCol ? " AND LOWER(TRIM(COALESCE(`{$statusCol}`, ''))) = 'approved'" : '';
+
+    $row = null;
+    if (isset($appCols['approved_resident_id']) && !empty($resident['id'])) {
+        $row = $db->fetchOne(
+            "SELECT {$selectSql}
+             FROM resident_applications
+             WHERE approved_resident_id = ? {$statusSql}
+             ORDER BY id DESC
+             LIMIT 1",
+            [(int)$resident['id']]
+        );
+    }
+
+    if (!$row
+        && isset($appCols['first_name'])
+        && isset($appCols['last_name'])
+        && isset($appCols['birth_date'])
+        && !empty($resident['first_name'])
+        && !empty($resident['last_name'])
+        && !empty($resident['birth_date'])) {
+        $row = $db->fetchOne(
+            "SELECT {$selectSql}
+             FROM resident_applications
+             WHERE LOWER(TRIM(first_name)) = LOWER(TRIM(?))
+               AND LOWER(TRIM(last_name)) = LOWER(TRIM(?))
+               AND birth_date = ? {$statusSql}
+             ORDER BY id DESC
+             LIMIT 1",
+            [
+                (string)$resident['first_name'],
+                (string)$resident['last_name'],
+                (string)$resident['birth_date'],
+            ]
+        );
+    }
+
+    if (!$row) {
+        return [];
+    }
+
+    $out = [];
+    foreach ($neededMap as $source => $target) {
+        if (array_key_exists($source, $row)) {
+            $out[$target] = $row[$source];
+        }
+    }
+
+    if (empty($out['registration_household_role']) && !empty($out['registration_relationship_to_head'])) {
+        $out['registration_household_role'] = $out['registration_relationship_to_head'];
+    }
+
+    return $out;
 }
 
 /**
