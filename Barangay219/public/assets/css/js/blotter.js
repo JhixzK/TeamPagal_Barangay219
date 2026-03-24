@@ -406,6 +406,57 @@ function initDetailModalEditMode() {
     if (caseForm) {
         caseForm.addEventListener('submit', (e) => submitCaseDetailUpdate(e));
     }
+
+    // Monitor the edit-mode alert for unexpected hiding and restore it while logging the cause
+    initEditModeAlertObserver();
+}
+
+function initEditModeAlertObserver() {
+    const alertEl = document.getElementById('editModeAlert');
+    if (!alertEl || typeof MutationObserver === 'undefined') return;
+
+    let restoring = false;
+    const obs = new MutationObserver((mutations) => {
+        try {
+            // Check computed style to detect cases where inline style isn't changed but CSS hides it
+            const comp = window.getComputedStyle(alertEl);
+            if (comp && comp.display === 'none') {
+                if (restoring) return;
+                restoring = true;
+                console.warn('editModeAlert was hidden unexpectedly — restoring. Mutation details:', mutations, '\nStack:', new Error().stack);
+                // Force it visible and mark restoration timestamp
+                alertEl.style.display = '';
+                alertEl.setAttribute('data-edit-alert-restored-at', new Date().toISOString());
+                // release guard shortly after
+                setTimeout(() => { restoring = false; }, 250);
+            }
+        } catch (e) {
+            console.error('Error in editModeAlert observer:', e);
+        }
+    });
+
+    obs.observe(alertEl, { attributes: true, attributeFilter: ['style', 'class'], childList: false, subtree: false });
+
+    // Also watch the modal container in case the element is being replaced
+    const modal = document.getElementById('viewBlotterModal');
+    if (modal) {
+        const modalObs = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                if (m.type === 'childList' && m.removedNodes && Array.from(m.removedNodes).includes(alertEl)) {
+                    console.warn('editModeAlert node was removed from DOM — re-inserting placeholder and logging stack. Stack:', new Error().stack);
+                    // re-add a lightweight placeholder so user still sees message
+                    try {
+                        const placeholder = document.createElement('div');
+                        placeholder.id = 'editModeAlert';
+                        placeholder.className = 'alert alert-info mb-3';
+                        placeholder.innerHTML = '<i class="bi bi-info-circle"></i> You are now editing this case. Make changes and click Save.';
+                        modal.querySelector('.modal-body')?.insertBefore(placeholder, modal.querySelector('.modal-body').firstChild || null);
+                    } catch (e) { console.error('Failed to re-insert editModeAlert placeholder:', e); }
+                }
+            }
+        });
+        modalObs.observe(modal, { childList: true, subtree: true });
+    }
 }
 
 function enableEditMode() {
@@ -486,6 +537,9 @@ function enableEditMode() {
         syncEditRespondentIdsField();
         renderEditRespondentSelections();
 
+        const editAlert = document.getElementById('editModeAlert');
+        if (editAlert) editAlert.style.display = '';
+
         toggleProcessFieldsByStatus(statusEl ? statusEl.value : 'pending');
 
     }
@@ -503,6 +557,9 @@ function disableEditMode() {
         syncEditRespondentIdsField();
         renderEditRespondentSelections();
         toggleProcessFieldsByStatus('pending');
+
+        const editAlert = document.getElementById('editModeAlert');
+        if (editAlert) editAlert.style.display = 'none';
     }
 }
 
