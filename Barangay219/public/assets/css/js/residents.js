@@ -409,7 +409,11 @@ function viewResident(id) {
             const residencyStart = r.residency_start_date || r.registration_residency_start_date || '';
             const residencyLength = r.computed_length_of_residency || r.length_of_residency || r.registration_length_of_residency || '-';
             const monthlyIncome = formatCurrency(
-                (r.monthly_income != null && r.monthly_income !== '') ? r.monthly_income : r.registration_household_income
+                (r.monthly_income != null && r.monthly_income !== '')
+                    ? r.monthly_income
+                    : ((r.registration_monthly_income != null && r.registration_monthly_income !== '')
+                        ? r.registration_monthly_income
+                        : r.registration_household_income)
             );
             const specialCategories = buildResidentSpecialCategories(r);
             document.getElementById('viewResidentBody').innerHTML = `
@@ -417,7 +421,7 @@ function viewResident(id) {
                     <tr><td><strong>Resident ID</strong></td><td>${residentCode}</td></tr>
                     <tr><td><strong>Full Name</strong></td><td>${escapeHtml(toTitleCase(fullName))}</td></tr>
                     <tr><td><strong>Birth Date</strong></td><td>${formatDate(r.birth_date)} (${age} yrs)</td></tr>
-                    <tr><td><strong>Place of Birth</strong></td><td>${escapeHtml(toTitleCase(r.place_of_birth || '-'))}</td></tr>
+                    <tr><td><strong>Place of Birth</strong></td><td>${escapeHtml(toTitleCase(r.place_of_birth || r.registration_place_of_birth || '-'))}</td></tr>
                     <tr><td><strong>Gender</strong></td><td>${formatGender(r.gender)}</td></tr>
                     <tr><td><strong>Civil Status</strong></td><td>${escapeHtml(toTitleCase(r.civil_status || '-'))}</td></tr>
                     <tr><td><strong>Contact</strong></td><td>${escapeHtml(formatPhoneNumber(r.contact_number) || '-')}</td></tr>
