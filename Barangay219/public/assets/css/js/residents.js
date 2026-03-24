@@ -405,6 +405,13 @@ function viewResident(id) {
                 return '';
             };
 
+            const shouldShowOtherSpecify = (value) => {
+                const normalized = String(value || '').trim().toLowerCase();
+                if (!normalized) return false;
+                if (normalized === 'other') return true;
+                return normalized.includes('other') && normalized.includes('specify');
+            };
+
             const firstName = pickFirstValue(r.registration_first_name, r.first_name);
             const middleName = pickFirstValue(r.registration_middle_name, r.middle_name);
             const lastName = pickFirstValue(r.registration_last_name, r.last_name);
@@ -438,7 +445,11 @@ function viewResident(id) {
             const citizenshipValue = pickFirstValue(r.registration_citizenship, r.citizenship, '-');
             const occupationValue = pickFirstValue(r.registration_occupation, r.occupation, '-');
             const educationValue = pickFirstValue(r.registration_educational_attainment, r.educational_attainment, '-');
+            const occupationOtherValue = pickFirstValue(r.registration_occupation_other, '');
+            const educationOtherValue = pickFirstValue(r.registration_educational_attainment_other, '');
             const employmentValue = pickFirstValue(r.registration_employment_status, r.employment_status, '-');
+            const showOccupationOther = shouldShowOtherSpecify(occupationValue) && String(occupationOtherValue || '').trim() !== '';
+            const showEducationOther = shouldShowOtherSpecify(educationValue) && String(educationOtherValue || '').trim() !== '';
             const registrationAddressParts = [
                 r.registration_house_number,
                 r.registration_street,
@@ -463,7 +474,9 @@ function viewResident(id) {
                     <tr><td><strong>Address</strong></td><td>${escapeHtml(toTitleCase(addressValue || '-'))}</td></tr>
                     <tr><td><strong>Citizenship</strong></td><td>${escapeHtml(toTitleCase(citizenshipValue || '-'))}</td></tr>
                     <tr><td><strong>Occupation</strong></td><td>${escapeHtml(toTitleCase(occupationValue || '-'))}</td></tr>
+                    ${showOccupationOther ? `<tr><td><strong>Occupation (Please Specify)</strong></td><td>${escapeHtml(toTitleCase(occupationOtherValue))}</td></tr>` : ''}
                     <tr><td><strong>Education</strong></td><td>${escapeHtml(toTitleCase(educationValue || '-'))}</td></tr>
+                    ${showEducationOther ? `<tr><td><strong>Education (Please Specify)</strong></td><td>${escapeHtml(toTitleCase(educationOtherValue))}</td></tr>` : ''}
                     <tr><td><strong>Employment Status</strong></td><td>${escapeHtml(toTitleCase(employmentValue || '-'))}</td></tr>
                     <tr><td><strong>Household Role</strong></td><td>${escapeHtml(toTitleCase(householdRole || '-'))}</td></tr>
                     <tr><td><strong>Voter Status</strong></td><td>${escapeHtml(toTitleCase(voterStatus))}</td></tr>
