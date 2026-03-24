@@ -159,6 +159,14 @@ try {
         exit;
     }
 
+    // Prevent modifications to closed cases (settled or dismissed)
+    $currentStatus = (string)($existing['status'] ?? '');
+    if (in_array($currentStatus, ['settled', 'dismissed'], true)) {
+        http_response_code(409);
+        echo json_encode(['success' => false, 'message' => 'Case is closed and cannot be modified.']);
+        exit;
+    }
+
     $nextHearingDate = null;
     $nextSettlementDate = null;
     $nextDismissalReason = null;
