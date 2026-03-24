@@ -118,7 +118,7 @@ try {
         exit;
     }
 
-    $allowedStatus = ['pending', 'investigation', 'mediation', 'settled', 'dismissed'];
+    $allowedStatus = ['pending', 'investigation', 'mediation', 'settled', 'dismissed', 'referred'];
     if (!in_array($status, $allowedStatus, true)) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Invalid status']);
@@ -161,7 +161,7 @@ try {
 
     // Prevent modifications to closed cases (settled or dismissed)
     $currentStatus = (string)($existing['status'] ?? '');
-    if (in_array($currentStatus, ['settled', 'dismissed'], true)) {
+    if (in_array($currentStatus, ['settled', 'dismissed', 'referred'], true)) {
         http_response_code(409);
         echo json_encode(['success' => false, 'message' => 'Case is closed and cannot be modified.']);
         exit;
