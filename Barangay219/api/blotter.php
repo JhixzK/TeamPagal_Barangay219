@@ -499,8 +499,9 @@ function mapDbStatusToAdminStatus(string $status): string {
     $s = strtolower(trim($status));
     switch ($s) {
         case 'investigation':
-        case 'mediation':
             return 'under_investigation';
+        case 'mediation':
+            return 'mediation';
         case 'settled':
             return 'settled';
         case 'dismissed':
@@ -516,6 +517,8 @@ function mapAdminStatusToDbStatus(string $status): string {
     switch ($s) {
         case 'under_investigation':
             return 'investigation';
+        case 'mediation':
+            return 'mediation';
         case 'resolved':
             return 'settled';
         case 'settled':
