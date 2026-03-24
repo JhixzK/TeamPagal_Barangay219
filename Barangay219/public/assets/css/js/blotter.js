@@ -203,6 +203,8 @@ function syncBlotterStatusTabs() {
 
 function viewBlotter(id) {
     currentViewingCaseId = id;
+    // Ensure modal is in view mode when opened (reset any previous edit state)
+    try { disableEditMode(); } catch (e) {}
     fetch(`${window.API_URL}blotter.php?action=get&id=${id}`)
         .then(r => r.json())
         .then(d => {
