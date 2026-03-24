@@ -260,6 +260,60 @@ try {
             $primaryRespondentId = $respondentId;
             $primaryRespondentName = (string)($normalizedRespondents[0]['name'] ?? null);
         }
+
+        // Server-side enforcement: require at least one respondent for substantive statuses
+        $hasRespondents = is_array($normalizedRespondents) && count($normalizedRespondents) > 0;
+        if (in_array($status, ['investigation', 'mediation', 'settled', 'dismissed', 'referred'], true) && !$hasRespondents) {
+            $db->query('ROLLBACK');
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'At least one respondent must be linked for this status.']);
+            exit;
+        }
+
+        // Mediation: hearing date must be present and not in the past
+        if ($status === 'mediation') {
+            if ($hearingDate === null) {
+                $db->query('ROLLBACK');
+                http_response_code(422);
+                echo json_encode(['success' => false, 'message' => 'Hearing date is required for Mediation.']);
+                exit;
+            }
+            $hearingTs = strtotime($hearingDate);
+            $todayStart = strtotime(date('Y-m-d') . ' 00:00:00');
+            if ($hearingTs !== false && $hearingTs < $todayStart) {
+                $db->query('ROLLBACK');
+                http_response_code(422);
+                echo json_encode(['success' => false, 'message' => 'Hearing date cannot be in the past.']);
+                exit;
+            }
+        }
+
+        // Settled: require settlement date and resolution file (either new upload or existing)
+        if ($status === 'settled') {
+            if ($settlementDate === null) {
+                $db->query('ROLLBACK');
+                http_response_code(422);
+                echo json_encode(['success' => false, 'message' => 'Settlement date is required for Settled status.']);
+                exit;
+            }
+            $existingResolution = isset($existing['resolution_file']) ? trim((string)$existing['resolution_file']) : '';
+            if (empty($resolutionPath) && $existingResolution === '') {
+                $db->query('ROLLBACK');
+                http_response_code(422);
+                echo json_encode(['success' => false, 'message' => 'A resolution file must be uploaded when marking the case as Settled.']);
+                exit;
+            }
+        }
+
+        // Dismissed: require dismissal reason
+        if ($status === 'dismissed') {
+            if (empty($dismissalReason) && trim((string)$adminNotes) === '') {
+                $db->query('ROLLBACK');
+                http_response_code(422);
+                echo json_encode(['success' => false, 'message' => 'A dismissal reason or admin notes are required when dismissing a case.']);
+                exit;
+            }
+        }
     }
 
     $updates = [
