@@ -632,7 +632,7 @@ function submitCaseDetailUpdate(e) {
     const formData = new FormData();
     formData.append('case_id', caseId);
     formData.append('status', status);
-    formData.append('respondents', respondentsJson);
+    formData.append('respondents_json', respondentsJson);
     formData.append('admin_notes', adminNotes);
     formData.append('hearing_date', hearingDate);
     formData.append('settlement_date', settlementDate);
