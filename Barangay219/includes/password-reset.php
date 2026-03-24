@@ -285,7 +285,6 @@ function sendResetLinkViaEmail($email, $token, $reset_link) {
 }
 
 /**
-<<<<<<< HEAD
  * Issue and send a replacement email reset link for expired tokens.
  * Returns true only when a new token was created and email was sent.
  *
@@ -319,12 +318,14 @@ function sendReplacementResetLinkForExpiredToken($user_id, $email) {
             [$user_id, $token_hash, $email, TOKEN_EXPIRY_MINUTES]
         );
 
-        $reset_link = BASE_URL . "verify-reset.php?token=" . urlencode($token) . "&type=email";
-        $sent = sendResetLinkViaEmail($email, $token, $reset_link);
+        $reset_link = BASE_URL . 'verify-reset.php?token=' . urlencode($token) . '&type=email';
+        $mailOut = sendResetLinkViaEmail($email, $token, $reset_link);
+        $sent = !empty($mailOut['sent']);
 
         logPasswordResetActivity($user_id, 'token_sent', 'email', $email, [
             'reason' => 'expired_token_reissue',
-            'sent' => $sent
+            'sent' => $sent,
+            'error' => $mailOut['error'] ?? null,
         ]);
 
         return $sent;
@@ -332,7 +333,9 @@ function sendReplacementResetLinkForExpiredToken($user_id, $email) {
         error_log('Replacement reset token send error: ' . $e->getMessage());
         return false;
     }
-=======
+}
+
+/**
  * User-facing message when the reset email could not be sent (SMTP / config).
  */
 function buildPasswordResetEmailFailureUserMessage(array $mailOut) {
@@ -347,7 +350,7 @@ function buildPasswordResetEmailFailureUserMessage(array $mailOut) {
             return 'The mail server is not fully configured. Please contact the barangay office.';
         }
         if ($code === 'from_email_not_configured') {
-            return 'The mail “from” address is not configured. Please contact the barangay office.';
+            return 'The mail from address is not configured. Please contact the barangay office.';
         }
         if ($code === 'invalid_or_missing_email') {
             return 'The email on file is not valid for sending. Please contact the barangay office.';
@@ -360,7 +363,6 @@ function buildPasswordResetEmailFailureUserMessage(array $mailOut) {
     }
 
     return 'We could not send the reset email. Please try again later or contact the barangay office.';
->>>>>>> 8e8c86f3018294db4e18a41cd2c46caa1a51b595
 }
 
 /**
