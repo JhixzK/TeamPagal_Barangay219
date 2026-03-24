@@ -396,41 +396,75 @@ function viewResident(id) {
         .then(data => {
             if (!data.success) { showAlert('error', data.message); return; }
             const r = data.data;
-            const fullName = `${r.first_name || ''} ${r.middle_name || ''} ${r.last_name || ''} ${r.suffix || ''}`.trim();
-            const age = calculateAge(r.birth_date);
+            const pickFirstValue = (...values) => {
+                for (const value of values) {
+                    if (value === null || value === undefined) continue;
+                    const str = String(value).trim();
+                    if (str !== '') return value;
+                }
+                return '';
+            };
+
+            const firstName = pickFirstValue(r.registration_first_name, r.first_name);
+            const middleName = pickFirstValue(r.registration_middle_name, r.middle_name);
+            const lastName = pickFirstValue(r.registration_last_name, r.last_name);
+            const suffixName = pickFirstValue(r.registration_suffix, r.suffix);
+            const fullName = `${firstName || ''} ${middleName || ''} ${lastName || ''} ${suffixName || ''}`.trim();
+            const birthDateValue = pickFirstValue(r.birth_date, r.registration_birth_date);
+            const age = calculateAge(birthDateValue);
             const residentCode = r.resident_code ? escapeHtml(r.resident_code) : '-';
             const verificationStatus = normalizeVerificationStatus(r);
             const idDocLink = buildResidentFileLink(r.id_document_path, 'View Uploaded ID');
-            const voterStatus = r.registration_voter_status || '-';
-            const precinctNumber = r.registration_precinct_number || '-';
-            const houseType = r.registration_house_type || '-';
-            const houseOwnership = r.registration_house_ownership || '-';
-            const householdRole = r.registration_household_role || r.relationship_to_head || '-';
-            const residencyStart = r.residency_start_date || r.registration_residency_start_date || '';
-            const residencyLength = r.computed_length_of_residency || r.length_of_residency || r.registration_length_of_residency || '-';
+            const voterStatus = pickFirstValue(r.registration_voter_status, r.voter_status, '-');
+            const precinctNumber = pickFirstValue(r.registration_precinct_number, r.precinct_number, '-');
+            const houseType = pickFirstValue(r.registration_house_type, r.house_type, '-');
+            const houseOwnership = pickFirstValue(r.registration_house_ownership, r.house_ownership, '-');
+            const householdRole = pickFirstValue(r.registration_household_role, r.relationship_to_head, r.household_role, '-');
+            const residencyStart = pickFirstValue(r.registration_residency_start_date, r.residency_start_date, '');
+            const residencyLength = pickFirstValue(r.registration_length_of_residency, r.computed_length_of_residency, r.length_of_residency, '-');
             const monthlyIncome = formatCurrency(
-                (r.monthly_income != null && r.monthly_income !== '')
-                    ? r.monthly_income
-                    : ((r.registration_monthly_income != null && r.registration_monthly_income !== '')
-                        ? r.registration_monthly_income
+                (r.registration_monthly_income != null && r.registration_monthly_income !== '')
+                    ? r.registration_monthly_income
+                    : ((r.monthly_income != null && r.monthly_income !== '')
+                        ? r.monthly_income
                         : r.registration_household_income)
             );
             const specialCategories = buildResidentSpecialCategories(r);
+            const sexValue = pickFirstValue(r.registration_sex, r.registration_gender, r.gender);
+            const civilStatusValue = pickFirstValue(r.registration_civil_status, r.civil_status, '-');
+            const contactValue = pickFirstValue(r.registration_mobile_number, r.contact_number, '-');
+            const emailValue = pickFirstValue(r.registration_email, r.email, '-');
+            const placeOfBirthValue = pickFirstValue(r.registration_place_of_birth, r.place_of_birth, '-');
+            const citizenshipValue = pickFirstValue(r.registration_citizenship, r.citizenship, '-');
+            const occupationValue = pickFirstValue(r.registration_occupation, r.occupation, '-');
+            const educationValue = pickFirstValue(r.registration_educational_attainment, r.educational_attainment, '-');
+            const employmentValue = pickFirstValue(r.registration_employment_status, r.employment_status, '-');
+            const registrationAddressParts = [
+                r.registration_house_number,
+                r.registration_street,
+                r.registration_purok_sitio,
+                r.registration_barangay,
+                r.registration_city,
+                r.registration_province
+            ].map(v => (v == null ? '' : String(v).trim())).filter(Boolean);
+            const registrationAddress = registrationAddressParts.join(', ');
+            const addressValue = pickFirstValue(registrationAddress, r.address, '-');
+
             document.getElementById('viewResidentBody').innerHTML = `
                 <table class="table table-sm">
                     <tr><td><strong>Resident ID</strong></td><td>${residentCode}</td></tr>
                     <tr><td><strong>Full Name</strong></td><td>${escapeHtml(toTitleCase(fullName))}</td></tr>
-                    <tr><td><strong>Birth Date</strong></td><td>${formatDate(r.birth_date)} (${age} yrs)</td></tr>
-                    <tr><td><strong>Place of Birth</strong></td><td>${escapeHtml(toTitleCase(r.place_of_birth || r.registration_place_of_birth || '-'))}</td></tr>
-                    <tr><td><strong>Gender</strong></td><td>${formatGender(r.gender)}</td></tr>
-                    <tr><td><strong>Civil Status</strong></td><td>${escapeHtml(toTitleCase(r.civil_status || '-'))}</td></tr>
-                    <tr><td><strong>Contact</strong></td><td>${escapeHtml(formatPhoneNumber(r.contact_number) || '-')}</td></tr>
-                    <tr><td><strong>Email</strong></td><td>${escapeHtml(r.email || '-')}</td></tr>
-                    <tr><td><strong>Address</strong></td><td>${escapeHtml(toTitleCase(r.address || '-'))}</td></tr>
-                    <tr><td><strong>Citizenship</strong></td><td>${escapeHtml(toTitleCase(r.citizenship || '-'))}</td></tr>
-                    <tr><td><strong>Occupation</strong></td><td>${escapeHtml(toTitleCase(r.occupation || r.registration_occupation || '-'))}</td></tr>
-                    <tr><td><strong>Education</strong></td><td>${escapeHtml(toTitleCase(r.educational_attainment || r.registration_educational_attainment || '-'))}</td></tr>
-                    <tr><td><strong>Employment Status</strong></td><td>${escapeHtml(toTitleCase(r.employment_status || r.registration_employment_status || '-'))}</td></tr>
+                    <tr><td><strong>Birth Date</strong></td><td>${formatDate(birthDateValue)} (${age} yrs)</td></tr>
+                    <tr><td><strong>Place of Birth</strong></td><td>${escapeHtml(toTitleCase(placeOfBirthValue))}</td></tr>
+                    <tr><td><strong>Gender</strong></td><td>${formatGender(sexValue)}</td></tr>
+                    <tr><td><strong>Civil Status</strong></td><td>${escapeHtml(toTitleCase(civilStatusValue))}</td></tr>
+                    <tr><td><strong>Contact</strong></td><td>${escapeHtml(formatPhoneNumber(contactValue) || '-')}</td></tr>
+                    <tr><td><strong>Email</strong></td><td>${escapeHtml(emailValue || '-')}</td></tr>
+                    <tr><td><strong>Address</strong></td><td>${escapeHtml(toTitleCase(addressValue || '-'))}</td></tr>
+                    <tr><td><strong>Citizenship</strong></td><td>${escapeHtml(toTitleCase(citizenshipValue || '-'))}</td></tr>
+                    <tr><td><strong>Occupation</strong></td><td>${escapeHtml(toTitleCase(occupationValue || '-'))}</td></tr>
+                    <tr><td><strong>Education</strong></td><td>${escapeHtml(toTitleCase(educationValue || '-'))}</td></tr>
+                    <tr><td><strong>Employment Status</strong></td><td>${escapeHtml(toTitleCase(employmentValue || '-'))}</td></tr>
                     <tr><td><strong>Household Role</strong></td><td>${escapeHtml(toTitleCase(householdRole || '-'))}</td></tr>
                     <tr><td><strong>Voter Status</strong></td><td>${escapeHtml(toTitleCase(voterStatus))}</td></tr>
                     <tr><td><strong>Precinct Number</strong></td><td>${escapeHtml(precinctNumber)}</td></tr>
