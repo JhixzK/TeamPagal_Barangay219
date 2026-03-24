@@ -3,6 +3,7 @@ header('Content-Type: application/json');
 define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/../includes/notifications-store.php';
 
 requireLogin();
 if (!canAccessModule('certificates') && !canAccessModule('applications') && !hasRole(ROLE_RESIDENT)) {
@@ -220,42 +221,18 @@ function ensureCertificateWorkflowSchema() {
     }
 }
 
-function ensureNotificationsSchema() {
-    $db = Database::getInstance();
-    $db->query(
-        "CREATE TABLE IF NOT EXISTS notifications (
-            id INT(11) NOT NULL AUTO_INCREMENT,
-            resident_id INT(11) DEFAULT NULL,
-            user_id INT(11) DEFAULT NULL,
-            title VARCHAR(255) DEFAULT NULL,
-            message TEXT NOT NULL,
-            type VARCHAR(50) DEFAULT 'info',
-            is_read TINYINT(1) DEFAULT 0,
-            status VARCHAR(30) DEFAULT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY idx_resident_id (resident_id),
-            KEY idx_user_id (user_id),
-            KEY idx_created_at (created_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-}
-
-function sendResidentNotification($residentId, $title, $message, $type = 'info') {
-    if ($residentId <= 0) {
-        return;
+function certificatesAdminDisplayName(): string {
+    $u = getUserInfo();
+    if ($u) {
+        $n = trim(($u['first_name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
+        if ($n !== '') {
+            return $n;
+        }
+        if (!empty($u['username'])) {
+            return (string)$u['username'];
+        }
     }
-
-    try {
-        ensureNotificationsSchema();
-        $db = Database::getInstance();
-        $db->query(
-            "INSERT INTO notifications (resident_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
-            [$residentId, $title, $message, $type]
-        );
-    } catch (Exception $e) {
-        error_log('Notification error: ' . $e->getMessage());
-    }
+    return 'Barangay Administrator';
 }
 
 function getCurrentResidentId() {
@@ -661,6 +638,24 @@ function submitResidentCertificateRequest() {
 
         logActivity('create', 'certificates', $id, ['status' => 'pending', 'certificate_type' => $certificateType]);
 
+        try {
+            require_once __DIR__ . '/helpers/certificate-notifications.php';
+            $notifier = new CertificateNotifier();
+            $notifier->notifySubmitted($id, $residentId, $refNo);
+            notificationsNotifyStaffForModule(
+                'certificates',
+                'New certificate request',
+                'A resident submitted a certificate request. Reference: ' . $refNo . '.',
+                'info',
+                'certificate_submitted',
+                BASE_URL . 'applications.php',
+                json_encode(['certificate_id' => $id], JSON_UNESCAPED_UNICODE),
+                0
+            );
+        } catch (Exception $ne) {
+            error_log('Certificate submit notifications: ' . $ne->getMessage());
+        }
+
         sendResponse(true, 'Certificate request submitted', [
             'id' => $id,
             'application_ref' => $appRef,
@@ -734,6 +729,13 @@ function createCertificateByAdmin() {
         $db->query("UPDATE certificate_requests SET application_ref = ?, reference_number = ? WHERE id = ?", [$appRef, $refNo, $id]);
 
         logActivity('create', 'certificates', $id, ['status' => 'pending', 'source' => 'admin']);
+
+        try {
+            require_once __DIR__ . '/helpers/certificate-notifications.php';
+            (new CertificateNotifier())->notifySubmitted($id, $residentId, $refNo);
+        } catch (Exception $ne) {
+            error_log('Admin create certificate notification: ' . $ne->getMessage());
+        }
 
         sendResponse(true, 'Certificate request created', [
             'id' => $id,
@@ -873,12 +875,12 @@ function directIssueCertificateByAdmin() {
 
         $db->commit();
 
-        sendResidentNotification(
-            $residentId,
-            'Certificate Ready for Pickup',
-            'A walk-in certificate request has been prepared and is ready for pickup. Control number: ' . $controlNumber,
-            'success'
-        );
+        try {
+            require_once __DIR__ . '/helpers/certificate-notifications.php';
+            (new CertificateNotifier())->notifyReadyForPickup($id, $residentId, $controlNumber);
+        } catch (Exception $ne) {
+            error_log('Direct issue certificate notification: ' . $ne->getMessage());
+        }
 
         logActivity('direct_issue', 'certificates', $id, [
             'status' => 'ready_for_pickup',
@@ -1064,12 +1066,12 @@ function approveCertificateRequest() {
             [(int)getCurrentUserId(), $id]
         );
 
-        sendResidentNotification(
-            (int)$row['resident_id'],
-            'Certificate Approved',
-            'Your certificate request has been approved and is now being prepared.',
-            'success'
-        );
+        try {
+            require_once __DIR__ . '/helpers/certificate-notifications.php';
+            (new CertificateNotifier())->notifyApproved($id, (int)$row['resident_id'], certificatesAdminDisplayName());
+        } catch (Exception $ne) {
+            error_log('Certificate approve notification: ' . $ne->getMessage());
+        }
 
         logActivity('approve', 'certificates', $id, ['status' => 'approved']);
         sendResponse(true, 'Request approved', ['id' => $id, 'status' => 'approved']);
@@ -1197,12 +1199,12 @@ function approveAndPrepareForPickup() {
             ]
         );
 
-        sendResidentNotification(
-            (int)$row['resident_id'],
-            'Certificate Ready for Pickup',
-            'Your certificate request has been finalized and is now ready for pickup.',
-            'success'
-        );
+        try {
+            require_once __DIR__ . '/helpers/certificate-notifications.php';
+            (new CertificateNotifier())->notifyReadyForPickup($id, (int)$row['resident_id'], $controlNumber);
+        } catch (Exception $ne) {
+            error_log('Certificate ready-for-pickup notification: ' . $ne->getMessage());
+        }
 
         logActivity('prepare', 'certificates', $id, ['status' => 'ready_for_pickup', 'control_number' => $controlNumber]);
 
@@ -1258,12 +1260,12 @@ function rejectCertificateRequest() {
             [$reason, $reason, (int)getCurrentUserId(), $id]
         );
 
-        sendResidentNotification(
-            (int)$row['resident_id'],
-            'Certificate Rejected',
-            'Your certificate request was rejected. Reason: ' . $reason,
-            'danger'
-        );
+        try {
+            require_once __DIR__ . '/helpers/certificate-notifications.php';
+            (new CertificateNotifier())->notifyRejected($id, (int)$row['resident_id'], $reason, certificatesAdminDisplayName());
+        } catch (Exception $ne) {
+            error_log('Certificate reject notification: ' . $ne->getMessage());
+        }
 
         logActivity('reject', 'certificates', $id, ['reason' => $reason]);
 
@@ -1289,10 +1291,12 @@ function markCertificateReleased() {
 
           $row = $db->fetchOne(
                 "SELECT resident_id, certificate_type, status, cert_name, cert_age, cert_address, cert_purpose,
+                          cert_body, control_number, date_issued,
                           first_name, middle_name, last_name, resident_address, birth_date, civil_status
              FROM (
                 SELECT c.resident_id, c.certificate_type, c.status,
                               c.cert_name, c.cert_age, c.cert_address, c.cert_purpose,
+                              c.cert_body, c.control_number, c.date_issued,
                               r.first_name, r.middle_name, r.last_name,
                               r.address AS resident_address, r.birth_date, r.civil_status
                 FROM certificate_requests c
@@ -1336,12 +1340,12 @@ function markCertificateReleased() {
             [$ctrlNum, $issueDate, $issueDate, (int)getCurrentUserId(), $id]
         );
 
-        sendResidentNotification(
-            (int)$row['resident_id'],
-            'Certificate Released',
-            'Your certificate has been released. Control number: ' . $ctrlNum,
-            'success'
-        );
+        try {
+            require_once __DIR__ . '/helpers/certificate-notifications.php';
+            (new CertificateNotifier())->notifyReleased($id, (int)$row['resident_id'], $ctrlNum, certificatesAdminDisplayName());
+        } catch (Exception $ne) {
+            error_log('Certificate released notification: ' . $ne->getMessage());
+        }
 
         logActivity('release', 'certificates', $id, ['control_number' => $ctrlNum]);
 
