@@ -48,6 +48,26 @@ try {
     $sql = "INSERT INTO certificate_requests (" . implode(',', $insertCols) . ") VALUES (" . $placeholders . ")";
 
     $db->query($sql, $insertVals);
+    $newId = (int)$db->lastInsertId();
+
+    try {
+        require_once __DIR__ . '/../helpers/certificate-notifications.php';
+        require_once __DIR__ . '/../../includes/notifications-store.php';
+        $notifier = new CertificateNotifier();
+        $notifier->notifySubmitted($newId, $residentId, $referenceNumber);
+        notificationsNotifyStaffForModule(
+            'certificates',
+            'New certificate request',
+            'A resident submitted a certificate request. Reference: ' . $referenceNumber . '.',
+            'info',
+            'certificate_submitted',
+            BASE_URL . 'applications.php',
+            json_encode(['certificate_id' => $newId], JSON_UNESCAPED_UNICODE),
+            0
+        );
+    } catch (Exception $ne) {
+        error_log('Certificate create notifications: ' . $ne->getMessage());
+    }
 
     http_response_code(200);
     echo json_encode([
