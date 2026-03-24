@@ -102,6 +102,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <option value="mediation">Mediation</option>
                                     <option value="settled">Settled</option>
                                     <option value="dismissed">Dismissed</option>
+                                    <option value="referred">Referred</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
