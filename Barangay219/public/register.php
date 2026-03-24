@@ -871,12 +871,14 @@ nameFields.forEach(fieldName => {
     }
 });
 
-// Phone field formatting - enforce +63 prefix with space
+// Phone field formatting - enforce +63 prefix with space and first digit must be 9
 function normalizePhoneDigits(raw) {
     if (!raw) return '';
     let digits = String(raw).replace(/\D/g, '');
     if (digits.startsWith('63')) digits = digits.slice(2);
     if (digits.startsWith('0')) digits = digits.slice(1);
+    // Ensure first digit is 9 for Philippine mobile numbers
+    if (digits && !digits.startsWith('9')) return '';
     return digits.slice(0, 10);
 }
 
@@ -1468,9 +1470,9 @@ function validateStep(step) {
             }
         }
 
-        // Validate mobile number format
+        // Validate mobile number format - must start with +63 9 followed by 9 digits
         const mobile = document.querySelector('input[name="mobile_number"]');
-        if (mobile.value && !/^\+63\s\d{10}$/.test(mobile.value)) {
+        if (mobile.value && !/^\+63\s9\d{9}$/.test(mobile.value)) {
             mobile.classList.add('is-invalid');
             isValid = false;
         }
