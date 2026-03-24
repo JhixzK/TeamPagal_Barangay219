@@ -146,6 +146,24 @@ include __DIR__ . '/../includes/sidebar.php';
                         <h6>Admin Notes</h6>
                         <textarea class="form-control mb-3" id="editAdminNotes" name="admin_notes" rows="3" placeholder="Add processing notes, mediation outcomes, etc."></textarea>
 
+                        <hr>
+                        <h6>Complete Hearing</h6>
+                        <div id="completeHearingSection" style="display:none;" class="mb-3">
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label">Outcome</label>
+                                    <input type="text" class="form-control" id="completeHearingOutcome" placeholder="Outcome">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Notes</label>
+                                    <input type="text" class="form-control" id="completeHearingNotes" placeholder="Notes">
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-success" id="btnCompleteHearing">Mark as Completed & Schedule Next</button>
+                            </div>
+                        </div>
+
                         <div id="editModeActionLog" class="alert alert-secondary p-2" style="font-size:0.9rem; display:none;"></div>
                     </div>
                     <div class="modal-footer">
@@ -509,6 +527,11 @@ include __DIR__ . '/../includes/sidebar.php';
     .blotter-page .blotter-table {
         margin-bottom: 0;
     }
+
+    /* Ensure Complete Hearing inputs are visible and readable */
+    #completeHearingSection { padding-top: 0.5rem; }
+    #completeHearingSection .form-control { background: #fff; color: #212529; }
+    #completeHearingSection .btn { z-index: 5; }
 
     .blotter-page .blotter-table-scroll {
         max-height: min(62vh, 640px);
