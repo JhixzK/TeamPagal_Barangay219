@@ -413,7 +413,8 @@ if ($conn && empty($pageErrors) && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($pageErrors)) {
             $fields = [
                 'household_id' => $householdIdInput > 0 ? (string)$householdIdInput : null,
-                'relationship_to_head' => $relationship
+                'relationship_to_head' => $relationship,
+                'household_type' => trim((string)($_POST['household_type'] ?? ''))
             ];
 
             if (rpUpdateResidents($conn, $residentId, $fields, $residentCols, $userId)) {
@@ -430,7 +431,8 @@ if ($conn && empty($pageErrors) && $_SERVER['REQUEST_METHOD'] === 'POST') {
             'educational_attainment' => trim((string)($_POST['educational_attainment'] ?? '')),
             'occupation' => trim((string)($_POST['occupation'] ?? '')),
             'employment_status' => strtolower(trim((string)($_POST['employment_status'] ?? ''))),
-            'employer_name' => trim((string)($_POST['employer_name'] ?? ''))
+            'employer_name' => trim((string)($_POST['employer_name'] ?? '')),
+            'economic_classification' => trim((string)($_POST['economic_classification'] ?? ''))
         ];
 
         if (rpUpdateResidents($conn, $residentId, $fields, $residentCols, $userId)) {
@@ -890,6 +892,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
           <div class="info-row"><span>Household ID</span><strong><?php echo h($pick($resident, ['household_id'], 'Not Linked')); ?></strong></div>
           <div class="info-row"><span>Household Head Name</span><strong><?php echo h($pick($resident, ['household_head_name'], 'N/A')); ?></strong></div>
           <div class="info-row"><span>Relationship</span><strong><?php echo h($pick($resident, ['relationship_to_head'], 'N/A')); ?></strong></div>
+          <div class="info-row"><span>Household Type</span><strong><?php echo h($pick($resident, ['household_type'], 'N/A')); ?></strong></div>
           <div class="info-row"><span>Number of Members</span><strong><?php echo h($pick($household, ['total_members'], 'N/A')); ?></strong></div>
         </div>
 
@@ -898,6 +901,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
           <div class="form-grid two-col">
             <label><span>Household ID</span><input type="number" min="0" name="household_id" value="<?php echo h($pick($resident, ['household_id'])); ?>"></label>
             <label><span>Relationship to Household Head</span><input type="text" name="relationship_to_head" value="<?php echo h($pick($resident, ['relationship_to_head'])); ?>"></label>
+            <label><span>Household Type</span><input type="text" name="household_type" value="<?php echo h($pick($resident, ['household_type'])); ?>"></label>
           </div>
           <div class="form-actions"><button class="btn-primary" type="submit"><?php echo ((int)$pick($resident, ['household_id'], 0) > 0) ? 'Update Household Link' : 'Link Household'; ?></button></div>
         </form>
@@ -916,6 +920,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
           <div class="info-row"><span>Occupation</span><strong><?php echo h($pick($resident, ['occupation'], 'N/A')); ?></strong></div>
           <div class="info-row"><span>Employment Status</span><strong><?php echo h($pick($resident, ['employment_status'], 'N/A')); ?></strong></div>
           <div class="info-row"><span>Employer Name</span><strong><?php echo h($pick($resident, ['employer_name'], 'N/A')); ?></strong></div>
+          <div class="info-row"><span>Economic Classification</span><strong><?php echo h($pick($resident, ['economic_classification'], 'N/A')); ?></strong></div>
         </div>
 
         <form method="POST" class="edit-form hidden" id="form-employment">
@@ -925,6 +930,7 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
             <label><span>Occupation</span><input type="text" name="occupation" value="<?php echo h($pick($resident, ['occupation'])); ?>"></label>
             <label><span>Employment Status</span><input type="text" name="employment_status" value="<?php echo h($pick($resident, ['employment_status'])); ?>"></label>
             <label><span>Employer Name</span><input type="text" name="employer_name" value="<?php echo h($pick($resident, ['employer_name'])); ?>"></label>
+            <label><span>Economic Classification</span><input type="text" name="economic_classification" value="<?php echo h($pick($resident, ['economic_classification'])); ?>"></label>
           </div>
           <div class="form-actions"><button class="btn-primary" type="submit">Save Employment/Education</button></div>
         </form>
