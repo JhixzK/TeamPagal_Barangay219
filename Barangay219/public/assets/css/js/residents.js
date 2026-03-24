@@ -378,6 +378,7 @@ function editResident(id) {
             const mi = resident.monthly_income;
             miEl.value = (mi != null && mi !== '') ? String(mi) : '';
         }
+        document.getElementById('residency_start_date').value = resident.residency_start_date || '';
         document.getElementById('status').value = resident.status;
         document.getElementById('residentModalTitle').textContent = 'Edit Resident';
         initResidentFormValidation();
