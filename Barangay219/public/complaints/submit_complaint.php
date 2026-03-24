@@ -227,6 +227,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     $db->commit();
+                    $complaintId = (int)$db->lastInsertId();
+                    try {
+                        require_once __DIR__ . '/../../includes/notifications-store.php';
+                        $refLabel = $referenceNumber ?: ('ID ' . $complaintId);
+                        notificationsNotifyStaffForModule(
+                            'complaints',
+                            'New complaint',
+                            'A resident submitted a complaint: ' . $formData['title'] . ' (Ref: ' . $refLabel . ').',
+                            'info',
+                            'complaint_submitted_resident',
+                            BASE_URL . 'complaints.php',
+                            json_encode(['complaint_id' => $complaintId], JSON_UNESCAPED_UNICODE),
+                            0
+                        );
+                        notificationsInsertForResident(
+                            $residentId,
+                            'Complaint received',
+                            'Your complaint was submitted successfully. Reference: ' . $refLabel,
+                            'success',
+                            'complaint_submitted',
+                            BASE_URL . 'complaints/my_complaints.php',
+                            json_encode(['complaint_id' => $complaintId], JSON_UNESCAPED_UNICODE)
+                        );
+                    } catch (Throwable $notifyEx) {
+                        error_log('Resident complaint notifications: ' . $notifyEx->getMessage());
+                    }
                     $inserted = true;
                 } catch (Exception $exception) {
                     if ($db->getConnection()->inTransaction()) {
