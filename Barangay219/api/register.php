@@ -444,13 +444,13 @@ $house_type = sanitize($_POST['house_type'] ?? '');
 $house_ownership = sanitize($_POST['house_ownership'] ?? '');
 $relationship_to_head = sanitize($_POST['relationship_to_head'] ?? ($household_role ?? ''));
 $household_members = isset($_POST['household_members']) ? (int)$_POST['household_members'] : null;
-$household_income_raw = trim((string)($_POST['household_income'] ?? ''));
-$monthly_income_raw = trim((string)($_POST['monthly_income'] ?? ''));
+$household_income_raw = str_replace(',', '', trim((string)($_POST['household_income'] ?? '')));
+$monthly_income_raw = str_replace(',', '', trim((string)($_POST['monthly_income'] ?? '')));
 // Legacy forms posted only household_income; treat as this applicant's monthly income when monthly_income is empty.
 if ($monthly_income_raw === '' && $household_income_raw !== '') {
     $monthly_income_raw = $household_income_raw;
 }
-$income_per_member_raw = trim((string)($_POST['income_per_member'] ?? ''));
+$income_per_member_raw = str_replace(',', '', trim((string)($_POST['income_per_member'] ?? '')));
 $economic_classification = sanitize($_POST['economic_classification'] ?? '');
 $household_income = ($household_income_raw === '') ? null : (float)$household_income_raw;
 $monthly_income = null;
@@ -532,11 +532,7 @@ if ($voter_status === '') {
     $errors[] = 'Voter status is required.';
 }
 
-if ($voter_status === 'Registered Voter (This Barangay)') {
-    if ($precinct_number === '') {
-        $errors[] = 'Precinct number is required for registered voters in this barangay.';
-    }
-} else {
+if ($voter_status !== 'Registered Voter (This Barangay)') {
     $precinct_number = '';
 }
 
