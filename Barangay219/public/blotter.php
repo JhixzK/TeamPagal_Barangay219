@@ -88,7 +88,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 <form id="caseDetailForm" style="display:none;">
                     <input type="hidden" id="editCaseId" name="case_id">
                     <div class="modal-body">
-                        <div class="alert alert-info mb-3">
+                        <div id="editModeAlert" class="alert alert-info mb-3" style="display:block;">
                             <i class="bi bi-info-circle"></i> You are now editing this case. Make changes and click Save.
                         </div>
                         
@@ -452,6 +452,9 @@ include __DIR__ . '/../includes/sidebar.php';
         scrollbar-width: thin;
         scrollbar-color: #888 #f1f1f1;
     }
+
+    /* Ensure the edit-mode alert remains visible when the edit form is active */
+    #viewBlotterModal #caseDetailForm #editModeAlert { display: block !important; }
 
     /* Card styling for view modal */
     .blotterModal .card {
