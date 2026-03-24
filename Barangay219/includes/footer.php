@@ -10,6 +10,9 @@
     
     <!-- Bootstrap JS (Local) -->
     <script src="<?php echo ASSETS_URL; ?>js/bootstrap.bundle.min.js"></script>
+    <?php if (isLoggedIn()): ?>
+    <script src="<?php echo ASSETS_URL; ?>css/js/app-notifications.js?v=<?php echo time(); ?>"></script>
+    <?php endif; ?>
     <!-- jQuery (if needed) -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     
