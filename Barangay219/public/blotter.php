@@ -185,6 +185,10 @@ include __DIR__ . '/../includes/sidebar.php';
                             <label class="form-label fw-bold">Incident Detail:</label>
                             <p id="viewDescription"></p>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Witnesses:</label>
+                            <div id="viewWitnesses">-</div>
+                        </div>
                         
                         <hr>
                         <h6>Complainants</h6>
