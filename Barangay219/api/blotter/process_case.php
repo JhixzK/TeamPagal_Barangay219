@@ -193,15 +193,13 @@ try {
                     'SELECT id, first_name, middle_name, last_name, address, contact_number FROM residents WHERE id = ? LIMIT 1',
                     [$residentId]
                 );
-                if (!$resident) {
-                    continue;
-                }
-
-                $name = trim((string)($resident['first_name'] ?? '') . ' ' . (string)($resident['middle_name'] ?? '') . ' ' . (string)($resident['last_name'] ?? ''));
+                $name = $resident
+                    ? trim((string)($resident['first_name'] ?? '') . ' ' . (string)($resident['middle_name'] ?? '') . ' ' . (string)($resident['last_name'] ?? ''))
+                    : ($entry['name'] ?? '');
                 $normalizedRespondents[] = [
                     'name' => $name,
-                    'address' => (string)($resident['address'] ?? ''),
-                    'contact' => (string)($resident['contact_number'] ?? ''),
+                    'address' => $resident ? (string)($resident['address'] ?? '') : ($entry['address'] ?? ''),
+                    'contact' => $resident ? (string)($resident['contact_number'] ?? '') : ($entry['contact'] ?? ''),
                     'residency' => 'resident',
                     'resident_id' => $residentId,
                 ];
