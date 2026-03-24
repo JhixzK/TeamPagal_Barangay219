@@ -14,6 +14,7 @@
 
 define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/notifications-store.php';
 
 /**
  * Certificate Notifier - manages resident notifications for certificate workflow
@@ -244,13 +245,15 @@ class CertificateNotifier {
         }
 
         try {
-            // 1. Create in-app notification
-            $this->ensureNotificationsSchema();
-            $notificationId = $this->db->lastInsertId(
-                "INSERT INTO notifications 
-                 (resident_id, title, message, type, is_read, created_at) 
-                 VALUES (?, ?, ?, ?, 0, NOW())",
-                [$residentId, $title, $message, $type]
+            notificationsEnsureSchema();
+            $linkUrl = defined('BASE_URL') ? (BASE_URL . 'my_requests.php') : null;
+            $payloadJson = $certificateId !== null && $certificateId > 0
+                ? json_encode(['certificate_id' => $certificateId], JSON_UNESCAPED_UNICODE)
+                : null;
+            $this->db->query(
+                "INSERT INTO notifications (resident_id, user_id, title, message, type, event_type, link_url, payload, is_read, created_at)
+                 VALUES (?, NULL, ?, ?, ?, ?, ?, ?, 0, NOW())",
+                [$residentId, $title, $message, $type, $eventType, $linkUrl, $payloadJson]
             );
 
             // 2. Create email notification if email and template provided
@@ -505,26 +508,6 @@ HTML;
         }
 
         return str_replace('{CONTENT}', $content, $baseTemplate);
-    }
-
-    /**
-     * Ensure notifications table exists
-     */
-    private function ensureNotificationsSchema(): void {
-        $this->db->query(
-            "CREATE TABLE IF NOT EXISTS notifications (
-                id INT(11) NOT NULL AUTO_INCREMENT,
-                resident_id INT(11) NOT NULL,
-                title VARCHAR(255) NOT NULL,
-                message TEXT NOT NULL,
-                type VARCHAR(20) DEFAULT 'info',
-                is_read TINYINT(1) DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                KEY idx_resident (resident_id),
-                KEY idx_created (created_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-        );
     }
 
     /**
