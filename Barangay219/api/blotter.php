@@ -160,11 +160,10 @@ function getBlotter() {
         }
         if (empty($hearings) && !empty($row['hearing_date'])) {
             $hearings[] = [
-                'hearing_date' => $row['hearing_date'],
+                'date' => $row['hearing_date'],
                 'status' => 'scheduled',
                 'outcome' => '',
-                'notes' => '',
-                'next_hearing_date' => ''
+                'notes' => ''
             ];
         }
 
@@ -674,7 +673,7 @@ function witnessesToMultiline(string $raw): string {
 function firstHearingDate(array $hearings): ?string {
     foreach ($hearings as $h) {
         if (!is_array($h)) continue;
-        $d = normalizeDateValue($h['hearing_date'] ?? null);
+        $d = normalizeDateValue($h['date'] ?? null);
         if ($d) return $d;
     }
     return null;
