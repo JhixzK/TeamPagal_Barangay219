@@ -386,7 +386,7 @@ $barangay219_purok_options = [
                         </div>
                         <div class="step" data-step="3">
                             <div class="step-circle">3</div>
-                            <div class="step-label">Step 3: Contact & Residency</div>
+                            <div class="step-label">Step 3: Resident Verification</div>
                         </div>
                         <div class="step" data-step="4">
                             <div class="step-circle">4</div>
@@ -512,6 +512,7 @@ $barangay219_purok_options = [
                                                 <option value="ALS (Alternative Learning System) Graduate">ALS (Alternative Learning System) Graduate</option>
                                                 <option value="Others (Please Specify)">Others (Please Specify)</option>
                                             </select>
+                                            <input type="text" name="educational_attainment_other" id="educational_attainment_other" class="form-control mt-2" maxlength="120" placeholder="Please specify educational attainment" style="display:none;">
                                         </div>
                                     </div>
                                     <div class="row">
@@ -544,6 +545,7 @@ $barangay219_purok_options = [
                                                 <option value="Freelancer (Online Jobs)">Freelancer (Online Jobs)</option>
                                                 <option value="Others (Please Specify)">Others (Please Specify)</option>
                                             </select>
+                                            <input type="text" name="occupation_other" id="occupation_other" class="form-control mt-2" maxlength="120" placeholder="Please specify occupation" style="display:none;">
                                         </div>
                                         <div class="col-md-6 mb-3" id="employmentStatusWrapper">
                                             <label>Employment Status <span class="text-danger">*</span></label>
@@ -559,9 +561,9 @@ $barangay219_purok_options = [
                                     </div>
                                     <div class="row">
                                         <div class="col-md-6 mb-3" id="monthlyIncomeWrapper">
-                                            <label>Your monthly income (PHP)</label>
-                                            <input type="number" name="monthly_income" class="form-control" min="0" step="0.01" inputmode="decimal" placeholder="Optional — e.g., 15000">
-                                            <small class="text-muted">Optional. Per-person amount; the system adds all household members’ incomes for classification.</small>
+                                            <label>Your monthly income (PHP) <span class="text-danger">*</span></label>
+                                            <input type="text" name="monthly_income" class="form-control" inputmode="decimal" placeholder="e.g., 15,000" required>
+                                            <small class="text-muted">Enter your monthly income in PHP.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -654,10 +656,10 @@ $barangay219_purok_options = [
                             </div>
                         </div>
 
-                        <!-- Step 3: Contact & Residency -->
+                        <!-- Step 3: Resident Verification -->
                         <div class="step-content" data-step="3">
                             <div class="step-header">
-                                <div class="step-title">Phase 3: Contact & Residency</div>
+                                <div class="step-title">Phase 3: Resident Verification</div>
                                 <div class="step-counter">Step 3 of 4</div>
                             </div>
                             <div class="card section-card mb-4">
@@ -714,6 +716,37 @@ $barangay219_purok_options = [
                                     <input type="hidden" name="length_of_residency_years" id="length_of_residency_years" value="">
                                     <input type="hidden" name="length_of_residency" id="length_of_residency" value="">
                                     <!-- Emergency contact section removed as per requirements -->
+
+                                    <hr>
+                                    <h6 class="text-secondary mb-3">Identification & Verification</h6>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label>Valid ID Type <span class="text-danger">*</span></label>
+                                            <select name="valid_id_type" class="form-select" required>
+                                                <option value="">Select</option>
+                                                <?php foreach ($valid_id_types as $k => $v): ?>
+                                                <option value="<?php echo htmlspecialchars($k); ?>"><?php echo htmlspecialchars($v); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <input type="text" name="valid_id_type_other" id="valid_id_type_other" class="form-control mt-2" maxlength="120" placeholder="Please specify valid ID type" style="display:none;">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label>Valid ID Number <span class="text-danger">*</span></label>
+                                            <input type="text" name="valid_id_number" class="form-control" maxlength="50" required>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label>Upload Valid ID <span class="text-danger">*</span></label>
+                                            <input type="file" name="id_document" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
+                                            <small class="text-muted">PDF, JPG, PNG. Max 5MB.</small>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label>Upload Proof of Residency <span class="text-danger">*</span></label>
+                                            <input type="file" name="proof_of_residency" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
+                                            <small class="text-muted">PDF, JPG, PNG. Max 5MB.</small>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -733,35 +766,7 @@ $barangay219_purok_options = [
                             </div>
                             <div class="card section-card mb-4">
                                 <div class="card-body">
-                                    <h6 class="text-secondary mb-3">Identification & Verification</h6>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label>Valid ID Type <span class="text-danger">*</span></label>
-                                            <select name="valid_id_type" class="form-select" required>
-                                                <option value="">Select</option>
-                                                <?php foreach ($valid_id_types as $k => $v): ?>
-                                                <option value="<?php echo htmlspecialchars($k); ?>"><?php echo htmlspecialchars($v); ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label>Valid ID Number <span class="text-danger">*</span></label>
-                                            <input type="text" name="valid_id_number" class="form-control" maxlength="50" required>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label>Upload Valid ID <span class="text-danger">*</span></label>
-                                            <input type="file" name="id_document" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
-                                            <small class="text-muted">PDF, JPG, PNG. Max 5MB.</small>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label>Upload Proof of Residency <span class="text-danger">*</span></label>
-                                            <input type="file" name="proof_of_residency" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
-                                            <small class="text-muted">PDF, JPG, PNG. Max 5MB.</small>
-                                        </div>
-                                    </div>
-                                    <div class="form-check mt-3">
+                                    <div class="form-check mt-1">
                                         <input class="form-check-input" type="checkbox" name="data_privacy_consent" id="data_privacy" value="1" required>
                                         <label class="form-check-label" for="data_privacy">
                                             I consent to the collection and processing of my personal data in accordance with the <strong>Data Privacy Act of 2012</strong> and the privacy policy of <?php echo htmlspecialchars($barangay); ?>.
@@ -1178,6 +1183,64 @@ function toggleMonthlyIncomeField() {
     }
 }
 
+function normalizeIncomeValue(raw) {
+    let value = String(raw || '').replace(/,/g, '').replace(/[^0-9.]/g, '');
+    const firstDotIndex = value.indexOf('.');
+    if (firstDotIndex !== -1) {
+        value = value.slice(0, firstDotIndex + 1) + value.slice(firstDotIndex + 1).replace(/\./g, '');
+    }
+    return value;
+}
+
+function formatIncomeWithCommas(raw) {
+    const normalized = normalizeIncomeValue(raw);
+    if (!normalized) {
+        return '';
+    }
+
+    const parts = normalized.split('.');
+    const intPart = parts[0] || '0';
+    const decimalPart = parts.length > 1 ? parts[1] : '';
+    const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+    if (parts.length > 1) {
+        return formattedInt + '.' + decimalPart.slice(0, 2);
+    }
+
+    return formattedInt;
+}
+
+function initializeMonthlyIncomeFormatting() {
+    const monthlyIncomeField = document.querySelector('input[name="monthly_income"]');
+    if (!monthlyIncomeField) {
+        return;
+    }
+
+    monthlyIncomeField.addEventListener('input', function() {
+        this.value = formatIncomeWithCommas(this.value);
+    });
+
+    monthlyIncomeField.addEventListener('blur', function() {
+        this.value = formatIncomeWithCommas(this.value);
+    });
+
+    monthlyIncomeField.value = formatIncomeWithCommas(monthlyIncomeField.value);
+}
+
+function syncMonthlyIncomeFields(sourceField) {
+    if (!sourceField) {
+        return;
+    }
+
+    const formatted = formatIncomeWithCommas(sourceField.value);
+    sourceField.value = formatted;
+
+    const originalField = document.querySelector('input[name="monthly_income"]');
+    if (originalField && originalField !== sourceField) {
+        originalField.value = formatted;
+    }
+}
+
 function togglePrecinctNumberField() {
     const voterStatusField = document.getElementById('voter_status');
     const precinctNumberWrapper = document.getElementById('precinctNumberWrapper');
@@ -1196,17 +1259,105 @@ function togglePrecinctNumberField() {
     }
 }
 
+function shouldShowOtherSpecify(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) {
+        return false;
+    }
+
+    if (normalized === 'other') {
+        return true;
+    }
+
+    return normalized.includes('other') && normalized.includes('specify');
+}
+
+function toggleOtherSpecifyField(config) {
+    if (!config || !config.select || !config.input || !config.match) {
+        return;
+    }
+
+    const shouldShow = config.match(config.select.value);
+    config.input.style.display = shouldShow ? 'block' : 'none';
+    config.input.required = shouldShow;
+
+    if (!shouldShow) {
+        config.input.value = '';
+        config.input.classList.remove('is-invalid');
+    }
+}
+
+function refreshOtherSpecifyFields() {
+    if (!Array.isArray(otherSpecifyConfigs)) {
+        return;
+    }
+
+    otherSpecifyConfigs.forEach(toggleOtherSpecifyField);
+}
+
+function initializeOtherSpecifyFields() {
+    const form = document.getElementById('registerForm');
+    if (!form) {
+        return [];
+    }
+
+    const configs = [];
+    const otherInputs = form.querySelectorAll('input[name$="_other"], textarea[name$="_other"]');
+
+    otherInputs.forEach(input => {
+        const fieldName = String(input.name || '').trim();
+        if (!fieldName) {
+            return;
+        }
+
+        const baseFieldName = fieldName.replace(/_other$/, '');
+        if (!baseFieldName) {
+            return;
+        }
+
+        const select = form.querySelector(`select[name="${baseFieldName}"]`);
+        if (!select) {
+            return;
+        }
+
+        configs.push({
+            select,
+            input,
+            match: shouldShowOtherSpecify,
+            copyToField: baseFieldName
+        });
+    });
+
+    configs.forEach(config => {
+        if (!config.select || !config.input) {
+            return;
+        }
+
+        config.select.addEventListener('change', function() {
+            toggleOtherSpecifyField(config);
+        });
+
+        toggleOtherSpecifyField(config);
+    });
+
+    return configs;
+}
+
 const occupationField = document.getElementById('occupation');
 if (occupationField) {
     occupationField.addEventListener('change', toggleMonthlyIncomeField);
     toggleMonthlyIncomeField();
 }
 
+initializeMonthlyIncomeFormatting();
+
 const voterStatusField = document.getElementById('voter_status');
 if (voterStatusField) {
     voterStatusField.addEventListener('change', togglePrecinctNumberField);
     togglePrecinctNumberField();
 }
+
+const otherSpecifyConfigs = initializeOtherSpecifyFields();
 
 // Step navigation
 function showStep(step) {
@@ -1358,6 +1509,36 @@ function populateReview() {
     const reviewContent = document.getElementById('reviewContent');
     reviewContent.innerHTML = '';
 
+    const hasUserInputValue = (field) => {
+        if (!field) {
+            return false;
+        }
+
+        if (field.tagName === 'INPUT' && field.type === 'hidden') {
+            return false;
+        }
+
+        const value = String(field.value ?? '').trim();
+        if (value === '') {
+            return false;
+        }
+
+        if (String(field.name || '').endsWith('_other')) {
+            const baseFieldName = String(field.name).replace(/_other$/, '');
+            const baseSelect = document.querySelector(`select[name="${baseFieldName}"]`);
+            if (!baseSelect || !shouldShowOtherSpecify(baseSelect.value)) {
+                return false;
+            }
+        }
+
+        // Exclude fixed prefilled system value from review-only user input display.
+        if (field.name === 'citizenship' && field.readOnly) {
+            return false;
+        }
+
+        return true;
+    };
+
     const syncReviewFieldsFromOriginal = () => {
         const reviewFields = reviewContent.querySelectorAll('.review-edit-field');
         if (!reviewFields.length) return;
@@ -1376,7 +1557,7 @@ function populateReview() {
 
             const col = clonedField.closest('.col-md-6');
             if (col) {
-                col.style.display = '';
+                col.style.display = hasUserInputValue(originalField) ? '' : 'none';
             }
         });
 
@@ -1393,14 +1574,15 @@ function populateReview() {
             if (!field) return;
             const col = field.closest('.col-md-6');
             if (!col) return;
-            col.style.display = shouldShow ? '' : 'none';
+            const originalField = document.querySelector(`[name="${fieldName}"]`);
+            col.style.display = shouldShow && hasUserInputValue(originalField) ? '' : 'none';
         };
 
         setReviewFieldVisibility('house_type', !!isHead);
         setReviewFieldVisibility('house_ownership', !!isHead);
-    setReviewFieldVisibility('precinct_number', !!shouldShowPrecinct);
-    setReviewFieldVisibility('employment_status', !hideEmploymentIncome);
-    setReviewFieldVisibility('monthly_income', !hideEmploymentIncome);
+        setReviewFieldVisibility('precinct_number', !!shouldShowPrecinct);
+        setReviewFieldVisibility('employment_status', !hideEmploymentIncome);
+        setReviewFieldVisibility('monthly_income', !hideEmploymentIncome);
     };
 
     const reviewSections = [
@@ -1419,7 +1601,9 @@ function populateReview() {
                 { name: 'voter_status', label: 'Voter Status' },
                 { name: 'precinct_number', label: 'Precinct Number' },
                 { name: 'educational_attainment', label: 'Educational Attainment' },
+                { name: 'educational_attainment_other', label: 'Educational Attainment (Please Specify)' },
                 { name: 'occupation', label: 'Occupation' },
+                { name: 'occupation_other', label: 'Occupation (Please Specify)' },
                 { name: 'employment_status', label: 'Employment Status' },
                 { name: 'monthly_income', label: 'Your monthly income (PHP)' }
             ]
@@ -1433,7 +1617,7 @@ function populateReview() {
             ]
         },
         {
-            title: 'Contact & Residency',
+            title: 'Resident Verification',
             fields: [
                 { name: 'mobile_number', label: 'Mobile Number' },
                 { name: 'email', label: 'Email Address' },
@@ -1460,6 +1644,7 @@ function populateReview() {
         section.fields.forEach(fieldDef => {
             const originalField = document.querySelector(`[name="${fieldDef.name}"]`);
             if (!originalField) return;
+            if (!hasUserInputValue(originalField)) return;
 
             const col = document.createElement('div');
             col.className = 'col-md-6 mb-2';
@@ -1489,6 +1674,9 @@ function populateReview() {
                 cloned.addEventListener(evt, function () {
                     const orig = document.querySelector(`[name="${this.dataset.field}"]`);
                     if (orig) orig.value = this.value;
+                    if (this.dataset.field === 'monthly_income') {
+                        syncMonthlyIncomeFields(this);
+                    }
                     if (this.dataset.field === 'residency_start_date') {
                         computeResidencyDuration(this.value);
                     }
@@ -1501,6 +1689,7 @@ function populateReview() {
                     if (this.dataset.field === 'voter_status') {
                         togglePrecinctNumberField();
                     }
+                    refreshOtherSpecifyFields();
                     syncReviewFieldsFromOriginal();
                 });
             });
@@ -1509,6 +1698,10 @@ function populateReview() {
             col.appendChild(cloned);
             row.appendChild(col);
         });
+
+        if (!row.children.length) {
+            return;
+        }
 
         cardBody.appendChild(row);
         card.appendChild(cardBody);
@@ -1530,7 +1723,9 @@ document.getElementById('nextBtn').addEventListener('click', function() {
 });
 
 document.getElementById('prevBtn').addEventListener('click', function() {
-    window.location.href = '<?php echo BASE_URL; ?>home.php';
+    if (currentStep > 1) {
+        showStep(currentStep - 1);
+    }
 });
 
 // Form submission
@@ -1551,6 +1746,30 @@ document.getElementById('registerForm').addEventListener('submit', async functio
     const alc = document.getElementById('alertContainer');
     alc.innerHTML = '';
     const fd = new FormData(this);
+
+    const monthlyIncomeField = document.querySelector('input[name="monthly_income"]');
+    if (monthlyIncomeField) {
+        const normalizedMonthlyIncome = normalizeIncomeValue(monthlyIncomeField.value);
+        fd.set('monthly_income', normalizedMonthlyIncome);
+        fd.set('household_income', normalizedMonthlyIncome);
+    }
+
+    if (Array.isArray(otherSpecifyConfigs)) {
+        otherSpecifyConfigs.forEach(config => {
+            if (!config || !config.select || !config.input || !config.match) return;
+
+            const isOtherSelected = config.match(config.select.value);
+            if (!isOtherSelected) {
+                return;
+            }
+
+            const customValue = String(config.input.value || '').trim();
+            if (customValue !== '' && config.copyToField) {
+                fd.set(config.copyToField, customValue);
+            }
+        });
+    }
+
     try {
         const r = await fetch(API_URL + 'register.php', { method: 'POST', body: fd });
         const data = await r.json();
