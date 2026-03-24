@@ -10,6 +10,7 @@ define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 require_once __DIR__ . '/../includes/indigent-classification.php';
+require_once __DIR__ . '/../includes/notifications-store.php';
 
 requireLogin();
 if (!canAccessModule('resident_applications')) {
@@ -1056,6 +1057,20 @@ function approveApplication() {
 
         $db->commit();
 
+        try {
+            notificationsInsertForResident(
+                (int)$residentId,
+                'Registration approved',
+                'Your barangay registration was approved. Check your email for the account activation link, or contact the barangay office if you need assistance.',
+                'success',
+                'registration_approved',
+                BASE_URL . 'activate-account.php',
+                json_encode(['application_id' => $id], JSON_UNESCAPED_UNICODE)
+            );
+        } catch (Exception $notifyEx) {
+            error_log('Approve application resident notification: ' . $notifyEx->getMessage());
+        }
+
         $activationLink = BASE_URL . 'activate-account.php?token=' . $activationToken;
         // Same email the applicant entered on public registration (resident_applications.email)
         $registrationEmail = trim((string)($app['email'] ?? ''));
@@ -1421,7 +1436,10 @@ function rejectApplication() {
             sendResponse(false, 'Missing status column in resident_applications', null, 500);
         }
 
-        $app = $db->fetchOne("SELECT id FROM resident_applications WHERE id = ? AND `$statusCol` = 'pending'", [$id]);
+        $app = $db->fetchOne(
+            "SELECT id, email, first_name, last_name, application_ref FROM resident_applications WHERE id = ? AND `$statusCol` = 'pending'",
+            [$id]
+        );
         if (!$app) {
             sendResponse(false, 'Application not found or already processed', null, 404);
         }
@@ -1447,6 +1465,27 @@ function rejectApplication() {
                 "INSERT INTO application_audit_log (application_id, action, performed_by, details) VALUES (?, 'rejected', ?, ?)",
                 [$id, $userId, json_encode(['rejection_reason' => $reason])]
             );
+        }
+
+        $to = trim((string)($app['email'] ?? ''));
+        $name = trim(trim((string)($app['first_name'] ?? '')) . ' ' . trim((string)($app['last_name'] ?? '')));
+        if ($to !== '') {
+            require_once __DIR__ . '/../includes/mail-helper.php';
+            $ref = trim((string)($app['application_ref'] ?? ''));
+            $subj = APP_NAME . ' — Registration application update';
+            $html = '<p>Hello' . ($name !== '' ? ' ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') : '') . ',</p>'
+                . '<p>Your barangay registration application'
+                . ($ref !== '' ? ' (' . htmlspecialchars($ref, ENT_QUOTES, 'UTF-8') . ')' : '')
+                . ' was not approved.</p>';
+            if ($reason !== '') {
+                $html .= '<p><strong>Reason:</strong> ' . nl2br(htmlspecialchars($reason, ENT_QUOTES, 'UTF-8')) . '</p>';
+            }
+            $html .= '<p>If you have questions, please visit or contact the barangay office.</p>';
+            try {
+                sendHtmlMailToResident($to, $subj, $html);
+            } catch (Throwable $mailEx) {
+                error_log('Reject application email: ' . $mailEx->getMessage());
+            }
         }
 
         sendResponse(true, 'Application rejected.');
