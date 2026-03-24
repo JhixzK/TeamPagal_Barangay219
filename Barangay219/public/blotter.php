@@ -147,8 +147,8 @@ include __DIR__ . '/../includes/sidebar.php';
                         <textarea class="form-control mb-3" id="editAdminNotes" name="admin_notes" rows="3" placeholder="Add processing notes, mediation outcomes, etc."></textarea>
 
                         <hr>
-                        <h6>Complete Hearing</h6>
                         <div id="completeHearingSection" style="display:none;" class="mb-3">
+                            <h6>Complete Hearing</h6>
                             <div class="row g-2">
                                 <div class="col-md-6">
                                     <label class="form-label">Outcome</label>
