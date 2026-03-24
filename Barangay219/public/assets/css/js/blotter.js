@@ -627,7 +627,17 @@ function toggleProcessFieldsByStatus(status) {
     if (mediationFields) mediationFields.style.display = status === 'mediation' ? '' : 'none';
     if (settledFields) settledFields.style.display = status === 'settled' ? '' : 'none';
     if (dismissedFields) dismissedFields.style.display = status === 'dismissed' ? '' : 'none';
-    if (completeSection) completeSection.style.display = status === 'mediation' ? '' : 'none';
+    // Show Complete Hearing only when status is mediation AND there's an active (non-completed) hearing
+    let showComplete = false;
+    try {
+        if (String((status || '')).toLowerCase() === 'mediation' && currentViewingCaseData && Array.isArray(currentViewingCaseData.hearings)) {
+            for (let i = currentViewingCaseData.hearings.length - 1; i >= 0; i--) {
+                const hh = currentViewingCaseData.hearings[i];
+                if (String((hh.status || '')).toLowerCase() !== 'completed') { showComplete = true; break; }
+            }
+        }
+    } catch (e) { showComplete = false; }
+    if (completeSection) completeSection.style.display = showComplete ? '' : 'none';
 }
 
 function searchResidentsForRespondent(keyword) {
