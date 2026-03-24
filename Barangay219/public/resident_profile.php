@@ -507,7 +507,12 @@ $approvedApplication = [];
 
 if ($conn && empty($pageErrors)) {
     $resident = rpFetchOne($conn, 'SELECT * FROM residents WHERE id = ? LIMIT 1', 'i', [$residentId]) ?? [];
-    $user = rpFetchOne($conn, 'SELECT username, email, created_at FROM users WHERE id = ? LIMIT 1', 'i', [$userId]) ?? [];
+    $userSelectParts = ['username', 'email', 'created_at'];
+    if (in_array('two_factor_enabled', $userCols, true)) {
+        $userSelectParts[] = 'two_factor_enabled';
+    }
+    $userSelectSql = implode(', ', $userSelectParts);
+    $user = rpFetchOne($conn, "SELECT {$userSelectSql} FROM users WHERE id = ? LIMIT 1", 'i', [$userId]) ?? [];
 
     $householdId = (int)($resident['household_id'] ?? 0);
     if ($householdId > 0 && rpTableExists($conn, 'households')) {
@@ -610,6 +615,9 @@ switch (strtolower((string)($verification['class'] ?? ''))) {
 }
 $createdAt = $pick($resident, ['created_at'], $pick($user, ['created_at']));
 $createdAtLabel = $createdAt ? date('F d, Y', strtotime($createdAt)) : 'N/A';
+
+$twoFaAvailable = array_key_exists('two_factor_enabled', $user);
+$twoFaOn = $twoFaAvailable && (int)($user['two_factor_enabled'] ?? 0) === 1;
 
 $resolvedValidIdType = $pick($resident, ['valid_id_type'], $pick($approvedApplication, ['valid_id_type']));
 $resolvedValidIdNumber = $pick($resident, ['valid_id_number', 'national_id'], $pick($approvedApplication, ['valid_id_number']));
@@ -982,6 +990,31 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
         </form>
       </article>
 
+      <?php if ($twoFaAvailable): ?>
+      <article class="card info-card">
+        <div class="card-head">
+          <div>
+            <h3>Email verification at login</h3>
+            <small>Optional extra security for your account</small>
+          </div>
+        </div>
+        <div class="info-list">
+          <div class="info-row"><span>Status</span><strong id="residentTwoFaStatus"><?php echo $twoFaOn ? 'Enabled' : 'Disabled'; ?></strong></div>
+          <div class="info-row"><span>Note</span><strong>Uses the email on your account. Update contact email first if needed.</strong></div>
+        </div>
+        <div class="edit-form" style="border-top: 1px dashed #cbd5e1; padding-top: 0.75rem;">
+          <div class="form-grid">
+            <label><span>Confirm with password</span><input type="password" id="residentTwoFaPassword" autocomplete="current-password" placeholder="Your current password"></label>
+          </div>
+          <div class="form-actions" style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+            <button type="button" class="btn-primary" id="residentTwoFaEnableBtn" <?php echo $twoFaOn ? 'style="display:none;"' : ''; ?>>Enable</button>
+            <button type="button" class="btn-link" id="residentTwoFaDisableBtn" <?php echo $twoFaOn ? '' : 'style="display:none;"'; ?>>Disable</button>
+          </div>
+          <p class="small text-muted mb-0 mt-2" id="residentTwoFaMsg"></p>
+        </div>
+      </article>
+      <?php endif; ?>
+
       <article class="card info-card full-width">
         <div class="card-head">
           <div>
@@ -1185,6 +1218,67 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
 }
 </style>
 
+<script>
+(function() {
+    var api = window.API_URL || '';
+    var pwd = document.getElementById('residentTwoFaPassword');
+    var msg = document.getElementById('residentTwoFaMsg');
+    var st = document.getElementById('residentTwoFaStatus');
+    var btnEn = document.getElementById('residentTwoFaEnableBtn');
+    var btnDis = document.getElementById('residentTwoFaDisableBtn');
+    if (!api || !pwd || !btnEn || !btnDis) {
+        return;
+    }
+    function setUi(enabled) {
+        if (st) {
+            st.textContent = enabled ? 'Enabled' : 'Disabled';
+        }
+        btnEn.style.display = enabled ? 'none' : '';
+        btnDis.style.display = enabled ? '' : 'none';
+    }
+    function callToggle(enable) {
+        var p = pwd.value || '';
+        if (!p) {
+            if (msg) {
+                msg.textContent = 'Enter your current password.';
+                msg.className = 'small text-danger mb-0 mt-2';
+            }
+            return;
+        }
+        if (msg) {
+            msg.textContent = 'Updating…';
+            msg.className = 'small text-muted mb-0 mt-2';
+        }
+        var fd = new FormData();
+        fd.append('action', 'toggle_two_factor');
+        fd.append('password', p);
+        fd.append('enable', enable ? '1' : '0');
+        fetch(api + 'auth.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) {
+                    pwd.value = '';
+                    setUi(!!(d.data && d.data.two_factor_enabled));
+                    if (msg) {
+                        msg.textContent = d.message || 'Saved.';
+                        msg.className = 'small text-success mb-0 mt-2';
+                    }
+                } else if (msg) {
+                    msg.textContent = d.message || 'Could not update.';
+                    msg.className = 'small text-danger mb-0 mt-2';
+                }
+            })
+            .catch(function() {
+                if (msg) {
+                    msg.textContent = 'Network error.';
+                    msg.className = 'small text-danger mb-0 mt-2';
+                }
+            });
+    }
+    btnEn.addEventListener('click', function() { callToggle(true); });
+    btnDis.addEventListener('click', function() { callToggle(false); });
+})();
+</script>
 <script src="<?php echo BASE_URL; ?>resident_profile.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_profile.js')); ?>"></script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
