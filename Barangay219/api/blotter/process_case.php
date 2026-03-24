@@ -141,6 +141,13 @@ try {
     $db = Database::getInstance();
     ensureProcessCaseSchema($db);
 
+    // Ensure the respondent_name column can store JSON arrays (make TEXT if not)
+    try {
+        $db->query("ALTER TABLE blotter_records MODIFY respondent_name TEXT NULL");
+    } catch (Exception $e) {
+        // ignore if ALTER fails (insufficient privileges or already correct type)
+    }
+
     $existing = $db->fetchOne(
         'SELECT id, status, respondent_id, settlement_date, hearing_date, dismissal_reason, resolution_file FROM blotter_records WHERE id = ? LIMIT 1',
         [$caseId]
