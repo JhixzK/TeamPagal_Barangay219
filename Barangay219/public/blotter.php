@@ -529,9 +529,11 @@ include __DIR__ . '/../includes/sidebar.php';
     }
 
     /* Ensure Complete Hearing inputs are visible and readable */
-    #completeHearingSection { padding-top: 0.5rem; }
-    #completeHearingSection .form-control { background: #fff; color: #212529; }
-    #completeHearingSection .btn { z-index: 5; }
+    #viewBlotterModal #completeHearingSection { padding-top: 0.5rem; }
+    #viewBlotterModal #completeHearingSection .form-control { background: #fff; color: #212529; }
+    #viewBlotterModal #completeHearingSection .btn { z-index: 2050; }
+    /* Give modal body extra bottom padding so inputs aren't hidden behind footer */
+    #viewBlotterModal .modal-body { padding-bottom: 180px; }
 
     .blotter-page .blotter-table-scroll {
         max-height: min(62vh, 640px);
