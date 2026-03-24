@@ -381,6 +381,15 @@ include __DIR__ . '/../includes/sidebar.php';
                             </select>
                         </div>
                     </div>
+                    <div class="row" id="adminTwoFactorRow" style="display:none;">
+                        <div class="col-12 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="two_factor_enabled" name="two_factor_enabled" value="1">
+                                <label class="form-check-label" for="two_factor_enabled">Require email verification code at login</label>
+                            </div>
+                            <small class="text-muted d-block mt-1">User must have a valid email. Super Admin / Secretary can disable this if someone is locked out.</small>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -396,6 +405,7 @@ include __DIR__ . '/../includes/sidebar.php';
 <script>
 window.CURRENT_USER_ID = <?php echo (int)getCurrentUserId(); ?>;
 window.IS_ADMIN = <?php echo isSystemAdmin() ? 'true' : 'false'; ?>;
+window.CAN_MANAGE_USER_2FA = <?php echo (isSuperAdmin() || hasRole(ROLE_SECRETARY)) ? 'true' : 'false'; ?>;
 </script>
 <script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/users.js?v=<?php echo time(); ?>"></script>
