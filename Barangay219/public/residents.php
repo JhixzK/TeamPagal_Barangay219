@@ -457,6 +457,10 @@ include __DIR__ . '/../includes/sidebar.php';
                             <input type="number" class="form-control" id="monthly_income" name="monthly_income" min="0" step="0.01" inputmode="decimal" placeholder="Optional">
                             <small class="text-muted">Per person; used for household indigent classification.</small>
                         </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="residency_start_date" class="form-label">Residency Start Date</label>
+                            <input type="date" class="form-control" id="residency_start_date" name="residency_start_date">
+                        </div>
                     </div>
                     
                     <div class="row">
