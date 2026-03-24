@@ -714,6 +714,22 @@ try {
 
     $db->commit();
 
+    try {
+        require_once __DIR__ . '/../includes/notifications-store.php';
+        notificationsNotifyStaffForModule(
+            'resident_applications',
+            'New resident application',
+            'A new registration was submitted. Reference: ' . $application_ref . '.',
+            'info',
+            'resident_application_submitted',
+            BASE_URL . 'resident-applications.php',
+            json_encode(['application_id' => (int)$appId, 'application_ref' => $application_ref], JSON_UNESCAPED_UNICODE),
+            0
+        );
+    } catch (Exception $notifyEx) {
+        error_log('Registration staff notification: ' . $notifyEx->getMessage());
+    }
+
     sendJson(true, 'Application submitted successfully. Your application will be reviewed by the barangay. You will be notified once approved.', [
         'application_ref' => $application_ref,
         'application_id' => (int)$appId,
