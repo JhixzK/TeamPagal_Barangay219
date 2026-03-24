@@ -505,6 +505,8 @@ function mapDbStatusToAdminStatus(string $status): string {
         case 'settled':
             return 'settled';
         case 'dismissed':
+            return 'dismissed';
+        case 'referred':
             return 'referred';
         case 'pending':
         default:
@@ -524,7 +526,7 @@ function mapAdminStatusToDbStatus(string $status): string {
         case 'settled':
             return 'settled';
         case 'referred':
-            return 'dismissed';
+                return 'referred';
         case 'pending':
         default:
             return 'pending';
@@ -541,7 +543,7 @@ function mapAdminStatusToDbStatuses(string $status): array {
         case 'settled':
             return ['settled'];
         case 'referred':
-            return ['dismissed'];
+            return ['referred'];
         case 'pending':
             return ['pending'];
         default:
