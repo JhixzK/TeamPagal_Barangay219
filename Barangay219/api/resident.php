@@ -139,15 +139,22 @@ function listResidents() {
             $where .= ' AND r.household_id IS NULL';
         }
         
+        $hasResidentsHouseholdId = columnExists($db, 'residents', 'household_id');
+        $hasHouseholdsTable = tableExists($db, 'households');
+        $canJoinHouseholds = $hasHouseholdsTable && $hasResidentsHouseholdId;
+        $hasHouseholdAddress = $canJoinHouseholds && columnExists($db, 'households', 'address');
+        $hasHouseholdTotalMembers = $canJoinHouseholds && columnExists($db, 'households', 'total_members');
+        $hasHouseholdFamilyHeadId = $canJoinHouseholds && columnExists($db, 'households', 'family_head_id');
+
         // Get total count
         $countSql = "SELECT COUNT(*) as total FROM residents r WHERE $where";
         $total = $db->fetchOne($countSql, $params)['total'];
 
         // Household code can be stored as households.household_id_code (preferred) or households.family_code (fallback).
-        $hasHouseholdIdCode = columnExists($db, 'households', 'household_id_code');
-        $hasFamilyCode = columnExists($db, 'households', 'family_code');
+        $hasHouseholdIdCode = $canJoinHouseholds && columnExists($db, 'households', 'household_id_code');
+        $hasFamilyCode = $canJoinHouseholds && columnExists($db, 'households', 'family_code');
         $hasResidentFamilyHeadCode = columnExists($db, 'residents', 'family_head_code');
-        $hasHouseholdFamilyHeadCode = columnExists($db, 'households', 'family_head_code');
+        $hasHouseholdFamilyHeadCode = $canJoinHouseholds && columnExists($db, 'households', 'family_head_code');
 
         if ($hasHouseholdIdCode) {
             $householdCodeExpr = 'h.household_id_code AS household_code,';
@@ -204,26 +211,35 @@ function listResidents() {
         } else {
             $housingMetaExpr .= 'NULL AS registration_house_ownership, ';
         }
-        if (columnExists($db, 'households', 'house_type')) {
+        if ($canJoinHouseholds && columnExists($db, 'households', 'house_type')) {
             $housingMetaExpr .= 'h.house_type AS current_household_house_type, ';
         } else {
             $housingMetaExpr .= 'NULL AS current_household_house_type, ';
         }
-        if (columnExists($db, 'households', 'housing_status')) {
+        if ($canJoinHouseholds && columnExists($db, 'households', 'housing_status')) {
             $housingMetaExpr .= 'h.housing_status AS current_household_housing_status, ';
         } else {
             $housingMetaExpr .= 'NULL AS current_household_housing_status, ';
         }
+
+        $householdAddressExpr = $hasHouseholdAddress ? 'h.address as household_address,' : 'NULL as household_address,';
+        $householdTotalMembersExpr = $hasHouseholdTotalMembers ? 'h.total_members,' : '0 as total_members,';
+        $householdFamilyHeadExpr = $hasHouseholdFamilyHeadId ? 'h.family_head_id,' : 'NULL as family_head_id,';
+        $isHouseholdHeadExpr = $hasHouseholdFamilyHeadId ? 'CASE WHEN h.family_head_id = r.id THEN 1 ELSE 0 END as is_household_head,' : '0 as is_household_head,';
+        $certificatesCountExpr = (tableExists($db, 'certificate_requests') && columnExists($db, 'certificate_requests', 'resident_id'))
+            ? '(SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count'
+            : '0 as certificates_count';
+        $householdJoinSql = $canJoinHouseholds ? 'LEFT JOIN households h ON r.household_id = h.id' : '';
         
         // Get residents - ordered by ID so new residents appear at the end
-        $sql = "SELECT r.*, h.address as household_address, h.total_members, h.family_head_id,
-                CASE WHEN h.family_head_id = r.id THEN 1 ELSE 0 END as is_household_head,
+        $sql = "SELECT r.*, $householdAddressExpr $householdTotalMembersExpr $householdFamilyHeadExpr
+                $isHouseholdHeadExpr
                 $householdCodeExpr
                 $familyHeadCodeExpr
                 $housingMetaExpr
-                (SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count
+                $certificatesCountExpr
                 FROM residents r
-                LEFT JOIN households h ON r.household_id = h.id
+                $householdJoinSql
                 WHERE $where
                 ORDER BY r.id ASC
                 LIMIT ? OFFSET ?";
@@ -279,9 +295,24 @@ function getResident() {
     try {
         $db = Database::getInstance();
 
-        $hasHouseholdIdCode = columnExists($db, 'households', 'household_id_code');
-        $hasFamilyCode = columnExists($db, 'households', 'family_code');
-        $hasFamilyHeadCode = columnExists($db, 'households', 'family_head_code');
+        $hasResidentsHouseholdId = columnExists($db, 'residents', 'household_id');
+        $hasHouseholdsTable = tableExists($db, 'households');
+        $canJoinHouseholds = $hasHouseholdsTable && $hasResidentsHouseholdId;
+        $hasHouseholdAddress = $canJoinHouseholds && columnExists($db, 'households', 'address');
+        $hasHouseholdTotalMembers = $canJoinHouseholds && columnExists($db, 'households', 'total_members');
+        $hasHouseholdFamilyHeadId = $canJoinHouseholds && columnExists($db, 'households', 'family_head_id');
+        $hasHouseholdIdCode = $canJoinHouseholds && columnExists($db, 'households', 'household_id_code');
+        $hasFamilyCode = $canJoinHouseholds && columnExists($db, 'households', 'family_code');
+        $hasFamilyHeadCode = $canJoinHouseholds && columnExists($db, 'households', 'family_head_code');
+        $certificatesCountExpr = (tableExists($db, 'certificate_requests') && columnExists($db, 'certificate_requests', 'resident_id'))
+            ? '(SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count'
+            : '0 as certificates_count';
+        $householdAddressExpr = $hasHouseholdAddress ? 'h.address as household_address,' : 'NULL as household_address,';
+        $householdTotalMembersExpr = $hasHouseholdTotalMembers ? 'h.total_members,' : '0 as total_members,';
+        $householdFamilyHeadExpr = $hasHouseholdFamilyHeadId ? 'h.family_head_id,' : 'NULL as family_head_id,';
+        $isHouseholdHeadExpr = $hasHouseholdFamilyHeadId ? 'CASE WHEN h.family_head_id = r.id THEN 1 ELSE 0 END as is_household_head,' : '0 as is_household_head,';
+        $householdJoinSql = $canJoinHouseholds ? 'LEFT JOIN households h ON r.household_id = h.id' : '';
+
         if ($hasHouseholdIdCode) {
             $householdCodeExpr = 'h.household_id_code AS household_code,';
         } elseif ($hasFamilyCode) {
@@ -291,13 +322,13 @@ function getResident() {
         }
         $familyHeadCodeExpr = $hasFamilyHeadCode ? 'h.family_head_code AS family_head_code,' : 'NULL AS family_head_code,';
         
-        $sql = "SELECT r.*, h.address as household_address, h.total_members, h.family_head_id,
-                CASE WHEN h.family_head_id = r.id THEN 1 ELSE 0 END as is_household_head,
+        $sql = "SELECT r.*, $householdAddressExpr $householdTotalMembersExpr $householdFamilyHeadExpr
+            $isHouseholdHeadExpr
                 $householdCodeExpr
                 $familyHeadCodeExpr
-                (SELECT COUNT(*) FROM certificate_requests cr WHERE cr.resident_id = r.id) as certificates_count
+            $certificatesCountExpr
                 FROM residents r
-                LEFT JOIN households h ON r.household_id = h.id
+            $householdJoinSql
                 WHERE r.id = ?";
         
         $resident = $db->fetchOne($sql, [$id]);
@@ -355,6 +386,22 @@ function getLatestApprovedRegistrationSnapshot($db, array $resident) {
     $statusCol = isset($appCols['record_status']) ? 'record_status' : (isset($appCols['status']) ? 'status' : null);
 
     $neededMap = [
+        'first_name' => 'registration_first_name',
+        'middle_name' => 'registration_middle_name',
+        'last_name' => 'registration_last_name',
+        'suffix' => 'registration_suffix',
+        'sex' => 'registration_sex',
+        'gender' => 'registration_gender',
+        'civil_status' => 'registration_civil_status',
+        'citizenship' => 'registration_citizenship',
+        'mobile_number' => 'registration_mobile_number',
+        'email' => 'registration_email',
+        'house_number' => 'registration_house_number',
+        'street' => 'registration_street',
+        'purok_sitio' => 'registration_purok_sitio',
+        'barangay' => 'registration_barangay',
+        'city' => 'registration_city',
+        'province' => 'registration_province',
         'occupation' => 'registration_occupation',
         'educational_attainment' => 'registration_educational_attainment',
         'employment_status' => 'registration_employment_status',
@@ -706,6 +753,16 @@ function getTableColumns($db, $table) {
     return array_map(static function ($row) {
         return $row['column_name'];
     }, $rows);
+}
+
+function tableExists($db, $table) {
+    $row = $db->fetchOne(
+        "SELECT COUNT(*) AS cnt
+         FROM information_schema.tables
+         WHERE table_schema = DATABASE() AND table_name = ?",
+        [$table]
+    );
+    return !empty($row) && (int)$row['cnt'] > 0;
 }
 
 function columnExists($db, $table, $column) {
