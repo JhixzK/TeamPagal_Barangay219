@@ -288,7 +288,8 @@ if (isLoggedIn()) {
             </div>
             
             <div id="alertContainer"></div>
-            
+
+            <div id="loginStepPassword">
             <form id="loginForm">
                 <div class="mb-3">
                     <label for="username" class="form-label">Resident ID / Username</label>
@@ -319,6 +320,22 @@ if (isLoggedIn()) {
                     <i class="bi bi-box-arrow-in-right"></i> Login
                 </button>
             </form>
+            </div>
+
+            <div id="loginStep2fa" class="d-none">
+                <p class="text-muted small mb-3" id="login2faHint">Enter the 6-digit code sent to your email.</p>
+                <div class="mb-3">
+                    <label for="login2faOtp" class="form-label">Verification code</label>
+                    <input type="text" class="form-control text-center" style="letter-spacing:0.35em;font-size:1.25rem;font-weight:600;" id="login2faOtp" name="login2fa_otp" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" placeholder="000000" aria-describedby="login2faHint">
+                </div>
+                <button type="button" class="btn btn-primary w-100 mb-2" id="login2faVerifyBtn">
+                    <i class="bi bi-shield-check"></i> Verify &amp; continue
+                </button>
+                <button type="button" class="btn btn-link w-100 py-1" id="login2faResendBtn">Resend code</button>
+                <button type="button" class="btn btn-outline-secondary w-100 mt-2" id="login2faBackBtn">
+                    <i class="bi bi-arrow-left"></i> Back to login
+                </button>
+            </div>
             <div class="mt-3 text-center">
                 <a href="register.php" class="btn btn-outline-secondary w-100 register-resident-btn">Register as Resident</a>
                 <div class="login-legal-links">
