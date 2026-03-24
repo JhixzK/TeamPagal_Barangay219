@@ -752,8 +752,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           throw new Exception('Failed to save request.');
         }
 
+        $newCertificateId = (int)$mysqli->insert_id;
         $stmt->close();
         $mysqli->commit();
+
+        try {
+            require_once __DIR__ . '/../includes/notifications-store.php';
+            require_once __DIR__ . '/../api/helpers/certificate-notifications.php';
+            $notifier = new CertificateNotifier();
+            $notifier->notifySubmitted($newCertificateId, $residentId, $referenceNumber);
+            notificationsNotifyStaffForModule(
+                'certificates',
+                'New certificate request',
+                'A resident submitted a certificate request. Reference: ' . $referenceNumber . '.',
+                'info',
+                'certificate_submitted',
+                BASE_URL . 'applications.php',
+                json_encode(['certificate_id' => $newCertificateId], JSON_UNESCAPED_UNICODE),
+                0
+            );
+        } catch (Exception $ne) {
+            error_log('Request certificate notifications: ' . $ne->getMessage());
+        }
 
         rcLog('Certificate request created', [
           'resident_id' => $residentId,
