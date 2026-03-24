@@ -508,6 +508,7 @@ $educational_attainment = sanitize($_POST['educational_attainment'] ?? '');
 $employment_status = sanitize($_POST['employment_status'] ?? '');
 $occupation = sanitize($_POST['occupation'] ?? '');
 $voter_status = sanitize($_POST['voter_status'] ?? '');
+$precinct_number = sanitize($_POST['precinct_number'] ?? '');
 $is_senior = isset($_POST['is_senior_citizen']) && $_POST['is_senior_citizen'] === '1';
 $is_pwd = isset($_POST['is_pwd']) && $_POST['is_pwd'] === '1';
 $pwd_id_number = $is_pwd ? sanitize($_POST['pwd_id_number'] ?? '') : null;
@@ -529,6 +530,14 @@ if ($voter_status !== '' && !in_array($voter_status, $allowed_voter_statuses, tr
 }
 if ($voter_status === '') {
     $errors[] = 'Voter status is required.';
+}
+
+if ($voter_status === 'Registered Voter (This Barangay)') {
+    if ($precinct_number === '') {
+        $errors[] = 'Precinct number is required for registered voters in this barangay.';
+    }
+} else {
+    $precinct_number = '';
 }
 
 if ($household_role === 'Head of Household') {
@@ -609,6 +618,7 @@ try {
     addColumnIfMissing($db, 'resident_applications', 'house_type', "VARCHAR(80) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'house_ownership', "VARCHAR(50) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'voter_status', "VARCHAR(80) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'precinct_number', "VARCHAR(50) DEFAULT NULL");
 
     $existingCols = array_flip(getTableColumns($db, 'resident_applications'));
 
@@ -651,6 +661,7 @@ try {
         'emergency_contact_number' => $emergency_contact_number,
         'emergency_contact_relationship' => $emergency_contact_relationship,
         'voter_status' => $voter_status !== '' ? $voter_status : null,
+        'precinct_number' => $precinct_number !== '' ? $precinct_number : null,
         'educational_attainment' => $educational_attainment ?: null,
         'employment_status' => $employment_status ?: null,
         'occupation' => $occupation ?: null,
