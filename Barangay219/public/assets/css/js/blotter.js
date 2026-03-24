@@ -917,19 +917,20 @@ function loadAuditLog(caseId) {
 }
 
 function mapAdminStatusToDB(adminStatus) {
+    if (!adminStatus) return 'pending';
+    const key = String(adminStatus).trim().toLowerCase().replace(/\s+/g, '_');
     const mapping = {
-        'Pending': 'pending',
-        'Under Investigation': 'investigation',
-        'Mediation': 'mediation',
-        'Settled': 'settled',
-        'Dismissed': 'dismissed',
         'pending': 'pending',
+        'under_investigation': 'investigation',
+        'under_investigation': 'investigation',
         'investigation': 'investigation',
         'mediation': 'mediation',
         'settled': 'settled',
-        'dismissed': 'dismissed'
+        'resolved': 'settled',
+        'dismissed': 'dismissed',
+        'referred': 'dismissed'
     };
-    return mapping[adminStatus] || 'pending';
+    return mapping[key] || 'pending';
 }
 
 function editBlotter(id) {
