@@ -197,6 +197,17 @@ function editUser(id) {
                 togglePasswordField(false);
                 document.getElementById('userModalTitle').textContent = 'Edit User';
 
+                const tfRow = document.getElementById('adminTwoFactorRow');
+                const tfCb = document.getElementById('two_factor_enabled');
+                if (tfRow && window.CAN_MANAGE_USER_2FA) {
+                    tfRow.style.display = '';
+                    if (tfCb) {
+                        tfCb.checked = !!user.two_factor_enabled;
+                    }
+                } else if (tfRow) {
+                    tfRow.style.display = 'none';
+                }
+
                 toggleEditFieldLocks(true);
 
                 const roleSelect = document.getElementById('role');
@@ -248,7 +259,13 @@ function saveUser() {
     if (userId && form && (form.dataset.currentRole === 'barangay_captain' || form.dataset.currentRole === 'super_admin')) {
         formData.delete('role');
     }
-    
+
+    if (userId && window.CAN_MANAGE_USER_2FA) {
+        formData.append('two_factor_field_present', '1');
+        const tfCb = document.getElementById('two_factor_enabled');
+        formData.append('two_factor_enabled', tfCb && tfCb.checked ? '1' : '0');
+    }
+
     fetch(window.API_URL + 'users.php', {
         method: 'POST',
         body: formData
@@ -389,6 +406,15 @@ function resetForm() {
     const form = document.getElementById('userForm');
     if (form && form.dataset) {
         delete form.dataset.currentRole;
+    }
+
+    const tfRow = document.getElementById('adminTwoFactorRow');
+    const tfCb = document.getElementById('two_factor_enabled');
+    if (tfRow) {
+        tfRow.style.display = 'none';
+    }
+    if (tfCb) {
+        tfCb.checked = false;
     }
 }
 
