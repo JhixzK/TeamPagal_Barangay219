@@ -3,6 +3,7 @@ header('Content-Type: application/json');
 define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/../includes/notifications-store.php';
 
 requireLogin();
 requireModuleAccess('complaints');
@@ -130,8 +131,33 @@ function createComplaint() {
         if ($hasResident) { $cols[] = 'resident_id'; $vals[] = $resident_id ?: null; }
         if ($hasRemarks) { $cols[] = 'remarks'; $vals[] = $remarks ?: null; }
         $db->query("INSERT INTO complaints (" . implode(', ', $cols) . ") VALUES (" . implode(', ', array_fill(0, count($vals), '?')) . ")", $vals);
-        $id = $db->lastInsertId();
+        $id = (int)$db->lastInsertId();
         try { logActivity('create', 'complaints', $id); } catch (Exception $e) { /* activity_logs may not exist */ }
+        try {
+            notificationsNotifyStaffForModule(
+                'complaints',
+                'New complaint',
+                $complaint_title . ' — ' . $complainant_name,
+                'info',
+                'complaint_created',
+                BASE_URL . 'complaints.php',
+                json_encode(['complaint_id' => $id], JSON_UNESCAPED_UNICODE),
+                (int)getCurrentUserId()
+            );
+            if ($hasResident && $resident_id > 0) {
+                notificationsInsertForResident(
+                    $resident_id,
+                    'Complaint received',
+                    'Your complaint "' . $complaint_title . '" was recorded successfully.',
+                    'success',
+                    'complaint_submitted',
+                    BASE_URL . 'complaints/my_complaints.php',
+                    json_encode(['complaint_id' => $id], JSON_UNESCAPED_UNICODE)
+                );
+            }
+        } catch (Exception $ne) {
+            error_log('Complaint create notifications: ' . $ne->getMessage());
+        }
         sendResponse(true, 'Created', ['id' => $id]);
     } catch (Exception $e) {
         sendResponse(false, 'Error: ' . $e->getMessage(), null, 500);
@@ -143,6 +169,10 @@ function updateComplaint() {
     $id = intval($_POST['id'] ?? 0);
     if (!$id) { sendResponse(false, 'ID required', null, 400); return; }
     $db = Database::getInstance();
+    $prev = $db->fetchOne("SELECT resident_id, status, complaint_title FROM complaints WHERE id = ?", [$id]);
+    if (!$prev) {
+        sendResponse(false, 'Not found', null, 404);
+    }
     $hasRemarks = !empty($db->getConnection()->query("SHOW COLUMNS FROM complaints LIKE 'remarks'")->fetchAll());
     $hasResident = !empty($db->getConnection()->query("SHOW COLUMNS FROM complaints LIKE 'resident_id'")->fetchAll());
     $baseFields = ['complaint_title', 'complainant_name', 'respondent_name', 'complaint_type', 'narrative', 'filing_date', 'status', 'resolution_date'];
@@ -164,6 +194,23 @@ function updateComplaint() {
     try {
         $db->query("UPDATE complaints SET " . implode(', ', $updates) . " WHERE id = ?", $params);
         logActivity('update', 'complaints', $id);
+        if ($hasResident && isset($_POST['status'])) {
+            $newStatus = sanitizeInput($_POST['status']);
+            $oldStatus = (string)($prev['status'] ?? '');
+            $rid = (int)($prev['resident_id'] ?? 0);
+            if ($rid > 0 && $newStatus !== '' && $newStatus !== $oldStatus) {
+                $ct = (string)($prev['complaint_title'] ?? 'Your complaint');
+                notificationsInsertForResident(
+                    $rid,
+                    'Complaint status updated',
+                    'Your complaint "' . $ct . '" status is now: ' . $newStatus . '.',
+                    'info',
+                    'complaint_status_changed',
+                    BASE_URL . 'complaints/my_complaints.php',
+                    json_encode(['complaint_id' => $id], JSON_UNESCAPED_UNICODE)
+                );
+            }
+        }
         sendResponse(true, 'Updated');
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
