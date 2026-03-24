@@ -619,14 +619,47 @@ function submitCaseDetailUpdate(e) {
     const dismissalReason = document.getElementById('editDismissalReason')?.value || '';
     const resolutionFile = document.getElementById('editResolutionFile')?.files?.[0] || null;
 
+
+    // Require at least one respondent for Under Investigation and all statuses except Pending
+    if ((status === 'investigation' || status === 'mediation' || status === 'settled' || status === 'dismissed') && !editRespondentSelections.length) {
+        alert('Please link at least one respondent before setting this status.');
+        return;
+    }
+
+    // Require hearing date for Mediation
     if (status === 'mediation' && !hearingDate) {
         alert('Hearing date is required when status is Mediation.');
         return;
     }
 
-    if (!editRespondentSelections.length) {
-        alert('Please link at least one respondent.');
+    // Require settlement date and resolution file for Settled
+    if (status === 'settled') {
+        if (!settlementDate) {
+            alert('Settlement date is required when status is Settled.');
+            return;
+        }
+        if (!resolutionFile) {
+            alert('Resolution file is required when status is Settled.');
+            return;
+        }
+    }
+
+    // Require admin notes for Dismissed
+    if (status === 'dismissed' && !adminNotes.trim()) {
+        alert('Admin notes are required when status is Dismissed.');
         return;
+    }
+
+    // Lock editing for Settled (disable form fields and edit button after save)
+    if (status === 'settled') {
+        setTimeout(() => {
+            const btnEdit = document.getElementById('btnEnableEditMode');
+            if (btnEdit) btnEdit.disabled = true;
+            const caseForm = document.getElementById('caseDetailForm');
+            if (caseForm) {
+                Array.from(caseForm.elements).forEach(el => { el.disabled = true; });
+            }
+        }, 1000);
     }
 
     const formData = new FormData();
