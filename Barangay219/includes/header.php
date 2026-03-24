@@ -78,8 +78,28 @@ $userInfo = getUserInfo();
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <?php if (canSwitchToResidentView()): ?>
-                <div class="navbar-nav ms-auto align-items-center">
+                <div class="navbar-nav ms-auto align-items-center gap-2 flex-row flex-wrap justify-content-end">
+                    <div class="dropdown nav-item d-flex align-items-center py-0">
+                        <button class="btn app-notifications-btn position-relative border-0" type="button" id="appNotificationsToggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Notifications" title="Notifications">
+                            <i class="bi bi-bell-fill" aria-hidden="true"></i>
+                            <span class="app-notifications-badge rounded-pill d-none" id="appNotificationsBadge" aria-hidden="true">0</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end app-notifications-menu" aria-labelledby="appNotificationsToggle">
+                            <li class="app-notifications-menu-header">
+                                <span class="app-notifications-menu-title">Notifications</span>
+                                <div class="app-notifications-menu-actions">
+                                    <button type="button" class="btn app-notifications-mark-all" id="appNotificationsMarkAll">Mark all read</button>
+                                    <button type="button" class="btn app-notifications-clear-all" id="appNotificationsClearAll">Clear all</button>
+                                </div>
+                            </li>
+                            <li class="app-notifications-menu-scroll-wrap">
+                                <ul id="appNotificationsList" class="list-unstyled mb-0 app-notifications-list" role="list">
+                                    <li class="app-notifications-loading">Loading…</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                    <?php if (canSwitchToResidentView()): ?>
                     <div class="view-mode-switch-wrap d-flex align-items-center gap-2">
                         <?php if (isResidentView()): ?>
                         <span class="view-mode-label text-white-50"><i class="bi bi-house-door me-1"></i>Resident View</span>
@@ -95,8 +115,8 @@ $userInfo = getUserInfo();
                         </a>
                         <?php endif; ?>
                     </div>
+                    <?php endif; ?>
                 </div>
-                <?php endif; ?>
             </div>
         </div>
     </nav>
