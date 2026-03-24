@@ -653,6 +653,8 @@ function submitCaseDetailUpdate(e) {
                 }
                 loadBlotters();
                 showBlotterSuccessToast('Case processed successfully.');
+                // Always reset modal to view mode after save
+                disableEditMode();
             } else {
                 alert('Error: ' + d.message);
             }
