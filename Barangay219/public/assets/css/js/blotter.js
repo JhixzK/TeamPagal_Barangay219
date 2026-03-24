@@ -390,6 +390,9 @@ function initDetailModalEditMode() {
             }
         });
     }
+    if (statusSelect) {
+        statusSelect.addEventListener('change', (e) => toggleProcessFieldsByStatus(statusSelect.value));
+    }
 
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
@@ -571,15 +574,26 @@ function enableEditMode() {
 
         toggleProcessFieldsByStatus(statusEl ? statusEl.value : 'pending');
 
-        // Ensure the Complete Hearing section is visible and focused for the user
+        // Ensure the Complete Hearing section is visible and focused for Mediation status only
         setTimeout(() => {
             try {
-                const completeSection = document.getElementById('completeHearingSection');
-                const outEl = document.getElementById('completeHearingOutcome');
-                if (completeSection) {
-                    completeSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const statusVal = (document.getElementById('editStatus')?.value || '').toLowerCase();
+                if (statusVal === 'mediation') {
+                    const completeSection = document.getElementById('completeHearingSection');
+                    const outEl = document.getElementById('completeHearingOutcome');
+                    if (completeSection) {
+                        const modalBody = document.querySelector('#viewBlotterModal .modal-body');
+                        if (modalBody && typeof modalBody.scrollTo === 'function') {
+                            const targetTop = Math.max(0, completeSection.offsetTop - (modalBody.clientHeight / 2));
+                            modalBody.scrollTo({ top: targetTop, behavior: 'smooth' });
+                        } else {
+                            completeSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }
+                    if (outEl) {
+                        setTimeout(() => { try { outEl.focus(); } catch (e) {} }, 300);
+                    }
                 }
-                if (outEl) outEl.focus();
             } catch (e) { /* ignore */ }
         }, 250);
 
@@ -608,10 +622,12 @@ function toggleProcessFieldsByStatus(status) {
     const mediationFields = document.getElementById('mediationFields');
     const settledFields = document.getElementById('settledFields');
     const dismissedFields = document.getElementById('dismissedFields');
+    const completeSection = document.getElementById('completeHearingSection');
 
     if (mediationFields) mediationFields.style.display = status === 'mediation' ? '' : 'none';
     if (settledFields) settledFields.style.display = status === 'settled' ? '' : 'none';
     if (dismissedFields) dismissedFields.style.display = status === 'dismissed' ? '' : 'none';
+    if (completeSection) completeSection.style.display = status === 'mediation' ? '' : 'none';
 }
 
 function searchResidentsForRespondent(keyword) {
@@ -1292,19 +1308,17 @@ function editBlotter(id) {
                     }
                 } catch (e) { /* ignore */ }
 
-                    // Always show the Complete Hearing section in edit mode; prefill if there's an active hearing
-                    completeSection.style.display = '';
+                    // Prefill Complete Hearing inputs only when the section is visible (mediation)
                     const outEl = document.getElementById('completeHearingOutcome');
                     const notesEl = document.getElementById('completeHearingNotes');
-                    if (active) {
-                        if (outEl) outEl.value = active.outcome || '';
-                        if (notesEl) notesEl.value = active.notes || '';
+                    const currentStatus = (document.getElementById('editStatus')?.value || '').toLowerCase();
+                    if (currentStatus === 'mediation') {
+                        if (outEl) outEl.value = active ? (active.outcome || '') : '';
+                        if (notesEl) notesEl.value = active ? (active.notes || '') : '';
                     } else {
                         if (outEl) outEl.value = '';
                         if (notesEl) notesEl.value = '';
                     }
-                    // focus outcome input so users notice the section immediately
-                    try { if (outEl) { outEl.focus(); } } catch (e) {}
 
                 const btn = document.getElementById('btnCompleteHearing');
                 if (btn) {
