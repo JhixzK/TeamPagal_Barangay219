@@ -758,8 +758,8 @@ $barangay219_purok_options = [
                                 <div class="step-counter">Step 4 of 4</div>
                             </div>
                             <div class="note-box mb-3" style="border-left:4px solid #1d4ed8;">
-                                <i class="bi bi-pencil-square me-1 text-primary"></i>
-                                <strong>Review your information below.</strong> You may edit any field to correct mistakes before submitting.
+                                <i class="bi bi-check-circle me-1 text-primary"></i>
+                                <strong>Review your information below.</strong> All fields are final and permanent. Please verify everything is correct before submitting.
                             </div>
                             <div id="reviewContent">
                                 <!-- Review content will be populated by JavaScript -->
@@ -1668,31 +1668,9 @@ function populateReview() {
             cloned.dataset.field = fieldDef.name;
             // Explicitly set current value (cloneNode copies attributes, not live DOM state)
             cloned.value = originalField.value;
-
-            // Sync edits back to the original form field
-            ['input', 'change'].forEach(evt => {
-                cloned.addEventListener(evt, function () {
-                    const orig = document.querySelector(`[name="${this.dataset.field}"]`);
-                    if (orig) orig.value = this.value;
-                    if (this.dataset.field === 'monthly_income') {
-                        syncMonthlyIncomeFields(this);
-                    }
-                    if (this.dataset.field === 'residency_start_date') {
-                        computeResidencyDuration(this.value);
-                    }
-                    if (this.dataset.field === 'household_role') {
-                        toggleHouseholdTypeField();
-                    }
-                    if (this.dataset.field === 'occupation') {
-                        toggleMonthlyIncomeField();
-                    }
-                    if (this.dataset.field === 'voter_status') {
-                        togglePrecinctNumberField();
-                    }
-                    refreshOtherSpecifyFields();
-                    syncReviewFieldsFromOriginal();
-                });
-            });
+            // Make review fields permanent and non-editable
+            cloned.readOnly = true;
+            cloned.disabled = true;
 
             col.appendChild(lbl);
             col.appendChild(cloned);
