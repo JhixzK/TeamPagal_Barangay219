@@ -677,11 +677,34 @@ function submitCaseDetailUpdate(e) {
         .then(r => r.json())
         .then(d => {
             if (d.success) {
+                // If backend returned respondents, render them into the view immediately
+                try {
+                    const resps = Array.isArray(d.data && d.data.respondents) ? d.data.respondents : null;
+                    if (resps) {
+                        const respondentsHTML = resps.map((r, idx) => `
+                            <div class="card mb-2">
+                                <div class="card-body py-2">
+                                    <p class="mb-1"><strong>Respondent ${idx + 1}:</strong> ${toTitleCase(r.name || '-') || '-'}</p>
+                                    <p class="mb-1"><strong>Address:</strong> ${toTitleCase(r.address || '-') || '-'}</p>
+                                    <p class="mb-1"><strong>Barangay:</strong> ${toTitleCase(r.barangay || '-') || '-'}</p>
+                                    <p class="mb-0"><strong>Contact:</strong> ${formatPhoneNumber(r.contact) || '-'}</p>
+                                </div>
+                            </div>
+                        `).join('');
+                        const viewEl = document.getElementById('viewRespondentsInfo');
+                        if (viewEl) viewEl.innerHTML = respondentsHTML || '<p>-</p>';
+                        // Update cached currentViewingCaseData so subsequent actions reflect new data
+                        if (!currentViewingCaseData) currentViewingCaseData = {};
+                        currentViewingCaseData.respondent_name = JSON.stringify(resps);
+                        currentViewingCaseData.respondent_id = d.data.respondent_id ?? currentViewingCaseData.respondent_id;
+                    }
+                } catch (e) {
+                    console.warn('Unable to render respondents from response:', e);
+                }
+
                 const modalEl = document.getElementById('viewBlotterModal');
                 const modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
-                if (modal) {
-                    modal.hide();
-                }
+                if (modal) modal.hide();
                 loadBlotters();
                 showBlotterSuccessToast('Case processed successfully.');
                 // Always reset modal to view mode after save
