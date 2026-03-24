@@ -60,6 +60,48 @@ try {
         exit;
     }
 
+    // Require at least one respondent when moving to substantive statuses
+    if (in_array($newStatus, ['investigation', 'mediation', 'settled', 'dismissed', 'referred'], true)) {
+        $caseRow = $db->fetchOne('SELECT respondent_id, respondent_name FROM blotter_records WHERE id = ?', [$caseId]);
+        $hasRespId = !empty($caseRow['respondent_id']);
+        $hasRespJson = !empty(trim((string)($caseRow['respondent_name'] ?? '')));
+        if (!$hasRespId && !$hasRespJson && $respondentId === null) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'At least one respondent must be linked before changing to this status.']);
+            exit;
+        }
+    }
+
+    // Mediation via quick update: ensure hearing_date supplied and not in the past
+    if ($newStatus === 'mediation') {
+        $hearingDate = isset($_POST['hearing_date']) ? trim((string)$_POST['hearing_date']) : '';
+        if ($hearingDate === '') {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Hearing date required for Mediation.']);
+            exit;
+        }
+        $hearingTs = strtotime($hearingDate);
+        $todayStart = strtotime(date('Y-m-d') . ' 00:00:00');
+        if ($hearingTs !== false && $hearingTs < $todayStart) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Hearing date cannot be in the past.']);
+            exit;
+        }
+    }
+
+    // Settled via quick update: require settlement_date and resolution_file (or existing resolution)
+    if ($newStatus === 'settled') {
+        $settlementDate = isset($_POST['settlement_date']) ? trim((string)$_POST['settlement_date']) : '';
+        $existingRow = $db->fetchOne('SELECT resolution_file FROM blotter_records WHERE id = ?', [$caseId]);
+        $existingResolution = trim((string)($existingRow['resolution_file'] ?? ''));
+        $uploaded = isset($_FILES['resolution_file']) && isset($_FILES['resolution_file']['error']) && $_FILES['resolution_file']['error'] !== UPLOAD_ERR_NO_FILE;
+        if ($settlementDate === '' || (!$uploaded && $existingResolution === '')) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Settlement date and resolution file are required to mark as Settled.']);
+            exit;
+        }
+    }
+
     // Begin transaction for data consistency
     $db->query('START TRANSACTION');
 
