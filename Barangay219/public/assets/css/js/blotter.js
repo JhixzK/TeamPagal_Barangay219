@@ -249,7 +249,31 @@ function viewBlotter(id) {
                     complainantsHTML = `<p>${toTitleCase(info.complainant_name || '-') || '-'}</p>`;
                 }
                 document.getElementById('viewComplainantsInfo').innerHTML = complainantsHTML || '<p>-</p>';
-                
+                // Populate Witnesses (multiline string or JSON)
+                try {
+                    const rawWitnesses = info.witnesses || '';
+                    let witnessesHTML = '';
+                    if (rawWitnesses) {
+                        // If it looks like JSON array, parse it
+                        try {
+                            const arr = JSON.parse(rawWitnesses);
+                            if (Array.isArray(arr) && arr.length) {
+                                witnessesHTML = '<ul class="mb-0">' + arr.map(w => '<li>' + escapeHtml(String(w)) + '</li>').join('') + '</ul>';
+                            }
+                        } catch (e) {
+                            // Otherwise treat as multiline text
+                            const lines = String(rawWitnesses).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                            if (lines.length) {
+                                witnessesHTML = lines.length > 1 ? ('<ul class="mb-0">' + lines.map(l => '<li>' + escapeHtml(l) + '</li>').join('') + '</ul>') : ('<p>' + escapeHtml(lines[0]) + '</p>');
+                            }
+                        }
+                    }
+                    document.getElementById('viewWitnesses').innerHTML = witnessesHTML || '<p>-</p>';
+                } catch (e) {
+                    console.warn('Unable to render witnesses:', e);
+                    document.getElementById('viewWitnesses').innerHTML = '<p>-</p>';
+                }
+
                 // Populate Respondents
                 let respondentsHTML = '';
                 try {
@@ -866,6 +890,29 @@ function refreshBlotterDetailView(caseId) {
                 }
                 document.getElementById('viewComplainantsInfo').innerHTML = complainantsHTML || '<p>-</p>';
                 
+                // Update Witnesses
+                try {
+                    const rawWitnesses = info.witnesses || '';
+                    let witnessesHTML = '';
+                    if (rawWitnesses) {
+                        try {
+                            const arr = JSON.parse(rawWitnesses);
+                            if (Array.isArray(arr) && arr.length) {
+                                witnessesHTML = '<ul class="mb-0">' + arr.map(w => '<li>' + escapeHtml(String(w)) + '</li>').join('') + '</ul>';
+                            }
+                        } catch (e) {
+                            const lines = String(rawWitnesses).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                            if (lines.length) {
+                                witnessesHTML = lines.length > 1 ? ('<ul class="mb-0">' + lines.map(l => '<li>' + escapeHtml(l) + '</li>').join('') + '</ul>') : ('<p>' + escapeHtml(lines[0]) + '</p>');
+                            }
+                        }
+                    }
+                    document.getElementById('viewWitnesses').innerHTML = witnessesHTML || '<p>-</p>';
+                } catch (e) {
+                    console.warn('Unable to render witnesses:', e);
+                    document.getElementById('viewWitnesses').innerHTML = '<p>-</p>';
+                }
+
                 // Update Respondents
                 let respondentsHTML = '';
                 try {
