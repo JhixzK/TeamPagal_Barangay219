@@ -985,7 +985,7 @@ function mapAdminStatusToDB(adminStatus) {
         'settled': 'settled',
         'resolved': 'settled',
         'dismissed': 'dismissed',
-        'referred': 'dismissed'
+        'referred': 'referred'
     };
     return mapping[key] || 'pending';
 }
