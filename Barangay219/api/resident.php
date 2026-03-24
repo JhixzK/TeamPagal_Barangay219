@@ -516,6 +516,7 @@ function createResident() {
     $contact_number = sanitizeInput($_POST['contact_number'] ?? '');
     $household_id = intval($_POST['household_id'] ?? 0);
     $status = sanitizeInput($_POST['status'] ?? RESIDENT_ACTIVE);
+    $residency_start_date = $_POST['residency_start_date'] ?? '';
     
     // Validation
     if (empty($first_name) || empty($last_name) || empty($birth_date) || empty($gender) || empty($civil_status) || empty($occupation) || empty($citizenship) || empty($contact_number) || empty($address) || empty($status)) {
@@ -534,8 +535,8 @@ function createResident() {
         
         $sql = "INSERT INTO residents (first_name, middle_name, last_name, suffix, birth_date, gender, 
                                       civil_status, occupation, citizenship, address, contact_number, 
-                                      household_id, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                                      household_id, status, residency_start_date) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $params = [
             $first_name,
@@ -550,7 +551,8 @@ function createResident() {
             $address,
             $contact_number ?: null,
             $household_id ?: null,
-            $status
+            $status,
+            $residency_start_date ?: null,
         ];
         
         $db->query($sql, $params);
@@ -596,6 +598,7 @@ function updateResident() {
     $contact_number = sanitizeInput($_POST['contact_number'] ?? '');
     $household_id = intval($_POST['household_id'] ?? 0);
     $status = sanitizeInput($_POST['status'] ?? '');
+    $residency_start_date = $_POST['residency_start_date'] ?? '';
 
     $monthly_income_raw = trim((string)($_POST['monthly_income'] ?? ''));
     $monthly_income_val = null;
@@ -641,6 +644,7 @@ function updateResident() {
             'contact_number = ?',
             'household_id = ?',
             'status = ?',
+            'residency_start_date = ?',
         ];
         $params = [
             $first_name,
@@ -656,6 +660,7 @@ function updateResident() {
             $contact_number ?: null,
             $household_id ?: null,
             $status,
+            $residency_start_date ?: null,
         ];
         if (columnExists($db, 'residents', 'monthly_income')) {
             $sets[] = 'monthly_income = ?';
