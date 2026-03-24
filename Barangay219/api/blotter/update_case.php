@@ -52,6 +52,14 @@ try {
         exit;
     }
 
+    // Prevent modifications to closed cases (settled or dismissed)
+    $existingStatus = (string)($currentCase['status'] ?? '');
+    if (in_array($existingStatus, ['settled', 'dismissed'], true)) {
+        http_response_code(409);
+        echo json_encode(['success' => false, 'message' => 'Case is closed and cannot be modified.']);
+        exit;
+    }
+
     // Begin transaction for data consistency
     $db->query('START TRANSACTION');
 
