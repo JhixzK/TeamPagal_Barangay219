@@ -151,6 +151,10 @@ include __DIR__ . '/../includes/sidebar.php';
                             <h6>Complete Hearing</h6>
                             <div class="row g-2">
                                 <div class="col-md-6">
+                                    <label class="form-label">Next Hearing Date & Time</label>
+                                    <input type="datetime-local" class="form-control" id="completeNextHearingDate">
+                                </div>
+                                <div class="col-md-6">
                                     <label class="form-label">Outcome</label>
                                     <input type="text" class="form-control" id="completeHearingOutcome" placeholder="Outcome">
                                 </div>
@@ -159,8 +163,9 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <input type="text" class="form-control" id="completeHearingNotes" placeholder="Notes">
                                 </div>
                             </div>
-                            <div class="mt-2">
-                                <button type="button" class="btn btn-success" id="btnCompleteHearing">Mark as Completed & Schedule Next</button>
+                            <div class="mt-2 d-flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-outline-success" id="btnCompleteHearingOnly">Mark Current Hearing as Completed</button>
+                                <button type="button" class="btn btn-success" id="btnCompleteHearing">Complete & Schedule Next Hearing</button>
                             </div>
                         </div>
 
