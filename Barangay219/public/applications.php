@@ -626,7 +626,8 @@ include __DIR__ . '/../includes/sidebar.php';
         tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="spinner-border"></div></td></tr>';
         const params = new URLSearchParams({
             action: 'list',
-            page: currentPage.toString()
+            page: currentPage.toString(),
+            _ts: Date.now().toString()
         });
         if (currentStatus) params.append('status', currentStatus);
         if (applicationFilters.q) params.append('q', applicationFilters.q);
@@ -634,7 +635,7 @@ include __DIR__ . '/../includes/sidebar.php';
         if (applicationFilters.from) params.append('from', applicationFilters.from);
         if (applicationFilters.to) params.append('to', applicationFilters.to);
 
-        fetch(API_URL + 'certificates.php?' + params.toString())
+        fetch(API_URL + 'certificates.php?' + params.toString(), { cache: 'no-store' })
             .then(r => r.json())
             .then(data => {
                 if (!data.success) {
@@ -677,6 +678,21 @@ include __DIR__ . '/../includes/sidebar.php';
                 renderPagination(totalPages, data.data.page || 1);
             })
                 .catch(() => { tbody.innerHTML = '<tr><td colspan="8" class="text-danger">Failed to load.</td></tr>'; });
+    }
+
+    function refreshApplicationsPage() {
+        const activeViewModal = document.getElementById('viewModal');
+        const activeReleaseModal = document.getElementById('releaseModal');
+        if (activeViewModal) {
+            bootstrap.Modal.getInstance(activeViewModal)?.hide();
+        }
+        if (activeReleaseModal) {
+            bootstrap.Modal.getInstance(activeReleaseModal)?.hide();
+        }
+
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.set('_refresh', Date.now().toString());
+        window.location.replace(nextUrl.toString());
     }
 
     function renderPagination(totalPages, page) {
@@ -1077,7 +1093,7 @@ include __DIR__ . '/../includes/sidebar.php';
     }
 
     window.viewApp = function(id) {
-        fetch(API_URL + 'certificates.php?action=get&id=' + id)
+        fetch(API_URL + 'certificates.php?action=get&id=' + id + '&_ts=' + Date.now(), { cache: 'no-store' })
             .then(r => r.json())
             .then(data => {
                 if (!data.success) return alert(data.message);
@@ -1168,7 +1184,13 @@ include __DIR__ . '/../includes/sidebar.php';
         fd.append('status', status);
         fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
             .then(r => r.json())
-            .then(d => { if (d.success) { loadApplications(); } else alert(d.message || 'Error'); });
+            .then(d => {
+                if (d.success) {
+                    refreshApplicationsPage();
+                } else {
+                    alert(d.message || 'Error');
+                }
+            });
     };
 
     window.rejectApp = function(id) {
@@ -1186,12 +1208,18 @@ include __DIR__ . '/../includes/sidebar.php';
         fd.append('reason', reason);
         fetch(API_URL + 'certificates.php', { method: 'POST', body: fd })
             .then(r => r.json())
-            .then(d => { if (d.success) loadApplications(); else alert(d.message || 'Error'); });
+            .then(d => {
+                if (d.success) {
+                    refreshApplicationsPage();
+                } else {
+                    alert(d.message || 'Error');
+                }
+            });
     };
 
     window.openRelease = function(id) {
         if (!APP_PERMS.canEdit) { alert('Access denied'); return; }
-        fetch(API_URL + 'certificates.php?action=get&id=' + id)
+        fetch(API_URL + 'certificates.php?action=get&id=' + id + '&_ts=' + Date.now(), { cache: 'no-store' })
             .then(r => r.json())
             .then(async d => {
                 if (!d.success || !d.data) { alert(d.message || 'Unable to load application'); return; }
@@ -1340,7 +1368,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 bootstrap.Modal.getInstance(document.getElementById('releaseModal')).hide();
                 if (d.success) {
                     alert('Marked ready for pickup. Control #: ' + (d.data?.control_number || ''));
-                    loadApplications();
+                    refreshApplicationsPage();
                 } else alert(d.message || 'Error');
             });
     });
@@ -1576,7 +1604,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         window.open(printUrl, '_blank', 'noopener');
                     }
 
-                    loadApplications();
+                    refreshApplicationsPage();
                 })
                 .catch(() => {
                     btnDirectIssue.disabled = false;
