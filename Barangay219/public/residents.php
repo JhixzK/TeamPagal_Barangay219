@@ -10,6 +10,11 @@ require_once __DIR__ . '/../includes/auth-check.php';
 requireLogin();
 requireModuleAccess('residents');
 
+$resident_edit_barangay = 'Barangay 219, Tondo';
+$resident_edit_city = 'Manila';
+$resident_edit_province = 'Metro Manila';
+$resident_edit_streets = require __DIR__ . '/../config/barangay219_streets.php';
+
 $page_title = 'Residents Management';
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
@@ -364,7 +369,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- Resident Modal -->
 <div class="modal fade" id="residentModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="residentModalTitle">Edit Resident</h5>
@@ -471,17 +476,38 @@ include __DIR__ . '/../includes/sidebar.php';
                         </div>
                     </div>
                     
+                    <hr class="my-2">
+                    <h6 class="text-secondary mb-3">Address <small class="text-muted fw-normal">(same format as registration)</small></h6>
                     <div class="row">
-                        <div class="col-md-9 mb-3">
-                            <label for="address" class="form-label">Address <span class="text-danger">*</span></label>
-                            <textarea class="form-control" id="address" name="address" rows="2" required></textarea>
+                        <div class="col-md-4 mb-3">
+                            <label for="house_number" class="form-label">House No. <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="house_number" name="house_number" maxlength="30" required autocomplete="address-line1">
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <label for="household_id" class="form-label">Household (Optional)</label>
-                            <select class="form-select" id="household_id" name="household_id">
-                                <option value="">-- None --</option>
+                        <div class="col-md-8 mb-3">
+                            <label for="street" class="form-label">Street <span class="text-danger">*</span></label>
+                            <select class="form-select" id="street" name="street" required>
+                                <option value="">Select Street</option>
+                                <?php foreach ($resident_edit_streets as $street_option): ?>
+                                <option value="<?php echo htmlspecialchars($street_option); ?>"><?php echo htmlspecialchars($street_option); ?></option>
+                                <?php endforeach; ?>
                             </select>
-                            <small class="text-muted">Link to a household</small>
+                        </div>
+                    </div>
+                    <input type="hidden" name="barangay" id="barangay" value="<?php echo htmlspecialchars($resident_edit_barangay); ?>">
+                    <input type="hidden" name="city" id="city" value="<?php echo htmlspecialchars($resident_edit_city); ?>">
+                    <input type="hidden" name="province" id="province" value="<?php echo htmlspecialchars($resident_edit_province); ?>">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="barangay_display" class="form-label">Barangay</label>
+                            <input type="text" class="form-control" id="barangay_display" value="<?php echo htmlspecialchars($resident_edit_barangay); ?>" readonly tabindex="-1">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="city_display" class="form-label">City / Municipality</label>
+                            <input type="text" class="form-control" id="city_display" value="<?php echo htmlspecialchars($resident_edit_city); ?>" readonly tabindex="-1">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="province_display" class="form-label">Province</label>
+                            <input type="text" class="form-control" id="province_display" value="<?php echo htmlspecialchars($resident_edit_province); ?>" readonly tabindex="-1">
                         </div>
                     </div>
                 </div>
@@ -521,6 +547,11 @@ include __DIR__ . '/../includes/sidebar.php';
     }
     window.ITEMS_PER_PAGE = <?php echo ITEMS_PER_PAGE; ?>;
     window.BASE_URL = '<?php echo BASE_URL; ?>';
+    window.RESIDENT_EDIT_ADDRESS_DEFAULTS = <?php echo json_encode([
+        'barangay' => $resident_edit_barangay,
+        'city' => $resident_edit_city,
+        'province' => $resident_edit_province,
+    ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE); ?>;
 </script>
 <script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/residents.js?v=<?php echo time(); ?>"></script>
