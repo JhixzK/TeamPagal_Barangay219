@@ -134,8 +134,8 @@ function buildResidentContext($residentId, $context) {
 }
 
 /**
- * Normalize Family Head Code for matching (handles FH-03975, FH03975, fh 03975, etc.)
- * Returns uppercase alphanumeric only, e.g. "FH03975".
+ * Normalize Family Head Code for matching (handles HC-03975, HC03975, hc 03975, legacy FH-…, etc.)
+ * Returns uppercase alphanumeric only, e.g. "HC03975".
  */
 function normalizeFamilyHeadCodeForMatch($code) {
     return preg_replace('/[^A-Z0-9]/', '', strtoupper(trim((string)$code)));
@@ -805,7 +805,8 @@ function handleGetHouseholdInfo($residentId) {
     }
 
     if ($shouldFilter) {
-        $mappedMembers = array_filter($mappedMembers, function ($m) use ($residentId, $myHeadResidentId, $myFamilyCode, $allHeadIds, $db) {
+        $isHeadViewer = (bool)($context['is_head'] ?? false);
+        $mappedMembers = array_filter($mappedMembers, function ($m) use ($residentId, $myHeadResidentId, $myFamilyCode, $allHeadIds, $db, $isHeadViewer) {
             $mid = (int)($m['resident_id'] ?? 0);
             $fc = trim((string)($m['family_code'] ?? ''));
             $isOtherHead = isset($allHeadIds[$mid]) && $mid !== $residentId && $mid !== $myHeadResidentId;
@@ -813,6 +814,8 @@ function handleGetHouseholdInfo($residentId) {
             if ($mid === $residentId) return true;
             if ($myHeadResidentId > 0 && $mid === $myHeadResidentId) return true;
             if ($isOtherHead) return false;
+
+            $refId = 0;
             if (columnExists($db, 'residents', 'family_head_resident_id')) {
                 $ref = $db->fetchOne("SELECT family_head_resident_id FROM residents WHERE id = ? LIMIT 1", [$mid]);
                 $refId = (int)($ref['family_head_resident_id'] ?? 0);
@@ -821,6 +824,10 @@ function handleGetHouseholdInfo($residentId) {
                 if ($refId > 0 && isset($allHeadIds[$refId])) return false;
             }
             if ($myFamilyCode !== '' && $fc === $myFamilyCode) return true;
+            // Dependents added before family_code / family_head_resident_id existed, or multi-head split with missing links
+            if ($isHeadViewer && $fc === '' && $refId <= 0) {
+                return true;
+            }
             return false;
         });
         $mappedMembers = array_values($mappedMembers);
@@ -1042,8 +1049,8 @@ function joinAsMember($residentId, $data) {
     $headColumn = householdHeadColumn();
     $dateColumn = householdMemberDateColumn();
 
-    // Match by family_head_code: PRIORITIZE resident-level (exact head who owns this FH code).
-    // Normalize for matching: FH-03975, FH03975, fh 03975 all match.
+    // Match by family_head_code: PRIORITIZE resident-level (exact head who owns this head code).
+    // Normalize for matching: HC-03975, HC03975, hc 03975 (and legacy FH-…) all match.
     $household = null;
     $selectedHeadResidentId = 0;
     $selectedHeadFamilyCode = null;
@@ -1058,7 +1065,7 @@ function joinAsMember($residentId, $data) {
         if ($hasHouseholdFamilyCode) $hhSelect .= ", family_code";
         if ($hasHouseholdFhCode) $hhSelect .= ", family_head_code";
 
-        // 1. Resident-level FIRST: find the specific head who owns this FH code (correct for multi-head)
+        // 1. Resident-level FIRST: find the specific head who owns this head code (correct for multi-head)
         if (columnExists($db, 'residents', 'family_head_code') && $fhNorm !== '') {
             $resSelect = "id, household_id";
             if ($hasResidentFamilyCode) $resSelect .= ", family_code";
@@ -1345,7 +1352,7 @@ function switchHead($residentId, $data) {
     $db = Database::getInstance();
     $fhMatchExpr = familyHeadCodeMatchExpr();
 
-    // Find the head who owns this FH code and is in the SAME household
+    // Find the head who owns this head code and is in the SAME household
     if (!columnExists($db, 'residents', 'family_head_code')) {
         householdJsonResponse(false, null, 'Family head code lookup not available', 400);
     }
