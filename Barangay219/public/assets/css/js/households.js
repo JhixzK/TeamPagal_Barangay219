@@ -387,7 +387,7 @@ function renderEditModalMembersList(h) {
         html += `<p class="small fw-semibold text-secondary mb-2">${escapeHtml(toName(g.head))} <span class="badge bg-primary">Head</span> <span class="text-muted fw-normal">(${escapeHtml(g.headDisplayCode)})</span></p>`;
         html += tableShell(sub);
         if (ungrouped.length) {
-            html += '<p class="small fw-semibold text-secondary mt-3 mb-2">Unassigned to a family head</p>';
+            html += '<p class="small fw-semibold text-secondary mt-3 mb-2">Unassigned to a head</p>';
             html += tableShell(
                 ungrouped
                     .slice()
@@ -401,7 +401,7 @@ function renderEditModalMembersList(h) {
             );
         }
     } else {
-        html += '<p class="small text-muted mb-2">One table per family head — switch tabs to see each group.</p>';
+        html += '<p class="small text-muted mb-2">One table per head — switch tabs to see each group.</p>';
         html += '<ul class="nav household-head-tabs mb-2" role="tablist">';
         let panes = '<div class="tab-content">';
         headGroups.forEach((g, i) => {
@@ -1240,7 +1240,7 @@ function viewHousehold(id) {
 
             infoEl.innerHTML = `
                 <p><strong>Household ID Code:</strong> ${escapeHtml((h.household_id_code || '-'))}</p>
-                <p><strong>Family Head:</strong> <span id="viewInfoHeadName">${escapeHtml(firstHeadName)}</span></p>
+                <p><strong>Head:</strong> <span id="viewInfoHeadName">${escapeHtml(firstHeadName)}</span></p>
                 <p><strong>Household Type:</strong> <span id="viewInfoHouseholdType">--</span></p>
                 <p><strong>House Type:</strong> ${escapeHtml(formatStructureHouseTypeLabel(h.house_type))}</p>
                 <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
