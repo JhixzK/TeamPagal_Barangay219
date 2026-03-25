@@ -9,6 +9,23 @@
     var listEl = document.getElementById('appNotificationsList');
     var markAllBtn = document.getElementById('appNotificationsMarkAll');
     var clearAllBtn = document.getElementById('appNotificationsClearAll');
+    var unreadPollTimer = null;
+    var unreadPollMs = 60000;
+    var unreadPollMaxMs = 300000;
+    var unreadCountInFlight = false;
+
+    function scheduleUnreadPoll(delayMs) {
+        if (unreadPollTimer) {
+            clearTimeout(unreadPollTimer);
+        }
+        unreadPollTimer = setTimeout(function () {
+            if (document.hidden) {
+                scheduleUnreadPoll(unreadPollMaxMs);
+                return;
+            }
+            loadUnreadCount(true);
+        }, delayMs);
+    }
 
     function esc(s) {
         if (!s) return '';
@@ -115,12 +132,30 @@
         }).join('');
     }
 
-    function loadUnreadCount() {
+    function loadUnreadCount(fromPoll) {
+        if (unreadCountInFlight) {
+            if (fromPoll) {
+                scheduleUnreadPoll(unreadPollMs);
+            }
+            return;
+        }
+
+        unreadCountInFlight = true;
         fetchJson(api + 'notifications.php?action=unread_count')
             .then(function (j) {
-                if (j && j.success && j.data) setBadge(j.data.count || 0);
+                if (j && j.success && j.data) {
+                    var count = j.data.count || 0;
+                    setBadge(count);
+                    unreadPollMs = count > 0 ? 30000 : Math.min(unreadPollMaxMs, unreadPollMs + 30000);
+                }
             })
-            .catch(function () {});
+            .catch(function () {})
+            .then(function () {
+                unreadCountInFlight = false;
+                if (fromPoll) {
+                    scheduleUnreadPoll(unreadPollMs);
+                }
+            });
     }
 
     function loadList() {
@@ -242,6 +277,14 @@
         });
     }
 
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+            unreadPollMs = 60000;
+            loadUnreadCount(false);
+            scheduleUnreadPoll(unreadPollMs);
+        }
+    });
+
     loadUnreadCount();
-    setInterval(loadUnreadCount, 60000);
+    scheduleUnreadPoll(unreadPollMs);
 })();
