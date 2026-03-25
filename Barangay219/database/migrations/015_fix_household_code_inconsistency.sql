@@ -1,7 +1,7 @@
 -- Fix data inconsistency: members should NOT have a family_head_code on residents table.
 -- Only designated household heads should hold a family_head_code.
 -- Stale family_head_code values on non-head residents cause the UI to misidentify them
--- as heads and display incorrect "joined via FH-XXXXX" labels.
+-- as heads and display incorrect "joined via head code" labels.
 
 -- Step 1: Clear family_head_code on residents who are NOT a designated head of any household.
 -- A resident is a head if households.family_head_id = residents.id.
