@@ -91,7 +91,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
           <div class="panel-body">
             <div class="details-grid">
               <div class="detail-item"><span class="detail-label">Household ID Code</span><span class="detail-value" id="displayHouseholdIdCode">--</span></div>
-              <div class="detail-item"><span class="detail-label">Family Head Code</span><span class="detail-value" id="displayFamilyHeadCode">--</span></div>
+              <div class="detail-item"><span class="detail-label">Head Code</span><span class="detail-value" id="displayFamilyHeadCode">--</span></div>
               <div class="detail-item"><span class="detail-label">Head of Household</span><span class="detail-value" id="displayHead">--</span></div>
               <div class="detail-item"><span class="detail-label">Complete Address</span><span class="detail-value" id="displayAddress">--</span></div>
               <div class="detail-item"><span class="detail-label">Household Type</span><span class="detail-value" id="displayHouseholdType">--</span></div>
@@ -156,13 +156,13 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
             <button class="modal-close" data-action="closeRoleModal">&times;</button>
           </div>
           <div class="modal-body">
-            <p>You don't have a household yet. Enter the Family Head Code to join an existing household.</p>
+            <p>You don't have a household yet. Enter the head code to join an existing household.</p>
             <div class="role-selection-grid">
               <div class="role-card" data-role="member">
                 <i class="bi bi-people"></i>
                 <h4>Household Member</h4>
-                <p>Join using Family Head Code</p>
-                <p class="role-desc">Example: FH-01234</p>
+                <p>Join using head code</p>
+                <p class="role-desc">Example: HC-01234</p>
               </div>
             </div>
           </div>
@@ -273,9 +273,9 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
           <div class="modal-body">
             <form id="memberFormContainer">
               <div class="form-group">
-                <label for="familyHeadCodeInput">Family Head Code *</label>
-                <input type="text" id="familyHeadCodeInput" placeholder="FH-01234" maxlength="9" required>
-                <p class="form-hint">Ask your household head for the Family Head Code.</p>
+                <label for="familyHeadCodeInput">Head Code *</label>
+                <input type="text" id="familyHeadCodeInput" placeholder="HC-01234" maxlength="9" required>
+                <p class="form-hint">Ask your household head for the head code.</p>
               </div>
               <div class="form-group">
                 <label for="joinRelationshipSelect">Relationship to Head *</label>
@@ -324,7 +324,7 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
             <h3><i class="bi bi-people me-2"></i>Manage Members</h3>
             <div class="d-flex align-items-center gap-2">
               <button type="button" class="btn-primary btn-small" id="btnAddDependent" data-action="openAddDependentModal" style="display:none;">
-                <i class="bi bi-person-plus"></i> Add Family Member
+                <i class="bi bi-person-plus"></i> Add Member
               </button>
               <button class="modal-close" data-action="closeManageMembersModal">&times;</button>
             </div>
@@ -388,16 +388,16 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
         </div>
       </div>
 
-      <!-- Add Family Member Modal (Head Only) -->
+      <!-- Add Member Modal (Head Only) -->
       <div id="addDependentModal" class="modal custom-modal" style="display: none;">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
           <div class="modal-header">
-            <h3><i class="bi bi-person-plus me-2"></i>Add Family Member</h3>
+            <h3><i class="bi bi-person-plus me-2"></i>Add Member</h3>
             <button class="modal-close" data-action="closeAddDependentModal">&times;</button>
           </div>
           <div class="modal-body">
-            <form id="addDependentForm" novalidate>
+            <form id="addDependentForm">
               <div id="addDependentFormError" class="add-dependent-form-error" role="alert"></div>
               <div class="form-row">
                 <div class="form-group">
