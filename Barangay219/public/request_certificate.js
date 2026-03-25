@@ -25,20 +25,24 @@ const hasSavedValidId = requestForm && requestForm.dataset && requestForm.datase
 
 const requirementMap = {
   "Barangay Certificate": [
-    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID"
+    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID",
+    "Supporting files (optional)"
   ],
   "Transfer Request": [
-    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID"
+    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID",
+    "Supporting files (optional)"
   ],
   "Barangay Indigency": [
     hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID",
     "Supporting proof (optional)"
   ],
   "Barangay Clearance": [
-    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID"
+    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID",
+    "Supporting files (optional)"
   ],
   "Certificate of Residency": [
-    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID"
+    hasSavedValidId ? "Valid ID (auto-attached from your profile)" : "Valid ID",
+    "Supporting files (optional)"
   ]
 };
 
@@ -331,11 +335,6 @@ function validateFormClient() {
       setError("purposeOtherError", "Please specify the purpose.");
       valid = false;
     }
-  }
-
-  if (!selectedFiles.length && !hasSavedValidId) {
-    setError("documentsError", "Please upload at least one supporting document.");
-    valid = false;
   }
 
   if (!declaration.checked) {
