@@ -292,15 +292,13 @@ $purposeOptionsByType = [
     'Organized Vending Permit',
     'DSWD Requirement',
     'For Travel Abroad',
-    'Transfer of Residence',
-    'Others'
+    'Transfer of Residence'
   ],
   'Barangay Indigency' => [
     'Financial Assistance',
     'Medical Purpose',
     'Hospital Purpose',
-    'DSWD Requirement',
-    'Others'
+    'DSWD Requirement'
   ],
   'Barangay Clearance' => [
     'Job Application',
@@ -326,8 +324,7 @@ $purposeOptionsByType = [
     'Organized Vending Permit',
     'DSWD Requirement',
     'For Travel Abroad',
-    'Transfer of Residence',
-    'Others'
+    'Transfer of Residence'
   ]
 ];
 
@@ -544,7 +541,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Please select a valid purpose category.';
       }
 
-      if ($formData['purpose'] === 'Others' && $formData['purpose_other'] === '') {
+      if ($formData['certificate_type'] === 'Barangay Certificate' && $formData['purpose'] === 'Others' && $formData['purpose_other'] === '') {
         $errors[] = 'Please specify the purpose.';
       }
     } else {
@@ -665,7 +662,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $isIndigencyRequest = ($formData['certificate_type'] === 'Barangay Indigency');
       $finalPurpose = $isIndigencyRequest
         ? ''
-        : ($formData['purpose'] === 'Others' ? $formData['purpose_other'] : $formData['purpose']);
+        : (($formData['certificate_type'] === 'Barangay Certificate' && $formData['purpose'] === 'Others')
+            ? $formData['purpose_other']
+            : $formData['purpose']);
       $attachmentValue = $uploadedPaths[0] ?? ($residentValidIdPath !== '' ? $residentValidIdPath : null);
       $referenceNumber = rcGenerateReferenceNumber($mysqli);
 
@@ -713,14 +712,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $insertColumns[] = 'purpose_other';
           $placeholders[] = '?';
           $bindTypes .= 's';
-          $bindValues[] = ($formData['purpose'] === 'Others') ? $formData['purpose_other'] : null;
+          $bindValues[] = ($formData['certificate_type'] === 'Barangay Certificate' && $formData['purpose'] === 'Others') ? $formData['purpose_other'] : null;
         }
 
         if (rcColumnExists($mysqli, 'certificate_requests', 'purpose_details')) {
           $insertColumns[] = 'purpose_details';
           $placeholders[] = '?';
           $bindTypes .= 's';
-          $bindValues[] = ($formData['purpose'] === 'Others') ? $formData['purpose_other'] : null;
+          $bindValues[] = ($formData['certificate_type'] === 'Barangay Certificate' && $formData['purpose'] === 'Others') ? $formData['purpose_other'] : null;
         }
 
         if (rcColumnExists($mysqli, 'certificate_requests', 'application_ref')) {
