@@ -77,16 +77,15 @@ function formatReportData(type, data) {
             return '<p class="text-muted">No data found for the selected filters.</p>';
         }
         let html = '<div class="report-table-wrap"><table class="table table-sm report-table"><thead><tr>';
-        html += '<th>Date</th><th>User</th><th>Action</th><th>Module</th><th>IP</th>';
+        html += '<th>Date</th><th>User</th><th>Summary</th>';
         html += '</tr></thead><tbody>';
         data.forEach(row => {
             const date = row.created_at ? new Date(row.created_at).toLocaleString() : '-';
+            const summary = row.summary || ((row.action || '-') + ' — ' + (row.module || '-'));
             html += '<tr>';
             html += '<td>' + date + '</td>';
             html += '<td>' + (row.username || '-') + '</td>';
-            html += '<td>' + (row.action || '-') + '</td>';
-            html += '<td>' + (row.module || '-') + '</td>';
-            html += '<td>' + (row.ip_address || '-') + '</td>';
+            html += '<td>' + summary + '</td>';
             html += '</tr>';
         });
         html += '</tbody></table></div>';
