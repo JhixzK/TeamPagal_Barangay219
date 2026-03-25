@@ -4,7 +4,7 @@
  */
 
 let currentPage = 1;
-let residentFilters = { q: '', status: '', gender: '', age_from: '', age_to: '' };
+let residentFilters = { q: '', status: '', gender: '', household_head: '', age_from: '', age_to: '' };
 
 const RESIDENT_PERMS = {
     canCreate: window.canModulePermission ? window.canModulePermission('residents', 'can_create') : true,
@@ -155,6 +155,7 @@ function loadResidents(page = 1) {
     if (residentFilters.q) params.append('q', residentFilters.q);
     if (residentFilters.status) params.append('status', residentFilters.status);
     if (residentFilters.gender) params.append('gender', residentFilters.gender);
+    if (residentFilters.household_head) params.append('household_head', residentFilters.household_head);
     if (residentFilters.age_from) params.append('age_from', residentFilters.age_from);
     if (residentFilters.age_to) params.append('age_to', residentFilters.age_to);
 
@@ -298,6 +299,7 @@ function searchResidents() {
 function applyFilters() {
     residentFilters.status = document.getElementById('filterStatus')?.value || '';
     residentFilters.gender = document.getElementById('filterGender')?.value || '';
+    residentFilters.household_head = document.getElementById('filterHouseholdHead')?.value || '';
     residentFilters.age_from = document.getElementById('filterAgeFrom')?.value || '';
     residentFilters.age_to = document.getElementById('filterAgeTo')?.value || '';
     syncResidentStatusTabs();
@@ -309,13 +311,15 @@ function applyFilters() {
 function resetResidents() {
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.value = '';
-    residentFilters = { q: '', status: '', gender: '', age_from: '', age_to: '' };
+    residentFilters = { q: '', status: '', gender: '', household_head: '', age_from: '', age_to: '' };
     const statusSel = document.getElementById('filterStatus');
     const genderSel = document.getElementById('filterGender');
+    const householdHeadSel = document.getElementById('filterHouseholdHead');
     const ageFrom = document.getElementById('filterAgeFrom');
     const ageTo = document.getElementById('filterAgeTo');
     if (statusSel) statusSel.value = '';
     if (genderSel) genderSel.value = '';
+    if (householdHeadSel) householdHeadSel.value = '';
     if (ageFrom) ageFrom.value = '';
     if (ageTo) ageTo.value = '';
     syncResidentStatusTabs();
