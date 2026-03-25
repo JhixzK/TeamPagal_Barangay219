@@ -50,7 +50,7 @@ $residentRow = null;
 $residentId = (int)($cert['resident_id'] ?? 0);
 if ($residentId > 0) {
     $residentRow = $db->fetchOne(
-        "SELECT first_name, middle_name, last_name, address, birth_date, civil_status FROM residents WHERE id = ? LIMIT 1",
+        "SELECT first_name, middle_name, last_name, address, birth_date, civil_status, citizenship, gender FROM residents WHERE id = ? LIMIT 1",
         [$residentId]
     );
 }
@@ -96,7 +96,8 @@ $certTypeLabels = [
 ];
 $certLabel = $certTypeLabels[$cert['certificate_type']] ?? ucfirst(str_replace('_', ' ', $cert['certificate_type']));
 $normalizedCertType = strtolower(trim(str_replace('_', ' ', (string)($cert['certificate_type'] ?? ''))));
-$isBarangayCertificate = in_array($normalizedCertType, ['barangay clearance', 'barangay certificate'], true);
+$isBarangayCertificate = in_array($normalizedCertType, ['barangay clearance', 'barangay certificate', 'transfer request'], true);
+$currentCertType = str_replace(' ', '_', $normalizedCertType);
 $controlNum = $cert['control_number'] ?? 'BRGY219-' . date('Y') . '-' . str_pad((string)$id, 5, '0', STR_PAD_LEFT);
 $issuedBase = $cert['date_issued'] ?? $cert['issued_date'] ?? null;
 $issuedTs = $issuedBase ? strtotime((string)$issuedBase) : time();
@@ -179,8 +180,12 @@ $placeholderValues = [
 
 $residentAge = trim((string)($cert['cert_age'] ?? ''));
 $residentCivilStatus = '';
+$residentNationality = '';
+$residentSex = '';
 if ($residentRow) {
     $residentCivilStatus = trim((string)($residentRow['civil_status'] ?? ''));
+    $residentNationality = trim((string)($residentRow['nationality'] ?? ($residentRow['citizenship'] ?? '')));
+    $residentSex = trim((string)($residentRow['gender'] ?? ($residentRow['sex'] ?? '')));
     if ($residentAge === '') {
         $birthDateRaw = trim((string)($residentRow['birth_date'] ?? ''));
         if ($birthDateRaw !== '') {
@@ -310,13 +315,21 @@ $defaultParagraphsIndigency = [
     'This is to further certify that the above mentioned name belongs to an indigent family of this barangay.',
     'Issued this <strong>' . htmlspecialchars($issuedDate) . '</strong> at Barangay 219 Zone 20 Manila.'
 ];
+$defaultParagraphsTransferRequest = [
+    '<strong>TO WHOM IT MAY CONCERN:</strong>',
+    'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, <span class="resident-field">' . htmlspecialchars($residentNationality !== '' ? $residentNationality : 'N/A') . '</span>, <span class="resident-field">' . htmlspecialchars($residentSex !== '' ? ucfirst(strtolower($residentSex)) : 'N/A') . '</span>, <span class="resident-field">' . htmlspecialchars($residentAge !== '' ? $residentAge : 'N/A') . ' years old</span>, <strong>' . htmlspecialchars($residentCivilStatus !== '' ? ucfirst(strtolower($residentCivilStatus)) : 'N/A') . '</strong>, is a bonafide resident of Barangay 219, Zone 20, District II, Tondo, Manila with postal address at <strong>' . htmlspecialchars($certAddress) . '</strong>.',
+    'This certificate is being issued upon the request of the above-named person in connection with the transfer of residence, for the purpose of <strong>Travel/Transfer of Resident</strong>.',
+    'This certificate shall be considered inoperative and this office will not be held accountable should it be used for purposes other than the one stated herein.',
+    'Issued this <strong><u>' . htmlspecialchars($issuedOrdinal) . ' day of ' . htmlspecialchars($issuedMonthYear) . '</u></strong>, City of Manila.'
+];
 
-$currentCertType = (string)($cert['certificate_type'] ?? '');
 $defaultParagraphs = ($currentCertType === 'barangay_clearance')
     ? $defaultParagraphsBarangay
-    : (($currentCertType === 'certificate_indigency') ? $defaultParagraphsIndigency : $defaultParagraphsGeneric);
+    : (($currentCertType === 'certificate_indigency')
+        ? $defaultParagraphsIndigency
+        : (($currentCertType === 'transfer_request') ? $defaultParagraphsTransferRequest : $defaultParagraphsGeneric));
 
-if ($certBody !== '') {
+if ($certBody !== '' && $currentCertType !== 'transfer_request') {
     $resolvedBody = strtr($certBody, $placeholderValues);
     // Normalize legacy saved bodies that still include extended Manila suffix.
     $resolvedBody = preg_replace('/\bTondo,\s*Manila,\s*Metro Manila,\s*Manila\b/i', 'Tondo, Manila', $resolvedBody) ?? $resolvedBody;
@@ -602,15 +615,36 @@ $paragraphs = array_map(static function ($paragraph) use ($fullName, $certAddres
             letter-spacing: 0.5px;
             text-decoration: underline;
         }
-        .certification-title {
+        .certification-title,
+        .transfer-title {
             text-align: center;
             margin: 12px 0 16px;
             font-size: 14px;
             font-weight: 700;
-            letter-spacing: 7px;
             text-decoration: underline;
             text-underline-offset: 5px;
             text-transform: uppercase;
+        }
+        .certification-title {
+            letter-spacing: 7px;
+        }
+        .transfer-title {
+            letter-spacing: 0;
+        }
+        .transfer-header {
+            text-align: center;
+            margin: 0 0 16px;
+            text-transform: uppercase;
+        }
+        .transfer-header .line1 {
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+        .transfer-header .line2 {
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.25;
         }
         .body {
             font-family: "Times New Roman", serif;
@@ -762,7 +796,11 @@ $paragraphs = array_map(static function ($paragraph) use ($fullName, $certAddres
                     </div>
                     <div class="right-panel">
                         <?php if ($isBarangayCertificate): ?>
-                        <div class="certification-title">C E R T I F I C A T I O N</div>
+                        <div class="<?php echo $currentCertType === 'transfer_request' ? 'transfer-title' : 'certification-title'; ?>">
+                            <?php echo $currentCertType === 'transfer_request'
+                                ? 'CERTIFICATE FOR TRANSFER OF RESIDENT'
+                                : 'C E R T I F I C A T I O N'; ?>
+                        </div>
                         <?php else: ?>
                         <div class="subject"><?php echo htmlspecialchars($subjectLine); ?></div>
                         <?php endif; ?>
