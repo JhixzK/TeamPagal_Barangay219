@@ -1190,9 +1190,12 @@ function listHouseholds() {
                     }
                     if ($isHead) {
                         $name = trim(($r['first_name'] ?? '') . ' ' . ($r['middle_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
-                        if ($name !== '') $headNames[] = $name;
+                        if ($name !== '') {
+                            $headNames[] = $name;
+                        }
                     }
                 }
+                $headNames = array_values(array_unique($headNames, SORT_STRING));
                 $h['family_head_names'] = !empty($headNames) ? implode(', ', $headNames) : ($h['family_head_name'] ?? '');
             }
             unset($h);
@@ -2185,13 +2188,25 @@ function addHouseholdMember() {
             $db->query('UPDATE residents SET household_id = ? WHERE id = ?', [$household_id, $resident_id]);
         }
 
-        // Clear stale household linkage fields so the member doesn't appear as a head
-        // from a previous household, and sync family_code to match the current head.
+        // Sync linkage: new members get this household's head registration code (not cleared).
         $isNewHead = !$hadHead;
-        if (!$isNewHead && columnExists($db, 'residents', 'family_head_code')) {
-            $db->query("UPDATE residents SET family_head_code = NULL WHERE id = ?", [$resident_id]);
-        }
         $headId = $isNewHead ? $resident_id : (int)$household['family_head_id'];
+        if (!$isNewHead && columnExists($db, 'residents', 'family_head_code')) {
+            $fhc = '';
+            if ($headId > 0) {
+                $headFhcRow = $db->fetchOne('SELECT family_head_code FROM residents WHERE id = ? LIMIT 1', [$headId]);
+                $fhc = $headFhcRow ? trim((string)($headFhcRow['family_head_code'] ?? '')) : '';
+            }
+            if (($fhc === '' || $fhc === '-') && columnExists($db, 'households', 'family_head_code')) {
+                $hhFhc = $db->fetchOne('SELECT family_head_code FROM households WHERE id = ? LIMIT 1', [$household_id]);
+                $fhc = $hhFhc ? trim((string)($hhFhc['family_head_code'] ?? '')) : '';
+            }
+            if ($fhc !== '' && $fhc !== '-') {
+                $db->query('UPDATE residents SET family_head_code = ? WHERE id = ?', [$fhc, $resident_id]);
+            } else {
+                $db->query('UPDATE residents SET family_head_code = NULL WHERE id = ?', [$resident_id]);
+            }
+        }
         if (!$isNewHead && columnExists($db, 'residents', 'family_code')) {
             $headFcRow = $db->fetchOne("SELECT family_code FROM residents WHERE id = ? LIMIT 1", [$headId]);
             $headFc = trim((string)($headFcRow['family_code'] ?? ''));
@@ -2281,6 +2296,29 @@ function removeHouseholdMember() {
                 if (isset($colMap['head_id']) && $headColumn !== 'head_id') {
                     $db->query("UPDATE households SET head_id = ? WHERE id = ?", [$newHeadId, $household_id]);
                 }
+                // Match assign_head_official: carry registration head code to the new designated head so residents list/API stay consistent.
+                if (columnExists($db, 'residents', 'family_head_code')) {
+                    $oldFhc = '';
+                    $oldHeadRow = $db->fetchOne("SELECT family_head_code FROM residents WHERE id = ?", [$resident_id]);
+                    if ($oldHeadRow) {
+                        $oldFhc = trim((string)($oldHeadRow['family_head_code'] ?? ''));
+                    }
+                    if (($oldFhc === '' || $oldFhc === '-') && isset($colMap['family_head_code'])) {
+                        $hhFhc = $db->fetchOne("SELECT family_head_code FROM households WHERE id = ? LIMIT 1", [$household_id]);
+                        $oldFhc = $hhFhc ? trim((string)($hhFhc['family_head_code'] ?? '')) : '';
+                    }
+                    if ($oldFhc === '' || $oldFhc === '-') {
+                        $oldFhc = generateResidentFamilyHeadCode($db);
+                    }
+                    // Keep the same registration code on everyone still in the household (transfer to new head, not wiped).
+                    $db->query(
+                        "UPDATE residents SET family_head_code = ? WHERE household_id = ? AND id != ?",
+                        [$oldFhc, $household_id, $resident_id]
+                    );
+                    if (isset($colMap['family_head_code'])) {
+                        $db->query("UPDATE households SET family_head_code = ? WHERE id = ?", [$oldFhc, $household_id]);
+                    }
+                }
             } else {
                 $houseCols = $db->fetchAll("SHOW COLUMNS FROM households");
                 $colMap = [];
@@ -2309,6 +2347,7 @@ function removeHouseholdMember() {
         }
         $count = $db->fetchOne("SELECT COUNT(*) as c FROM residents WHERE household_id = ?", [$household_id])['c'];
         $db->query("UPDATE households SET total_members = ? WHERE id = ?", [(int)$count, $household_id]);
+        ensureHouseholdCodesAndDetails($db, $household_id);
         sendResponse(true, 'Member removed from household');
     } catch (Exception $e) {
         error_log("Remove member error: " . $e->getMessage());
@@ -2435,10 +2474,8 @@ function assignHeadOfficial() {
                 if ($oldFhc === '' || $oldFhc === '-') {
                     $oldFhc = generateResidentFamilyHeadCode($db);
                 }
-                $db->query("UPDATE residents SET family_head_code = ? WHERE id = ?", [$oldFhc, $newHeadResidentId]);
-                if ($oldHeadResidentId > 0) {
-                    $db->query("UPDATE residents SET family_head_code = NULL WHERE id = ?", [$oldHeadResidentId]);
-                }
+                // Same family registration code for all members; former head keeps it too — only the role moves.
+                $db->query("UPDATE residents SET family_head_code = ? WHERE household_id = ?", [$oldFhc, $householdId]);
                 if ($designatedHeadId === $oldHeadResidentId && isset($colMap['family_head_code'])) {
                     $db->query("UPDATE households SET family_head_code = ? WHERE id = ?", [$oldFhc, $householdId]);
                 }
@@ -2454,13 +2491,6 @@ function assignHeadOfficial() {
                         [$newHeadFc, $householdId, $newHeadResidentId]
                     );
                 }
-            }
-            // Ensure non-head members don't retain stale family_head_code
-            if (columnExists($db, 'residents', 'family_head_code')) {
-                $db->query(
-                    "UPDATE residents SET family_head_code = NULL WHERE household_id = ? AND id <> ? AND family_head_code IS NOT NULL AND TRIM(family_head_code) <> ''",
-                    [$householdId, $newHeadResidentId]
-                );
             }
             // Point all members' family_head_resident_id to the new head
             if (columnExists($db, 'residents', 'family_head_resident_id')) {
