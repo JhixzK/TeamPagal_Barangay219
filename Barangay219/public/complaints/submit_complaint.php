@@ -34,7 +34,6 @@ $formData = [
     'incident_date' => date('Y-m-d'),
     'incident_time' => '',
     'incident_house_street' => '',
-    'incident_purok' => '',
     'incident_landmark' => '',
     'incident_barangay' => $systemBarangay,
     'respondent_name' => '',
@@ -64,7 +63,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($formData['incident_date'] === '') $errors[] = 'Incident Date is required.';
     if ($formData['incident_time'] === '') $errors[] = 'Incident Time is required.';
     if ($formData['incident_house_street'] === '') $errors[] = 'House Number / Street is required.';
-    if ($formData['incident_purok'] === '') $errors[] = 'Purok / Zone is required.';
     if ($formData['respondent_address'] === '') $errors[] = 'Respondent Address is required.';
     if ($formData['respondent_barangay'] === '') $errors[] = 'Respondent Barangay is required.';
     if ($formData['respondent_city'] === '') $errors[] = 'Respondent City / Municipality is required.';
@@ -99,12 +97,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 reference_number, resident_id, complaint_title, complainant_name,
                                 respondent_name, complaint_type, narrative, filing_date,
                                 category, title, description, incident_date, incident_time,
-                                incident_house_street, incident_purok, incident_landmark, incident_barangay,
+                                incident_house_street, incident_landmark, incident_barangay,
                                 respondent_address, respondent_barangay, respondent_city, respondent_residency,
                                 evidence_file, jurisdiction_status, status, assigned_officer,
                                 resolution_notes, referral_notes, date_submitted
                             ) VALUES (
-                                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                             )",
                             [
                                 $referenceNumber,
@@ -121,7 +119,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $formData['incident_date'],
                                 $formData['incident_time'],
                                 $formData['incident_house_street'],
-                                $formData['incident_purok'],
                                 $formData['incident_landmark'] !== '' ? $formData['incident_landmark'] : null,
                                 $formData['incident_barangay'],
                                 $formData['respondent_address'],
@@ -143,12 +140,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 resident_id, complaint_title, complainant_name,
                                 respondent_name, complaint_type, narrative, filing_date,
                                 category, title, description, incident_date, incident_time,
-                                incident_house_street, incident_purok, incident_landmark, incident_barangay,
+                                incident_house_street, incident_landmark, incident_barangay,
                                 respondent_address, respondent_barangay, respondent_city, respondent_residency,
                                 evidence_file, jurisdiction_status, status, assigned_officer,
                                 resolution_notes, referral_notes, date_submitted
                             ) VALUES (
-                                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                             )",
                             [
                                 $residentId,
@@ -164,7 +161,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $formData['incident_date'],
                                 $formData['incident_time'],
                                 $formData['incident_house_street'],
-                                $formData['incident_purok'],
                                 $formData['incident_landmark'] !== '' ? $formData['incident_landmark'] : null,
                                 $formData['incident_barangay'],
                                 $formData['respondent_address'],
@@ -188,12 +184,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 complaint_title, complainant_name,
                                 respondent_name, complaint_type, narrative, filing_date,
                                 category, title, description, incident_date, incident_time,
-                                incident_house_street, incident_purok, incident_landmark, incident_barangay,
+                                incident_house_street, incident_landmark, incident_barangay,
                                 respondent_address, respondent_barangay, respondent_city, respondent_residency,
                                 evidence_file, jurisdiction_status, status, assigned_officer,
                                 resolution_notes, referral_notes, date_submitted
                             ) VALUES (
-                                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                             )",
                             [
                                 $formData['title'],
@@ -208,7 +204,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $formData['incident_date'],
                                 $formData['incident_time'],
                                 $formData['incident_house_street'],
-                                $formData['incident_purok'],
                                 $formData['incident_landmark'] !== '' ? $formData['incident_landmark'] : null,
                                 $formData['incident_barangay'],
                                 $formData['respondent_address'],
@@ -326,8 +321,7 @@ include __DIR__ . '/../../includes/sidebar.php';
         <h5 class="mb-3">Incident Location</h5>
         <div class="row g-3 mb-4">
           <div class="col-md-6"><label class="form-label">House Number / Street</label><input type="text" class="form-control" name="incident_house_street" maxlength="255" value="<?php echo htmlspecialchars($formData['incident_house_street']); ?>" required></div>
-          <div class="col-md-3"><label class="form-label">Purok / Zone</label><input type="text" class="form-control" name="incident_purok" maxlength="100" value="<?php echo htmlspecialchars($formData['incident_purok']); ?>" required></div>
-          <div class="col-md-3"><label class="form-label">Landmark</label><input type="text" class="form-control" name="incident_landmark" maxlength="255" value="<?php echo htmlspecialchars($formData['incident_landmark']); ?>"></div>
+                    <div class="col-md-6"><label class="form-label">Landmark</label><input type="text" class="form-control" name="incident_landmark" maxlength="255" value="<?php echo htmlspecialchars($formData['incident_landmark']); ?>"></div>
           <div class="col-md-6"><label class="form-label">Barangay</label><input type="text" class="form-control" name="incident_barangay" value="<?php echo htmlspecialchars($formData['incident_barangay']); ?>" readonly required></div>
         </div>
 
