@@ -338,9 +338,6 @@ if ($conn && empty($pageErrors) && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 'contact_number' => $mobile,
                 'mobile_number' => $mobile,
                 'email' => $email,
-                'emergency_contact_name' => trim((string)($_POST['emergency_contact_name'] ?? '')),
-                'emergency_contact_number' => trim((string)($_POST['emergency_contact_number'] ?? '')),
-                'emergency_contact_relationship' => trim((string)($_POST['emergency_contact_relationship'] ?? ''))
             ];
 
             $okResident = rpUpdateResidents($conn, $residentId, $fields, $residentCols, $userId);
@@ -369,7 +366,6 @@ if ($conn && empty($pageErrors) && $_SERVER['REQUEST_METHOD'] === 'POST') {
             'house_number' => trim((string)($_POST['house_number'] ?? '')),
             'house_no' => trim((string)($_POST['house_number'] ?? '')),
             'street' => trim((string)($_POST['street'] ?? '')),
-            'purok_sitio' => trim((string)($_POST['purok_sitio'] ?? '')),
             'barangay' => trim((string)($_POST['barangay'] ?? 'Barangay 219')),
             'city' => trim((string)($_POST['city'] ?? 'Manila')),
             'province' => trim((string)($_POST['province'] ?? 'Metro Manila')),
@@ -381,7 +377,6 @@ if ($conn && empty($pageErrors) && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $line1 = trim($fields['house_number'] . ' ' . $fields['street']);
             $parts = array_filter([
               $line1,
-              $fields['purok_sitio'],
               $fields['barangay'],
               $fields['city'],
               $fields['province']
@@ -431,8 +426,6 @@ if ($conn && empty($pageErrors) && $_SERVER['REQUEST_METHOD'] === 'POST') {
             'educational_attainment' => trim((string)($_POST['educational_attainment'] ?? '')),
             'occupation' => trim((string)($_POST['occupation'] ?? '')),
             'employment_status' => strtolower(trim((string)($_POST['employment_status'] ?? ''))),
-            'employer_name' => trim((string)($_POST['employer_name'] ?? '')),
-            'economic_classification' => trim((string)($_POST['economic_classification'] ?? ''))
         ];
 
         if (rpUpdateResidents($conn, $residentId, $fields, $residentCols, $userId)) {
@@ -631,28 +624,26 @@ $proofDocumentUrl = rpFileUrlFromPath($resolvedProofDocumentPath);
 
 $displayHouseNumber = trim((string)$pick($resident, ['house_number', 'house_no']));
 $displayStreet = trim((string)$pick($resident, ['street']));
-$displayPurokSitio = trim((string)$pick($resident, ['purok_sitio']));
 
-if ($displayPurokSitio === '' && $displayStreet !== '') {
-  if (preg_match('/\b(purok\s*\d+|sitio\s*\d+)\b/i', $displayStreet, $m)) {
-    $displayPurokSitio = trim((string)$m[1]);
-    $displayStreet = trim((string)preg_replace('/\b(purok\s*\d+|sitio\s*\d+)\b/i', '', $displayStreet));
-    $displayStreet = trim($displayStreet, " ,-");
-  }
+// Profile photo: uploaded avatar (same as staff sidebar), then optional residents.profile_image — not ID documents.
+$avatarUrl = '';
+if ($userId) {
+    foreach (['png', 'jpg', 'jpeg', 'gif'] as $e) {
+        $f = PUBLIC_PATH . '/uploads/profile/' . $userId . '.' . $e;
+        if (is_file($f)) {
+            $avatarUrl = BASE_URL . 'uploads/profile/' . $userId . '.' . $e;
+            break;
+        }
+    }
 }
-
-if ($displayPurokSitio === '' && $displayHouseNumber !== '') {
-  if (preg_match('/\b(purok\s*\d+|sitio\s*\d+)\b/i', $displayHouseNumber, $m)) {
-    $displayPurokSitio = trim((string)$m[1]);
-    $displayHouseNumber = trim((string)preg_replace('/\b(purok\s*\d+|sitio\s*\d+)\b/i', '', $displayHouseNumber));
-    $displayHouseNumber = trim($displayHouseNumber, " ,-");
-  }
+if ($avatarUrl === '' && in_array('profile_image', $residentCols, true)) {
+    $pi = $pick($resident, ['profile_image']);
+    if ($pi !== '') {
+        $avatarUrl = rpFileUrlFromPath($pi);
+    }
 }
-
-$avatarPath = $resolvedIdDocumentPath;
-$avatarUrl = 'https://i.pravatar.cc/140?img=12';
-if ($avatarPath !== '') {
-    $avatarUrl = BASE_URL . ltrim($avatarPath, '/');
+if ($avatarUrl === '') {
+    $avatarUrl = ASSETS_URL . 'img/default-avatar.svg';
 }
 
 $criticalFields = [
@@ -742,7 +733,17 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
 
     <section class="profile-summary card sticky-profile dash-panel mb-4">
       <div class="summary-left">
-        <img src="<?php echo h($avatarUrl); ?>" alt="Resident profile image">
+        <div class="resident-profile-avatar-block">
+          <img id="residentProfileAvatar" src="<?php echo h($avatarUrl); ?>" alt="" class="resident-profile-avatar-img">
+          <form id="residentAvatarForm" enctype="multipart/form-data" class="resident-avatar-upload-form">
+            <label class="resident-avatar-upload-btn">
+              <i class="bi bi-camera"></i> Change photo
+              <input type="file" name="avatar" accept="image/*" hidden>
+              <input type="hidden" name="<?php echo h(CSRF_TOKEN_NAME); ?>" value="<?php echo h(generateCSRFToken()); ?>">
+            </label>
+          </form>
+          <div id="residentAvatarMsg" class="resident-avatar-msg small text-muted"></div>
+        </div>
         <div class="summary-meta">
           <h3><?php echo h($fullName); ?></h3>
           <p class="resident-id">Resident ID: <?php echo h($residentDisplayId); ?></p>
@@ -829,9 +830,6 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
         <div class="info-list">
           <div class="info-row"><span>Mobile Number</span><strong><?php echo h(rpFormatPhone($pick($resident, ['contact_number', 'mobile_number'], 'N/A'))); ?></strong></div>
           <div class="info-row"><span>Email Address</span><strong><?php echo h($pick($resident, ['email'], $pick($user, ['email'], 'N/A'))); ?></strong></div>
-          <div class="info-row"><span>Emergency Contact Person</span><strong><?php echo h($pick($resident, ['emergency_contact_name'], 'N/A')); ?></strong></div>
-          <div class="info-row"><span>Emergency Contact Number</span><strong><?php echo h(rpFormatPhone($pick($resident, ['emergency_contact_number'], 'N/A'))); ?></strong></div>
-          <div class="info-row"><span>Relationship</span><strong><?php echo h($pick($resident, ['emergency_contact_relationship'], 'N/A')); ?></strong></div>
         </div>
 
         <form method="POST" class="edit-form hidden" id="form-contact">
@@ -839,9 +837,6 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
           <div class="form-grid two-col">
             <label><span>Mobile Number</span><input type="text" name="contact_number" value="<?php echo h(rpFormatPhone($pick($resident, ['contact_number', 'mobile_number']))); ?>"></label>
             <label><span>Email Address</span><input type="email" name="email" value="<?php echo h($pick($resident, ['email'], $pick($user, ['email']))); ?>"></label>
-            <label><span>Emergency Contact Person</span><input type="text" name="emergency_contact_name" value="<?php echo h($pick($resident, ['emergency_contact_name'])); ?>"></label>
-            <label><span>Emergency Contact Number</span><input type="text" name="emergency_contact_number" value="<?php echo h(rpFormatPhone($pick($resident, ['emergency_contact_number']))); ?>"></label>
-            <label class="full"><span>Emergency Contact Relationship</span><input type="text" name="emergency_contact_relationship" value="<?php echo h($pick($resident, ['emergency_contact_relationship'])); ?>"></label>
           </div>
           <div class="form-actions"><button class="btn-primary" type="submit">Save Contact Info</button></div>
         </form>
@@ -857,7 +852,6 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
         </div>
         <div class="info-list">
           <div class="info-row"><span>House Number / Street</span><strong><?php echo h(trim($displayHouseNumber . ' ' . $displayStreet) ?: 'N/A'); ?></strong></div>
-          <div class="info-row"><span>Purok / Sitio</span><strong><?php echo h($displayPurokSitio !== '' ? $displayPurokSitio : 'N/A'); ?></strong></div>
           <div class="info-row"><span>Barangay</span><strong><?php echo h($pick($resident, ['barangay'], 'Barangay 219')); ?></strong></div>
           <div class="info-row"><span>City / Municipality</span><strong><?php echo h($pick($resident, ['city'], 'Manila')); ?></strong></div>
           <div class="info-row"><span>Province</span><strong><?php echo h($pick($resident, ['province'], 'Metro Manila')); ?></strong></div>
@@ -869,7 +863,6 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
           <div class="form-grid two-col">
             <label><span>House Number</span><input type="text" name="house_number" value="<?php echo h($displayHouseNumber); ?>"></label>
             <label><span>Street</span><input type="text" name="street" value="<?php echo h($displayStreet); ?>"></label>
-            <label><span>Purok / Sitio</span><input type="text" name="purok_sitio" value="<?php echo h($displayPurokSitio); ?>"></label>
             <label><span>Barangay</span><input type="text" name="barangay" value="<?php echo h($pick($resident, ['barangay'], 'Barangay 219')); ?>"></label>
             <label><span>City</span><input type="text" name="city" value="<?php echo h($pick($resident, ['city'], 'Manila')); ?>"></label>
             <label><span>Province</span><input type="text" name="province" value="<?php echo h($pick($resident, ['province'], 'Metro Manila')); ?>"></label>
@@ -919,8 +912,6 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
           <div class="info-row"><span>Educational Attainment</span><strong><?php echo h($pick($resident, ['educational_attainment'], 'N/A')); ?></strong></div>
           <div class="info-row"><span>Occupation</span><strong><?php echo h($pick($resident, ['occupation'], 'N/A')); ?></strong></div>
           <div class="info-row"><span>Employment Status</span><strong><?php echo h($pick($resident, ['employment_status'], 'N/A')); ?></strong></div>
-          <div class="info-row"><span>Employer Name</span><strong><?php echo h($pick($resident, ['employer_name'], 'N/A')); ?></strong></div>
-          <div class="info-row"><span>Economic Classification</span><strong><?php echo h($pick($resident, ['economic_classification'], 'N/A')); ?></strong></div>
         </div>
 
         <form method="POST" class="edit-form hidden" id="form-employment">
@@ -929,8 +920,6 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
             <label><span>Educational Attainment</span><input type="text" name="educational_attainment" value="<?php echo h($pick($resident, ['educational_attainment'])); ?>"></label>
             <label><span>Occupation</span><input type="text" name="occupation" value="<?php echo h($pick($resident, ['occupation'])); ?>"></label>
             <label><span>Employment Status</span><input type="text" name="employment_status" value="<?php echo h($pick($resident, ['employment_status'])); ?>"></label>
-            <label><span>Employer Name</span><input type="text" name="employer_name" value="<?php echo h($pick($resident, ['employer_name'])); ?>"></label>
-            <label><span>Economic Classification</span><input type="text" name="economic_classification" value="<?php echo h($pick($resident, ['economic_classification'])); ?>"></label>
           </div>
           <div class="form-actions"><button class="btn-primary" type="submit">Save Employment/Education</button></div>
         </form>
@@ -1283,6 +1272,49 @@ function formatSectionUpdated($sectionUpdated, $sectionName) {
     }
     btnEn.addEventListener('click', function() { callToggle(true); });
     btnDis.addEventListener('click', function() { callToggle(false); });
+})();
+</script>
+<script>
+(function() {
+    var form = document.getElementById('residentAvatarForm');
+    var input = form ? form.querySelector('input[type="file"]') : null;
+    var msg = document.getElementById('residentAvatarMsg');
+    var img = document.getElementById('residentProfileAvatar');
+    var api = window.API_URL || '';
+    if (!form || !input || !img || !api) {
+        return;
+    }
+    input.addEventListener('change', function() {
+        if (!input.files || !input.files[0]) {
+            return;
+        }
+        var fd = new FormData(form);
+        if (msg) {
+            msg.textContent = 'Uploading…';
+            msg.className = 'resident-avatar-msg small text-muted';
+        }
+        fetch(api + 'profile.php?action=upload', { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.data && data.data.url) {
+                    img.src = data.data.url + '?t=' + Date.now();
+                    if (msg) {
+                        msg.textContent = 'Photo updated.';
+                        msg.className = 'resident-avatar-msg small text-success';
+                    }
+                } else if (msg) {
+                    msg.textContent = (data && data.message) ? data.message : 'Upload failed.';
+                    msg.className = 'resident-avatar-msg small text-danger';
+                }
+            })
+            .catch(function() {
+                if (msg) {
+                    msg.textContent = 'Upload error.';
+                    msg.className = 'resident-avatar-msg small text-danger';
+                }
+            });
+        input.value = '';
+    });
 })();
 </script>
 <script src="<?php echo BASE_URL; ?>resident_profile.js?v=<?php echo urlencode((string)@filemtime(__DIR__ . '/resident_profile.js')); ?>"></script>

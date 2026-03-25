@@ -79,7 +79,6 @@ function formatPhoneInput(raw) {
 function initPhoneInputs() {
   const phoneSelectors = [
     'input[name="contact_number"]',
-    'input[name="emergency_contact_number"]'
   ];
   phoneSelectors.forEach((selector) => {
     const field = document.querySelector(selector);
