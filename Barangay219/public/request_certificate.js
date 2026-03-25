@@ -74,15 +74,13 @@ const purposeOptionsByType = {
     "Organized Vending Permit",
     "DSWD Requirement",
     "For Travel Abroad",
-    "Transfer of Residence",
-    "Others"
+    "Transfer of Residence"
   ],
   "Barangay Indigency": [
     "Financial Assistance",
     "Medical Purpose",
     "Hospital Purpose",
-    "DSWD Requirement",
-    "Others"
+    "DSWD Requirement"
   ],
   "Barangay Clearance": [
     "Job Application",
@@ -108,8 +106,7 @@ const purposeOptionsByType = {
     "Organized Vending Permit",
     "DSWD Requirement",
     "For Travel Abroad",
-    "Transfer of Residence",
-    "Others"
+    "Transfer of Residence"
   ]
 };
 
@@ -260,7 +257,8 @@ function toggleConditionalFields() {
   setError("businessAddressError", "");
 
   const isIndigency = certificateType && certificateType.value === "Barangay Indigency";
-  const isOthers = !isIndigency && purpose.value === "Others";
+  const isBarangayCertificate = certificateType && certificateType.value === "Barangay Certificate";
+  const isOthers = !isIndigency && isBarangayCertificate && purpose.value === "Others";
   purposeOtherWrap.classList.toggle("hidden", !isOthers);
 
   if (!isOthers) {
@@ -271,9 +269,10 @@ function toggleConditionalFields() {
 
 function updateSummary() {
   const isIndigency = certificateType && certificateType.value === "Barangay Indigency";
+  const isBarangayCertificate = certificateType && certificateType.value === "Barangay Certificate";
   const selectedPurpose = isIndigency
     ? "Not required"
-    : (purpose.value === "Others" ? (purposeOther.value.trim() || "Others") : (purpose.value || "-"));
+    : (isBarangayCertificate && purpose.value === "Others" ? (purposeOther.value.trim() || "Others") : (purpose.value || "-"));
   summaryCertificate.textContent = certificateType.value || "-";
   summaryPurpose.textContent = selectedPurpose;
   summaryDocuments.textContent = selectedFiles.length
@@ -322,13 +321,14 @@ function validateFormClient() {
   }
 
   const isIndigency = certificateType.value === "Barangay Indigency";
+  const isBarangayCertificate = certificateType.value === "Barangay Certificate";
   if (!isIndigency) {
     if (!purpose.value) {
       setError("purposeError", "Please select a purpose category.");
       valid = false;
     }
 
-    if (purpose.value === "Others" && !purposeOther.value.trim()) {
+    if (isBarangayCertificate && purpose.value === "Others" && !purposeOther.value.trim()) {
       setError("purposeOtherError", "Please specify the purpose.");
       valid = false;
     }
