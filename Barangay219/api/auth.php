@@ -124,12 +124,6 @@ function authCompleteLoginSession(Database $db, array $user) {
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['username'] = $user['username'];
     $_SESSION['role'] = $user['role'];
-    try {
-        $db->query(
-            "INSERT INTO activity_logs (user_id, action, module, ip_address) VALUES (?, 'login', 'auth', ?)",
-            [$user['id'], $_SERVER['REMOTE_ADDR'] ?? null]
-        );
-    } catch (Exception $e) { /* table may not exist yet */ }
     $_SESSION['email'] = $user['email'];
     $_SESSION['resident_id'] = $user['resident_id'];
     $_SESSION['logged_in'] = true;
@@ -365,12 +359,6 @@ function handleVerifyLogin2fa() {
                 "UPDATE login_2fa_challenges SET attempt_count = attempt_count + 1 WHERE id = ?",
                 [(int)$row['id']]
             );
-            try {
-                $db->query(
-                    "INSERT INTO activity_logs (user_id, action, module, ip_address) VALUES (?, 'login_2fa_failed', 'auth', ?)",
-                    [(int)$row['user_id'], $_SERVER['REMOTE_ADDR'] ?? null]
-                );
-            } catch (Exception $e) { /* ignore */ }
             sendResponse(false, 'Invalid or expired verification code.', null, 401);
             return;
         }
