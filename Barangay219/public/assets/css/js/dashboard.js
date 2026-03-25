@@ -1,7 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
-    loadStatistics();
-    loadCharts();
-    loadRecentActivities();
+    loadDashboardBundle();
 });
 
 /* ============================================================
@@ -41,6 +39,39 @@ function chartDefaults(extraPlugins) {
 }
 
 /* ============================================================
+   One request: KPIs + charts + recent activity (faster than 3 calls)
+   ============================================================ */
+function loadDashboardBundle() {
+    fetch(window.API_URL + 'reports.php?action=dashboard_bundle&limit=10')
+        .then(r => r.json())
+        .then(d => {
+            if (!d.success || !d.data) {
+                setDefaultStats();
+                renderRecentActivities([]);
+                return;
+            }
+            const p = d.data;
+            applyStatistics(p.statistics);
+            applyChartsData(p.charts);
+            renderRecentActivities(p.recent_activities || []);
+        })
+        .catch(() => {
+            setDefaultStats();
+            renderRecentActivities(null);
+        });
+}
+
+function applyStatistics(s) {
+    if (!s) return setDefaultStats();
+    setEl('totalResidents', s.total_residents ?? 0);
+    setEl('totalHouseholds', s.total_households ?? 0);
+    setEl('issuedCertificates', s.issued_certificates ?? 0);
+    setEl('pendingApplications', s.pending_certificates ?? s.pending_applications ?? 0);
+    setEl('pendingComplaints', s.pending_complaints ?? 0);
+    setEl('activeAnnouncements', s.active_announcements ?? 0);
+}
+
+/* ============================================================
    1. KPI Cards
    ============================================================ */
 function loadStatistics() {
@@ -48,13 +79,7 @@ function loadStatistics() {
         .then(r => r.json())
         .then(d => {
             if (!d.success || !d.data) return setDefaultStats();
-            const s = d.data;
-            setEl('totalResidents', s.total_residents ?? 0);
-            setEl('totalHouseholds', s.total_households ?? 0);
-            setEl('issuedCertificates', s.issued_certificates ?? 0);
-            setEl('pendingApplications', s.pending_certificates ?? s.pending_applications ?? 0);
-            setEl('pendingComplaints', s.pending_complaints ?? 0);
-            setEl('activeAnnouncements', s.active_announcements ?? 0);
+            applyStatistics(d.data);
         })
         .catch(() => setDefaultStats());
 }
@@ -69,23 +94,25 @@ function setDefaultStats() {
    ============================================================ */
 const chartInstances = {};
 
+function applyChartsData(c) {
+    if (!c) return;
+    setEl('approvedToday', c.approved_today ?? 0);
+    setEl('newRegistrationsToday', c.new_registrations_today ?? 0);
+
+    initLineChart('chartRequestsTime', c.requests_over_time, 'Requests', COLORS.blue);
+    initDoughnutChart('chartRequestStatus', c.request_status);
+    initDoughnutChart('chartGender', c.gender_distribution);
+    initBarChart('chartStreet', c.population_by_street, 'Residents', COLORS.teal, true);
+    initBarChart('chartAge', c.age_groups, 'Residents', COLORS.amber, false);
+    initSpecialCategories(c.special_categories);
+}
+
 function loadCharts() {
     fetch(window.API_URL + 'reports.php?action=dashboard_charts')
         .then(r => r.json())
         .then(d => {
             if (!d.success || !d.data) return;
-            const c = d.data;
-
-            setEl('approvedToday', c.approved_today ?? 0);
-            setEl('newRegistrationsToday', c.new_registrations_today ?? 0);
-
-            initLineChart('chartRequestsTime', c.requests_over_time, 'Requests', COLORS.blue);
-            initDoughnutChart('chartRequestStatus', c.request_status);
-            initDoughnutChart('chartGender', c.gender_distribution);
-            initBarChart('chartPurok', c.population_by_purok, 'Residents', COLORS.teal, true);
-            initLineChart('chartHouseholdTrends', c.household_trends, 'New Households', COLORS.green);
-            initBarChart('chartAge', c.age_groups, 'Residents', COLORS.amber, false);
-            initSpecialCategories(c.special_categories);
+            applyChartsData(d.data);
         })
         .catch(err => console.error('Dashboard charts error:', err));
 }
@@ -253,6 +280,27 @@ function initSpecialCategories(data) {
 /* ============================================================
    3. Recent Activities
    ============================================================ */
+function renderRecentActivities(rows) {
+    const list = document.getElementById('recentActivitiesList');
+    if (!list) return;
+
+    if (rows === null) {
+        list.innerHTML = '<div class="list-group-item text-center text-muted py-4">Unable to load activities</div>';
+        return;
+    }
+    if (rows.length > 0) {
+        list.innerHTML = rows.map(a => `
+                    <div class="list-group-item">
+                        <div class="act-user">${escapeHtml(a.username || 'System')}</div>
+                        <div class="act-action">${escapeHtml(a.summary || (a.action + ' — ' + a.module))}</div>
+                        <div class="act-time">${formatDateTime(a.created_at)}</div>
+                    </div>
+                `).join('');
+    } else {
+        list.innerHTML = '<div class="list-group-item text-center text-muted py-4">No recent activities</div>';
+    }
+}
+
 function loadRecentActivities() {
     const list = document.getElementById('recentActivitiesList');
     if (!list) return;
@@ -260,21 +308,13 @@ function loadRecentActivities() {
     fetch(window.API_URL + 'reports.php?action=recent_activities&limit=10')
         .then(r => r.json())
         .then(d => {
-            if (d.success && d.data && d.data.length > 0) {
-                list.innerHTML = d.data.map(a => `
-                    <div class="list-group-item">
-                        <div class="act-user">${escapeHtml(a.username || 'System')}</div>
-                        <div class="act-action">${escapeHtml(a.summary || (a.action + ' — ' + a.module))}</div>
-                        <div class="act-time">${formatDateTime(a.created_at)}</div>
-                    </div>
-                `).join('');
+            if (d.success && d.data) {
+                renderRecentActivities(d.data);
             } else {
-                list.innerHTML = '<div class="list-group-item text-center text-muted py-4">No recent activities</div>';
+                renderRecentActivities([]);
             }
         })
-        .catch(() => {
-            list.innerHTML = '<div class="list-group-item text-center text-muted py-4">Unable to load activities</div>';
-        });
+        .catch(() => renderRecentActivities(null));
 }
 
 /* ============================================================
