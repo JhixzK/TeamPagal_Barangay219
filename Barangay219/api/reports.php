@@ -74,13 +74,14 @@ function getRecentActivities() {
         }
         $limit = (int)($_GET['limit'] ?? 10);
         $limit = min(50, max(5, $limit));
+        $exclude = activityLogsExcludeLoginSql('al');
         $rows = $db->fetchAll(
             "SELECT al.*, u.username FROM activity_logs al 
              LEFT JOIN users u ON al.user_id = u.id 
-             ORDER BY al.created_at DESC LIMIT ?",
-            [$limit]
+             WHERE $exclude
+             ORDER BY al.created_at DESC LIMIT " . (int)$limit
         );
-        sendResponse(true, 'Recent activities', $rows);
+        sendResponse(true, 'Recent activities', activityLogsWithSummary($rows));
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
     }
@@ -458,18 +459,18 @@ function getActivityLogsReport() {
         }
 
         list($from, $to) = getDateFilter();
-        $where = "1=1";
+        $where = "1=1 AND " . activityLogsExcludeLoginSql('al');
         $params = [];
         if ($from) { $where .= " AND DATE(al.created_at) >= ?"; $params[] = $from; }
         if ($to) { $where .= " AND DATE(al.created_at) <= ?"; $params[] = $to; }
 
-        $sql = "SELECT al.created_at, u.username, al.action, al.module, al.ip_address
+        $sql = "SELECT al.created_at, u.username, al.action, al.module, al.details
                 FROM activity_logs al
                 LEFT JOIN users u ON al.user_id = u.id
                 WHERE $where
                 ORDER BY al.created_at DESC";
         $data = $db->fetchAll($sql, $params);
-        sendResponse(true, 'Activity logs report', $data);
+        sendResponse(true, 'Activity logs report', activityLogsWithSummary($data));
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
     }
