@@ -372,6 +372,20 @@ function getCertificateBodyTemplate(string $certificateType): string {
         ]);
     }
 
+    if ($normalized === 'transfer request') {
+        return implode("\n", [
+            'TO WHOM IT MAY CONCERN:',
+            '',
+            'This is to certify that [NAME], [NATIONALITY], [SEX], [AGE] years old, [CIVIL_STATUS], is a bonafide resident of Barangay 219, Zone 20, District II, Tondo, Manila with postal address at [ADDRESS].',
+            '',
+            'This certificate is being issued upon the request of the above-named person in connection with the transfer of residence, for the purpose of Travel/Transfer of Resident.',
+            '',
+            'This certificate shall be considered inoperative and this office will not be held accountable should it be used for purposes other than the one stated herein.',
+            '',
+            'Issued this [DATE_ISSUED], City of Manila.'
+        ]);
+    }
+
     return implode("\n", [
         'TO WHOM IT MAY CONCERN:',
         '',
@@ -383,7 +397,7 @@ function getCertificateBodyTemplate(string $certificateType): string {
     ]);
 }
 
-function buildCertificateBody(string $certificateType, string $name, ?int $age, string $civilStatus, string $address, string $purpose, string $dateIssued, string $controlNumber): string {
+function buildCertificateBody(string $certificateType, string $name, ?int $age, string $civilStatus, string $address, string $purpose, string $dateIssued, string $controlNumber, string $nationality = '', string $sex = ''): string {
     $template = getCertificateBodyTemplate($certificateType);
 
     $replacements = [
@@ -394,7 +408,9 @@ function buildCertificateBody(string $certificateType, string $name, ?int $age, 
         '[PURPOSE]' => $purpose !== '' ? $purpose : 'legal purpose',
         '[PURPOSE_CHECKLIST]' => buildPurposeChecklistText($purpose),
         '[DATE_ISSUED]' => $dateIssued,
-        '[CONTROL_NUMBER]' => $controlNumber
+        '[CONTROL_NUMBER]' => $controlNumber,
+        '[NATIONALITY]' => $nationality !== '' ? $nationality : 'N/A',
+        '[SEX]' => $sex !== '' ? ucfirst(strtolower($sex)) : 'N/A'
     ];
 
     return strtr($template, $replacements);
@@ -755,21 +771,28 @@ function directIssueCertificateByAdmin() {
 
     $residentId = (int)($_POST['resident_id'] ?? 0);
     $certificateType = normalizeCertificateType((string)($_POST['certificate_type'] ?? ''));
-    $purposeOption = trim((string)($_POST['purpose'] ?? 'Walk-in issuance'));
+    $purposeOption = trim((string)($_POST['purpose'] ?? ''));
     $purposeOther = trim((string)($_POST['purpose_other'] ?? ''));
 
     if ($residentId <= 0 || !in_array($certificateType, CERT_ALLOWED_TYPES, true)) {
         sendResponse(false, 'Resident and valid certificate type are required', null, 400);
     }
 
-    $purpose = resolvePurpose($purposeOption !== '' ? $purposeOption : 'Walk-in issuance', $purposeOther);
+    if ($certificateType === 'transfer_request') {
+        $purposeOption = 'Travel/Transfer of Resident';
+        $purposeOther = '';
+    } elseif ($purposeOption === '') {
+        $purposeOption = 'Walk-in issuance';
+    }
+
+    $purpose = resolvePurpose($purposeOption, $purposeOther);
 
     try {
         $db = Database::getInstance();
         ensureCertificateWorkflowSchema();
 
         $resident = $db->fetchOne(
-            "SELECT first_name, middle_name, last_name, birth_date, address, civil_status
+            "SELECT first_name, middle_name, last_name, birth_date, address, civil_status, citizenship, gender
              FROM residents
              WHERE id = ?
              LIMIT 1",
@@ -809,6 +832,8 @@ function directIssueCertificateByAdmin() {
         }
 
         $civilStatus = trim((string)($resident['civil_status'] ?? ''));
+        $nationality = trim((string)($resident['citizenship'] ?? ''));
+        $sex = trim((string)($resident['gender'] ?? ''));
         $issueDate = date('Y-m-d');
         $controlNumber = generateControlNumber();
         $certBody = buildCertificateBody(
@@ -819,7 +844,9 @@ function directIssueCertificateByAdmin() {
             $certAddress,
             $purpose,
             formatIssuedDateForBody($issueDate),
-            $controlNumber
+            $controlNumber,
+            $nationality,
+            $sex
         );
 
         $db->beginTransaction();
