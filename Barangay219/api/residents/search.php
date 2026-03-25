@@ -40,22 +40,38 @@ if (strlen($q) < 3) {
 
 try {
     $db = Database::getInstance();
-    $term = '%' . sanitizeInput($q) . '%';
+    $cleanQ = sanitizeInput($q);
+    $term = '%' . $cleanQ . '%';
+    $nameParts = preg_split('/\s+/', $cleanQ, 2);
 
-    $rows = $db->fetchAll(
-        "SELECT id,
-                CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) AS full_name,
-                COALESCE(purok_sitio, '') AS purok_sitio
-         FROM residents
-         WHERE first_name LIKE ?
-            OR middle_name LIKE ?
-            OR last_name LIKE ?
-            OR CONCAT(first_name, ' ', last_name) LIKE ?
-            OR resident_code LIKE ?
-         ORDER BY last_name ASC, first_name ASC
-         LIMIT 20",
-        [$term, $term, $term, $term, $term]
-    );
+    $where = [
+        'first_name LIKE ?',
+        'middle_name LIKE ?',
+        'last_name LIKE ?',
+        'resident_code LIKE ?'
+    ];
+    $params = [$term, $term, $term, $term];
+
+    if (count($nameParts) === 2 && $nameParts[0] !== '' && $nameParts[1] !== '') {
+        $firstLike = $nameParts[0] . '%';
+        $lastLike = $nameParts[1] . '%';
+        $where[] = '(first_name LIKE ? AND last_name LIKE ?)';
+        $where[] = '(first_name LIKE ? AND middle_name LIKE ?)';
+        $params[] = $firstLike;
+        $params[] = $lastLike;
+        $params[] = $firstLike;
+        $params[] = $lastLike;
+    }
+
+    $sql = "SELECT id,
+                   CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) AS full_name,
+                   COALESCE(purok_sitio, '') AS purok_sitio
+            FROM residents
+            WHERE " . implode(' OR ', $where) . "
+            ORDER BY last_name ASC, first_name ASC
+            LIMIT 20";
+
+    $rows = $db->fetchAll($sql, $params);
 
     $data = array_map(static function ($row) {
         return [
