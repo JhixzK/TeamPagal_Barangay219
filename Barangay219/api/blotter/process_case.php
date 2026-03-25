@@ -30,6 +30,7 @@ function ensureProcessCaseSchema($db) {
     $ddl = [
         "ALTER TABLE blotter_records ADD COLUMN IF NOT EXISTS respondent_id INT(11) DEFAULT NULL",
         "ALTER TABLE blotter_records ADD COLUMN IF NOT EXISTS hearing_date DATETIME NULL",
+        "ALTER TABLE blotter_records ADD COLUMN IF NOT EXISTS hearings_json TEXT NULL",
         "ALTER TABLE blotter_records ADD COLUMN IF NOT EXISTS settlement_date DATE NULL",
         "ALTER TABLE blotter_records ADD COLUMN IF NOT EXISTS dismissal_reason TEXT NULL",
         "ALTER TABLE blotter_records ADD COLUMN IF NOT EXISTS resolution_file VARCHAR(255) NULL",
@@ -102,11 +103,66 @@ function normalizeDateTimeOrNull($value) {
     return date('Y-m-d H:i:s', $ts);
 }
 
+function parseHearingsPayload($raw) {
+    if ($raw === null || $raw === '') {
+        return [];
+    }
+    $decoded = json_decode((string)$raw, true);
+    if (!is_array($decoded)) {
+        return null;
+    }
+
+    $out = [];
+    foreach ($decoded as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $date = normalizeDateTimeOrNull($entry['date'] ?? '');
+        $status = strtolower(trim((string)($entry['status'] ?? 'scheduled')));
+        if (!in_array($status, ['scheduled', 'completed', 'postponed', 'cancelled'], true)) {
+            $status = 'scheduled';
+        }
+        $outcome = sanitizeInput((string)($entry['outcome'] ?? ''));
+        $notes = sanitizeInput((string)($entry['notes'] ?? ''));
+        if ($date !== null || $outcome !== '' || $notes !== '' || $status !== 'scheduled') {
+            $out[] = [
+                'date' => $date,
+                'status' => $status,
+                'outcome' => $outcome,
+                'notes' => $notes,
+            ];
+        }
+    }
+
+    return $out;
+}
+
+function activeHearingDate(array $hearings): ?string {
+    for ($i = count($hearings) - 1; $i >= 0; $i--) {
+        $hearing = $hearings[$i] ?? [];
+        $status = strtolower(trim((string)($hearing['status'] ?? '')));
+        $date = normalizeDateTimeOrNull($hearing['date'] ?? '');
+        if ($status !== 'completed' && $status !== 'cancelled' && $date !== null) {
+            return $date;
+        }
+    }
+
+    foreach ($hearings as $hearing) {
+        $date = normalizeDateTimeOrNull($hearing['date'] ?? '');
+        if ($date !== null) {
+            return $date;
+        }
+    }
+
+    return null;
+}
+
 try {
     $caseId = (int)($_POST['case_id'] ?? 0);
     $status = sanitizeInput($_POST['status'] ?? '');
     $respondentId = !empty($_POST['respondent_id']) ? (int)$_POST['respondent_id'] : null;
     $respondentsJsonRaw = $_POST['respondents_json'] ?? null;
+    $hearingsRaw = $_POST['hearings'] ?? null;
     $adminNotes = sanitizeInput($_POST['admin_notes'] ?? '');
     $hearingDate = normalizeDateTimeOrNull($_POST['hearing_date'] ?? '');
     $settlementDate = normalizeDateOrNull($_POST['settlement_date'] ?? '');
@@ -122,12 +178,6 @@ try {
     if (!in_array($status, $allowedStatus, true)) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Invalid status']);
-        exit;
-    }
-
-    if ($status === 'mediation' && $hearingDate === null) {
-        http_response_code(422);
-        echo json_encode(['success' => false, 'message' => 'Hearing date is required for mediation status.']);
         exit;
     }
 
@@ -149,7 +199,7 @@ try {
     }
 
     $existing = $db->fetchOne(
-        'SELECT id, status, respondent_id, settlement_date, hearing_date, dismissal_reason, resolution_file FROM blotter_records WHERE id = ? LIMIT 1',
+        'SELECT id, status, respondent_id, settlement_date, hearing_date, hearings_json, dismissal_reason, resolution_file FROM blotter_records WHERE id = ? LIMIT 1',
         [$caseId]
     );
 
@@ -168,17 +218,48 @@ try {
     }
 
     $nextHearingDate = null;
+    $nextHearingsJson = null;
     $nextSettlementDate = null;
     $nextDismissalReason = null;
     $nextResolutionFile = null;
 
+    $hearings = parseHearingsPayload($hearingsRaw);
+    if ($hearings === null) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid hearings payload']);
+        exit;
+    }
+    if ($hearingsRaw === null) {
+        $existingHearings = json_decode((string)($existing['hearings_json'] ?? ''), true);
+        $hearings = is_array($existingHearings) ? $existingHearings : [];
+    }
+
     if ($status === 'mediation') {
-        $nextHearingDate = $hearingDate;
+        if (empty($hearings) && $hearingDate !== null) {
+            $hearings = [[
+                'date' => $hearingDate,
+                'status' => 'scheduled',
+                'outcome' => '',
+                'notes' => '',
+            ]];
+        }
+        $nextHearingDate = activeHearingDate($hearings);
+        $nextHearingsJson = !empty($hearings) ? json_encode($hearings, JSON_UNESCAPED_UNICODE) : null;
     } elseif ($status === 'settled') {
         $nextSettlementDate = $settlementDate;
         $nextResolutionFile = $resolutionPath ?: ($existing['resolution_file'] ?? null);
+        $nextHearingsJson = !empty($hearings) ? json_encode($hearings, JSON_UNESCAPED_UNICODE) : null;
     } elseif ($status === 'dismissed') {
         $nextDismissalReason = $dismissalReason !== '' ? $dismissalReason : null;
+        $nextHearingsJson = !empty($hearings) ? json_encode($hearings, JSON_UNESCAPED_UNICODE) : null;
+    } else {
+        $nextHearingsJson = !empty($hearings) ? json_encode($hearings, JSON_UNESCAPED_UNICODE) : null;
+    }
+
+    if ($status === 'mediation' && $nextHearingDate === null) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'message' => 'Hearing date is required for mediation status.']);
+        exit;
     }
 
     $db->query('START TRANSACTION');
@@ -272,13 +353,13 @@ try {
 
         // Mediation: hearing date must be present and not in the past
         if ($status === 'mediation') {
-            if ($hearingDate === null) {
+            if ($nextHearingDate === null) {
                 $db->query('ROLLBACK');
                 http_response_code(422);
                 echo json_encode(['success' => false, 'message' => 'Hearing date is required for Mediation.']);
                 exit;
             }
-            $hearingTs = strtotime($hearingDate);
+            $hearingTs = strtotime($nextHearingDate);
             $todayStart = strtotime(date('Y-m-d') . ' 00:00:00');
             if ($hearingTs !== false && $hearingTs < $todayStart) {
                 $db->query('ROLLBACK');
@@ -323,6 +404,7 @@ try {
         'respondent_name = ?',
         'admin_updates = ?',
         'hearing_date = ?',
+        'hearings_json = ?',
         'settlement_date = ?',
         'dismissal_reason = ?',
         'resolution_file = ?',
@@ -336,6 +418,7 @@ try {
         $normalizedRespondents !== null ? json_encode($normalizedRespondents, JSON_UNESCAPED_UNICODE) : null,
         $adminNotes,
         $nextHearingDate,
+        $nextHearingsJson,
         $nextSettlementDate,
         $nextDismissalReason,
         $nextResolutionFile,
@@ -355,6 +438,7 @@ try {
             'respondent_id' => $primaryRespondentId,
             'respondents' => $normalizedRespondents,
             'hearing_date' => $nextHearingDate,
+            'hearings' => $hearings,
             'settlement_date' => $nextSettlementDate,
             'dismissal_reason' => $nextDismissalReason,
             'resolution_file' => $nextResolutionFile,
