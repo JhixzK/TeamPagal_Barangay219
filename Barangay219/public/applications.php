@@ -603,6 +603,7 @@ include __DIR__ . '/../includes/sidebar.php';
     let currentReleaseCertificateType = '';
     let currentReleaseBirthDate = '';
     let currentReleaseCivilStatus = '';
+    let currentReleaseNationality = '';
     let walkInResidentSearchTimer = null;
     const APP_PERMS = {
         canEdit: window.canModulePermission
@@ -892,9 +893,9 @@ include __DIR__ . '/../includes/sidebar.php';
 
     function buildDefaultCertificateTemplate(certificateType = '') {
         const normalizedType = normalizeCertificateType(certificateType);
-        const isBarangayCertificate = (
-            normalizedType === 'barangay certificate'
-            || normalizedType === 'barangay clearance'
+        const isBarangayCertificate = normalizedType === 'barangay certificate';
+        const isBarangayClearance = (
+            normalizedType === 'barangay clearance'
             || normalizedType === 'barangay_clearance'
         );
         const isIndigencyCertificate = (
@@ -918,6 +919,16 @@ include __DIR__ . '/../includes/sidebar.php';
                 '[PURPOSE_CHECKLIST]',
                 '',
                 'IN WITNESS WHEREOF, I have hereunto set my hand and affixed the official seal of this office. Done in the Barangay Hall, Barangay 219, Zone 20, District II, City of Manila, this [DATE_ISSUED].'
+            ].join('\n');
+        }
+
+        if (isBarangayClearance) {
+            return [
+                'THIS IS TO CERTIFY that <strong>[NAME_UPPER]</strong>, [AGE] years old, [CIVIL_STATUS], and a <span class="resident-field">[NATIONALITY_UPPER]</span>, is a bonafide resident of Barangay 219, Zone 20, District II, Tondo, Manila, with postal address at [ADDRESS].',
+                '',
+                'FURTHER TO THIS, the above-mentioned person is known to be of good moral character and has no derogatory record on file in this office as of this date of issuance.',
+                '',
+                'This clearance is being issued upon the request of the interested party for the purpose of <strong>[PURPOSE]</strong> and for whatever legal purpose it may serve.'
             ].join('\n');
         }
 
@@ -981,6 +992,8 @@ include __DIR__ . '/../includes/sidebar.php';
     function replaceBodyPlaceholders(template, values) {
         return String(template || '')
             .replace(/\[NAME\]/g, values.name)
+            .replace(/\[NAME_UPPER\]/g, values.nameUpper || values.name)
+            .replace(/\[NATIONALITY_UPPER\]/g, values.nationalityUpper || values.nationality || 'FILIPINO')
             .replace(/\[AGE\]/g, values.age)
             .replace(/\[CIVIL_STATUS\]/g, values.civilStatus)
             .replace(/\[ADDRESS\]/g, values.address)
@@ -1000,9 +1013,13 @@ include __DIR__ . '/../includes/sidebar.php';
         const controlRaw = (document.getElementById('releaseControlNumber')?.value || '').trim();
         const age = calculateAgeFromBirthDate(currentReleaseBirthDate) || '[AGE]';
         const civilStatus = toTitleCase((currentReleaseCivilStatus || '').trim()) || '[CIVIL_STATUS]';
+        const nationality = (currentReleaseNationality || '').trim() || 'Filipino';
 
         const values = {
             name: name || '[NAME]',
+            nameUpper: (name || '[NAME]').toUpperCase(),
+            nationality,
+            nationalityUpper: nationality,
             age,
             civilStatus,
             address: address || '[ADDRESS]',
@@ -1227,6 +1244,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 currentReleaseCertificateType = (a.certificate_type || '').trim();
                 currentReleaseBirthDate = (a.birth_date || '').trim();
                 currentReleaseCivilStatus = (a.civil_status || '').trim();
+                currentReleaseNationality = (a.nationality || a.citizenship || '').trim();
                 document.getElementById('releaseId').value = id;
                 document.getElementById('releaseCertName').value = a.cert_name || toTitleCase(a.resident_name || '');
                 document.getElementById('releaseCertAddress').value = a.cert_address || a.address || '';
@@ -1253,6 +1271,9 @@ include __DIR__ . '/../includes/sidebar.php';
                     const dateIssuedPretty = formatIssueDateForBody(document.getElementById('releaseDateIssued').value || '');
                     const resolvedExisting = replaceBodyPlaceholders(existingBody, {
                         name: (document.getElementById('releaseCertName').value || '').trim(),
+                        nameUpper: ((document.getElementById('releaseCertName').value || '').trim() || '[NAME]').toUpperCase(),
+                        nationality: currentReleaseNationality || 'Filipino',
+                        nationalityUpper: (currentReleaseNationality || 'Filipino').toUpperCase(),
                         age: calculateAgeFromBirthDate(currentReleaseBirthDate) || '[AGE]',
                         civilStatus: toTitleCase((currentReleaseCivilStatus || '').trim()) || '[CIVIL_STATUS]',
                         address: (document.getElementById('releaseCertAddress').value || '').trim(),
@@ -1509,7 +1530,37 @@ include __DIR__ . '/../includes/sidebar.php';
         const wrap = document.getElementById('walkinPurposeWrap');
         const purposeSelect = document.getElementById('walkinPurposeSelect');
         const purposeOther = document.getElementById('walkinPurposeOther');
-        const requiresPurpose = certType === 'barangay_certificate';
+        const purposeOptionsByType = {
+            barangay_certificate: [
+                'Application for Employment',
+                'School Admission/Requirement',
+                'Hospital Purpose',
+                'Processing of Calamity',
+                'Medical Purpose',
+                'For Livelihood Loan',
+                'Bank Transaction',
+                'Indigent Family',
+                'Organized Vending Permit',
+                'DSWD Requirement',
+                'For Travel Abroad',
+                'Transfer of Residence',
+                'Others'
+            ],
+            barangay_clearance: [
+                'Job Application',
+                'National ID Application',
+                'Police Clearance Requirement',
+                'Bank Account Opening',
+                'School Enrollment',
+                'Scholarship Application',
+                'Business Permit Application',
+                'Passport Application',
+                'Utility Connection',
+                'First Time Jobseeker (RA 11261)'
+            ]
+        };
+        const options = purposeOptionsByType[certType] || [];
+        const requiresPurpose = options.length > 0;
 
         if (wrap) {
             wrap.classList.toggle('d-none', !requiresPurpose);
@@ -1522,6 +1573,15 @@ include __DIR__ . '/../includes/sidebar.php';
                 purposeOther.classList.add('d-none');
             }
             return;
+        }
+
+        if (purposeSelect) {
+            const currentValue = purposeSelect.value || '';
+            purposeSelect.innerHTML = '<option value="">-- Select Purpose --</option>'
+                + options.map(option => `<option value="${option}">${option}</option>`).join('');
+            if (options.includes(currentValue)) {
+                purposeSelect.value = currentValue;
+            }
         }
 
         if (purposeOther) {
@@ -1545,7 +1605,7 @@ include __DIR__ . '/../includes/sidebar.php';
             const certType = document.getElementById('walkinCertType')?.value || '';
             const purposeSelectVal = document.getElementById('walkinPurposeSelect')?.value || '';
             const purposeOtherVal = (document.getElementById('walkinPurposeOther')?.value || '').trim();
-            const requiresPurpose = certType === 'barangay_certificate';
+            const requiresPurpose = certType === 'barangay_certificate' || certType === 'barangay_clearance';
 
             if (!residentId || !certType) {
                 alert('Resident and certificate type are required.');
@@ -1553,7 +1613,7 @@ include __DIR__ . '/../includes/sidebar.php';
             }
 
             if (requiresPurpose && !purposeSelectVal) {
-                alert('Certificate purpose is required for Barangay Certificate.');
+                alert('Certificate purpose is required for this certificate type.');
                 return;
             }
 
