@@ -234,13 +234,33 @@ function generateResidentFamilyHeadCode($db) {
     return $prefix . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
 }
 
+function &householdColumnsCacheStore() {
+    static $cache = [];
+    return $cache;
+}
+
+function clearColumnsMapCache($table = null) {
+    $cache = &householdColumnsCacheStore();
+    if ($table === null) {
+        $cache = [];
+        return;
+    }
+    unset($cache[$table]);
+}
+
 function getColumnsMap($table) {
+    $cache = &householdColumnsCacheStore();
+    if (isset($cache[$table])) {
+        return $cache[$table];
+    }
+
     $db = Database::getInstance();
     $rows = $db->fetchAll("SHOW COLUMNS FROM {$table}");
     $map = [];
     foreach ($rows as $row) {
         $map[$row['Field']] = $row;
     }
+    $cache[$table] = $map;
     return $map;
 }
 
@@ -248,6 +268,7 @@ function addColumnIfMissing($table, $map, $columnName, $definition) {
     $db = Database::getInstance();
     if (!isset($map[$columnName])) {
         $db->query("ALTER TABLE {$table} ADD COLUMN {$columnName} {$definition}");
+        clearColumnsMapCache($table);
     }
 }
 
