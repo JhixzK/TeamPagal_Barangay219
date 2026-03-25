@@ -69,7 +69,6 @@ try {
             module VARCHAR(50) NOT NULL,
             entity_id INT(11) DEFAULT NULL,
             details JSON DEFAULT NULL,
-            ip_address VARCHAR(45) DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             KEY idx_user_id (user_id),
