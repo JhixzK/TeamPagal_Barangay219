@@ -444,8 +444,7 @@ function assignHouseholdHead($residentId, $data) {
             if ($oldFhc === '' || $oldFhc === '-') {
                 $oldFhc = generateResidentFamilyHeadCode($db);
             }
-            $db->query('UPDATE residents SET family_head_code = ? WHERE id = ?', [$oldFhc, $newHeadResidentId]);
-            $db->query('UPDATE residents SET family_head_code = NULL WHERE id = ?', [$oldHeadResidentId]);
+            $db->query('UPDATE residents SET family_head_code = ? WHERE household_id = ?', [$oldFhc, $householdId]);
             if ($currentDesignatedId === $oldHeadResidentId && isset($houseCols['family_head_code'])) {
                 $db->query('UPDATE households SET family_head_code = ? WHERE id = ?', [$oldFhc, $householdId]);
             }
@@ -461,13 +460,6 @@ function assignHouseholdHead($residentId, $data) {
                     [$newFc, $householdId, $newHeadResidentId]
                 );
             }
-        }
-        // Ensure non-head members don't retain stale family_head_code
-        if (columnExists($db, 'residents', 'family_head_code')) {
-            $db->query(
-                "UPDATE residents SET family_head_code = NULL WHERE household_id = ? AND id <> ? AND family_head_code IS NOT NULL AND TRIM(family_head_code) <> ''",
-                [$householdId, $newHeadResidentId]
-            );
         }
         // Point all members' family_head_resident_id to the new head
         if (columnExists($db, 'residents', 'family_head_resident_id')) {
