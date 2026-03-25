@@ -833,9 +833,10 @@ include __DIR__ . '/../includes/sidebar.php';
         return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
     }
 
-    function isPurposeOthers(value = '') {
+    function isPurposeOthers(value = '', certificateType = '') {
         const normalizedSelected = normalizePurposeText(value);
         if (!normalizedSelected) return false;
+        if (normalizeCertificateType(certificateType) !== 'barangay certificate') return false;
 
         const knownPurposes = [
             'Application for Employment',
@@ -857,11 +858,16 @@ include __DIR__ . '/../includes/sidebar.php';
         return !isKnownPurpose;
     }
 
-    function formatPurposeDisplay(value = '') {
+    function formatPurposeDisplay(value = '', certificateType = '', purposeOption = '', purposeDetails = '') {
         const rawValue = String(value || '').trim();
         if (!rawValue) return '-';
+        const rawOption = String(purposeOption || '').trim();
+        const rawDetails = String(purposeDetails || '').trim();
+        if (normalizeCertificateType(certificateType) === 'barangay certificate' && normalizePurposeText(rawOption) === 'others') {
+            return rawDetails ? `Others: ${rawDetails}` : 'Others';
+        }
         if (normalizePurposeText(rawValue) === 'others') return 'Others';
-        if (isPurposeOthers(rawValue)) return `Others: ${toTitleCase(rawValue)}`;
+        if (isPurposeOthers(rawValue, certificateType)) return `Others: ${toTitleCase(rawValue)}`;
         return toTitleCase(rawValue);
     }
 
@@ -1143,10 +1149,10 @@ include __DIR__ . '/../includes/sidebar.php';
                         <section class="app-detail-card">
                             <h6><i class="bi bi-file-earmark-text me-1"></i> Certificate Info</h6>
                             <div class="detail-row"><span>Type</span><strong>${esc(toTitleCase((a.certificate_type || '').replace(/_/g, ' ')))}</strong></div>
-                            <div class="detail-row"><span>Submitted Purpose</span><strong>${esc(formatPurposeDisplay(submittedPurpose))}</strong></div>
+                            <div class="detail-row"><span>Submitted Purpose</span><strong>${esc(formatPurposeDisplay(submittedPurpose, a.certificate_type || '', a.purpose_option || '', a.purpose_details || a.purpose_other || ''))}</strong></div>
                             <div class="detail-row"><span>Certificate Name</span><strong>${esc(certName || '-')}</strong></div>
                             <div class="detail-row"><span>Certificate Address</span><strong>${esc(certAddress || '-')}</strong></div>
-                            <div class="detail-row"><span>Certificate Purpose</span><strong>${esc(formatPurposeDisplay(certPurpose))}</strong></div>
+                            <div class="detail-row"><span>Certificate Purpose</span><strong>${esc(formatPurposeDisplay(certPurpose, a.certificate_type || '', a.purpose_option || '', a.purpose_details || a.purpose_other || ''))}</strong></div>
                         </section>
 
                         <section class="app-detail-card">
@@ -1251,7 +1257,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 const releasePurposeValue = a.cert_purpose || a.purpose || '';
                 const releasePurposeInput = document.getElementById('releaseCertPurpose');
                 releasePurposeInput.value = releasePurposeValue;
-                releasePurposeInput.readOnly = !isPurposeOthers(releasePurposeValue);
+                releasePurposeInput.readOnly = !isPurposeOthers(releasePurposeValue, currentReleaseCertificateType);
                 document.getElementById('releaseDateIssued').value = (a.date_issued || new Date().toISOString().slice(0,10));
 
                 if (a.control_number) {
