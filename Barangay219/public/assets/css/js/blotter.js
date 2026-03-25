@@ -395,6 +395,11 @@ function initDetailModalEditMode() {
     }
 
     // Ensure Complete Hearing button is wired in view/edit modal
+    const btnCompleteOnly = document.getElementById('btnCompleteHearingOnly');
+    if (btnCompleteOnly) {
+        btnCompleteOnly.removeEventListener('click', markHearingCompletedOnly);
+        btnCompleteOnly.addEventListener('click', markHearingCompletedOnly);
+    }
     const btnComplete = document.getElementById('btnCompleteHearing');
     if (btnComplete) {
         btnComplete.removeEventListener('click', markHearingCompleteAndScheduleNext);
@@ -527,7 +532,7 @@ function enableEditMode() {
 
         if (currentViewingCaseData) {
             const data = currentViewingCaseData;
-            if (hearingDateEl) hearingDateEl.value = formatDateTimeLocal((data.hearings && data.hearings[0] && data.hearings[0].date) ? data.hearings[0].date : (data.hearing_date || ''));
+            if (hearingDateEl) hearingDateEl.value = formatDateTimeLocal(getActiveHearingDate(data.hearings) || data.hearing_date || '');
             if (settlementDateEl) settlementDateEl.value = (data.settlement_date || '').substring(0, 10);
             if (dismissalReasonEl) dismissalReasonEl.value = data.dismissal_reason || '';
 
@@ -655,6 +660,32 @@ function toggleProcessFieldsByStatus(status) {
     if (completeSection) completeSection.style.display = showComplete ? '' : 'none';
 }
 
+function getActiveHearingIndex(hearings) {
+    if (!Array.isArray(hearings)) return -1;
+    for (let i = hearings.length - 1; i >= 0; i--) {
+        const item = hearings[i] || {};
+        const currentStatus = String(item.status || '').toLowerCase();
+        if (currentStatus !== 'completed' && currentStatus !== 'cancelled') {
+            return i;
+        }
+    }
+    return -1;
+}
+
+function getActiveHearingDate(hearings) {
+    const idx = getActiveHearingIndex(hearings);
+    if (idx >= 0) {
+        return String(hearings[idx]?.date || '').trim();
+    }
+    if (Array.isArray(hearings)) {
+        for (let i = hearings.length - 1; i >= 0; i--) {
+            const date = String(hearings[i]?.date || '').trim();
+            if (date) return date;
+        }
+    }
+    return '';
+}
+
 function searchResidentsForRespondent(keyword) {
     const resultsContainer = document.getElementById('respondentSearchResults');
     if (!resultsContainer) return;
@@ -765,12 +796,6 @@ function submitCaseDetailUpdate(e) {
         return;
     }
 
-    // Require hearing date for Mediation
-    if (status === 'mediation' && !hearingDate) {
-        alert('Hearing date is required when status is Mediation.');
-        return;
-    }
-
     // Require settlement date and resolution file for Settled
     if (status === 'settled') {
         if (!settlementDate) {
@@ -810,23 +835,23 @@ function submitCaseDetailUpdate(e) {
     // Prefer collecting from hearing rows if present
     let hearingsToSend = [];
     try { hearingsToSend = collectEditHearings(); } catch (e) { hearingsToSend = []; }
-    // Determine if any collected hearing has a valid date
-    const hasAnyDate = Array.isArray(hearingsToSend) && hearingsToSend.some(h => String(h.date || '').trim() !== '');
-    if (!hasAnyDate) {
-        if (hearingDate) {
-            if (!Array.isArray(hearingsToSend) || hearingsToSend.length === 0) {
-                hearingsToSend = [{ date: hearingDate, status: 'scheduled', outcome: '', notes: '' }];
-            } else {
-                // populate the first slot's date with the explicit hearingDate
-                hearingsToSend[0].date = hearingDate;
-            }
-        }
+    const explicitHearingDate = hearingDate ? fromDateTimeLocalToServer(hearingDate) : '';
+    const activeHearingIdx = getActiveHearingIndex(hearingsToSend);
+    if (status === 'mediation' && activeHearingIdx === -1 && explicitHearingDate) {
+        hearingsToSend.push({ date: explicitHearingDate, status: 'scheduled', outcome: '', notes: '' });
+    } else if (status === 'mediation' && activeHearingIdx >= 0 && explicitHearingDate && !String(hearingsToSend[activeHearingIdx].date || '').trim()) {
+        hearingsToSend[activeHearingIdx].date = explicitHearingDate;
+    }
+    const activeHearingDate = getActiveHearingDate(hearingsToSend);
+    if (status === 'mediation' && !activeHearingDate) {
+        alert('A scheduled hearing date is required when status is Mediation.');
+        return;
     }
     if (hearingsToSend && hearingsToSend.length) {
         formData.append('hearings', JSON.stringify(hearingsToSend));
-        // for backward compatibility, also send legacy hearing_date as first hearing date
-        if (hearingsToSend[0] && hearingsToSend[0].date) {
-            formData.append('hearing_date', hearingsToSend[0].date);
+        // for backward compatibility, also send legacy hearing_date as the current active hearing date
+        if (activeHearingDate) {
+            formData.append('hearing_date', activeHearingDate);
         }
     }
     formData.append('settlement_date', settlementDate);
@@ -872,6 +897,7 @@ function submitCaseDetailUpdate(e) {
                 showBlotterSuccessToast('Case processed successfully.');
                 // Always reset modal to view mode after save
                 try { document.getElementById('btnCompleteHearing').disabled = false; } catch (e) {}
+                try { document.getElementById('btnCompleteHearingOnly').disabled = false; } catch (e) {}
                 disableEditMode();
             } else {
                 alert('Error: ' + d.message);
@@ -1106,13 +1132,13 @@ function renderViewHearingsFromArray(hearings) {
     if (el) el.innerHTML = hearingsHTML;
 }
 
-// Handler: mark the current (active) hearing as completed, save outcome/notes, append a new scheduled hearing
-function markHearingCompleteAndScheduleNext() {
+function updateCurrentHearingLocally({ scheduleNext = false } = {}) {
     const caseId = document.getElementById('editCaseId')?.value || '';
     if (!caseId) { alert('No case loaded'); return; }
 
     const outcome = (document.getElementById('completeHearingOutcome')?.value || '').trim();
     const notes = (document.getElementById('completeHearingNotes')?.value || '').trim();
+    const nextHearingDateRaw = (document.getElementById('completeNextHearingDate')?.value || '').trim();
 
     const caseForm = document.getElementById('caseDetailForm');
 
@@ -1150,8 +1176,15 @@ function markHearingCompleteAndScheduleNext() {
     if (outcome) collected[targetIdx].outcome = outcome;
     if (notes) collected[targetIdx].notes = notes;
 
-    // Append a new scheduled hearing for the user
-    collected.push({ date: '', status: 'scheduled', outcome: '', notes: '' });
+    if (scheduleNext) {
+        if (!nextHearingDateRaw) {
+            alert('Please set the next hearing date and time.');
+            return;
+        }
+
+        // Append a new scheduled hearing for the user
+        collected.push({ date: fromDateTimeLocalToServer(nextHearingDateRaw), status: 'scheduled', outcome: '', notes: '' });
+    }
 
     // If DOM container exists, re-render the editable rows to reflect changes
     if (container) {
@@ -1180,6 +1213,12 @@ function markHearingCompleteAndScheduleNext() {
             // Update cached data
             currentViewingCaseData = currentViewingCaseData || {};
             currentViewingCaseData.hearings = collected;
+            currentViewingCaseData.hearing_date = getActiveHearingDate(collected) || '';
+
+            const hearingDateInput = document.getElementById('editHearingDate');
+            if (hearingDateInput) {
+                hearingDateInput.value = formatDateTimeLocal(currentViewingCaseData.hearing_date);
+            }
 
             // If DOM container exists, ensure last appended row is visible
             if (document.getElementById('hearingsContainer')) {
@@ -1195,8 +1234,16 @@ function markHearingCompleteAndScheduleNext() {
             // Disable the Complete button to avoid duplicate clicks and inform the user
             const btn = document.getElementById('btnCompleteHearing');
             if (btn) { btn.disabled = true; }
+            const btnOnly = document.getElementById('btnCompleteHearingOnly');
+            if (btnOnly) { btnOnly.disabled = true; }
+            const nextDateEl = document.getElementById('completeNextHearingDate');
+            if (nextDateEl) nextDateEl.value = '';
 
-            showBlotterSuccessToast('Marked hearing completed locally. Click Save Changes to persist the new schedule.');
+            showBlotterSuccessToast(
+                scheduleNext
+                    ? 'Hearing completed and next hearing scheduled locally. Click Save Changes to persist.'
+                    : 'Hearing completed locally. Change the case status if no further hearing is needed, then click Save Changes.'
+            );
         } catch (e) {
             console.error('Error updating local hearing state:', e);
             alert('Error updating hearing locally');
@@ -1213,6 +1260,14 @@ function markHearingCompleteAndScheduleNext() {
 
     // Otherwise perform immediately
     performComplete();
+}
+
+function markHearingCompletedOnly() {
+    updateCurrentHearingLocally({ scheduleNext: false });
+}
+
+function markHearingCompleteAndScheduleNext() {
+    updateCurrentHearingLocally({ scheduleNext: true });
 }
 
 function loadAuditLog(caseId) {
@@ -1367,19 +1422,27 @@ function editBlotter(id) {
                     // Prefill Complete Hearing inputs only when the section is visible (mediation)
                     const outEl = document.getElementById('completeHearingOutcome');
                     const notesEl = document.getElementById('completeHearingNotes');
+                    const nextDateEl = document.getElementById('completeNextHearingDate');
                     const currentStatus = (document.getElementById('editStatus')?.value || '').toLowerCase();
                     if (currentStatus === 'mediation') {
                         if (outEl) outEl.value = active ? (active.outcome || '') : '';
                         if (notesEl) notesEl.value = active ? (active.notes || '') : '';
+                        if (nextDateEl) nextDateEl.value = '';
                     } else {
                         if (outEl) outEl.value = '';
                         if (notesEl) notesEl.value = '';
+                        if (nextDateEl) nextDateEl.value = '';
                     }
 
                 const btn = document.getElementById('btnCompleteHearing');
                 if (btn) {
                     btn.removeEventListener('click', markHearingCompleteAndScheduleNext);
                     btn.addEventListener('click', markHearingCompleteAndScheduleNext);
+                }
+                const btnOnly = document.getElementById('btnCompleteHearingOnly');
+                if (btnOnly) {
+                    btnOnly.removeEventListener('click', markHearingCompletedOnly);
+                    btnOnly.addEventListener('click', markHearingCompletedOnly);
                 }
             }
 
