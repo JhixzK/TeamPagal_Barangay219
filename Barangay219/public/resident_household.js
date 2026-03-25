@@ -100,14 +100,10 @@ function setupEventListeners() {
     ["openManageMembers", openManageMembersModal],
     ["closeManageMembersModal", closeManageMembersModal],
     ["closeTransferHeadReasonModal", closeTransferHeadReasonModal],
-    ["submitTransferHeadReason", submitTransferHeadReason],
     ["openAddDependentModal", openAddDependentModal],
     ["closeAddDependentModal", closeAddDependentModal],
     ["closeEditMemberModal", closeEditMemberModal],
     ["submitEditMember", submitEditMember],
-    ["openUpdateOverview", editHousehold],
-    ["closeOverviewModal", closeOverviewUpdateModal],
-    ["submitOverviewUpdate", submitOverviewUpdate],
     ["leaveHousehold", leaveHousehold]
   ].forEach(([action, handler]) => {
     document.querySelectorAll(`[data-action="${action}"]`).forEach((btn) => {
@@ -158,6 +154,12 @@ function setupEventListeners() {
     const isOther = (reasonSel.value || "") === "Others";
     if (otherGroup) otherGroup.style.display = isOther ? "block" : "none";
     if (!isOther && otherInput) otherInput.value = "";
+  });
+
+  const transferHeadReasonForm = document.getElementById("transferHeadReasonForm");
+  transferHeadReasonForm?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    submitTransferHeadReason(e);
   });
 
   // Add member removed on resident side
@@ -235,9 +237,7 @@ function displayHouseholdPanel(data) {
   document.getElementById("displayCreated").textContent = formatDate(household.created_at);
 
   const leaveBtn = document.getElementById("leaveHouseholdBtn");
-  const newUpdateOverviewBtn = document.getElementById("btnUpdateOverview");
   const newManageBtn = document.getElementById("btnManageMembers");
-  if (newUpdateOverviewBtn) newUpdateOverviewBtn.style.display = isHead ? "inline-flex" : "none";
   if (leaveBtn) leaveBtn.style.display = isHead ? "none" : "inline-flex";
   if (newManageBtn) newManageBtn.style.display = isHead ? "inline-flex" : "none";
   const addDepBtn = document.getElementById("btnAddDependent");
@@ -387,6 +387,7 @@ function openManageMembersModal() {
     showErrorMessage("Only household head can manage members.");
     return;
   }
+  resetTransferHeadReasonPanel();
   renderManageMembersTable(currentMembers || []);
   const modal = document.getElementById("manageMembersModal");
   if (modal) {
@@ -396,6 +397,7 @@ function openManageMembersModal() {
 }
 
 function closeManageMembersModal() {
+  resetTransferHeadReasonPanel();
   const modal = document.getElementById("manageMembersModal");
   if (modal) {
     modal.style.display = "none";
@@ -696,7 +698,7 @@ async function assignNewHead(memberId) {
   }
 
   pendingTransferHeadTarget = { member_id: Number(memberId || 0) };
-  openTransferHeadReasonModal();
+  openTransferHeadReasonPanel();
 }
 
 function assignNewHeadByResident(residentId) {
@@ -705,28 +707,56 @@ function assignNewHeadByResident(residentId) {
     return;
   }
   pendingTransferHeadTarget = { resident_id: Number(residentId || 0) };
-  openTransferHeadReasonModal();
+  openTransferHeadReasonPanel();
 }
 
-function openTransferHeadReasonModal() {
-  const modal = document.getElementById("transferHeadReasonModal");
+function resolveTransferTargetMemberName() {
+  if (!pendingTransferHeadTarget) return "";
+  const mid = Number(pendingTransferHeadTarget.member_id || 0);
+  const rid = Number(pendingTransferHeadTarget.resident_id || 0);
+  const list = currentMembers || [];
+  let m;
+  if (mid > 0) {
+    m = list.find((x) => Number(x.id) === mid);
+  } else if (rid > 0) {
+    m = list.find((x) => Number(x.resident_id) === rid);
+  }
+  return (m && m.name) ? String(m.name).trim() : "";
+}
+
+function resetTransferHeadReasonPanel() {
+  const panel = document.getElementById("transferHeadReasonPanel");
   const form = document.getElementById("transferHeadReasonForm");
   if (form) form.reset();
   const otherGroup = document.getElementById("transferHeadReasonOtherGroup");
   if (otherGroup) otherGroup.style.display = "none";
-  if (modal) {
-    modal.style.display = "flex";
-    document.body.style.overflow = "hidden";
+  if (panel) {
+    panel.style.display = "none";
+  }
+  pendingTransferHeadTarget = null;
+}
+
+function openTransferHeadReasonPanel() {
+  const panel = document.getElementById("transferHeadReasonPanel");
+  const form = document.getElementById("transferHeadReasonForm");
+  const summary = document.getElementById("transferHeadTargetSummary");
+  if (form) form.reset();
+  const otherGroup = document.getElementById("transferHeadReasonOtherGroup");
+  if (otherGroup) otherGroup.style.display = "none";
+  const name = resolveTransferTargetMemberName();
+  if (summary) {
+    summary.textContent = name
+      ? `You are transferring the head role to ${name}. Choose a reason below.`
+      : "Choose a reason for transferring the head role.";
+  }
+  if (panel) {
+    panel.style.display = "block";
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 }
 
 function closeTransferHeadReasonModal() {
-  const modal = document.getElementById("transferHeadReasonModal");
-  if (modal) {
-    modal.style.display = "none";
-    document.body.style.overflow = "auto";
-  }
-  pendingTransferHeadTarget = null;
+  resetTransferHeadReasonPanel();
 }
 
 async function submitTransferHeadReason(e) {
@@ -751,15 +781,24 @@ async function submitTransferHeadReason(e) {
   }
 
   try {
+    const submitBtn = document.getElementById("submitTransferHeadReasonBtn");
+    if (submitBtn) submitBtn.disabled = true;
     await requestJson(`${HOUSEHOLD_API}/member.php`, {
       method: "PUT",
       body: JSON.stringify({ action: "assign_head", ...pendingTransferHeadTarget, reason: finalReason })
     });
-    closeTransferHeadReasonModal();
+    resetTransferHeadReasonPanel();
     showSuccessMessage("Household head updated.");
     await loadHouseholdInfo();
+    const mm = document.getElementById("manageMembersModal");
+    if (mm && mm.style.display === "flex") {
+      renderManageMembersTable(currentMembers || []);
+    }
   } catch (error) {
     showErrorMessage(error.message);
+  } finally {
+    const submitBtn = document.getElementById("submitTransferHeadReasonBtn");
+    if (submitBtn) submitBtn.disabled = false;
   }
 }
 
@@ -812,87 +851,12 @@ async function leaveHousehold() {
   }
 }
 
-async function editHousehold() {
-  if (!currentHouseholdContext?.is_head || !currentHouseholdData) {
-    showErrorMessage("Only household head can update overview details.");
-    return;
-  }
-
-  const form = document.getElementById("overviewFormContainer");
-  if (form) {
-    form.reset();
-  }
-
-  const householdType = document.getElementById("overviewHouseholdType");
-  const housingStatus = document.getElementById("overviewHousingStatus");
-  const yearsResidency = document.getElementById("overviewYearsResidency");
-
-  if (householdType) {
-    const val = (currentHouseholdData.household_type || "").toString().trim();
-    const legacy = ["nuclear", "extended", "single_parent", "others"];
-    const isLegacy = legacy.includes(val.toLowerCase());
-    const hasOpt = Array.from(householdType.options).some(o => o.value === val);
-    householdType.value = (val && !isLegacy && hasOpt) ? val : "";
-  }
-  if (housingStatus) housingStatus.value = currentHouseholdData.housing_status || "owned";
-  if (yearsResidency) yearsResidency.value = String(currentHouseholdData.years_of_residency ?? 0);
-
-  const modal = document.getElementById("overviewUpdateModal");
-  if (modal) {
-    modal.style.display = "flex";
-    document.body.style.overflow = "hidden";
-  }
-}
-
-function closeOverviewUpdateModal() {
-  const modal = document.getElementById("overviewUpdateModal");
-  if (modal) {
-    modal.style.display = "none";
-    document.body.style.overflow = "auto";
-  }
-}
-
-async function submitOverviewUpdate(e) {
-  e?.preventDefault();
-
-  if (!currentHouseholdContext?.is_head || !currentHouseholdData) {
-    showErrorMessage("Only household head can update overview details.");
-    return;
-  }
-
-  const householdType = (document.getElementById("overviewHouseholdType")?.value || "").trim();
-  const housingStatus = (document.getElementById("overviewHousingStatus")?.value || "").trim();
-  const yearsRaw = (document.getElementById("overviewYearsResidency")?.value || "").trim();
-  const years = Number.parseInt(yearsRaw, 10);
-  if (!housingStatus || !Number.isFinite(years) || years < 0 || years > 120) {
-    showErrorMessage("Please provide valid housing status and residency years (0-120).");
-    return;
-  }
-
-  try {
-    await requestJson(`${HOUSEHOLD_API}/info.php`, {
-      method: "POST",
-      body: JSON.stringify({
-        action: "update_household_meta",
-        household_type: householdType || null,
-        housing_status: housingStatus,
-        years_of_residency: years,
-      })
-    });
-
-    closeOverviewUpdateModal();
-    showSuccessMessage("Household overview updated.");
-    await loadHouseholdInfo();
-  } catch (error) {
-    showErrorMessage(error.message);
-  }
-}
-
 function closeAllModals() {
   // Close only custom (non-Bootstrap) modals.
   document.querySelectorAll(".modal:not(.fade)").forEach((modal) => {
     modal.style.display = "none";
   });
+  resetTransferHeadReasonPanel();
   document.body.style.overflow = "auto";
 }
 
