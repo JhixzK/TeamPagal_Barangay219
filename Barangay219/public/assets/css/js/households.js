@@ -12,6 +12,23 @@ let selectedStreetLabel = '';
 /** Search text for household list (per-street view only); sent as API `q` */
 let householdListQuery = '';
 
+/** Street-level household list filters. */
+let householdListFilters = {
+    member_range: '',
+    with_senior: false,
+    with_minors: false,
+    single_occupant: false,
+    with_registered_voters: false,
+    all_members_verified: false,
+    with_missing_info: false,
+    house_type: '',
+    indigent_status: '',
+    verification_status: '',
+    residency_from: '',
+    residency_to: '',
+    sort_by: 'newest'
+};
+
 function showHouseholdToast(message, type) {
     type = type || 'success';
     const container = document.getElementById('householdToastContainer');
@@ -566,14 +583,106 @@ function renderBreadcrumb() {
 
 function resetHouseholdListSearchFields() {
     householdListQuery = '';
+    householdListFilters = {
+        member_range: '',
+        with_senior: false,
+        with_minors: false,
+        single_occupant: false,
+        with_registered_voters: false,
+        all_members_verified: false,
+        with_missing_info: false,
+        house_type: '',
+        indigent_status: '',
+        verification_status: '',
+        residency_from: '',
+        residency_to: '',
+        sort_by: 'newest'
+    };
+
     const input = document.getElementById('hhHouseholdSearchInput');
     if (input) input.value = '';
+
+    resetHouseholdFilterModalFields();
+}
+
+function resetHouseholdFilterModalFields() {
+    const fields = {
+        'hhModalFilterMemberRange': '',
+        'hhModalFilterHouseType': '',
+        'hhModalFilterIndigentStatus': '',
+        'hhModalFilterVerificationStatus': '',
+        'hhModalFilterSortBy': 'newest',
+        'hhModalFilterResidencyFrom': '',
+        'hhModalFilterResidencyTo': ''
+    };
+
+    Object.entries(fields).forEach(function([id, value]) {
+        const el = document.getElementById(id);
+        if (el) el.value = value;
+    });
+
+    const checkboxes = [
+        'hhModalFilterWithSenior',
+        'hhModalFilterWithMinors',
+        'hhModalFilterSingleOccupant',
+        'hhModalFilterWithRegisteredVoters',
+        'hhModalFilterAllMembersVerified',
+        'hhModalFilterWithMissingInfo'
+    ];
+
+    checkboxes.forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
+    });
+}
+
+function collectHouseholdListFiltersFromUI() {
+    const memberRange = document.getElementById('hhModalFilterMemberRange');
+    const houseType = document.getElementById('hhModalFilterHouseType');
+    const indigentStatus = document.getElementById('hhModalFilterIndigentStatus');
+    const verificationStatus = document.getElementById('hhModalFilterVerificationStatus');
+    const sortBy = document.getElementById('hhModalFilterSortBy');
+    const residencyFrom = document.getElementById('hhModalFilterResidencyFrom');
+    const residencyTo = document.getElementById('hhModalFilterResidencyTo');
+    const withSenior = document.getElementById('hhModalFilterWithSenior');
+    const withMinors = document.getElementById('hhModalFilterWithMinors');
+    const singleOccupant = document.getElementById('hhModalFilterSingleOccupant');
+    const withRegisteredVoters = document.getElementById('hhModalFilterWithRegisteredVoters');
+    const allMembersVerified = document.getElementById('hhModalFilterAllMembersVerified');
+    const withMissingInfo = document.getElementById('hhModalFilterWithMissingInfo');
+
+    householdListFilters.member_range = memberRange ? (memberRange.value || '') : '';
+    householdListFilters.house_type = houseType ? (houseType.value || '') : '';
+    householdListFilters.indigent_status = indigentStatus ? (indigentStatus.value || '') : '';
+    householdListFilters.verification_status = verificationStatus ? (verificationStatus.value || '') : '';
+    householdListFilters.residency_from = residencyFrom ? (residencyFrom.value || '') : '';
+    householdListFilters.residency_to = residencyTo ? (residencyTo.value || '') : '';
+    householdListFilters.sort_by = sortBy ? (sortBy.value || 'newest') : 'newest';
+    householdListFilters.with_senior = !!(withSenior && withSenior.checked);
+    householdListFilters.with_minors = !!(withMinors && withMinors.checked);
+    householdListFilters.single_occupant = !!(singleOccupant && singleOccupant.checked);
+    householdListFilters.with_registered_voters = !!(withRegisteredVoters && withRegisteredVoters.checked);
+    householdListFilters.all_members_verified = !!(allMembersVerified && allMembersVerified.checked);
+    householdListFilters.with_missing_info = !!(withMissingInfo && withMissingInfo.checked);
+}
+
+function applyHouseholdFilters() {
+    collectHouseholdListFiltersFromUI();
+    const modalEl = document.getElementById('hhFilterModal');
+    if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
+    withTilesTransition(() => Promise.resolve(loadHouseholds()));
 }
 
 function runHouseholdListSearch() {
-    if (householdNavLevel !== 'households') return;
+    if (householdNavLevel !== 'households') {
+        return;
+    }
     const input = document.getElementById('hhHouseholdSearchInput');
     householdListQuery = (input && input.value) ? input.value.trim() : '';
+    collectHouseholdListFiltersFromUI();
     withTilesTransition(() => Promise.resolve(loadHouseholds()));
 }
 
@@ -723,6 +832,46 @@ function loadHouseholds() {
     }
     if (householdListQuery) {
         params.append('q', householdListQuery);
+    }
+
+    if (householdListFilters.member_range) {
+        params.append('member_range', householdListFilters.member_range);
+    }
+    if (householdListFilters.with_senior) {
+        params.append('with_senior', '1');
+    }
+    if (householdListFilters.with_minors) {
+        params.append('with_minors', '1');
+    }
+    if (householdListFilters.single_occupant) {
+        params.append('single_occupant', '1');
+    }
+    if (householdListFilters.house_type) {
+        params.append('house_type', householdListFilters.house_type);
+    }
+    if (householdListFilters.indigent_status) {
+        params.append('indigent_status', householdListFilters.indigent_status);
+    }
+    if (householdListFilters.sort_by) {
+        params.append('sort_by', householdListFilters.sort_by);
+    }
+    if (householdListFilters.with_registered_voters) {
+        params.append('with_registered_voters', '1');
+    }
+    if (householdListFilters.all_members_verified) {
+        params.append('all_members_verified', '1');
+    }
+    if (householdListFilters.with_missing_info) {
+        params.append('with_missing_info', '1');
+    }
+    if (householdListFilters.verification_status) {
+        params.append('verification_status', householdListFilters.verification_status);
+    }
+    if (householdListFilters.residency_from) {
+        params.append('residency_from', householdListFilters.residency_from);
+    }
+    if (householdListFilters.residency_to) {
+        params.append('residency_to', householdListFilters.residency_to);
     }
 
     return fetch(window.API_URL + 'households.php?' + params.toString())
@@ -1087,6 +1236,8 @@ function viewHousehold(id) {
                 indigentSection = `<p class="mb-0"><strong>Status:</strong> ${householdIndigentBadge(st)}</p>`;
             }
 
+            const residencyLength = formatResidencyLength(h.registration_date);
+
             infoEl.innerHTML = `
                 <p><strong>Household ID Code:</strong> ${escapeHtml((h.household_id_code || '-'))}</p>
                 <p><strong>Family Head:</strong> <span id="viewInfoHeadName">${escapeHtml(firstHeadName)}</span></p>
@@ -1094,7 +1245,7 @@ function viewHousehold(id) {
                 <p><strong>House Type:</strong> ${escapeHtml(formatStructureHouseTypeLabel(h.house_type))}</p>
                 <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
                 <p><strong>Total Members:</strong> ${members.length}</p>
-                <p><strong>Registration:</strong> ${formatDate(h.registration_date)}</p>
+                <p><strong>Residency Start:</strong> ${formatDate(h.registration_date)}${residencyLength !== '-' ? ` <span class="text-muted">(${escapeHtml(residencyLength)})</span>` : ''}</p>
                 ${indigentSection}
             `;
 
@@ -1771,6 +1922,50 @@ function resetForm() {
 }
 
 function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
+
+function formatResidencyLength(startDate) {
+    if (!startDate) return '-';
+
+    const raw = String(startDate).trim();
+    if (!raw) return '-';
+
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+        ? new Date(raw + 'T00:00:00')
+        : new Date(raw);
+
+    if (Number.isNaN(parsed.getTime())) return '-';
+
+    const today = new Date();
+    if (parsed > today) {
+        return 'Less than 1 month';
+    }
+
+    let years = today.getFullYear() - parsed.getFullYear();
+    let months = today.getMonth() - parsed.getMonth();
+    const dayDelta = today.getDate() - parsed.getDate();
+
+    if (dayDelta < 0) {
+        months -= 1;
+    }
+    if (months < 0) {
+        years -= 1;
+        months += 12;
+    }
+
+    if (years <= 0 && months <= 0) {
+        return 'Less than 1 month';
+    }
+
+    const parts = [];
+    if (years > 0) {
+        parts.push(years + ' year' + (years === 1 ? '' : 's'));
+    }
+    if (months > 0) {
+        parts.push(months + ' month' + (months === 1 ? '' : 's'));
+    }
+
+    return parts.join(', ');
+}
 
 function calculateAge(birthDate) {
     if (!birthDate) return '-';
