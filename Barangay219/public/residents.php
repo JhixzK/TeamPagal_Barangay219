@@ -293,11 +293,11 @@ include __DIR__ . '/../includes/sidebar.php';
     transform: translateY(-1px);
 }
 
-.residents-page .action-icon-btn.action-delete:hover,
-.residents-page .action-icon-btn.action-delete:focus-visible {
-    background: #fff1f3;
-    border-color: #f6ccd3;
-    color: #9f2f3e;
+.residents-page .action-icon-btn.action-deactivate:hover,
+.residents-page .action-icon-btn.action-deactivate:focus-visible {
+    background: #fff8ef;
+    border-color: #f0dcc4;
+    color: #9a6b2a;
 }
 
 @media (max-width: 768px) {
