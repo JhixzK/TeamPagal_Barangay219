@@ -471,25 +471,28 @@ function showActivityLogs() {
     const panel = document.getElementById('activityLogsPanel');
     panel.style.display = 'block';
     const tbody = document.getElementById('activityLogsBody');
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center">Loading...</td></tr>';
     fetch(window.API_URL + 'users.php?action=activity_logs&limit=50')
-        .then(r => r.json())
-        .then(d => {
-            if (d.success && d.data && d.data.length) {
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+            if (!ok || !d.success) {
+                const msg = (d && d.message) ? d.message : 'Could not load activity logs';
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">' + escapeHtml(msg) + '</td></tr>';
+                return;
+            }
+            if (d.data && d.data.length) {
                 tbody.innerHTML = d.data.map(l => `
                     <tr>
                         <td>${escapeHtml(l.username || '-')}</td>
-                        <td>${escapeHtml(l.action)}</td>
-                        <td>${escapeHtml(l.module)}</td>
+                        <td>${escapeHtml(l.summary || (l.action + ' — ' + l.module))}</td>
                         <td>${l.created_at ? new Date(l.created_at).toLocaleString() : '-'}</td>
-                        <td>${escapeHtml(l.ip_address || '-')}</td>
                     </tr>
                 `).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No activity logs</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No activity logs</td></tr>';
             }
         })
-        .catch(() => { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading</td></tr>'; });
+        .catch(() => { tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error loading activity logs</td></tr>'; });
 }
 
 /**
