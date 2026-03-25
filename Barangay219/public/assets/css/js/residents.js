@@ -14,7 +14,6 @@ const RESIDENT_PERMS = {
 
 document.addEventListener('DOMContentLoaded', function() {
     loadResidents();
-    loadHouseholdsForDropdown();
 
     applyResidentPermissions();
     initResidentStatFilters();
@@ -28,10 +27,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('searchInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') searchResidents();
-    });
-    
-    document.getElementById('residentModal').addEventListener('show.bs.modal', function() {
-        loadHouseholdsForDropdown();
     });
     
     document.getElementById('btnEditFromView').addEventListener('click', function() {
@@ -62,7 +57,6 @@ function initResidentFormValidation() {
     const lastName = document.getElementById('last_name');
     const suffix = document.getElementById('suffix');
     const contact = document.getElementById('contact_number');
-    const address = document.getElementById('address');
     const citizenship = document.getElementById('citizenship');
 
     if (firstName) validateNameInput(firstName);
@@ -70,7 +64,6 @@ function initResidentFormValidation() {
     if (lastName) validateNameInput(lastName);
     if (suffix) validateNameInput(suffix, true);
     if (contact) validatePhoneInput(contact);
-    if (address) attachTitleCaseOnBlur(address);
     if (citizenship) attachTitleCaseOnBlur(citizenship);
 }
 
@@ -117,22 +110,6 @@ function applyResidentPermissions() {
         const editBtn = document.getElementById('btnEditFromView');
         if (editBtn) editBtn.style.display = 'none';
     }
-}
-
-function loadHouseholdsForDropdown() {
-    const sel = document.getElementById('household_id');
-    if (!sel) return;
-    const currentVal = sel.value;
-    fetch((window.API_URL || '') + 'households.php?action=list')
-        .then(r => r.json())
-        .then(d => {
-            if (d.success && d.data) {
-                sel.innerHTML = '<option value="">-- None --</option>' + 
-                    d.data.map(h => `<option value="${h.id}">${escapeHtml(h.family_head_name || 'Household #'+h.id)} - ${escapeHtml((h.address||'').substring(0,40))}...</option>`).join('');
-                if (currentVal) sel.value = currentVal;
-            }
-        })
-        .catch(() => {});
 }
 
 /**
@@ -343,23 +320,18 @@ function editResident(id) {
     }
     const apiUrl = window.API_URL;
     if (!apiUrl) { showAlert('error', 'Configuration error.'); return; }
-    Promise.all([
-        fetch(apiUrl + 'households.php?action=list').then(r => r.json()),
-        fetch(apiUrl + 'resident.php?action=get&id=' + id).then(r => r.json())
-    ]).then(([householdsData, residentData]) => {
+    fetch(apiUrl + 'resident.php?action=get&id=' + id)
+        .then(r => r.json())
+        .then(residentData => {
         if (!residentData.success) { showAlert('error', residentData.message); return; }
         const resident = residentData.data;
-        const sel = document.getElementById('household_id');
-        if (householdsData.success && householdsData.data) {
-            sel.innerHTML = '<option value="">-- None --</option>' +
-                householdsData.data.map(h => `<option value="${h.id}">${escapeHtml(h.family_head_name || 'Household #'+h.id)}</option>`).join('');
-        }
         document.getElementById('residentId').value = resident.id;
         document.getElementById('first_name').value = toTitleCase(resident.first_name || '');
         document.getElementById('middle_name').value = toTitleCase(resident.middle_name || '');
         document.getElementById('last_name').value = toTitleCase(resident.last_name || '');
         document.getElementById('suffix').value = toTitleCase(resident.suffix || '');
-        document.getElementById('birth_date').value = resident.birth_date;
+        const bd = resident.birth_date != null ? String(resident.birth_date) : '';
+        document.getElementById('birth_date').value = bd ? bd.slice(0, 10) : '';
         document.getElementById('gender').value = resident.gender;
         document.getElementById('civil_status').value = resident.civil_status || '';
         const occupationSelect = document.getElementById('occupation');
@@ -374,15 +346,44 @@ function editResident(id) {
             occupationSelect.value = occupationValue;
         }
         document.getElementById('citizenship').value = toTitleCase(resident.citizenship || 'Filipino');
-        document.getElementById('address').value = toTitleCase(resident.address || '');
+        const addrDefaults = window.RESIDENT_EDIT_ADDRESS_DEFAULTS || {};
+        document.getElementById('house_number').value = pickAddrPart(
+            resident.house_number,
+            resident.registration_house_number
+        );
+        const streetEl = document.getElementById('street');
+        const streetVal = pickAddrPart(resident.street, resident.registration_street);
+        if (streetEl) ensureSelectOptionValue(streetEl, streetVal);
+        const brgy = pickAddrPart(resident.barangay, resident.registration_barangay, addrDefaults.barangay);
+        const cty = pickAddrPart(resident.city, resident.registration_city, addrDefaults.city);
+        const prov = pickAddrPart(resident.province, resident.registration_province, addrDefaults.province);
+        const brEl = document.getElementById('barangay');
+        const ctyEl = document.getElementById('city');
+        const provEl = document.getElementById('province');
+        if (brEl) brEl.value = brgy;
+        if (ctyEl) ctyEl.value = cty;
+        if (provEl) provEl.value = prov;
+        const brd = document.getElementById('barangay_display');
+        const ctyd = document.getElementById('city_display');
+        const provd = document.getElementById('province_display');
+        if (brd) brd.value = brgy;
+        if (ctyd) ctyd.value = cty;
+        if (provd) provd.value = prov;
         document.getElementById('contact_number').value = formatPhoneForInput(resident.contact_number) || '+63 ';
-        document.getElementById('household_id').value = resident.household_id || '';
         const miEl = document.getElementById('monthly_income');
         if (miEl) {
-            const mi = resident.monthly_income;
-            miEl.value = (mi != null && mi !== '') ? String(mi) : '';
+            const monthlyIncomeVal = (resident.registration_monthly_income != null && resident.registration_monthly_income !== '')
+                ? resident.registration_monthly_income
+                : ((resident.monthly_income != null && resident.monthly_income !== '')
+                    ? resident.monthly_income
+                    : resident.registration_household_income);
+            miEl.value = (monthlyIncomeVal != null && monthlyIncomeVal !== '') ? String(monthlyIncomeVal) : '';
         }
-        document.getElementById('residency_start_date').value = resident.residency_start_date || '';
+        const residencyRaw = (resident.registration_residency_start_date != null && String(resident.registration_residency_start_date).trim() !== '')
+            ? resident.registration_residency_start_date
+            : resident.residency_start_date;
+        const rsd = residencyRaw != null ? String(residencyRaw) : '';
+        document.getElementById('residency_start_date').value = rsd.trim() ? rsd.slice(0, 10) : '';
         document.getElementById('status').value = resident.status;
         document.getElementById('residentModalTitle').textContent = 'Edit Resident';
         initResidentFormValidation();
@@ -619,6 +620,19 @@ function resetForm() {
     const miReset = document.getElementById('monthly_income');
     if (miReset) miReset.value = '';
     document.getElementById('contact_number').value = '+63 ';
+    const d = window.RESIDENT_EDIT_ADDRESS_DEFAULTS || {};
+    const brEl = document.getElementById('barangay');
+    const ctyEl = document.getElementById('city');
+    const provEl = document.getElementById('province');
+    if (brEl && d.barangay) brEl.value = d.barangay;
+    if (ctyEl && d.city) ctyEl.value = d.city;
+    if (provEl && d.province) provEl.value = d.province;
+    const brd = document.getElementById('barangay_display');
+    const ctyd = document.getElementById('city_display');
+    const provd = document.getElementById('province_display');
+    if (brd && brEl) brd.value = brEl.value;
+    if (ctyd && ctyEl) ctyd.value = ctyEl.value;
+    if (provd && provEl) provd.value = provEl.value;
     document.getElementById('residentModalTitle').textContent = 'Edit Resident';
     initResidentFormValidation();
 }
@@ -775,13 +789,44 @@ function applyTitleCaseToForm() {
         'middle_name',
         'last_name',
         'suffix',
-        'address',
         'citizenship'
     ];
     fields.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = toTitleCase(el.value);
     });
+}
+
+function pickAddrPart(...vals) {
+    for (const v of vals) {
+        if (v === null || v === undefined) continue;
+        const s = String(v).trim();
+        if (s !== '') return s;
+    }
+    return '';
+}
+
+function ensureSelectOptionValue(selectEl, value) {
+    if (!selectEl) return;
+    if (value == null || String(value).trim() === '') {
+        selectEl.value = '';
+        return;
+    }
+    const v = String(value).trim();
+    let found = false;
+    for (let i = 0; i < selectEl.options.length; i++) {
+        if (selectEl.options[i].value === v) {
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v;
+        selectEl.appendChild(opt);
+    }
+    selectEl.value = v;
 }
 
 function normalizePhoneDigits(raw) {
