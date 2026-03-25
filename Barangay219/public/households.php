@@ -50,6 +50,9 @@ include __DIR__ . '/../includes/sidebar.php';
                     <button type="button" class="btn btn-sm btn-primary hh-household-search-icon-btn" id="hhHouseholdSearchBtn" onclick="runHouseholdListSearch()" title="Search" aria-label="Search households">
                         <i class="bi bi-search" aria-hidden="true"></i>
                     </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary hh-household-search-icon-btn" id="hhHouseholdFilterBtn" data-bs-toggle="modal" data-bs-target="#hhFilterModal" title="Filter" aria-label="Filter households">
+                        <i class="bi bi-funnel" aria-hidden="true"></i>
+                    </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary hh-household-search-icon-btn" id="hhHouseholdSearchClear" onclick="clearHouseholdListSearch()" title="Clear search" aria-label="Clear search">
                         <i class="bi bi-x-lg" aria-hidden="true"></i>
                     </button>
@@ -419,6 +422,100 @@ include __DIR__ . '/../includes/sidebar.php';
     background: #f8fafc;
 }
 </style>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="hhFilterModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Filter Households</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">No. of Members</label>
+                    <select class="form-select" id="hhModalFilterMemberRange">
+                        <option value="">All</option>
+                        <option value="1">1</option>
+                        <option value="2-4">2-4</option>
+                        <option value="5-7">5-7</option>
+                        <option value="8+">8+</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">House Type</label>
+                    <select class="form-select" id="hhModalFilterHouseType">
+                        <option value="">All</option>
+                        <option value="concrete">Concrete</option>
+                        <option value="semi_concrete">Semi-Concrete</option>
+                        <option value="light_materials">Light Materials</option>
+                        <option value="apartment_boarding">Apartment / Boarding House</option>
+                        <option value="townhouse_row">Townhouse / Row House</option>
+                        <option value="informal_improvised">Informal / Improvised</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="hhModalFilterIndigentStatus">
+                        <option value="">All</option>
+                        <option value="indigent">Indigent</option>
+                        <option value="non_indigent">Non-indigent</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Years of Residency</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="number" class="form-control" id="hhModalFilterResidencyFrom" placeholder="From (years)" min="0" step="0.5">
+                        </div>
+                        <div class="col-6">
+                            <input type="number" class="form-control" id="hhModalFilterResidencyTo" placeholder="To (years)" min="0" step="0.5">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Sort By</label>
+                    <select class="form-select" id="hhModalFilterSortBy">
+                        <option value="newest">Newest</option>
+                        <option value="oldest">Oldest</option>
+                        <option value="members_desc">Members: High to Low</option>
+                        <option value="members_asc">Members: Low to High</option>
+                    </select>
+                </div>
+                <div class="mb-0">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="hhModalFilterWithSenior">
+                        <label class="form-check-label" for="hhModalFilterWithSenior">With Senior Citizen</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="hhModalFilterWithMinors">
+                        <label class="form-check-label" for="hhModalFilterWithMinors">With Minors</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="hhModalFilterSingleOccupant">
+                        <label class="form-check-label" for="hhModalFilterSingleOccupant">Single Occupant Household</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="hhModalFilterWithRegisteredVoters">
+                        <label class="form-check-label" for="hhModalFilterWithRegisteredVoters">With Registered Voters</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="hhModalFilterAllMembersVerified">
+                        <label class="form-check-label" for="hhModalFilterAllMembersVerified">All Members Verified</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="hhModalFilterWithMissingInfo">
+                        <label class="form-check-label" for="hhModalFilterWithMissingInfo">With Missing Information</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="applyHouseholdFilters()">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="modal fade" id="householdModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
