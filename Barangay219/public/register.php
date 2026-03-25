@@ -554,7 +554,6 @@ $barangay219_purok_options = [
                                                 <option value="Employed">Employed</option>
                                                 <option value="Unemployed">Unemployed</option>
                                                 <option value="Self-Employed">Self-Employed</option>
-                                                <option value="Student">Student</option>
                                                 <option value="Retired">Retired</option>
                                             </select>
                                         </div>
@@ -1178,9 +1177,9 @@ function toggleMonthlyIncomeField() {
     if (shouldHideByOccupation) {
         monthlyIncomeField.value = '';
         monthlyIncomeField.classList.remove('is-invalid');
-        employmentStatusField.value = isStudent ? 'Student' : 'Unemployed';
+        employmentStatusField.value = 'Unemployed';
         employmentStatusField.classList.remove('is-invalid');
-    } else if (employmentStatusField.value === 'Student' || employmentStatusField.value === 'Unemployed') {
+    } else if (employmentStatusField.value === 'Unemployed') {
         employmentStatusField.value = '';
     }
 }
