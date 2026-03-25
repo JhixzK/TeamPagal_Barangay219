@@ -495,7 +495,7 @@ function viewResident(id) {
                     <tr><td><strong>Special Categories</strong></td><td>${escapeHtml(specialCategories)}</td></tr>
                     <tr><td><strong>Household</strong></td><td>${r.household_address ? 'Household #'+r.household_id+' ('+r.total_members+' members)' : 'None'}</td></tr>
                     <tr><td><strong>Household Code</strong></td><td>${r.household_code ? (escapeHtml(String(r.household_code)) + (String(r.is_household_head) === '1' ? ' <i class="bi bi-patch-check-fill text-success ms-1" title="Family Head" aria-label="Family Head"></i>' : '')) : '-'}</td></tr>
-                    <tr><td><strong>Family Head Code</strong></td><td>${String(r.is_household_head) === '1' ? (r.family_head_code ? escapeHtml(String(r.family_head_code)) : '-') : ''}</td></tr>
+                    <tr><td><strong>HEAD CODE</strong></td><td>${String(r.is_household_head) === '1' ? (r.family_head_code ? escapeHtml(String(r.family_head_code)) : '-') : ''}</td></tr>
                     <tr><td><strong>Verification</strong></td><td>${getVerificationBadge(verificationStatus)}</td></tr>
                     <tr><td><strong>Uploaded ID</strong></td><td>${idDocLink}</td></tr>
                     <tr><td><strong>Certificates</strong></td><td>${r.certificates_count || 0} issued</td></tr>
