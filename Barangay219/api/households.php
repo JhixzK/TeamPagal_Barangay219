@@ -34,7 +34,7 @@ switch ($action) {
         getHousehold();
         break;
 
-    // Return possible family-head choices for a household (distinct FH codes).
+    // Return possible family-head choices for a household (distinct head codes).
     case 'family_heads':
         listFamilyHeads();
         break;
@@ -575,9 +575,9 @@ function generateUniqueHouseholdCode($db) {
 }
 
 function generateUniqueFamilyHeadCode($db) {
-    // FH-XXXXX (5 digits)
+    // HC-XXXXX (5 digits)
     for ($i = 0; $i < 20; $i++) {
-        $code = 'FH-' . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+        $code = 'HC-' . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
         $exists = $db->fetchOne("SELECT id FROM households WHERE family_head_code = ? LIMIT 1", [$code]);
         if (!$exists) {
             return $code;
@@ -587,7 +587,7 @@ function generateUniqueFamilyHeadCode($db) {
 }
 
 function generateResidentFamilyHeadCode($db) {
-    $prefix = 'FH-';
+    $prefix = 'HC-';
     if (!columnExists($db, 'residents', 'family_head_code')) {
         return $prefix . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
     }
