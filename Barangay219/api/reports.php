@@ -9,6 +9,10 @@ requireLogin();
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
+    case 'dashboard_bundle':
+        requireModuleAccess('dashboard');
+        getDashboardBundle();
+        break;
     case 'statistics': 
         requireModuleAccess('dashboard');
         getStatistics(); 
@@ -45,43 +49,100 @@ switch ($action) {
         sendResponse(false, 'Invalid action', null, 400);
 }
 
+/**
+ * KPI counts in one DB round trip (dashboard was doing 10 sequential COUNTs).
+ *
+ * @return array<string,int>|null
+ */
+function fetchDashboardStatisticsRow($db) {
+    try {
+        $row = $db->fetchOne(
+            'SELECT
+                (SELECT COUNT(*) FROM residents WHERE status = \'active\') AS total_residents,
+                (SELECT COUNT(*) FROM households) AS total_households,
+                (SELECT COUNT(*) FROM certificate_requests WHERE status = \'pending\') AS pending_certificates,
+                (SELECT COUNT(*) FROM blotters WHERE status = \'pending\') AS pending_blotters,
+                (SELECT COUNT(*) FROM complaints WHERE status IN (\'pending\', \'Pending Review\', \'Under Investigation\', \'Scheduled for Mediation\')) AS pending_complaints,
+                (SELECT COUNT(*) FROM certificate_requests WHERE status IN (\'released\', \'issued\')) AS issued_certificates,
+                (SELECT COUNT(*) FROM blotters WHERE status IN (\'resolved\', \'settled\')) AS resolved_blotters,
+                (SELECT COUNT(*) FROM complaints WHERE status IN (\'resolved\', \'Resolved\')) AS resolved_complaints,
+                (SELECT COUNT(*) FROM announcements WHERE status = \'active\') AS active_announcements'
+        );
+    } catch (Exception $e) {
+        return null;
+    }
+    if (!$row) {
+        return null;
+    }
+    $pending = (int)$row['pending_certificates'];
+    return [
+        'total_residents' => (int)$row['total_residents'],
+        'total_households' => (int)$row['total_households'],
+        'pending_certificates' => $pending,
+        'pending_applications' => $pending,
+        'pending_blotters' => (int)$row['pending_blotters'],
+        'pending_complaints' => (int)$row['pending_complaints'],
+        'issued_certificates' => (int)$row['issued_certificates'],
+        'resolved_blotters' => (int)$row['resolved_blotters'],
+        'resolved_complaints' => (int)$row['resolved_complaints'],
+        'active_announcements' => (int)$row['active_announcements'],
+    ];
+}
+
 function getStatistics() {
     try {
         $db = Database::getInstance();
-        $stats = [
-            'total_residents' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM residents WHERE status = 'active'")['count'],
-            'total_households' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM households")['count'],
-            'pending_certificates' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'pending'")['count'],
-            'pending_applications' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status = 'pending'")['count'],
-            'pending_blotters' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM blotters WHERE status = 'pending'")['count'],
-            'pending_complaints' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM complaints WHERE status IN ('pending', 'Pending Review', 'Under Investigation', 'Scheduled for Mediation')")['count'],
-            'issued_certificates' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM certificate_requests WHERE status IN ('released', 'issued')")['count'],
-            'resolved_blotters' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM blotters WHERE status IN ('resolved', 'settled')")['count'],
-            'resolved_complaints' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM complaints WHERE status IN ('resolved', 'Resolved')")['count'],
-            'active_announcements' => (int)$db->fetchOne("SELECT COUNT(*) as count FROM announcements WHERE status = 'active'")['count']
-        ];
+        $stats = fetchDashboardStatisticsRow($db);
+        if ($stats === null) {
+            sendResponse(false, 'Error', null, 500);
+        }
         sendResponse(true, 'Statistics retrieved', $stats);
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
     }
 }
 
+/**
+ * @return list<array<string,mixed>>
+ */
+function fetchRecentActivitiesForDashboard($db, $limit) {
+    if (!activityLogsTableExists($db)) {
+        return [];
+    }
+    $limit = min(50, max(5, (int)$limit));
+    $exclude = activityLogsExcludeLoginSql('al');
+    $rows = $db->fetchAll(
+        "SELECT al.*, u.username FROM activity_logs al 
+         LEFT JOIN users u ON al.user_id = u.id 
+         WHERE $exclude
+         ORDER BY al.created_at DESC LIMIT " . (int)$limit
+    );
+    return activityLogsWithSummary($rows);
+}
+
 function getRecentActivities() {
     try {
         $db = Database::getInstance();
-        if (!activityLogsTableExists($db)) {
-            sendResponse(true, 'Recent activities', []);
-        }
         $limit = (int)($_GET['limit'] ?? 10);
-        $limit = min(50, max(5, $limit));
-        $exclude = activityLogsExcludeLoginSql('al');
-        $rows = $db->fetchAll(
-            "SELECT al.*, u.username FROM activity_logs al 
-             LEFT JOIN users u ON al.user_id = u.id 
-             WHERE $exclude
-             ORDER BY al.created_at DESC LIMIT " . (int)$limit
-        );
-        sendResponse(true, 'Recent activities', activityLogsWithSummary($rows));
+        sendResponse(true, 'Recent activities', fetchRecentActivitiesForDashboard($db, $limit));
+    } catch (Exception $e) {
+        sendResponse(false, 'Error', null, 500);
+    }
+}
+
+function getDashboardBundle() {
+    try {
+        $db = Database::getInstance();
+        $limit = (int)($_GET['limit'] ?? $_POST['limit'] ?? 10);
+        $stats = fetchDashboardStatisticsRow($db);
+        if ($stats === null) {
+            sendResponse(false, 'Error', null, 500);
+        }
+        sendResponse(true, 'Dashboard data retrieved', [
+            'statistics' => $stats,
+            'charts' => buildDashboardChartsPayload($db),
+            'recent_activities' => fetchRecentActivitiesForDashboard($db, $limit),
+        ]);
     } catch (Exception $e) {
         sendResponse(false, 'Error', null, 500);
     }
@@ -476,108 +537,520 @@ function getActivityLogsReport() {
     }
 }
 
-function getDashboardCharts() {
-    // ── DUMMY DATA MODE ──
-    // Replace this function body with real DB queries when ready.
-    // Each dataset uses the {label, value} format the frontend expects.
-
-    $months = [];
-    for ($i = 11; $i >= 0; $i--) {
-        $months[] = date('M Y', strtotime("-$i months"));
+/**
+ * Active residents per street; labels match config/barangay219_streets.php when values normalize to the same name.
+ *
+ * @return list<array{label: string, value: int}>
+ */
+function fetchPopulationByStreetSeries($db) {
+    $registryPath = __DIR__ . '/../config/barangay219_streets.php';
+    $registry = is_file($registryPath) ? require $registryPath : [];
+    if (!is_array($registry)) {
+        $registry = [];
     }
 
-    $days = [];
-    for ($i = 29; $i >= 0; $i--) {
-        $days[] = date('M d', strtotime("-$i days"));
+    $norm = static function ($s) {
+        $s = trim((string)$s);
+        if ($s === '') {
+            return '';
+        }
+        $s = preg_replace('/\s+/u', ' ', $s);
+        if (function_exists('mb_strtolower')) {
+            return mb_strtolower($s, 'UTF-8');
+        }
+        return strtolower($s);
+    };
+
+    $canonicalForNorm = [];
+    foreach ($registry as $name) {
+        $canonicalForNorm[$norm($name)] = $name;
     }
 
-    $charts = [
-        'gender_distribution' => [
-            ['label' => 'Male',   'value' => 1245],
-            ['label' => 'Female', 'value' => 1382],
-            ['label' => 'Other',  'value' => 18],
-        ],
+    $aggregated = [];
+    foreach ($registry as $name) {
+        $aggregated[$name] = 0;
+    }
 
-        'civil_status_distribution' => [
-            ['label' => 'Single',    'value' => 980],
-            ['label' => 'Married',   'value' => 1120],
-            ['label' => 'Widowed',   'value' => 185],
-            ['label' => 'Separated', 'value' => 95],
-            ['label' => 'Divorced',  'value' => 32],
-        ],
+    $rows = [];
+    try {
+        $rows = $db->fetchAll(
+            'SELECT st, COUNT(*) AS cnt FROM (
+                SELECT TRIM(COALESCE(
+                    NULLIF(TRIM(r.street), \'\'),
+                    NULLIF(TRIM(h.street), \'\')
+                )) AS st
+                FROM residents r
+                LEFT JOIN households h ON r.household_id = h.id
+                WHERE r.status = \'active\'
+            ) x
+            WHERE st IS NOT NULL AND st <> \'\'
+            GROUP BY st'
+        );
+    } catch (Exception $e) {
+        try {
+            $rows = $db->fetchAll(
+                "SELECT TRIM(street) AS st, COUNT(*) AS cnt FROM residents
+                 WHERE status = 'active' AND street IS NOT NULL AND TRIM(street) <> ''
+                 GROUP BY TRIM(street)"
+            );
+        } catch (Exception $e2) {
+            $rows = [];
+        }
+    }
 
-        'age_groups' => [
-            ['label' => '0-17',  'value' => 620],
-            ['label' => '18-30', 'value' => 845],
-            ['label' => '31-45', 'value' => 560],
-            ['label' => '46-60', 'value' => 390],
-            ['label' => '60+',   'value' => 230],
-        ],
+    foreach ($rows as $r) {
+        $st = (string)($r['st'] ?? '');
+        $n = $norm($st);
+        if ($n === '') {
+            continue;
+        }
+        $label = $canonicalForNorm[$n] ?? $st;
+        $aggregated[$label] = ($aggregated[$label] ?? 0) + (int)($r['cnt'] ?? 0);
+    }
 
-        'population_by_purok' => [
-            ['label' => 'Purok 1',  'value' => 342],
-            ['label' => 'Purok 2',  'value' => 285],
-            ['label' => 'Purok 3',  'value' => 410],
-            ['label' => 'Purok 4',  'value' => 198],
-            ['label' => 'Purok 5',  'value' => 265],
-            ['label' => 'Purok 6',  'value' => 320],
-            ['label' => 'Purok 7',  'value' => 175],
-            ['label' => 'Zone A',   'value' => 150],
-        ],
+    // Always include every official street (0 residents still shown).
+    $series = [];
+    foreach ($registry as $name) {
+        $series[] = ['label' => $name, 'value' => (int)($aggregated[$name] ?? 0)];
+    }
 
-        'request_status' => [
-            ['label' => 'Pending',          'value' => 42],
-            ['label' => 'Approved',         'value' => 156],
-            ['label' => 'Released',         'value' => 310],
-            ['label' => 'Rejected',         'value' => 18],
-            ['label' => 'Ready for pickup', 'value' => 25],
-        ],
+    $extras = [];
+    foreach ($aggregated as $label => $v) {
+        if (in_array($label, $registry, true)) {
+            continue;
+        }
+        if ($v > 0) {
+            $extras[] = ['label' => $label, 'value' => $v];
+        }
+    }
+    usort($extras, static function ($a, $b) {
+        return $b['value'] <=> $a['value'];
+    });
 
-        'request_types' => [
-            ['label' => 'Barangay Clearance',       'value' => 215],
-            ['label' => 'Certificate of Indigency',  'value' => 128],
-            ['label' => 'Certificate of Residency',  'value' => 97],
-            ['label' => 'Transfer Request',           'value' => 34],
-            ['label' => 'Business Permit',            'value' => 62],
-        ],
+    return array_merge($series, $extras);
+}
 
-        'requests_over_time' => array_map(function ($m) {
-            return ['label' => $m, 'value' => rand(18, 65)];
-        }, $months),
+function reportsColumnExists($db, $table, $column) {
+    static $cache = [];
+    $table = preg_replace('/[^a-z0-9_]/i', '', (string)$table);
+    $column = preg_replace('/[^a-z0-9_]/i', '', (string)$column);
+    if ($table === '' || $column === '') {
+        return false;
+    }
+    $key = $table . '.' . $column;
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+    try {
+        $q = $db->getConnection()->quote($column);
+        $row = $db->fetchOne("SHOW COLUMNS FROM `$table` LIKE $q");
+        $cache[$key] = !empty($row);
+    } catch (Exception $e) {
+        $cache[$key] = false;
+    }
+    return $cache[$key];
+}
 
-        'household_types' => [
-            ['label' => 'Family Household',                         'value' => 320],
-            ['label' => 'Single Inhabitant',                        'value' => 85],
-            ['label' => 'Couple Only',                              'value' => 62],
-            ['label' => 'Non-Relative Household (Shared / Boarders)', 'value' => 48],
-            ['label' => 'Unspecified',                              'value' => 30],
-        ],
-
-        'household_trends' => array_map(function ($m) {
-            return ['label' => $m, 'value' => rand(5, 28)];
-        }, $months),
-
-        'new_registrations_today' => 7,
-        'approved_today' => 12,
-
-        'daily_logins' => array_map(function ($d) {
-            return ['label' => $d, 'value' => rand(3, 22)];
-        }, $days),
-
-        'user_registrations' => array_map(function ($m) {
-            return ['label' => $m, 'value' => rand(2, 15)];
-        }, $months),
-
-        'special_categories' => [
-            ['label' => 'Senior Citizens',   'value' => 186],
-            ['label' => 'PWD',               'value' => 54],
-            ['label' => 'Solo Parents',      'value' => 73],
-            ['label' => '4Ps Beneficiaries', 'value' => 142],
-            ['label' => 'IP Members',        'value' => 29],
-        ],
+function dashboardCertificateStatusLabel($status) {
+    $s = strtolower(trim((string)$status));
+    $map = [
+        'pending' => 'Pending',
+        'approved' => 'Approved',
+        'ready_for_pickup' => 'Ready for pickup',
+        'rejected' => 'Rejected',
+        'released' => 'Released',
+        'issued' => 'Released',
     ];
+    return $map[$s] ?? ucwords(str_replace('_', ' ', $s));
+}
 
-    sendResponse(true, 'Dashboard charts data (dummy)', $charts);
+function dashboardCertificateTypeLabel($type) {
+    $t = strtolower(trim((string)$type));
+    $map = [
+        CERT_BARANGAY_CLEARANCE => 'Barangay Clearance',
+        CERT_INDIGENCY => 'Certificate of Indigency',
+        CERT_RESIDENCY => 'Certificate of Residency',
+        CERT_GOOD_MORAL => 'Certificate of Good Moral',
+        CERT_TRANSFER_REQUEST => 'Transfer Request',
+    ];
+    return $map[$t] ?? ucwords(str_replace('_', ' ', $t));
+}
+
+/**
+ * @return list<array{label: string, value: int}>
+ */
+function fetchDashboardGenderDistribution($db) {
+    $counts = ['male' => 0, 'female' => 0, 'other' => 0];
+    try {
+        $rows = $db->fetchAll(
+            "SELECT LOWER(TRIM(gender)) AS g, COUNT(*) AS cnt FROM residents WHERE status = 'active' GROUP BY LOWER(TRIM(gender))"
+        );
+        foreach ($rows as $r) {
+            $g = (string)($r['g'] ?? '');
+            if (isset($counts[$g])) {
+                $counts[$g] = (int)($r['cnt'] ?? 0);
+            } elseif ($g !== '') {
+                $counts['other'] += (int)($r['cnt'] ?? 0);
+            }
+        }
+    } catch (Exception $e) {
+        // keep zeros
+    }
+    return [
+        ['label' => 'Male', 'value' => $counts['male']],
+        ['label' => 'Female', 'value' => $counts['female']],
+        ['label' => 'Other', 'value' => $counts['other']],
+    ];
+}
+
+/**
+ * @return list<array{label: string, value: int}>
+ */
+function fetchDashboardCivilStatusDistribution($db) {
+    $order = ['single', 'married', 'widowed', 'divorced', 'separated'];
+    $labels = [
+        'single' => 'Single',
+        'married' => 'Married',
+        'widowed' => 'Widowed',
+        'divorced' => 'Divorced',
+        'separated' => 'Separated',
+    ];
+    $counts = array_fill_keys($order, 0);
+    $counts['unknown'] = 0;
+    try {
+        $rows = $db->fetchAll(
+            "SELECT civil_status, COUNT(*) AS cnt FROM residents WHERE status = 'active' GROUP BY civil_status"
+        );
+        foreach ($rows as $r) {
+            $raw = $r['civil_status'] ?? null;
+            if ($raw === null || $raw === '') {
+                $counts['unknown'] += (int)($r['cnt'] ?? 0);
+                continue;
+            }
+            $k = strtolower(trim((string)$raw));
+            if (isset($counts[$k])) {
+                $counts[$k] = (int)($r['cnt'] ?? 0);
+            } else {
+                $counts['unknown'] += (int)($r['cnt'] ?? 0);
+            }
+        }
+    } catch (Exception $e) {
+        return [];
+    }
+    $series = [];
+    foreach ($order as $k) {
+        $series[] = ['label' => $labels[$k], 'value' => $counts[$k]];
+    }
+    if ($counts['unknown'] > 0) {
+        $series[] = ['label' => 'Unspecified', 'value' => $counts['unknown']];
+    }
+    return $series;
+}
+
+/**
+ * @return list<array{label: string, value: int}>
+ */
+function fetchDashboardAgeGroups($db) {
+    $order = ['0-17', '18-30', '31-45', '46-60', '60+'];
+    $init = array_fill_keys($order, 0);
+    try {
+        $rows = $db->fetchAll(
+            "SELECT age_bucket, COUNT(*) AS cnt FROM (
+                SELECT
+                    CASE
+                        WHEN birth_date IS NULL THEN 'unknown'
+                        WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) < 18 THEN '0-17'
+                        WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) BETWEEN 18 AND 30 THEN '18-30'
+                        WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) BETWEEN 31 AND 45 THEN '31-45'
+                        WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) BETWEEN 46 AND 60 THEN '46-60'
+                        ELSE '60+'
+                    END AS age_bucket
+                FROM residents
+                WHERE status = 'active'
+            ) x
+            WHERE age_bucket <> 'unknown'
+            GROUP BY age_bucket"
+        );
+        foreach ($rows as $r) {
+            $b = (string)($r['age_bucket'] ?? '');
+            if (isset($init[$b])) {
+                $init[$b] = (int)($r['cnt'] ?? 0);
+            }
+        }
+    } catch (Exception $e) {
+        // zeros
+    }
+    $series = [];
+    foreach ($order as $k) {
+        $series[] = ['label' => $k, 'value' => $init[$k]];
+    }
+    return $series;
+}
+
+/**
+ * @return list<array{label: string, value: int}>
+ */
+function fetchDashboardRequestStatus($db) {
+    $map = [];
+    try {
+        $rows = $db->fetchAll('SELECT status, COUNT(*) AS cnt FROM certificate_requests GROUP BY status');
+        foreach ($rows as $r) {
+            $st = strtolower(trim((string)($r['status'] ?? '')));
+            if ($st === '') {
+                continue;
+            }
+            $map[$st] = (int)($r['cnt'] ?? 0);
+        }
+    } catch (Exception $e) {
+        return [];
+    }
+
+    $released = (int)($map['released'] ?? 0) + (int)($map['issued'] ?? 0);
+
+    $ordered = [
+        ['pending', 'Pending'],
+        ['approved', 'Approved'],
+        ['ready_for_pickup', 'Ready for pickup'],
+        ['released', 'Released'],
+        ['rejected', 'Rejected'],
+    ];
+    $series = [];
+    foreach ($ordered as [$key, $label]) {
+        $v = $key === 'released' ? $released : (int)($map[$key] ?? 0);
+        $series[] = ['label' => $label, 'value' => $v];
+    }
+
+    $known = ['pending', 'approved', 'ready_for_pickup', 'released', 'rejected', 'issued'];
+    foreach ($map as $st => $cnt) {
+        if (in_array($st, $known, true)) {
+            continue;
+        }
+        $series[] = ['label' => dashboardCertificateStatusLabel($st), 'value' => $cnt];
+    }
+
+    return $series;
+}
+
+/**
+ * @return list<array{label: string, value: int}>
+ */
+function fetchDashboardRequestTypes($db) {
+    try {
+        $rows = $db->fetchAll(
+            'SELECT certificate_type, COUNT(*) AS cnt FROM certificate_requests GROUP BY certificate_type ORDER BY cnt DESC'
+        );
+    } catch (Exception $e) {
+        return [];
+    }
+    $series = [];
+    foreach ($rows as $r) {
+        $series[] = [
+            'label' => dashboardCertificateTypeLabel($r['certificate_type'] ?? ''),
+            'value' => (int)($r['cnt'] ?? 0),
+        ];
+    }
+    return $series;
+}
+
+/**
+ * Last 12 calendar months, certificate request counts by created_at.
+ *
+ * @return list<array{label: string, value: int}>
+ */
+function fetchDashboardRequestsOverTime($db) {
+    $series = [];
+    $map = [];
+    try {
+        $rows = $db->fetchAll(
+            "SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym, COUNT(*) AS cnt
+             FROM certificate_requests
+             WHERE created_at >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 11 MONTH), '%Y-%m-01')
+             GROUP BY ym
+             ORDER BY ym"
+        );
+        foreach ($rows as $r) {
+            $map[(string)($r['ym'] ?? '')] = (int)($r['cnt'] ?? 0);
+        }
+    } catch (Exception $e) {
+        // empty map
+    }
+    for ($i = 11; $i >= 0; $i--) {
+        $t = strtotime('first day of today -' . $i . ' months');
+        $ym = date('Y-m', $t);
+        $series[] = ['label' => date('M Y', $t), 'value' => $map[$ym] ?? 0];
+    }
+    return $series;
+}
+
+/**
+ * @return list<array{label: string, value: int}>
+ */
+function fetchDashboardHouseholdTypes($db) {
+    if (!reportsColumnExists($db, 'households', 'household_type')) {
+        try {
+            $n = (int)($db->fetchOne('SELECT COUNT(*) AS c FROM households')['c'] ?? 0);
+        } catch (Exception $e) {
+            $n = 0;
+        }
+        return $n > 0 ? [['label' => 'All households', 'value' => $n]] : [];
+    }
+    try {
+        $rows = $db->fetchAll(
+            "SELECT IFNULL(NULLIF(TRIM(household_type), ''), 'Unspecified') AS ht, COUNT(*) AS cnt
+             FROM households
+             GROUP BY ht
+             ORDER BY cnt DESC"
+        );
+    } catch (Exception $e) {
+        return [];
+    }
+    $series = [];
+    foreach ($rows as $r) {
+        $series[] = ['label' => (string)($r['ht'] ?? 'Unspecified'), 'value' => (int)($r['cnt'] ?? 0)];
+    }
+    return $series;
+}
+
+/**
+ * @return array{new_registrations_today: int, approved_today: int}
+ */
+function fetchDashboardTodayCounts($db) {
+    $out = ['new_registrations_today' => 0, 'approved_today' => 0];
+    try {
+        $row = $db->fetchOne(
+            "SELECT COUNT(*) AS c FROM residents WHERE DATE(created_at) = CURDATE()"
+        );
+        $out['new_registrations_today'] = (int)($row['c'] ?? 0);
+    } catch (Exception $e) {
+        // 0
+    }
+    try {
+        $row = $db->fetchOne(
+            "SELECT COUNT(*) AS c FROM certificate_requests
+             WHERE DATE(updated_at) = CURDATE()
+             AND status IN ('approved', 'ready_for_pickup', 'released')"
+        );
+        $out['approved_today'] = (int)($row['c'] ?? 0);
+    } catch (Exception $e) {
+        // 0
+    }
+    return $out;
+}
+
+/**
+ * @return list<array{label: string, value: int}>
+ */
+function fetchDashboardDailyLogins($db) {
+    $series = [];
+    $map = [];
+    if (activityLogsTableExists($db)) {
+        try {
+            $rows = $db->fetchAll(
+                "SELECT DATE(created_at) AS d, COUNT(*) AS cnt
+                 FROM activity_logs
+                 WHERE module = 'auth' AND action = 'login'
+                 AND created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
+                 GROUP BY DATE(created_at)
+                 ORDER BY d"
+            );
+            foreach ($rows as $r) {
+                $map[(string)($r['d'] ?? '')] = (int)($r['cnt'] ?? 0);
+            }
+        } catch (Exception $e) {
+            // zeros
+        }
+    }
+    for ($i = 29; $i >= 0; $i--) {
+        $t = strtotime('-' . $i . ' days');
+        $d = date('Y-m-d', $t);
+        $series[] = ['label' => date('M d', $t), 'value' => $map[$d] ?? 0];
+    }
+    return $series;
+}
+
+/**
+ * New residents per month (last 12 months).
+ *
+ * @return list<array{label: string, value: int}>
+ */
+function fetchDashboardResidentRegistrationsByMonth($db) {
+    $series = [];
+    $map = [];
+    try {
+        $rows = $db->fetchAll(
+            "SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym, COUNT(*) AS cnt
+             FROM residents
+             WHERE created_at >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 11 MONTH), '%Y-%m-01')
+             GROUP BY ym
+             ORDER BY ym"
+        );
+        foreach ($rows as $r) {
+            $map[(string)($r['ym'] ?? '')] = (int)($r['cnt'] ?? 0);
+        }
+    } catch (Exception $e) {
+        // empty
+    }
+    for ($i = 11; $i >= 0; $i--) {
+        $t = strtotime('first day of today -' . $i . ' months');
+        $ym = date('Y-m', $t);
+        $series[] = ['label' => date('M Y', $t), 'value' => $map[$ym] ?? 0];
+    }
+    return $series;
+}
+
+/**
+ * @return list<array{label: string, value: int}>
+ */
+function fetchDashboardSpecialCategories($db) {
+    try {
+        $row = $db->fetchOne(
+            "SELECT
+                COALESCE(SUM(is_senior_citizen = 1), 0) AS senior,
+                COALESCE(SUM(is_pwd = 1), 0) AS pwd,
+                COALESCE(SUM(is_solo_parent = 1), 0) AS solo,
+                COALESCE(SUM(is_4ps_beneficiary = 1), 0) AS fourps,
+                COALESCE(SUM(is_ip_member = 1), 0) AS ipm
+             FROM residents
+             WHERE status = 'active'"
+        );
+    } catch (Exception $e) {
+        $row = [];
+    }
+    return [
+        ['label' => 'Senior Citizens', 'value' => (int)($row['senior'] ?? 0)],
+        ['label' => 'PWD', 'value' => (int)($row['pwd'] ?? 0)],
+        ['label' => 'Solo Parents', 'value' => (int)($row['solo'] ?? 0)],
+        ['label' => '4Ps Beneficiaries', 'value' => (int)($row['fourps'] ?? 0)],
+        ['label' => 'IP Members', 'value' => (int)($row['ipm'] ?? 0)],
+    ];
+}
+
+function buildDashboardChartsPayload($db) {
+    $today = fetchDashboardTodayCounts($db);
+    return [
+        'gender_distribution' => fetchDashboardGenderDistribution($db),
+        'civil_status_distribution' => fetchDashboardCivilStatusDistribution($db),
+        'age_groups' => fetchDashboardAgeGroups($db),
+        'population_by_street' => fetchPopulationByStreetSeries($db),
+        'request_status' => fetchDashboardRequestStatus($db),
+        'request_types' => fetchDashboardRequestTypes($db),
+        'requests_over_time' => fetchDashboardRequestsOverTime($db),
+        'household_types' => fetchDashboardHouseholdTypes($db),
+        'new_registrations_today' => $today['new_registrations_today'],
+        'approved_today' => $today['approved_today'],
+        'daily_logins' => fetchDashboardDailyLogins($db),
+        'user_registrations' => fetchDashboardResidentRegistrationsByMonth($db),
+        'special_categories' => fetchDashboardSpecialCategories($db),
+    ];
+}
+
+function getDashboardCharts() {
+    try {
+        $db = Database::getInstance();
+        sendResponse(true, 'Dashboard charts data', buildDashboardChartsPayload($db));
+    } catch (Exception $e) {
+        sendResponse(false, 'Error loading dashboard charts', null, 500);
+    }
 }
 
 function sendResponse($success, $message, $data = null, $httpCode = 200) {
