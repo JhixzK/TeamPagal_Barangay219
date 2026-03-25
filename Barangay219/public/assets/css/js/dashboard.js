@@ -264,7 +264,7 @@ function loadRecentActivities() {
                 list.innerHTML = d.data.map(a => `
                     <div class="list-group-item">
                         <div class="act-user">${escapeHtml(a.username || 'System')}</div>
-                        <div class="act-action">${escapeHtml(a.action)} &mdash; ${escapeHtml(a.module)}</div>
+                        <div class="act-action">${escapeHtml(a.summary || (a.action + ' — ' + a.module))}</div>
                         <div class="act-time">${formatDateTime(a.created_at)}</div>
                     </div>
                 `).join('');
