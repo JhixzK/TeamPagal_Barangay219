@@ -925,6 +925,22 @@ function listHouseholds() {
         $from = sanitizeInput($_GET['from'] ?? '');
         $to = sanitizeInput($_GET['to'] ?? '');
         $streetToken = isset($_GET['street']) ? trim((string)$_GET['street']) : '';
+        $memberRange = strtolower(trim((string)($_GET['member_range'] ?? '')));
+        $withSenior = filter_var($_GET['with_senior'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
+        $withMinors = filter_var($_GET['with_minors'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
+        $singleOccupant = filter_var($_GET['single_occupant'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
+        $houseTypeFilter = strtolower(trim(sanitizeInput($_GET['house_type'] ?? '')));
+        $indigentStatusFilter = strtolower(trim(sanitizeInput($_GET['indigent_status'] ?? '')));
+        $sortBy = strtolower(trim(sanitizeInput($_GET['sort_by'] ?? 'newest')));
+        
+        // New filter parameters
+        $withRegisteredVoters = filter_var($_GET['with_registered_voters'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
+        $allMembersVerified = filter_var($_GET['all_members_verified'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
+        $withMissingInfo = filter_var($_GET['with_missing_info'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
+        $verificationStatus = strtolower(trim(sanitizeInput($_GET['verification_status'] ?? '')));
+        $residencyFrom = floatval($_GET['residency_from'] ?? 0);
+        $residencyTo = floatval($_GET['residency_to'] ?? 0);
+
         $where = '1=1';
         $params = [];
         if (!empty($q)) {
@@ -957,6 +973,147 @@ function listHouseholds() {
                 $params[] = $streetToken;
             }
         }
+
+        if ($singleOccupant) {
+            $where .= " AND (SELECT COUNT(*) FROM residents r_cnt WHERE r_cnt.household_id = h.id) = 1";
+        }
+
+        if ($memberRange !== '') {
+            if ($memberRange === '1') {
+                $where .= " AND (SELECT COUNT(*) FROM residents r_cnt WHERE r_cnt.household_id = h.id) = 1";
+            } elseif ($memberRange === '2-4') {
+                $where .= " AND (SELECT COUNT(*) FROM residents r_cnt WHERE r_cnt.household_id = h.id) BETWEEN 2 AND 4";
+            } elseif ($memberRange === '5-7') {
+                $where .= " AND (SELECT COUNT(*) FROM residents r_cnt WHERE r_cnt.household_id = h.id) BETWEEN 5 AND 7";
+            } elseif ($memberRange === '8+') {
+                $where .= " AND (SELECT COUNT(*) FROM residents r_cnt WHERE r_cnt.household_id = h.id) >= 8";
+            }
+        }
+
+        $birthCol = columnExists($db, 'residents', 'birth_date') ? 'birth_date'
+            : (columnExists($db, 'residents', 'date_of_birth') ? 'date_of_birth' : null);
+
+        if ($withSenior && $birthCol !== null) {
+            $where .= " AND EXISTS (SELECT 1 FROM residents r_age WHERE r_age.household_id = h.id AND r_age.`$birthCol` IS NOT NULL AND TIMESTAMPDIFF(YEAR, r_age.`$birthCol`, CURDATE()) >= 60)";
+        }
+        if ($withMinors && $birthCol !== null) {
+            $where .= " AND EXISTS (SELECT 1 FROM residents r_age WHERE r_age.household_id = h.id AND r_age.`$birthCol` IS NOT NULL AND TIMESTAMPDIFF(YEAR, r_age.`$birthCol`, CURDATE()) < 18)";
+        }
+
+        if ($houseTypeFilter !== '' && columnExists($db, 'households', 'house_type')) {
+            $houseTypeAliases = [
+                'concrete' => ['concrete'],
+                'semi_concrete' => ['semi_concrete', 'semi-concrete'],
+                'light_materials' => ['light_materials', 'light-materials'],
+                'apartment_boarding' => ['apartment_boarding', 'apartment_boarding_house'],
+                'townhouse_row' => ['townhouse_row', 'townhouse_row_house'],
+                'informal_improvised' => ['informal_improvised']
+            ];
+
+            $normalizedHouseType = strtolower(trim(preg_replace('/_+/', '_', str_replace(['-', '/', ' '], '_', $houseTypeFilter))));
+            if ($normalizedHouseType !== '') {
+                $accepted = $houseTypeAliases[$normalizedHouseType] ?? [$normalizedHouseType];
+                $placeholders = implode(',', array_fill(0, count($accepted), '?'));
+                $where .= " AND LOWER(TRIM(REPLACE(REPLACE(REPLACE(COALESCE(h.house_type, ''), '-', '_'), '/', '_'), ' ', '_'))) IN ($placeholders)";
+                foreach ($accepted as $a) {
+                    $params[] = strtolower(trim(preg_replace('/_+/', '_', str_replace(['-', '/', ' '], '_', (string)$a))));
+                }
+            }
+        }
+
+        if (($indigentStatusFilter === 'indigent' || $indigentStatusFilter === 'non_indigent') && columnExists($db, 'residents', 'monthly_income')) {
+            ensureIndigentClassificationSchema($db);
+            $thresholdMonthly = getIndigentThresholdMonthly($db);
+            if ($indigentStatusFilter === 'indigent') {
+                $where .= " AND COALESCE((SELECT SUM(CASE WHEN r_inc.monthly_income IS NULL OR r_inc.monthly_income < 0 THEN 0 ELSE r_inc.monthly_income END) FROM residents r_inc WHERE r_inc.household_id = h.id), 0) <= ?";
+                $params[] = $thresholdMonthly;
+            } else {
+                $where .= " AND COALESCE((SELECT SUM(CASE WHEN r_inc.monthly_income IS NULL OR r_inc.monthly_income < 0 THEN 0 ELSE r_inc.monthly_income END) FROM residents r_inc WHERE r_inc.household_id = h.id), 0) > ?";
+                $params[] = $thresholdMonthly;
+            }
+        }
+
+        // Filter by years of residency
+        if ($residencyFrom > 0 || $residencyTo > 0) {
+            if ($residencyFrom > 0 && $residencyTo > 0) {
+                // Between range: DATEDIFF(CURDATE(), registration_date) / 365.25
+                $where .= " AND (DATEDIFF(CURDATE(), h.registration_date) / 365.25) BETWEEN ? AND ?";
+                $params[] = $residencyFrom;
+                $params[] = $residencyTo;
+            } elseif ($residencyFrom > 0) {
+                // At least residencyFrom years
+                $where .= " AND (DATEDIFF(CURDATE(), h.registration_date) / 365.25) >= ?";
+                $params[] = $residencyFrom;
+            } elseif ($residencyTo > 0) {
+                // At most residencyTo years
+                $where .= " AND (DATEDIFF(CURDATE(), h.registration_date) / 365.25) <= ?";
+                $params[] = $residencyTo;
+            }
+        }
+
+        // Filter by verification status
+        if ($verificationStatus !== '' && $verificationStatus !== 'all' && columnExists($db, 'residents', 'verification_status')) {
+            if ($verificationStatus === 'verified') {
+                $where .= " AND (SELECT COUNT(*) FROM residents r_ver WHERE r_ver.household_id = h.id AND LOWER(TRIM(COALESCE(r_ver.verification_status, ''))) = 'verified') > 0";
+            } elseif ($verificationStatus === 'pending') {
+                $where .= " AND (SELECT COUNT(*) FROM residents r_ver WHERE r_ver.household_id = h.id AND LOWER(TRIM(COALESCE(r_ver.verification_status, ''))) = 'pending') > 0";
+            } elseif ($verificationStatus === 'needs_review') {
+                $where .= " AND (SELECT COUNT(*) FROM residents r_ver WHERE r_ver.household_id = h.id AND LOWER(TRIM(COALESCE(r_ver.verification_status, ''))) = 'needs_review') > 0";
+            }
+        }
+
+        // Filter households with at least one registered voter
+        if ($withRegisteredVoters && columnExists($db, 'residents', 'voter_status')) {
+            $where .= " AND EXISTS (SELECT 1 FROM residents r_voter WHERE r_voter.household_id = h.id AND r_voter.voter_status IS NOT NULL AND LOWER(TRIM(r_voter.voter_status)) LIKE '%registered%')";
+        }
+
+        // Filter households where all members are verified
+        if ($allMembersVerified && columnExists($db, 'residents', 'verification_status')) {
+            $where .= " AND NOT EXISTS (SELECT 1 FROM residents r_unver WHERE r_unver.household_id = h.id AND LOWER(TRIM(COALESCE(r_unver.verification_status, ''))) <> 'verified')";
+        }
+
+        // Filter households with missing information
+        if ($withMissingInfo && columnExists($db, 'residents', 'first_name')) {
+            $missingCols = [];
+            $missingCheck = '';
+            
+            // Check for commonly missing fields
+            if (columnExists($db, 'residents', 'birth_date') || columnExists($db, 'residents', 'date_of_birth')) {
+                $birthCol = columnExists($db, 'residents', 'birth_date') ? 'birth_date' : 'date_of_birth';
+                $missingCheck .= "($birthCol IS NULL OR TRIM($birthCol) = '') OR ";
+            }
+            if (columnExists($db, 'residents', 'contact_number')) {
+                $missingCheck .= "(contact_number IS NULL OR TRIM(contact_number) = '') OR ";
+            }
+            if (columnExists($db, 'residents', 'address')) {
+                $missingCheck .= "(address IS NULL OR TRIM(address) = '') OR ";
+            }
+            if (columnExists($db, 'residents', 'monthly_income')) {
+                $missingCheck .= "(monthly_income IS NULL) OR ";
+            }
+            if (columnExists($db, 'residents', 'monthly_gross_income')) {
+                $missingCheck .= "(monthly_gross_income IS NULL) OR ";
+            }
+            if (columnExists($db, 'residents', 'verification_status')) {
+                $missingCheck .= "(verification_status IS NULL OR TRIM(verification_status) = '') OR ";
+            }
+            
+            // Remove trailing " OR "
+            $missingCheck = rtrim($missingCheck, ' OR ');
+            
+            if ($missingCheck !== '') {
+                $where .= " AND EXISTS (SELECT 1 FROM residents r_miss WHERE r_miss.household_id = h.id AND ($missingCheck))";
+            }
+        }
+        $orderBySql = 'h.registration_date DESC, h.id DESC';
+        if ($sortBy === 'oldest') {
+            $orderBySql = 'h.registration_date ASC, h.id ASC';
+        } elseif ($sortBy === 'members_desc') {
+            $orderBySql = '_live_member_count DESC, h.registration_date DESC, h.id DESC';
+        } elseif ($sortBy === 'members_asc') {
+            $orderBySql = '_live_member_count ASC, h.registration_date DESC, h.id DESC';
+        }
+
         $sql = "SELECT h.*, 
                        (SELECT COUNT(*) FROM residents r_cnt WHERE r_cnt.household_id = h.id) AS _live_member_count,
                        CONCAT(r.first_name, ' ', COALESCE(r.middle_name, ''), ' ', r.last_name) as family_head_name,
@@ -964,7 +1121,7 @@ function listHouseholds() {
                 FROM households h
                 LEFT JOIN residents r ON h.family_head_id = r.id
                 WHERE $where
-                ORDER BY h.registration_date DESC, h.id DESC";
+                ORDER BY $orderBySql";
         
         $households = $db->fetchAll($sql, $params);
 
