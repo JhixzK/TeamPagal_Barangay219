@@ -90,6 +90,7 @@ if (preg_match('/^(.*?\bTondo),/i', $certAddress, $matches)) {
 $certTypeLabels = [
     'barangay_clearance' => 'Barangay Clearance',
     'certificate_residency' => 'Certificate of Residency',
+    'barangay_indigency' => 'Barangay Indigency',
     'certificate_indigency' => 'Certificate of Indigency',
     'certificate_good_moral' => 'Certificate of Good Moral Character',
     'transfer_request' => 'Transfer Request'
@@ -217,8 +218,8 @@ function styleResidentParagraph(string $paragraphHtml, string $fullName, string 
         $styled = preg_replace($addressPattern, '<span class="resident-field">$0</span>', $styled) ?? $styled;
     }
 
-    // Age formatting (e.g., 25 years old)
-    $styled = preg_replace('/\b\d{1,3}\s*years?\s*old\b/i', '<span class="resident-field">$0</span>', $styled) ?? $styled;
+    // Age formatting (e.g., 25 years old / 25 years of age)
+    $styled = preg_replace('/\b\d{1,3}\s*years?\s*(?:old|of\s+age)\b/i', '<span class="resident-field">$0</span>', $styled) ?? $styled;
 
     // Civil/relationship status formatting
     $styled = preg_replace('/\b(single|married|widowed|separated|divorced|annulled)\b/i', '<span class="resident-field">$0</span>', $styled) ?? $styled;
@@ -311,9 +312,9 @@ $defaultParagraphsBarangay = [
 
 $defaultParagraphsIndigency = [
     '<strong>TO WHOM IT MAY CONCERN:</strong>',
-    'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, <strong>' . htmlspecialchars($residentAge !== '' ? $residentAge : 'N/A') . '</strong> years of age, <strong>' . htmlspecialchars($residentCivilStatus !== '' ? ucfirst(strtolower($residentCivilStatus)) : 'N/A') . '</strong>, is a bonafide resident of BARANGAY 219 Zone 20 with postal address at <strong>' . htmlspecialchars($certAddress) . '</strong>.',
+    'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, <span class="resident-field">' . htmlspecialchars($residentAge !== '' ? $residentAge : 'N/A') . ' years of age</span>, <strong>' . htmlspecialchars($residentCivilStatus !== '' ? ucfirst(strtolower($residentCivilStatus)) : 'N/A') . '</strong>, is a bonafide resident of BARANGAY 219 Zone 20 with postal address at <strong>' . htmlspecialchars($certAddress) . '</strong>.',
     'This is to further certify that the above mentioned name belongs to an indigent family of this barangay.',
-    'Issued this <strong>' . htmlspecialchars($issuedDate) . '</strong> at Barangay 219 Zone 20 Manila.'
+    '<br><span style="display:inline-block; margin-left:2px;">Issued this <strong>' . htmlspecialchars($issuedDate) . '</strong> at Barangay 219 Zone 20 Manila.</span>'
 ];
 $defaultParagraphsTransferRequest = [
     '<strong>TO WHOM IT MAY CONCERN:</strong>',
@@ -325,11 +326,11 @@ $defaultParagraphsTransferRequest = [
 
 $defaultParagraphs = ($currentCertType === 'barangay_clearance')
     ? $defaultParagraphsBarangay
-    : (($currentCertType === 'certificate_indigency')
+    : ((in_array($currentCertType, ['barangay_indigency', 'certificate_indigency'], true))
         ? $defaultParagraphsIndigency
         : (($currentCertType === 'transfer_request') ? $defaultParagraphsTransferRequest : $defaultParagraphsGeneric));
 
-if ($certBody !== '' && $currentCertType !== 'transfer_request') {
+if ($certBody !== '' && !in_array($currentCertType, ['transfer_request', 'barangay_indigency', 'certificate_indigency'], true)) {
     $resolvedBody = strtr($certBody, $placeholderValues);
     // Normalize legacy saved bodies that still include extended Manila suffix.
     $resolvedBody = preg_replace('/\bTondo,\s*Manila,\s*Metro Manila,\s*Manila\b/i', 'Tondo, Manila', $resolvedBody) ?? $resolvedBody;
@@ -551,9 +552,6 @@ $paragraphs = array_map(static function ($paragraph) use ($fullName, $certAddres
             padding-left: 36mm;
             padding-right: 20mm;
         }
-        .has-template-bg .subject {
-            display: none;
-        }
         .has-template-bg .body {
             font-family: "Times New Roman", serif;
             font-size: 12px;
@@ -607,7 +605,8 @@ $paragraphs = array_map(static function ($paragraph) use ($fullName, $certAddres
         .left-role { text-align: center; font-weight: 700; margin-bottom: 10px; line-height: 1.2; }
         .left-list .left-name { font-weight: 700; font-size: 11.5px; }
         .right-panel { padding-right: 6px; }
-        .subject {
+        .subject,
+        .document-title {
             text-align: center;
             margin: 12px 0 16px;
             font-size: 17px;
@@ -802,7 +801,7 @@ $paragraphs = array_map(static function ($paragraph) use ($fullName, $certAddres
                                 : 'C E R T I F I C A T I O N'; ?>
                         </div>
                         <?php else: ?>
-                        <div class="subject"><?php echo htmlspecialchars($subjectLine); ?></div>
+                        <div class="document-title"><?php echo htmlspecialchars($subjectLine); ?></div>
                         <?php endif; ?>
 
                         <div class="body">
