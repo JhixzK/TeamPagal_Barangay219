@@ -127,6 +127,13 @@ function setupEventListeners() {
   if (addDependentForm) {
     addDependentForm.addEventListener("submit", (e) => {
       e.preventDefault();
+      clearAddDependentFormError();
+      if (!addDependentForm.checkValidity()) {
+        addDependentForm.classList.add("was-validated");
+        addDependentForm.reportValidity();
+        return;
+      }
+      addDependentForm.classList.remove("was-validated");
       submitAddDependent(e);
     });
   }
@@ -300,6 +307,7 @@ function openAddDependentModal() {
   if (!modal) return;
   clearAddDependentFormError();
   const form = document.getElementById("addDependentForm");
+  form?.classList.remove("was-validated");
   form?.reset();
   const bd = document.getElementById("depBirthDate");
   if (bd) {
@@ -323,13 +331,12 @@ function closeAddDependentModal() {
 
 async function submitAddDependent(e) {
   e?.preventDefault();
-  clearAddDependentFormError();
   if (typeof HOUSEHOLD_API === "undefined" || !HOUSEHOLD_API) {
     showAddDependentFormError("Household service URL is missing. Refresh the page and try again.");
     return;
   }
   if (!currentHouseholdContext?.is_head) {
-    showAddDependentFormError("Only the household head can add family members.");
+    showAddDependentFormError("Only the household head can add members.");
     return;
   }
 
@@ -344,7 +351,8 @@ async function submitAddDependent(e) {
   };
 
   if (!payload.first_name || !payload.last_name || !payload.birth_date || !payload.gender || !payload.relationship_to_head) {
-    showAddDependentFormError("Please complete all required fields.");
+    document.getElementById("addDependentForm")?.classList.add("was-validated");
+    showAddDependentFormError("Please complete all required fields (names cannot be only spaces).");
     return;
   }
 
@@ -353,6 +361,7 @@ async function submitAddDependent(e) {
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
     if (!Number.isNaN(parsed.getTime()) && parsed > endOfToday) {
+      document.getElementById("addDependentForm")?.classList.add("was-validated");
       showAddDependentFormError("Birth date cannot be in the future. Use today or an earlier date.");
       return;
     }
@@ -365,9 +374,9 @@ async function submitAddDependent(e) {
     clearAddDependentFormError();
     closeAddDependentModal();
     await loadHouseholdInfo();
-    showSuccessMessage("Family member added.");
+    showSuccessMessage("Member added.");
   } catch (error) {
-    showAddDependentFormError(error.message || "Failed to add family member.");
+    showAddDependentFormError(error.message || "Failed to add member.");
   } finally {
     if (submitBtn) submitBtn.disabled = false;
   }
@@ -562,7 +571,7 @@ async function submitMemberJoin(e) {
   e?.preventDefault();
   const familyHeadCode = (document.getElementById("familyHeadCodeInput")?.value || "").trim().toUpperCase();
   if (!familyHeadCode) {
-    showErrorMessage("Please enter the Family Head Code.");
+    showErrorMessage("Please enter the head code.");
     return;
   }
   const relationship = (document.getElementById("joinRelationshipSelect")?.value || "").trim();
