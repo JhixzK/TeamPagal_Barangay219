@@ -1,6 +1,6 @@
 -- Household codes for approval/assignment workflow
 -- household_id_code: HH-XXXXXX (6 digits)
--- family_head_code:  FH-XXXXX  (5 digits)
+-- family_head_code:  HC-XXXXX  (5 digits; legacy FH-XXXXX may exist)
 -- Generated when officials assign/approve the head of family.
 
 ALTER TABLE households
