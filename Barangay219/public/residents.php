@@ -335,6 +335,14 @@ include __DIR__ . '/../includes/sidebar.php';
                     </select>
                 </div>
                 <div class="mb-3">
+                    <label class="form-label">Household Role</label>
+                    <select class="form-select" id="filterHouseholdHead">
+                        <option value="">All</option>
+                        <option value="head">Head of Household</option>
+                        <option value="member">Household Member</option>
+                    </select>
+                </div>
+                <div class="mb-3">
                     <label class="form-label">Age</label>
                     <div class="row g-2">
                         <div class="col-6">
