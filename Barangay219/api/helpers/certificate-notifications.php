@@ -12,7 +12,9 @@
  *        $notifier->notifyApproved($certificateId, $adminName);
  */
 
-define('ACCESS_ALLOWED', true);
+if (!defined('ACCESS_ALLOWED')) {
+    define('ACCESS_ALLOWED', true);
+}
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/notifications-store.php';
 
@@ -311,7 +313,7 @@ class CertificateNotifier {
             $emailSubject = self::EMAIL_SUBJECT_PREFIX . ' ' . $subject;
 
             // PHP mail() function - replace with proper mail service (SendGrid, etc.) in production
-            $success = mail(
+            $success = @mail(
                 $toEmail,
                 $emailSubject,
                 $htmlBody,
