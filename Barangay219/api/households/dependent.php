@@ -20,7 +20,7 @@ try {
 function createDependentMember($residentId, $data) {
     $context = getResidentHouseholdContext($residentId);
     if (!$context || !$context['is_head']) {
-        householdJsonResponse(false, null, 'Only household heads can add family members', 403);
+        householdJsonResponse(false, null, 'Only household heads can add members', 403);
     }
 
     $householdId = (int)$context['household_id'];
