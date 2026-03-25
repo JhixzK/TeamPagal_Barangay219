@@ -217,7 +217,7 @@ function displayResidents(residents) {
                         <button class="action-icon-btn" title="View" aria-label="View" onclick="viewResident(${resident.id})"><i class="bi bi-eye"></i></button>
                         ${canVerifyNow ? `<button class="action-icon-btn" title="Verify ID" aria-label="Verify ID" onclick="verifyResidentId(${resident.id}, 'verified')"><i class="bi bi-patch-check"></i></button>` : ''}
                         ${canRejectNow ? `<button class="action-icon-btn" title="Reject ID" aria-label="Reject ID" onclick="verifyResidentId(${resident.id}, 'rejected')"><i class="bi bi-patch-exclamation"></i></button>` : ''}
-                        ${RESIDENT_PERMS.canDelete ? `<button class="action-icon-btn action-delete" title="Delete" aria-label="Delete" onclick="deleteResident(${resident.id})"><i class="bi bi-trash"></i></button>` : ''}
+                        ${RESIDENT_PERMS.canDelete ? `<button class="action-icon-btn action-deactivate" title="Deactivate" aria-label="Deactivate resident" onclick="deactivateResident(${resident.id})"><i class="bi bi-person-slash"></i></button>` : ''}
                     </div>
                 </td>
             </tr>
@@ -571,14 +571,14 @@ function saveResident() {
 }
 
 /**
- * Delete resident
+ * Deactivate resident (sets status to inactive; not a hard delete)
  */
-function deleteResident(id) {
+function deactivateResident(id) {
     if (!RESIDENT_PERMS.canDelete) {
         showAlert('error', 'Access denied');
         return;
     }
-    if (confirm('Are you sure you want to delete this resident?')) {
+    if (confirm('Deactivate this resident? They will be marked inactive and hidden from active lists.')) {
         const formData = new FormData();
         formData.append('action', 'delete');
         formData.append('id', id);
@@ -604,7 +604,7 @@ function deleteResident(id) {
         })
         .catch(error => {
             console.error('Error:', error);
-            showAlert('error', 'Error deleting resident');
+            showAlert('error', 'Error deactivating resident');
         });
     }
 }
