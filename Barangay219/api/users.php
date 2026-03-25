@@ -572,13 +572,16 @@ function getActivityLogs() {
         $db = Database::getInstance();
         $userId = (int)($_GET['user_id'] ?? 0);
         $limit = min(100, max(10, (int)($_GET['limit'] ?? 50)));
-        $where = $userId ? "al.user_id = ?" : "1=1";
-        $params = $userId ? [$userId, $limit] : [$limit];
-        $sql = "SELECT al.*, u.username FROM activity_logs al LEFT JOIN users u ON al.user_id = u.id WHERE $where ORDER BY al.created_at DESC LIMIT ?";
+        $exclude = activityLogsExcludeLoginSql('al');
+        $where = $userId ? "al.user_id = ? AND $exclude" : "1=1 AND $exclude";
+        $params = $userId ? [$userId] : [];
+        // Integer LIMIT avoids MySQL native prepared statement issues with LIMIT ? placeholders.
+        $sql = "SELECT al.*, u.username FROM activity_logs al LEFT JOIN users u ON al.user_id = u.id WHERE $where ORDER BY al.created_at DESC LIMIT " . $limit;
         $logs = $db->fetchAll($sql, $params);
-        sendResponse(true, 'Activity logs', $logs);
+        sendResponse(true, 'Activity logs', activityLogsWithSummary($logs));
     } catch (Exception $e) {
-        sendResponse(false, 'Error', null, 500);
+        error_log('getActivityLogs: ' . $e->getMessage());
+        sendResponse(false, defined('DEBUG_MODE') && DEBUG_MODE ? $e->getMessage() : 'Could not load activity logs', null, 500);
     }
 }
 
@@ -703,7 +706,11 @@ function saveRolePermissionsApi() {
         }
 
         $db->commit();
-        logActivity('update', 'role_permissions', null, ['role' => $role]);
+        $roleLabel = ucwords(str_replace('_', ' ', $role_normalized));
+        logActivity('update', 'role_permissions', null, [
+            'role' => $role_normalized,
+            'description' => 'Updated access permissions for ' . $roleLabel,
+        ]);
         sendResponse(true, 'Permissions saved', null);
     } catch (Exception $e) {
         try {
