@@ -306,6 +306,14 @@ function getResident() {
     try {
         $db = Database::getInstance();
 
+        ensureIndigentClassificationSchema($db);
+        addColumnIfMissing($db, 'residents', 'residency_start_date', 'DATE NULL');
+        if (tableExists($db, 'resident_applications')) {
+            addColumnIfMissing($db, 'resident_applications', 'monthly_income', 'DECIMAL(12,2) DEFAULT NULL');
+            addColumnIfMissing($db, 'resident_applications', 'household_income', 'DECIMAL(12,2) DEFAULT NULL');
+            addColumnIfMissing($db, 'resident_applications', 'residency_start_date', 'DATE NULL');
+        }
+
         $hasResidentsHouseholdId = columnExists($db, 'residents', 'household_id');
         $hasHouseholdsTable = tableExists($db, 'households');
         $canJoinHouseholds = $hasHouseholdsTable && $hasResidentsHouseholdId;
@@ -353,6 +361,12 @@ function getResident() {
         if (!empty($registrationSnapshot)) {
             $resident = array_merge($resident, $registrationSnapshot);
         }
+
+        backfillResidentCanonicalFromRegistration($resident);
+
+        hydrateResidentIncomeResidencyFromApplication($db, $resident);
+
+        backfillResidentAddressFromRegistration($resident);
         
         // Compute length_of_residency from residency_start_date if available
         if (!empty($resident['residency_start_date'])) {
@@ -377,6 +391,189 @@ function getResident() {
     } catch (Exception $e) {
         error_log("Get resident error: " . $e->getMessage());
         sendResponse(false, 'Error retrieving resident', null, 500);
+    }
+}
+
+/**
+ * When residents.monthly_income or residency_start_date is empty but the merged
+ * approved application snapshot has registration_* values, copy them to the
+ * canonical keys so the admin edit form and other clients see the same data as the view modal.
+ */
+function backfillResidentAddressFromRegistration(array &$resident) {
+    $map = [
+        'house_number' => 'registration_house_number',
+        'street' => 'registration_street',
+        'purok_sitio' => 'registration_purok_sitio',
+        'barangay' => 'registration_barangay',
+        'city' => 'registration_city',
+        'province' => 'registration_province',
+    ];
+    foreach ($map as $canonical => $regKey) {
+        $cur = isset($resident[$canonical]) ? trim((string)$resident[$canonical]) : '';
+        if ($cur !== '') {
+            continue;
+        }
+        if (!empty($resident[$regKey])) {
+            $resident[$canonical] = $resident[$regKey];
+        }
+    }
+}
+
+function backfillResidentCanonicalFromRegistration(array &$resident) {
+    $rs = $resident['residency_start_date'] ?? null;
+    if (($rs === null || $rs === '') && !empty($resident['registration_residency_start_date'])) {
+        $resident['residency_start_date'] = $resident['registration_residency_start_date'];
+    }
+
+    $hasIncome = array_key_exists('monthly_income', $resident)
+        && $resident['monthly_income'] !== null
+        && $resident['monthly_income'] !== '';
+    if (!$hasIncome) {
+        if (isset($resident['registration_monthly_income'])
+            && $resident['registration_monthly_income'] !== null
+            && $resident['registration_monthly_income'] !== '') {
+            $resident['monthly_income'] = $resident['registration_monthly_income'];
+        } elseif (isset($resident['registration_household_income'])
+            && $resident['registration_household_income'] !== null
+            && $resident['registration_household_income'] !== '') {
+            $resident['monthly_income'] = $resident['registration_household_income'];
+        }
+    }
+}
+
+/**
+ * Fill monthly_income / residency_start_date from resident_applications when the residents
+ * row is still empty (snapshot missed, older data, or no registration_* keys in JSON).
+ */
+function hydrateResidentIncomeResidencyFromApplication($db, array &$resident) {
+    if (!tableExists($db, 'resident_applications')) {
+        return;
+    }
+
+    $needIncome = !array_key_exists('monthly_income', $resident)
+        || $resident['monthly_income'] === null
+        || $resident['monthly_income'] === '';
+    $needResidency = !array_key_exists('residency_start_date', $resident)
+        || $resident['residency_start_date'] === null
+        || trim((string)$resident['residency_start_date']) === '';
+
+    if (!$needIncome && !$needResidency) {
+        return;
+    }
+
+    $sel = [];
+    if (columnExists($db, 'resident_applications', 'monthly_income')) {
+        $sel[] = 'monthly_income';
+    }
+    if (columnExists($db, 'resident_applications', 'household_income')) {
+        $sel[] = 'household_income';
+    }
+    if (columnExists($db, 'resident_applications', 'residency_start_date')) {
+        $sel[] = 'residency_start_date';
+    }
+    if (empty($sel)) {
+        return;
+    }
+
+    $selectSql = '`' . implode('`,`', $sel) . '`';
+    $appCols = array_flip(getTableColumns($db, 'resident_applications'));
+    $statusCol = isset($appCols['record_status']) ? 'record_status' : (isset($appCols['status']) ? 'status' : null);
+    $approvedSql = $statusCol
+        ? " AND LOWER(TRIM(COALESCE(`{$statusCol}`, ''))) = 'approved'"
+        : '';
+
+    $birthNorm = '';
+    if (!empty($resident['birth_date'])) {
+        $b = trim((string)$resident['birth_date']);
+        $birthNorm = strlen($b) >= 10 ? substr(str_replace('T', ' ', $b), 0, 10) : $b;
+    }
+
+    $rid = (int)($resident['id'] ?? 0);
+
+    $applyIncomeResidencyRow = function (array $row) use (&$resident, &$needIncome, &$needResidency) {
+        if ($needIncome) {
+            $inc = $row['monthly_income'] ?? null;
+            if (($inc === null || $inc === '') && array_key_exists('household_income', $row)) {
+                $inc = $row['household_income'];
+            }
+            if ($inc !== null && $inc !== '') {
+                $resident['monthly_income'] = $inc;
+                $needIncome = false;
+            }
+        }
+        if ($needResidency && !empty($row['residency_start_date'])) {
+            $resident['residency_start_date'] = $row['residency_start_date'];
+            $needResidency = false;
+        }
+    };
+
+    $queries = [];
+
+    if ($rid > 0 && isset($appCols['approved_resident_id'])) {
+        $queries[] = [
+            "SELECT {$selectSql} FROM resident_applications
+             WHERE approved_resident_id = ?
+             ORDER BY id DESC
+             LIMIT 1",
+            [$rid],
+        ];
+    }
+
+    if (isset($appCols['first_name'], $appCols['last_name'], $appCols['birth_date'])
+        && !empty($resident['first_name'])
+        && !empty($resident['last_name'])
+        && $birthNorm !== '') {
+        $queries[] = [
+            "SELECT {$selectSql} FROM resident_applications
+             WHERE LOWER(TRIM(first_name)) = LOWER(TRIM(?))
+               AND LOWER(TRIM(last_name)) = LOWER(TRIM(?))
+               AND DATE(birth_date) = DATE(?)
+             {$approvedSql}
+             ORDER BY id DESC
+             LIMIT 1",
+            [
+                (string)$resident['first_name'],
+                (string)$resident['last_name'],
+                $birthNorm,
+            ],
+        ];
+    }
+
+    if (isset($appCols['email']) && !empty(trim((string)($resident['email'] ?? '')))) {
+        $queries[] = [
+            "SELECT {$selectSql} FROM resident_applications
+             WHERE LOWER(TRIM(COALESCE(email, ''))) = LOWER(TRIM(?))
+             {$approvedSql}
+             ORDER BY id DESC
+             LIMIT 1",
+            [trim((string)$resident['email'])],
+        ];
+    }
+
+    if (isset($appCols['mobile_number']) && !empty(trim((string)($resident['contact_number'] ?? '')))) {
+        $digits = preg_replace('/\D+/', '', (string)$resident['contact_number']);
+        if (strlen($digits) >= 10) {
+            $tail = substr($digits, -10);
+            $queries[] = [
+                "SELECT {$selectSql} FROM resident_applications
+                 WHERE REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(mobile_number, ''), ' ', ''), '-', ''), '(', ''), '+', '') LIKE ?
+                 {$approvedSql}
+                 ORDER BY id DESC
+                 LIMIT 1",
+                ['%' . $tail],
+            ];
+        }
+    }
+
+    foreach ($queries as $pair) {
+        if (!$needIncome && !$needResidency) {
+            break;
+        }
+        $row = $db->fetchOne($pair[0], $pair[1]);
+        if (!$row) {
+            continue;
+        }
+        $applyIncomeResidencyRow($row);
     }
 }
 
@@ -454,14 +651,32 @@ function getLatestApprovedRegistrationSnapshot($db, array $resident) {
 
     $row = null;
     if (isset($appCols['approved_resident_id']) && !empty($resident['id'])) {
+        $rid = (int)$resident['id'];
         $row = $db->fetchOne(
             "SELECT {$selectSql}
              FROM resident_applications
              WHERE approved_resident_id = ? {$statusSql}
              ORDER BY id DESC
              LIMIT 1",
-            [(int)$resident['id']]
+            [$rid]
         );
+        // Some DBs store non-standard status text; still prefer the row explicitly linked to this resident.
+        if (!$row) {
+            $row = $db->fetchOne(
+                "SELECT {$selectSql}
+                 FROM resident_applications
+                 WHERE approved_resident_id = ?
+                 ORDER BY id DESC
+                 LIMIT 1",
+                [$rid]
+            );
+        }
+    }
+
+    $birthNorm = '';
+    if (!empty($resident['birth_date'])) {
+        $b = trim((string)$resident['birth_date']);
+        $birthNorm = strlen($b) >= 10 ? substr(str_replace('T', ' ', $b), 0, 10) : $b;
     }
 
     if (!$row
@@ -470,20 +685,34 @@ function getLatestApprovedRegistrationSnapshot($db, array $resident) {
         && isset($appCols['birth_date'])
         && !empty($resident['first_name'])
         && !empty($resident['last_name'])
-        && !empty($resident['birth_date'])) {
+        && $birthNorm !== '') {
         $row = $db->fetchOne(
             "SELECT {$selectSql}
              FROM resident_applications
              WHERE LOWER(TRIM(first_name)) = LOWER(TRIM(?))
                AND LOWER(TRIM(last_name)) = LOWER(TRIM(?))
-               AND birth_date = ? {$statusSql}
+               AND DATE(birth_date) = DATE(?) {$statusSql}
              ORDER BY id DESC
              LIMIT 1",
             [
                 (string)$resident['first_name'],
                 (string)$resident['last_name'],
-                (string)$resident['birth_date'],
+                $birthNorm,
             ]
+        );
+    }
+
+    if (!$row
+        && isset($appCols['email'])
+        && !empty(trim((string)($resident['email'] ?? '')))) {
+        $emailMatch = trim((string)$resident['email']);
+        $row = $db->fetchOne(
+            "SELECT {$selectSql}
+             FROM resident_applications
+             WHERE LOWER(TRIM(COALESCE(email, ''))) = LOWER(TRIM(?)) {$statusSql}
+             ORDER BY id DESC
+             LIMIT 1",
+            [$emailMatch]
         );
     }
 
@@ -605,12 +834,14 @@ function updateResident() {
     $civil_status = sanitizeInput($_POST['civil_status'] ?? '');
     $occupation = sanitizeInput($_POST['occupation'] ?? '');
     $citizenship = sanitizeInput($_POST['citizenship'] ?? '');
-    $address = sanitizeInput($_POST['address'] ?? '');
+    $house_number = sanitizeInput($_POST['house_number'] ?? '');
+    $street = sanitizeInput($_POST['street'] ?? '');
+    $barangay = sanitizeInput($_POST['barangay'] ?? '');
+    $city = sanitizeInput($_POST['city'] ?? '');
+    $province = sanitizeInput($_POST['province'] ?? '');
     $contact_number = sanitizeInput($_POST['contact_number'] ?? '');
-    $household_id = intval($_POST['household_id'] ?? 0);
     $status = sanitizeInput($_POST['status'] ?? '');
     $residency_start_date = $_POST['residency_start_date'] ?? '';
-
     $monthly_income_raw = trim((string)($_POST['monthly_income'] ?? ''));
     $monthly_income_val = null;
     if ($monthly_income_raw !== '') {
@@ -625,8 +856,8 @@ function updateResident() {
         }
     }
 
-    if (empty($first_name) || empty($last_name) || empty($birth_date) || empty($gender) || empty($civil_status) || empty($occupation) || empty($citizenship) || empty($contact_number) || empty($address) || empty($status)) {
-        sendResponse(false, 'All fields are required except household and suffix', null, 400);
+    if (empty($first_name) || empty($last_name) || empty($birth_date) || empty($gender) || empty($civil_status) || empty($occupation) || empty($citizenship) || empty($contact_number) || empty($status)) {
+        sendResponse(false, 'All fields are required except suffix and optional income/residency dates', null, 400);
         return;
     }
     
@@ -634,52 +865,71 @@ function updateResident() {
         $db = Database::getInstance();
         ensureIndigentClassificationSchema($db);
         
-        // Check if resident exists
-        $existing = $db->fetchOne("SELECT id FROM residents WHERE id = ?", [$id]);
+        $existing = $db->fetchOne("SELECT id, purok_sitio FROM residents WHERE id = ?", [$id]);
         if (!$existing) {
             sendResponse(false, 'Resident not found', null, 404);
             return;
         }
-        
-        $sets = [
-            'first_name = ?',
-            'middle_name = ?',
-            'last_name = ?',
-            'suffix = ?',
-            'birth_date = ?',
-            'gender = ?',
-            'civil_status = ?',
-            'occupation = ?',
-            'citizenship = ?',
-            'address = ?',
-            'contact_number = ?',
-            'household_id = ?',
-            'status = ?',
-            'residency_start_date = ?',
-        ];
-        $params = [
-            $first_name,
-            $middle_name ?: null,
-            $last_name,
-            $suffix ?: null,
-            $birth_date,
-            $gender,
-            $civil_status ?: null,
-            $occupation ?: null,
-            $citizenship,
-            $address,
-            $contact_number ?: null,
-            $household_id ?: null,
-            $status,
-            $residency_start_date ?: null,
-        ];
-        if (columnExists($db, 'residents', 'monthly_income')) {
-            $sets[] = 'monthly_income = ?';
-            $params[] = $monthly_income_val;
-        }
-        $params[] = $id;
 
-        $sql = 'UPDATE residents SET ' . implode(', ', $sets) . ' WHERE id = ?';
+        $purok_kept = trim((string)($existing['purok_sitio'] ?? ''));
+
+        $addrParts = array_values(array_filter([
+            $house_number !== '' ? $house_number : null,
+            $street !== '' ? $street : null,
+            $purok_kept !== '' ? $purok_kept : null,
+            $barangay !== '' ? $barangay : null,
+            $city !== '' ? $city : null,
+            $province !== '' ? $province : null,
+        ], static function ($v) {
+            return $v !== null && $v !== '';
+        }));
+        $address = implode(', ', $addrParts);
+        if ($address === '' && !empty($_POST['address'])) {
+            $address = sanitizeInput($_POST['address'] ?? '');
+        }
+
+        if ($house_number === '' || $street === '' || $address === '') {
+            sendResponse(false, 'House number, street, and a complete address are required.', null, 400);
+            return;
+        }
+
+        $rows = [
+            ['first_name = ?', $first_name],
+            ['middle_name = ?', $middle_name ?: null],
+            ['last_name = ?', $last_name],
+            ['suffix = ?', $suffix ?: null],
+            ['birth_date = ?', $birth_date],
+            ['gender = ?', $gender],
+            ['civil_status = ?', $civil_status ?: null],
+            ['occupation = ?', $occupation ?: null],
+            ['citizenship = ?', $citizenship],
+            ['address = ?', $address],
+            ['contact_number = ?', $contact_number ?: null],
+            ['status = ?', $status],
+            ['residency_start_date = ?', $residency_start_date ?: null],
+        ];
+
+        $addrComponents = [
+            'house_number' => $house_number !== '' ? $house_number : null,
+            'street' => $street !== '' ? $street : null,
+            'barangay' => $barangay !== '' ? $barangay : null,
+            'city' => $city !== '' ? $city : null,
+            'province' => $province !== '' ? $province : null,
+        ];
+        foreach ($addrComponents as $col => $val) {
+            if (columnExists($db, 'residents', $col)) {
+                $rows[] = ["`$col` = ?", $val];
+            }
+        }
+
+        if (columnExists($db, 'residents', 'monthly_income')) {
+            $rows[] = ['monthly_income = ?', $monthly_income_val];
+        }
+
+        $setSql = implode(', ', array_column($rows, 0));
+        $params = array_merge(array_column($rows, 1), [$id]);
+
+        $sql = 'UPDATE residents SET ' . $setSql . ' WHERE id = ?';
         $db->query($sql, $params);
         
         // Get updated resident
