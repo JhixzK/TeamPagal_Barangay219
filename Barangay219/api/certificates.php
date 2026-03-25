@@ -346,6 +346,16 @@ function getCertificateBodyTemplate(string $certificateType): string {
     $normalized = strtolower(trim(str_replace('_', ' ', $certificateType)));
 
     if ($normalized === 'barangay clearance' || $normalized === 'barangay certificate') {
+        if ($normalized === 'barangay clearance') {
+            return implode("\n", [
+                'THIS IS TO CERTIFY that <strong>[NAME_UPPER]</strong>, [AGE] years old, [CIVIL_STATUS], and a <span class="resident-field">[NATIONALITY_UPPER]</span>, is a bonafide resident of Barangay 219, Zone 20, District II, Tondo, Manila, with postal address at [ADDRESS].',
+                '',
+                'FURTHER TO THIS, the above-mentioned person is known to be of good moral character and has no derogatory record on file in this office as of this date of issuance.',
+                '',
+                'This clearance is being issued upon the request of the interested party for the purpose of <strong>[PURPOSE]</strong> and for whatever legal purpose it may serve.'
+            ]);
+        }
+
         return implode("\n", [
             'TO WHOM IT MAY CONCERN:',
             '',
@@ -402,6 +412,8 @@ function buildCertificateBody(string $certificateType, string $name, ?int $age, 
 
     $replacements = [
         '[NAME]' => $name !== '' ? $name : 'N/A',
+        '[NAME_UPPER]' => $name !== '' ? strtoupper($name) : 'N/A',
+        '[NATIONALITY_UPPER]' => $nationality !== '' ? ucfirst(strtolower($nationality)) : 'Filipino',
         '[AGE]' => $age !== null && $age > 0 ? (string)$age : 'N/A',
         '[CIVIL_STATUS]' => $civilStatus !== '' ? ucfirst(strtolower($civilStatus)) : 'N/A',
         '[ADDRESS]' => $address !== '' ? $address : 'N/A',
