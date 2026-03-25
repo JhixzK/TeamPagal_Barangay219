@@ -97,7 +97,7 @@ $certTypeLabels = [
 ];
 $certLabel = $certTypeLabels[$cert['certificate_type']] ?? ucfirst(str_replace('_', ' ', $cert['certificate_type']));
 $normalizedCertType = strtolower(trim(str_replace('_', ' ', (string)($cert['certificate_type'] ?? ''))));
-$isBarangayCertificate = in_array($normalizedCertType, ['barangay clearance', 'barangay certificate', 'transfer request'], true);
+$isBarangayCertificate = in_array($normalizedCertType, ['barangay certificate', 'transfer request'], true);
 $currentCertType = str_replace(' ', '_', $normalizedCertType);
 $controlNum = $cert['control_number'] ?? 'BRGY219-' . date('Y') . '-' . str_pad((string)$id, 5, '0', STR_PAD_LEFT);
 $issuedBase = $cert['date_issued'] ?? $cert['issued_date'] ?? null;
@@ -309,6 +309,11 @@ $defaultParagraphsBarangay = [
     '<strong>AS PER REQUIREMENT IN SUPPORTING HIS/HER DOCUMENT</strong>' . buildPurposeChecklistHtml($purposeText),
     'IN WITNESS WHEREOF, I have hereunto set my hand and affixed the official seal of this office. Done in the Barangay Hall, Barangay 219, Zone 20, District II, City of Manila, this <strong>' . htmlspecialchars($issuedOrdinal) . '</strong> day of <strong>' . htmlspecialchars($issuedMonthYear) . '</strong>.'
 ];
+$defaultParagraphsClearance = [
+    'THIS IS TO CERTIFY that <strong>' . htmlspecialchars(strtoupper($fullName)) . '</strong>, ' . htmlspecialchars($residentAge !== '' ? $residentAge : 'N/A') . ' years old, <strong>' . htmlspecialchars($residentCivilStatus !== '' ? ucfirst(strtolower($residentCivilStatus)) : 'N/A') . '</strong>, and a <span class="resident-field">' . htmlspecialchars($residentNationality !== '' ? ucfirst(strtolower($residentNationality)) : 'Filipino') . '</span>, is a bonafide resident of Barangay 219, Zone 20, District II, Tondo, Manila, with postal address at <strong>' . htmlspecialchars($certAddress) . '</strong>.',
+    'FURTHER TO THIS, the above-mentioned person is known to be of good moral character and has no derogatory record on file in this office as of this date of issuance.',
+    'This clearance is being issued upon the request of the interested party for the purpose of <strong>' . htmlspecialchars($purposeText !== '' ? $purposeText : 'N/A') . '</strong> and for whatever legal purpose it may serve.'
+];
 
 $defaultParagraphsIndigency = [
     '<strong>TO WHOM IT MAY CONCERN:</strong>',
@@ -325,12 +330,12 @@ $defaultParagraphsTransferRequest = [
 ];
 
 $defaultParagraphs = ($currentCertType === 'barangay_clearance')
-    ? $defaultParagraphsBarangay
+    ? $defaultParagraphsClearance
     : ((in_array($currentCertType, ['barangay_indigency', 'certificate_indigency'], true))
         ? $defaultParagraphsIndigency
         : (($currentCertType === 'transfer_request') ? $defaultParagraphsTransferRequest : $defaultParagraphsGeneric));
 
-if ($certBody !== '' && !in_array($currentCertType, ['transfer_request', 'barangay_indigency', 'certificate_indigency'], true)) {
+if ($certBody !== '' && !in_array($currentCertType, ['transfer_request', 'barangay_indigency', 'certificate_indigency', 'barangay_clearance'], true)) {
     $resolvedBody = strtr($certBody, $placeholderValues);
     // Normalize legacy saved bodies that still include extended Manila suffix.
     $resolvedBody = preg_replace('/\bTondo,\s*Manila,\s*Metro Manila,\s*Manila\b/i', 'Tondo, Manila', $resolvedBody) ?? $resolvedBody;
@@ -654,6 +659,19 @@ $paragraphs = array_map(static function ($paragraph) use ($fullName, $certAddres
         .body p { margin-bottom: 8px; text-indent: 34px; }
         .body p:first-of-type { text-indent: 0; font-weight: 700; margin-top: 0; margin-bottom: 10px; }
         .body p.no-indent { text-indent: 0; }
+        .body.clearance-body {
+            font-family: "Times New Roman", serif;
+            text-align: justify;
+        }
+        .body.clearance-body p,
+        .body.clearance-body p:first-of-type,
+        .body.clearance-body p.no-indent {
+            text-indent: 50px !important;
+            font-weight: 400 !important;
+        }
+        .body.clearance-body strong {
+            font-weight: 700;
+        }
         .purpose-table {
             width: 100%;
             border-collapse: separate;
@@ -804,7 +822,7 @@ $paragraphs = array_map(static function ($paragraph) use ($fullName, $certAddres
                         <div class="document-title"><?php echo htmlspecialchars($subjectLine); ?></div>
                         <?php endif; ?>
 
-                        <div class="body">
+                        <div class="body<?php echo $currentCertType === 'barangay_clearance' ? ' clearance-body' : ''; ?>">
                             <?php if ($isBarangayCertificate): ?>
                             <br><br>
                             <?php endif; ?>
