@@ -78,6 +78,7 @@ function listResidents() {
         $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
         $status = sanitizeInput($_GET['status'] ?? '');
         $gender = sanitizeInput($_GET['gender'] ?? '');
+        $household_head = strtolower(trim(sanitizeInput($_GET['household_head'] ?? '')));
         $age_from = $_GET['age_from'] ?? '';
         $age_to = $_GET['age_to'] ?? '';
         $residency_from = $_GET['residency_from'] ?? ''; // Minimum years of residency
@@ -99,6 +100,16 @@ function listResidents() {
         if (!empty($gender)) {
             $where .= " AND r.gender = ?";
             $params[] = $gender;
+        }
+        if (($household_head === 'head' || $household_head === 'member')
+            && tableExists($db, 'households')
+            && columnExists($db, 'residents', 'household_id')
+            && columnExists($db, 'households', 'family_head_id')) {
+            if ($household_head === 'head') {
+                $where .= " AND EXISTS (SELECT 1 FROM households hh WHERE hh.id = r.household_id AND hh.family_head_id = r.id)";
+            } else {
+                $where .= " AND r.household_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM households hh WHERE hh.id = r.household_id AND hh.family_head_id = r.id)";
+            }
         }
         if ($age_from !== '' && is_numeric($age_from)) {
             $where .= " AND TIMESTAMPDIFF(YEAR, r.birth_date, CURDATE()) >= ?";
