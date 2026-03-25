@@ -150,30 +150,16 @@ include __DIR__ . '/../includes/sidebar.php';
             <div class="col-lg-6">
                 <div class="card dash-panel h-100">
                     <div class="card-header bg-white border-0">
-                        <h6 class="mb-0"><i class="bi bi-bar-chart me-2 text-primary"></i>Population by Purok / Zone</h6>
+                        <h6 class="mb-0"><i class="bi bi-bar-chart me-2 text-primary"></i>Population by Street</h6>
                     </div>
                     <div class="card-body pt-0">
-                        <div class="chart-wrap"><canvas id="chartPurok"></canvas></div>
+                        <div class="chart-wrap"><canvas id="chartStreet"></canvas></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Row 4: Household registration trend -->
-        <div class="row g-3 mb-3 dash-chart-row">
-            <div class="col-12">
-                <div class="card dash-panel h-100">
-                    <div class="card-header bg-white border-0">
-                        <h6 class="mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Household Registration Trends</h6>
-                    </div>
-                    <div class="card-body pt-0">
-                        <div class="chart-wrap"><canvas id="chartHouseholdTrends"></canvas></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Row 5: Age + Recent Activities -->
+        <!-- Row 4: Age + Recent Activities -->
         <div class="row g-3 mb-3 dash-chart-row">
             <div class="col-lg-6">
                 <div class="card dash-panel h-100">
@@ -200,7 +186,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <!-- Row 6: Special Categories -->
+        <!-- Row 5: Special Categories -->
         <div class="row g-3 mb-3" id="specialCategoriesRow">
             <div class="col-12">
                 <div class="card dash-panel">
@@ -295,4 +281,4 @@ include __DIR__ . '/../includes/sidebar.php';
 <script>
     if (typeof window.API_URL === 'undefined') { window.API_URL = '<?php echo addslashes(API_URL); ?>'; }
 </script>
-<script src="<?php echo ASSETS_URL; ?>css/js/dashboard.js?v=<?php echo time(); ?>"></script>
+<script src="<?php echo ASSETS_URL; ?>css/js/dashboard.js?v=<?php echo htmlspecialchars(APP_VERSION, ENT_QUOTES, 'UTF-8'); ?>"></script>
