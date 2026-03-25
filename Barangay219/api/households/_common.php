@@ -220,7 +220,7 @@ function columnExists($db, $table, $column) {
 }
 
 function generateResidentFamilyHeadCode($db) {
-    $prefix = 'FH-';
+    $prefix = 'HC-';
     if (!columnExists($db, 'residents', 'family_head_code')) {
         return $prefix . str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT);
     }
