@@ -303,19 +303,16 @@ $purposeOptionsByType = [
     'Others'
   ],
   'Barangay Clearance' => [
-    'Application for Employment',
-    'School Admission/Requirement',
-    'Hospital Purpose',
-    'Processing of Calamity',
-    'Medical Purpose',
-    'For Livelihood Loan',
-    'Bank Transaction',
-    'Indigent Family',
-    'Organized Vending Permit',
-    'DSWD Requirement',
-    'For Travel Abroad',
-    'Transfer of Residence',
-    'Others'
+    'Job Application',
+    'National ID Application',
+    'Police Clearance Requirement',
+    'Bank Account Opening',
+    'School Enrollment',
+    'Scholarship Application',
+    'Business Permit Application',
+    'Passport Application',
+    'Utility Connection',
+    'First Time Jobseeker (RA 11261)'
   ],
   'Certificate of Residency' => [
     'Application for Employment',
