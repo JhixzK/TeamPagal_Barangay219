@@ -249,8 +249,8 @@ include __DIR__ . '/../includes/sidebar.php';
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-sm">
-                        <thead><tr><th>User</th><th>Action</th><th>Module</th><th>Date</th><th>IP</th></tr></thead>
-                        <tbody id="activityLogsBody"><tr><td colspan="5" class="text-center">Loading...</td></tr></tbody>
+                        <thead><tr><th>User</th><th>Summary</th><th>Date</th></tr></thead>
+                        <tbody id="activityLogsBody"><tr><td colspan="3" class="text-center">Loading...</td></tr></tbody>
                     </table>
                 </div>
             </div>
