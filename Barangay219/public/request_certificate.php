@@ -619,10 +619,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-      if (!$usingSavedValidId && count($uploadedFiles) === 0) {
-        $errors[] = 'Please upload at least one supporting document (Valid ID).';
-      }
-
     if (empty($errors) && $mysqli) {
       // Only prevent duplicate submissions while an equivalent request is still pending review.
       // Once a request moves forward (approved/ready/released/rejected), resident can submit again.
@@ -971,7 +967,7 @@ $savedValidIdUrl = $hasSavedValidId ? (BASE_URL . ltrim($residentValidIdPath, '/
         <div class="upload-box" id="uploadBox">
           <input type="file" id="documents" name="documents[]" accept=".jpg,.jpeg,.png,.pdf" multiple hidden>
           <button type="button" class="btn-ghost" id="browseBtn"><i class="fa-regular fa-folder-open"></i> Choose Files</button>
-          <p><?php echo $hasSavedValidId ? 'Optional: upload up to 3 additional files (JPG, PNG, PDF)' : 'Upload up to 3 files (JPG, PNG, PDF)'; ?></p>
+          <p><?php echo $hasSavedValidId ? 'Optional: upload up to 3 additional files (JPG, PNG, PDF)' : 'Optional: upload up to 3 supporting files (JPG, PNG, PDF)'; ?></p>
           <small>Max size: 5MB each</small>
         </div>
         <ul class="file-list" id="fileList"></ul>
