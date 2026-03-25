@@ -705,15 +705,70 @@ function logActivity($action, $module, $entityId = null, $details = null) {
     if (!$userId) return;
     try {
         $db = Database::getInstance();
-        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
         $detailsJson = $details !== null ? json_encode($details) : null;
         $db->query(
-            "INSERT INTO activity_logs (user_id, action, module, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)",
-            [$userId, $action, $module, $entityId, $detailsJson, $ip]
+            "INSERT INTO activity_logs (user_id, action, module, entity_id, details) VALUES (?, ?, ?, ?, ?)",
+            [$userId, $action, $module, $entityId, $detailsJson]
         );
     } catch (Exception $e) {
         error_log("Activity log error: " . $e->getMessage());
     }
+}
+
+/**
+ * SQL fragment: exclude login-related rows (no longer written; filters legacy data).
+ *
+ * @param string $alias activity_logs table alias (e.g. al)
+ */
+function activityLogsExcludeLoginSql($alias = 'al') {
+    $a = preg_replace('/[^a-z_]/i', '', $alias) ?: 'al';
+    return "NOT ({$a}.module = 'auth' AND {$a}.action IN ('login', 'login_2fa_failed'))";
+}
+
+/**
+ * Human-readable line for dashboard / reports (uses details.description when set).
+ *
+ * @param array $row activity_logs row (details may be JSON string)
+ */
+function activityLogSummary($row) {
+    $details = $row['details'] ?? null;
+    if (is_array($details) && !empty($details['description'])) {
+        return (string)$details['description'];
+    }
+    if (is_string($details) && $details !== '') {
+        $decoded = json_decode($details, true);
+        if (is_array($decoded) && !empty($decoded['description'])) {
+            return (string)$decoded['description'];
+        }
+    }
+    $action = str_replace('_', ' ', (string)($row['action'] ?? ''));
+    $module = str_replace('_', ' ', (string)($row['module'] ?? ''));
+    $action = ucfirst(trim($action));
+    $module = ucfirst(trim($module));
+    if ($action === '' && $module === '') {
+        return 'Activity';
+    }
+    if ($module === '') {
+        return $action;
+    }
+    if ($action === '') {
+        return $module;
+    }
+    return $action . ' — ' . $module;
+}
+
+/**
+ * @param array $rows list of activity_logs rows
+ * @return array rows with summary key set
+ */
+function activityLogsWithSummary(array $rows) {
+    foreach ($rows as $i => $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $rows[$i]['summary'] = activityLogSummary($row);
+    }
+    return $rows;
 }
 
 /**
