@@ -278,8 +278,9 @@ function normalizeCertificateType(string $type): string {
     return $aliases[$normalized] ?? $normalized;
 }
 
-function resolvePurpose(string $purposeOption, string $purposeOther): string {
-    if (strtolower(trim($purposeOption)) === 'others') {
+function resolvePurpose(string $certificateType, string $purposeOption, string $purposeOther): string {
+    $normalizedType = normalizeCertificateType($certificateType);
+    if ($normalizedType === 'barangay_certificate' && strtolower(trim($purposeOption)) === 'others') {
         return trim($purposeOther) !== '' ? trim($purposeOther) : 'Others';
     }
     return trim($purposeOption);
@@ -621,7 +622,7 @@ function submitResidentCertificateRequest() {
         sendResponse(false, 'Name, age, address, and purpose are required', null, 400);
     }
 
-    $purpose = resolvePurpose($purposeOption, $purposeOther);
+    $purpose = resolvePurpose($certificateType, $purposeOption, $purposeOther);
 
     try {
         $db = Database::getInstance();
@@ -720,7 +721,7 @@ function createCertificateByAdmin() {
         sendResponse(false, 'Name, age, address, and purpose are required', null, 400);
     }
 
-    $purpose = resolvePurpose($purposeOption, $purposeOther);
+    $purpose = resolvePurpose($certificateType, $purposeOption, $purposeOther);
 
     try {
         $db = Database::getInstance();
@@ -797,7 +798,7 @@ function directIssueCertificateByAdmin() {
         $purposeOption = 'Walk-in issuance';
     }
 
-    $purpose = resolvePurpose($purposeOption, $purposeOther);
+    $purpose = resolvePurpose($certificateType, $purposeOption, $purposeOther);
 
     try {
         $db = Database::getInstance();
