@@ -221,6 +221,16 @@ include __DIR__ . '/../includes/sidebar.php';
     text-overflow: ellipsis;
 }
 
+/* Primary tile title: all household heads (can wrap; HH code moved to badge only) */
+.households-page .household-tile .tile-name.tile-heads-line {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.3;
+    font-size: 0.98rem;
+    font-weight: 400;
+}
+
 .households-page .household-tile .tile-sub {
     margin: 0.2rem 0 0;
     font-size: 0.85rem;
@@ -537,6 +547,25 @@ include __DIR__ . '/../includes/sidebar.php';
                     <input type="hidden" id="householdId" name="id">
                     <input type="hidden" id="family_head_id" name="family_head_id" value="">
 
+                    <div class="card border-0 shadow-sm mb-3" id="householdHeadCard">
+                        <div class="card-header bg-light">
+                            <strong><i class="bi bi-person-badge me-2"></i>Household head</strong>
+                        </div>
+                        <div class="card-body py-3">
+                            <div id="familyHeadPickerWrap">
+                                <label for="family_head_picker" class="form-label">Select head <span class="text-danger">*</span></label>
+                                <select class="form-select" id="family_head_picker">
+                                    <option value="">— Resident not yet in a household —</option>
+                                </select>
+                                <p class="form-text small text-muted mb-0">Only residents with no household assignment are listed. Heads must be 18 or older (birth date required).</p>
+                            </div>
+                            <div id="familyHeadReadonlyWrap" class="d-none">
+                                <p class="mb-0 text-muted small text-uppercase">Current head</p>
+                                <p class="mb-0 fw-semibold" id="familyHeadReadonlyText">—</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="card border-0 shadow-sm">
                         <div class="card-header bg-light">
                             <strong><i class="bi bi-geo-alt me-2"></i>Address Information</strong>
@@ -729,7 +758,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="mb-0">Remove this member from household?</p>
+                <p class="mb-0" id="removeMemberModalBodyText">Remove this member from household?</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -778,7 +807,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- View Household Modal -->
 <div class="modal fade" id="viewHouseholdModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Household Details</h5>
