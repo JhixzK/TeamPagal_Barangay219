@@ -31,6 +31,13 @@
   display: block;
 }
 
+/* Show invalid borders only after a submit attempt (avoid red fields when modal opens). */
+#addDependentForm.was-validated input:invalid,
+#addDependentForm.was-validated select:invalid {
+  border-color: var(--hh-danger, #a82832);
+  box-shadow: 0 0 0 1px rgba(168, 40, 50, 0.25);
+}
+
 /* Keep tables and grids inside the main column (fixed sidebar uses margin-left). */
 .resident-household-page.main-content {
   max-width: 100%;
