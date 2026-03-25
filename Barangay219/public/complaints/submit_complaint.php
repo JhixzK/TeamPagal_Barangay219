@@ -64,7 +64,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($formData['incident_date'] === '') $errors[] = 'Incident Date is required.';
     if ($formData['incident_time'] === '') $errors[] = 'Incident Time is required.';
     if ($formData['incident_house_street'] === '') $errors[] = 'House Number / Street is required.';
-    if ($formData['incident_purok'] === '') $errors[] = 'Purok / Zone is required.';
     if ($formData['respondent_address'] === '') $errors[] = 'Respondent Address is required.';
     if ($formData['respondent_barangay'] === '') $errors[] = 'Respondent Barangay is required.';
     if ($formData['respondent_city'] === '') $errors[] = 'Respondent City / Municipality is required.';
@@ -325,9 +324,8 @@ include __DIR__ . '/../../includes/sidebar.php';
 
         <h5 class="mb-3">Incident Location</h5>
         <div class="row g-3 mb-4">
-          <div class="col-md-6"><label class="form-label">House Number / Street</label><input type="text" class="form-control" name="incident_house_street" maxlength="255" value="<?php echo htmlspecialchars($formData['incident_house_street']); ?>" required></div>
-          <div class="col-md-3"><label class="form-label">Purok / Zone</label><input type="text" class="form-control" name="incident_purok" maxlength="100" value="<?php echo htmlspecialchars($formData['incident_purok']); ?>" required></div>
-          <div class="col-md-3"><label class="form-label">Landmark</label><input type="text" class="form-control" name="incident_landmark" maxlength="255" value="<?php echo htmlspecialchars($formData['incident_landmark']); ?>"></div>
+                    <div class="col-md-9"><label class="form-label">House Number / Street</label><input type="text" class="form-control" name="incident_house_street" maxlength="255" value="<?php echo htmlspecialchars($formData['incident_house_street']); ?>" required></div>
+                    <div class="col-md-3"><label class="form-label">Landmark</label><input type="text" class="form-control" name="incident_landmark" maxlength="255" value="<?php echo htmlspecialchars($formData['incident_landmark']); ?>"></div>
           <div class="col-md-6"><label class="form-label">Barangay</label><input type="text" class="form-control" name="incident_barangay" value="<?php echo htmlspecialchars($formData['incident_barangay']); ?>" readonly required></div>
         </div>
 
