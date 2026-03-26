@@ -484,6 +484,22 @@ function getEffectivePermissionsForUser($userId, $role = null) {
 }
 
 /**
+ * Super Admin restricted module list (administration-only scope).
+ */
+function getSuperAdminAllowedModules() {
+    return [
+        'users',
+        'officials',
+        'activity_logs',
+        'profile'
+    ];
+}
+
+function isSuperAdminAdministrationModule($module) {
+    return in_array((string)$module, getSuperAdminAllowedModules(), true);
+}
+
+/**
  * Check if user can access a module based on role permissions
  */
 function canAccessModule($module) {
@@ -509,13 +525,21 @@ function canAccessModule($module) {
     }
 
     $role = normalizeRole(getEffectiveUserRole());
-    if ($role === ROLE_SUPER_ADMIN || $role === ROLE_BARANGAY_CAPTAIN) {
+    if ($role === ROLE_SUPER_ADMIN) {
+        return isSuperAdminAdministrationModule($module);
+    }
+
+    if ($role === ROLE_BARANGAY_CAPTAIN) {
         return true;
     }
 
     $permissions = getRolePermissions($role);
     if (isset($permissions[$module])) {
         return !empty($permissions[$module]['can_access']);
+    }
+    // Backward compatibility: if activity_logs is not defined yet, mirror reports access.
+    if ($module === 'activity_logs' && isset($permissions['reports'])) {
+        return !empty($permissions['reports']['can_access']);
     }
 
     if (!rolePermissionsTableExists()) {
@@ -596,12 +620,19 @@ function canPerformModulePermission($module, $permission) {
     }
 
     $role = normalizeRole(getEffectiveUserRole());
-    if ($role === ROLE_SUPER_ADMIN || $role === ROLE_BARANGAY_CAPTAIN) {
+    if ($role === ROLE_SUPER_ADMIN) {
+        return isSuperAdminAdministrationModule($module);
+    }
+
+    if ($role === ROLE_BARANGAY_CAPTAIN) {
         return true;
     }
 
     $permissions = getRolePermissions($role);
     $modulePerms = $permissions[$module] ?? [];
+    if ($module === 'activity_logs' && empty($modulePerms) && isset($permissions['reports'])) {
+        $modulePerms = $permissions['reports'];
+    }
 
     if (empty($modulePerms['can_access'])) {
         return false;
@@ -703,12 +734,14 @@ function getDefaultRolePermissions() {
             'complaints' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'announcements' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'reports' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'activity_logs' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'officials' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
         ],
         ROLE_TREASURER => [
             'dashboard' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'certificates' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'reports' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
+            'activity_logs' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true],
             'officials' => ['can_access' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true]
         ],
         ROLE_KAGAWA => [
