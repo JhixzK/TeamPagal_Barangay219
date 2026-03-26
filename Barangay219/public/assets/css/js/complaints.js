@@ -5,11 +5,12 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
 document.addEventListener('DOMContentLoaded', function() {
     loadComplaints();
     applyComplaintPermissions();
-    initComplaintStatFilters();
+    initComplaintFilterControls();
     initComplaintFormFormatting();
 });
 
-let complaintFilters = { q: '', status: '', from: '', to: '' };
+let complaintFilters = { q: '', status: '', category: '', from: '', to: '', list_scope: 'active', page: 1 };
+let complaintListMeta = { total: 0, total_pages: 1, limit: 10 };
 
 const COMPLAINT_PERMS = {
     canCreate: window.canModulePermission ? window.canModulePermission('complaints', 'can_create') : true,
@@ -30,6 +31,59 @@ function applyComplaintPermissions() {
     }
 }
 
+function initComplaintFilterControls() {
+    const applyBtn = document.getElementById('btnApplyComplaintFilters');
+    const resetBtn = document.getElementById('btnResetComplaintFilters');
+    const searchInput = document.getElementById('searchInput');
+    if (applyBtn) {
+        applyBtn.addEventListener('click', function() {
+            complaintFilters.q = searchInput ? searchInput.value.trim() : '';
+            complaintFilters.status = document.getElementById('filterStatus')?.value || '';
+            complaintFilters.category = document.getElementById('filterCategory')?.value || '';
+            complaintFilters.from = document.getElementById('filterFrom')?.value || '';
+            complaintFilters.to = document.getElementById('filterTo')?.value || '';
+            complaintFilters.list_scope = document.getElementById('filterListScope')?.value || 'all';
+            complaintFilters.page = 1;
+            loadComplaints();
+        });
+    }
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            if (searchInput) searchInput.value = '';
+            const st = document.getElementById('filterStatus');
+            const cat = document.getElementById('filterCategory');
+            const ls = document.getElementById('filterListScope');
+            const f = document.getElementById('filterFrom');
+            const t = document.getElementById('filterTo');
+            if (st) st.value = '';
+            if (cat) cat.value = '';
+            if (ls) ls.value = 'active';
+            if (f) f.value = '';
+            if (t) t.value = '';
+            complaintFilters = { q: '', status: '', category: '', from: '', to: '', list_scope: 'active', page: 1 };
+            loadComplaints();
+        });
+    }
+    const prev = document.getElementById('complaintsPrevPage');
+    const next = document.getElementById('complaintsNextPage');
+    if (prev) {
+        prev.addEventListener('click', function() {
+            if (complaintFilters.page > 1) {
+                complaintFilters.page--;
+                loadComplaints();
+            }
+        });
+    }
+    if (next) {
+        next.addEventListener('click', function() {
+            if (complaintFilters.page < complaintListMeta.total_pages) {
+                complaintFilters.page++;
+                loadComplaints();
+            }
+        });
+    }
+}
+
 function splitFullNameForForm(full) {
     const s = String(full || '').trim();
     if (!s) return { first: '', last: '' };
@@ -38,95 +92,96 @@ function splitFullNameForForm(full) {
     return { first: s.slice(0, i).trim(), last: s.slice(i + 1).trim() };
 }
 
+function complaintSubmittedBy(c) {
+    const rn = String(c.resident_name || '').replace(/\s+/g, ' ').trim();
+    if (rn) return rn;
+    return String(c.complainant_name || '').trim() || '—';
+}
+
+function complaintContact(c) {
+    const p = String(c.resident_contact || '').trim();
+    return p || '—';
+}
+
+function complaintLocationLine(c) {
+    const parts = [c.incident_house_street, c.incident_landmark].map(x => String(x || '').trim()).filter(Boolean);
+    return parts.length ? parts.join(' · ') : '—';
+}
+
 function loadComplaints() {
     const params = new URLSearchParams({ action: 'list' });
     if (complaintFilters.q) params.append('q', complaintFilters.q);
     if (complaintFilters.status) params.append('status', complaintFilters.status);
+    if (complaintFilters.category) params.append('category', complaintFilters.category);
     if (complaintFilters.from) params.append('from', complaintFilters.from);
     if (complaintFilters.to) params.append('to', complaintFilters.to);
+    if (complaintFilters.list_scope && complaintFilters.list_scope !== 'all') {
+        params.append('list_scope', complaintFilters.list_scope);
+    }
+    params.append('page', String(complaintFilters.page));
+    params.append('limit', String(complaintListMeta.limit));
 
     fetch(window.API_URL + 'complaints.php?' + params.toString())
         .then(r => r.json())
         .then(d => {
             const tbody = document.getElementById('complaintsTableBody');
+            const pagerWrap = document.getElementById('complaintsPagerWrap');
+            const pagerInfo = document.getElementById('complaintsPagerInfo');
             if (d.success) {
-                const list = d.data.complaints || d.data || [];
+                const payload = d.data || {};
+                const list = payload.complaints || [];
+                complaintListMeta.total = payload.total || 0;
+                complaintListMeta.total_pages = payload.total_pages || 1;
+                complaintListMeta.limit = payload.limit || complaintListMeta.limit;
+                if (pagerWrap && pagerInfo) {
+                    pagerWrap.style.display = complaintListMeta.total_pages > 1 ? 'flex' : 'none';
+                    const from = list.length ? (complaintFilters.page - 1) * complaintListMeta.limit + 1 : 0;
+                    const to = from + list.length - 1;
+                    pagerInfo.textContent = list.length
+                        ? `Showing ${from}–${to} of ${complaintListMeta.total}`
+                        : 'No results';
+                }
                 tbody.innerHTML = list.map(c => `
                     <tr>
-                        <td class="text-center fw-semibold">${escapeHtml(toTitleCase(c.title || c.complaint_title || '-'))}</td>
-                        <td class="text-center"><span class="complaints-secondary">${escapeHtml(toTitleCase(c.complainant_name || '-'))}</span></td>
-                        <td class="text-center"><span class="complaints-secondary">${escapeHtml(toTitleCase(c.respondent_name || '-'))}</span></td>
-                        <td class="text-center"><span class="complaints-secondary">${formatDate(c.date_submitted || c.filing_date)}</span></td>
+                        <td class="text-center"><span class="complaints-code-badge">#${c.id}</span></td>
+                        <td class="text-center">${escapeHtml(c.category || c.complaint_type || '—')}</td>
+                        <td class="text-center">${escapeHtml(complaintSubmittedBy(c))}</td>
+                        <td class="text-center"><span class="complaints-secondary">${escapeHtml(complaintContact(c))}</span></td>
+                        <td class="text-center"><span class="complaints-secondary">${formatDateUs(c.incident_date)}</span></td>
+                        <td class="text-center"><span class="complaints-secondary">${escapeHtml(complaintLocationLine(c))}</span></td>
                         <td class="text-center"><span class="complaints-pill ${getStatusColor(c.status)}">${escapeHtml(formatComplaintStatus(c.status))}</span></td>
+                        <td class="text-center"><span class="complaints-secondary">${escapeHtml(String(c.assigned_officer || '').trim() || '—')}</span></td>
                         <td class="text-center">
                             <div class="complaints-actions">
-                            <button class="action-icon-btn" title="View" aria-label="View" onclick="viewComplaint(${c.id})"><i class="bi bi-eye"></i></button>
-                            ${COMPLAINT_PERMS.canEdit ? `<button class="action-icon-btn" title="Edit" aria-label="Edit" onclick="editComplaint(${c.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
-                            ${COMPLAINT_PERMS.canDelete ? `<button class="action-icon-btn action-delete" title="Delete" aria-label="Delete" onclick="deleteComplaint(${c.id})"><i class="bi bi-trash"></i></button>` : ''}
+                            <button type="button" class="action-icon-btn" title="View" aria-label="View" onclick="viewComplaint(${c.id})"><i class="bi bi-eye"></i></button>
+                            ${COMPLAINT_PERMS.canEdit ? `<button type="button" class="action-icon-btn" title="Edit" aria-label="Edit" onclick="editComplaint(${c.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
+                            ${COMPLAINT_PERMS.canDelete ? `<button type="button" class="action-icon-btn action-delete" title="Delete" aria-label="Delete" onclick="deleteComplaint(${c.id})"><i class="bi bi-trash"></i></button>` : ''}
                             </div>
                         </td>
                     </tr>
                 `).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No complaints found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No complaints found</td></tr>';
+                if (pagerWrap) pagerWrap.style.display = 'none';
             }
         })
         .catch(() => {
-            document.getElementById('complaintsTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading</td></tr>';
+            const tbody = document.getElementById('complaintsTableBody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Error loading</td></tr>';
         });
 }
 
-function searchComplaints() {
-    const query = document.getElementById('searchInput')?.value.trim() || '';
-    complaintFilters.q = query;
-    loadComplaints();
-}
-
-function applyComplaintFilters() {
-    complaintFilters.status = document.getElementById('filterStatus')?.value || '';
-    complaintFilters.from = document.getElementById('filterFrom')?.value || '';
-    complaintFilters.to = document.getElementById('filterTo')?.value || '';
-    syncComplaintStatusTabs();
-    loadComplaints();
-    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
-    if (modal) modal.hide();
-}
-
-function resetComplaints() {
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) searchInput.value = '';
-    complaintFilters = { q: '', status: '', from: '', to: '' };
-    const statusSel = document.getElementById('filterStatus');
-    const fromInput = document.getElementById('filterFrom');
-    const toInput = document.getElementById('filterTo');
-    if (statusSel) statusSel.value = '';
-    if (fromInput) fromInput.value = '';
-    if (toInput) toInput.value = '';
-    syncComplaintStatusTabs();
-    loadComplaints();
-}
-
-function initComplaintStatFilters() {
-    const tabs = document.querySelectorAll('#statusTabs .nav-link');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', function(e) {
-            e.preventDefault();
-            tabs.forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-            const status = this.getAttribute('data-status') || '';
-            complaintFilters.status = status;
-            const statusSel = document.getElementById('filterStatus');
-            if (statusSel) statusSel.value = status;
-            loadComplaints();
-        });
-    });
-}
-
-function syncComplaintStatusTabs() {
-    document.querySelectorAll('#statusTabs .nav-link').forEach(tab => {
-        const tabStatus = tab.getAttribute('data-status') || '';
-        tab.classList.toggle('active', tabStatus === (complaintFilters.status || ''));
-    });
+function complaintStatusMessage(code) {
+    const c = String(code || '').toLowerCase().trim();
+    const msg = {
+        pending: 'Awaiting initial review by barangay staff.',
+        approved: 'This complaint has been approved for handling.',
+        assigned: 'An officer has been assigned to this case.',
+        in_progress: 'Work is currently in progress.',
+        resolved: 'This complaint has been resolved. No further actions.',
+        rejected: 'This complaint was rejected or closed without resolution.'
+    };
+    return msg[c] || 'Use Edit to update status, officer, or remarks.';
 }
 
 function viewComplaintReadonlyValue(s) {
@@ -140,69 +195,71 @@ function viewComplaint(id) {
         .then(d => {
             if (!d.success) return alert(d.message || 'Error');
             const c = d.data;
-            const comp = splitFullNameForForm(c.complainant_name || '');
-            const resp = splitFullNameForForm(c.respondent_name || '');
             const narrativeRaw = c.description || c.narrative || '';
-            const narrativeVal = narrativeRaw.trim() ? escapeHtml(toTitleCase(narrativeRaw)) : '';
-            const remarksRaw = c.remarks ? String(c.remarks).trim() : '';
-            const remarksVal = remarksRaw ? escapeHtml(toTitleCase(remarksRaw)) : '';
+            const narrativeVal = narrativeRaw.trim() ? escapeHtml(narrativeRaw) : '—';
             const titleVal = viewComplaintReadonlyValue(c.title || c.complaint_title || '');
             const typeVal = viewComplaintReadonlyValue(c.category || c.complaint_type || '');
-            const dateVal = escapeHtml(formatDate(c.date_submitted || c.filing_date) || '—');
+            const submittedVal = escapeHtml(formatDateUs(c.date_submitted || c.filing_date) || '—');
+            const incidentVal = escapeHtml(formatDateUs(c.incident_date) || '—');
+            const locVal = escapeHtml(complaintLocationLine(c));
+            const byVal = escapeHtml(complaintSubmittedBy(c));
+            const statusRaw = String(c.status || 'pending').toLowerCase();
+            const statusLabel = formatComplaintStatus(c.status);
             const html = `
-                <div class="complaint-detail-view">
-                    <div class="detail-section-title">Complaint</div>
-                    <div class="row g-2">
-                        <div class="col-12">
-                            <label class="form-label detail-field-label">Title</label>
-                            <input type="text" class="form-control form-control-sm" readonly value="${titleVal || ''}" placeholder="—">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label detail-field-label">Type</label>
-                            <input type="text" class="form-control form-control-sm" readonly value="${typeVal || ''}" placeholder="—">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label detail-field-label">Date filed</label>
-                            <input type="text" class="form-control form-control-sm" readonly value="${dateVal}" placeholder="—">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label detail-field-label">Status</label>
-                            <div><span class="complaints-pill ${getStatusColor(c.status)}">${escapeHtml(formatComplaintStatus(c.status))}</span></div>
-                        </div>
-                    </div>
-                    <div class="detail-section-title">Complainant</div>
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <label class="form-label detail-field-label">First name</label>
-                            <input type="text" class="form-control form-control-sm" readonly value="${viewComplaintReadonlyValue(comp.first)}" placeholder="—">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label detail-field-label">Last name</label>
-                            <input type="text" class="form-control form-control-sm" readonly value="${viewComplaintReadonlyValue(comp.last)}" placeholder="—">
-                        </div>
-                    </div>
-                    <div class="detail-section-title">Respondent</div>
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <label class="form-label detail-field-label">First name</label>
-                            <input type="text" class="form-control form-control-sm" readonly value="${viewComplaintReadonlyValue(resp.first)}" placeholder="—">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label detail-field-label">Last name</label>
-                            <input type="text" class="form-control form-control-sm" readonly value="${viewComplaintReadonlyValue(resp.last)}" placeholder="—">
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <div class="complaint-review-card p-4">
+                            <div class="card-section-title"><i class="bi bi-file-text me-2"></i>Issue Details</div>
+                            <div class="mb-3">
+                                <div class="complaint-kv-label">Title</div>
+                                <div class="complaint-kv-value">${titleVal || '—'}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="complaint-kv-label">Category</div>
+                                <div class="complaint-kv-value">${typeVal || '—'}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="complaint-kv-label">Submitted By</div>
+                                <div class="complaint-kv-value">${byVal}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="complaint-kv-label">Date Submitted</div>
+                                <div class="complaint-kv-value">${submittedVal}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="complaint-kv-label">Incident Date</div>
+                                <div class="complaint-kv-value">${incidentVal}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="complaint-kv-label">Location</div>
+                                <div class="complaint-kv-value">${locVal}</div>
+                            </div>
+                            <div>
+                                <div class="complaint-kv-label">Description</div>
+                                <div class="complaint-desc-box mt-1">${narrativeVal}</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="detail-section-title">Narrative</div>
-                    <label class="form-label detail-field-label visually-hidden">Narrative</label>
-                    <textarea class="form-control form-control-sm" rows="4" readonly placeholder="—">${narrativeVal}</textarea>
-                    <div class="detail-section-title">Remarks</div>
-                    <label class="form-label detail-field-label visually-hidden">Remarks</label>
-                    <textarea class="form-control form-control-sm" rows="2" readonly placeholder="—">${remarksVal}</textarea>
+                    <div class="col-lg-6">
+                        <div class="complaint-review-card p-4">
+                            <div class="card-section-title"><i class="bi bi-flag me-2"></i>Action Panel</div>
+                            <div class="action-status-box">
+                                <div class="complaint-kv-label mb-2">Status</div>
+                                <div class="mb-2"><span class="complaints-pill ${getStatusColor(c.status)}">${escapeHtml(statusLabel)}</span></div>
+                                <p class="mb-0 small text-muted">${escapeHtml(complaintStatusMessage(statusRaw))}</p>
+                            </div>
+                            ${String(c.assigned_officer || '').trim() ? `
+                            <div class="mt-3">
+                                <div class="complaint-kv-label">Assigned Officer</div>
+                                <div class="complaint-kv-value">${escapeHtml(String(c.assigned_officer).trim())}</div>
+                            </div>` : ''}
+                        </div>
+                    </div>
                 </div>
             `;
             const modal = new bootstrap.Modal(document.getElementById('viewModal'));
             document.getElementById('viewModalBody').innerHTML = html;
-            document.getElementById('viewModalFooter').innerHTML = '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>';
+            document.getElementById('viewModalFooter').innerHTML = '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Close</button>';
             modal.show();
         });
 }
@@ -222,11 +279,25 @@ function editComplaint(id) {
             const resp = splitFullNameForForm(c.respondent_name || '');
             document.getElementById('editRespondentFirst').value = toTitleCase(resp.first);
             document.getElementById('editRespondentLast').value = toTitleCase(resp.last);
-            document.getElementById('editType').value = toTitleCase(c.category || c.complaint_type || '');
-            document.getElementById('editNarrative').value = toTitleCase(c.description || c.narrative || '');
+            const cat = (c.category || c.complaint_type || '').trim();
+            const catSel = document.getElementById('editCategory');
+            if (catSel) {
+                catSel.value = cat;
+                if (cat && catSel.value !== cat) {
+                    catSel.value = '';
+                }
+            }
+            document.getElementById('editNarrative').value = c.description || c.narrative || '';
             document.getElementById('editFilingDate').value = c.filing_date || c.incident_date || '';
-            document.getElementById('editStatus').value = c.status || 'Pending Review';
+            const st = String(c.status || 'pending').toLowerCase();
+            const stEl = document.getElementById('editStatus');
+            if (stEl) {
+                stEl.value = st;
+                if (stEl.value !== st) stEl.value = 'pending';
+            }
             document.getElementById('editRemarks').value = toTitleCase(c.remarks || '');
+            const ao = document.getElementById('editAssignedOfficer');
+            if (ao) ao.value = c.assigned_officer || '';
             new bootstrap.Modal(document.getElementById('editModal')).show();
         });
 }
@@ -242,19 +313,26 @@ function saveComplaint() {
     }
     const rf = document.getElementById('editRespondentFirst').value.trim();
     const rl = document.getElementById('editRespondentLast').value.trim();
+    const narrative = document.getElementById('editNarrative').value;
     const fd = new FormData();
     fd.append('action', 'update');
     fd.append('id', document.getElementById('editId').value);
     fd.append('complaint_title', document.getElementById('editTitle').value);
+    fd.append('title', document.getElementById('editTitle').value);
     fd.append('complainant_first_name', cf);
     fd.append('complainant_last_name', cl);
     fd.append('respondent_first_name', rf);
     fd.append('respondent_last_name', rl);
-    fd.append('complaint_type', document.getElementById('editType').value);
-    fd.append('narrative', document.getElementById('editNarrative').value);
+    const cat = document.getElementById('editCategory')?.value.trim() || '';
+    fd.append('complaint_type', cat);
+    fd.append('category', cat);
+    fd.append('narrative', narrative);
+    fd.append('description', narrative);
     fd.append('filing_date', document.getElementById('editFilingDate').value);
     fd.append('status', document.getElementById('editStatus').value);
     fd.append('remarks', document.getElementById('editRemarks').value);
+    const ao = document.getElementById('editAssignedOfficer');
+    if (ao) fd.append('assigned_officer', ao.value.trim());
     fetch(window.API_URL + 'complaints.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(d => {
@@ -277,30 +355,31 @@ function deleteComplaint(id) {
 }
 
 function getStatusColor(status) {
+    const s = String(status || '').toLowerCase().trim();
     const colors = {
-        'pending': 'status-pending',
-        'Pending Review': 'status-pending',
-        'under_review': 'status-under-review',
-        'Under Investigation': 'status-under-investigation',
-        'Scheduled for Mediation': 'status-scheduled-for-mediation',
-        'referred': 'status-referred',
-        'Referred to Other Barangay': 'status-referred-to-other-barangay',
-        'resolved': 'status-resolved',
-        'Resolved': 'status-resolved',
-        'dismissed': 'status-dismissed',
-        'Dismissed': 'status-dismissed'
+        pending: 'status-pending',
+        approved: 'status-approved',
+        assigned: 'status-assigned',
+        in_progress: 'status-in-progress',
+        resolved: 'status-resolved',
+        rejected: 'status-rejected'
     };
-    return colors[status] || 'status-unknown';
+    return colors[s] || 'status-unknown';
 }
+
 function formatComplaintStatus(status) {
+    const s = String(status || '').toLowerCase().trim();
     const labels = {
-        pending: 'Pending Review',
-        under_review: 'Under Investigation',
+        pending: 'Pending',
+        approved: 'Approved',
+        assigned: 'Assigned',
+        in_progress: 'In Progress',
         resolved: 'Resolved',
-        dismissed: 'Dismissed'
+        rejected: 'Rejected'
     };
-    return labels[status] || status || 'Pending Review';
+    return labels[s] || (status ? String(status) : 'Pending');
 }
+
 function toTitleCase(text) {
     if (!text) return '';
     return String(text)
@@ -334,30 +413,20 @@ function initComplaintFormFormatting() {
         attachTitleCaseOnBlur(createForm.querySelector('[name="complainant_last_name"]'));
         attachTitleCaseOnBlur(createForm.querySelector('[name="respondent_first_name"]'));
         attachTitleCaseOnBlur(createForm.querySelector('[name="respondent_last_name"]'));
-        attachTitleCaseOnBlur(createForm.querySelector('[name="complaint_type"]'));
         attachTitleCaseOnBlur(createForm.querySelector('[name="narrative"]'));
         attachTitleCaseOnBlur(createForm.querySelector('[name="remarks"]'));
     }
-    const editTitle = document.getElementById('editTitle');
-    const editComplainantFirst = document.getElementById('editComplainantFirst');
-    const editComplainantLast = document.getElementById('editComplainantLast');
-    const editRespondentFirst = document.getElementById('editRespondentFirst');
-    const editRespondentLast = document.getElementById('editRespondentLast');
-    const editType = document.getElementById('editType');
-    const editNarrative = document.getElementById('editNarrative');
-    const editRemarks = document.getElementById('editRemarks');
-    attachTitleCaseOnBlur(editTitle);
-    attachTitleCaseOnBlur(editComplainantFirst);
-    attachTitleCaseOnBlur(editComplainantLast);
-    attachTitleCaseOnBlur(editRespondentFirst);
-    attachTitleCaseOnBlur(editRespondentLast);
-    attachTitleCaseOnBlur(editType);
-    attachTitleCaseOnBlur(editNarrative);
-    attachTitleCaseOnBlur(editRemarks);
+    attachTitleCaseOnBlur(document.getElementById('editTitle'));
+    attachTitleCaseOnBlur(document.getElementById('editComplainantFirst'));
+    attachTitleCaseOnBlur(document.getElementById('editComplainantLast'));
+    attachTitleCaseOnBlur(document.getElementById('editRespondentFirst'));
+    attachTitleCaseOnBlur(document.getElementById('editRespondentLast'));
+    attachTitleCaseOnBlur(document.getElementById('editRemarks'));
+    attachTitleCaseOnBlur(document.getElementById('editAssignedOfficer'));
 }
 
 function applyTitleCaseToEditForm() {
-    const ids = ['editTitle', 'editComplainantFirst', 'editComplainantLast', 'editRespondentFirst', 'editRespondentLast', 'editType', 'editNarrative', 'editRemarks'];
+    const ids = ['editTitle', 'editComplainantFirst', 'editComplainantLast', 'editRespondentFirst', 'editRespondentLast', 'editRemarks', 'editAssignedOfficer'];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = toTitleCase(el.value);
@@ -366,7 +435,7 @@ function applyTitleCaseToEditForm() {
 
 function applyTitleCaseToCreateForm(form) {
     if (!form) return;
-    const fields = ['complaint_title', 'complainant_first_name', 'complainant_last_name', 'respondent_first_name', 'respondent_last_name', 'complaint_type', 'narrative', 'remarks'];
+    const fields = ['complaint_title', 'complainant_first_name', 'complainant_last_name', 'respondent_first_name', 'respondent_last_name', 'narrative', 'remarks'];
     fields.forEach(name => {
         const el = form.querySelector(`[name="${name}"]`);
         if (el) el.value = toTitleCase(el.value);
@@ -376,4 +445,10 @@ function applyTitleCaseToCreateForm(form) {
 window.applyTitleCaseToCreateForm = applyTitleCaseToCreateForm;
 
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, x => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[x]); }
-function formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; }
+
+function formatDateUs(d) {
+    if (!d) return '—';
+    const x = new Date(d);
+    if (Number.isNaN(x.getTime())) return '—';
+    return x.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+}
