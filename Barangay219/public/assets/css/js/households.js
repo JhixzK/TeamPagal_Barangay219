@@ -894,14 +894,17 @@ function loadHouseholds() {
                 tiles.innerHTML = summary + data.map(h => {
                     const id = Number(h.id);
                     const headName = (h.family_head_name || '').toString().trim();
-                    const allHeadNames = (h.family_head_names || headName).toString().trim();
-                    const head = toTitleCase(headName || allHeadNames || '');
-                    const address = toTitleCase(h.address || '');
+                    const allHeadNamesRaw = (h.family_head_names || headName).toString().trim();
+                    const headsDisplay = allHeadNamesRaw
+                        ? allHeadNamesRaw.split(',').map(s => toTitleCase(s.trim())).filter(Boolean).join(', ')
+                        : '';
+                    const addressRaw = (h.address || '').toString();
+                    const address = toTitleCase(addressRaw);
                     const hn = (h.house_number || '').toString().trim();
                     const st = (h.street || '').toString().trim();
                     const members = Number((h.total_members ?? 0));
                     const reg = formatDate(h.registration_date);
-                    const hhCode = (h.household_id_code || '').trim();
+                    const hhCode = (h.household_id_code || '').toString().trim();
 
                     const viewBtn = `<button type="button" class="action-icon-btn" title="View" aria-label="View" onclick="event.stopPropagation(); viewHousehold(${id})"><i class="bi bi-eye"></i></button>`;
                     const editBtn = HOUSEHOLD_PERMS.canEdit
@@ -911,29 +914,24 @@ function loadHouseholds() {
                         ? `<button type="button" class="action-icon-btn action-delete" title="Delete" aria-label="Delete" onclick="event.stopPropagation(); deleteHousehold(${id})"><i class="bi bi-trash"></i></button>`
                         : '';
 
-                    const subtitle = head ? `Head: ${head}` : 'No head assigned yet';
-                    const addrTrunc = address ? formatTitleCaseTruncate(address, 70) : '(no address)';
-                    let addrDisplay = addrTrunc;
-                    if (onStreet && selectedStreetToken !== '__EMPTY__' && st && selectedStreetToken === st) {
-                        if (hn) {
-                            addrDisplay = `House ${toTitleCase(hn)}`;
-                        } else {
-                            addrDisplay = address ? addrTrunc : 'Same street';
-                        }
+                    let houseNoValue = '';
+                    if (hn) {
+                        houseNoValue = toTitleCase(hn);
+                    } else if (onStreet && selectedStreetToken !== '__EMPTY__' && st && selectedStreetToken === st) {
+                        houseNoValue = address ? formatTitleCaseTruncate(address, 70) : 'Same street';
+                    } else {
+                        houseNoValue = address ? formatTitleCaseTruncate(address, 70) : '—';
                     }
-                    const addrEllipsis = address.length > 70 && addrDisplay === addrTrunc;
-                    const householdIdLabel = '<small class="text-muted d-block">Household ID</small>';
-                    const householdIdBadge = `<span class="badge bg-white text-dark border">${escapeHtml(hhCode || '-')}</span>`;
-                    const titleLine = hhCode ? escapeHtml(hhCode) : `Household ${id}`;
+                    const addrTrunc70 = address ? formatTitleCaseTruncate(address, 70) : '';
+                    const houseNoEllipsis = !hn && addressRaw.length > 70 && houseNoValue === addrTrunc70;
                     return `
                         <div class="household-tile card shadow-sm hh-tile-clickable" data-hh-household-id="${id}" role="button" tabindex="0">
                             <div class="tile-top">
                                 <div class="tile-title">
                                     <div class="tile-icon"><i class="bi bi-house-heart"></i></div>
                                     <div class="min-w-0">
-                                        <p class="tile-name mb-0">${titleLine}</p>
-                                        <p class="tile-sub">${escapeHtml(subtitle)}</p>
-                                        <div class="mt-1">${householdIdLabel}${householdIdBadge}</div>
+                                        <p class="tile-name mb-0">Household</p>
+                                        <p class="tile-sub text-muted small mb-0">${members} member${members === 1 ? '' : 's'}</p>
                                     </div>
                                 </div>
                                 <span class="badge bg-success">Members: ${members}</span>
@@ -941,8 +939,16 @@ function loadHouseholds() {
                             <div class="tile-body">
                                 <dl class="tile-meta">
                                     <div>
-                                        <dt>Address</dt>
-                                        <dd>${escapeHtml(addrDisplay)}${addrEllipsis ? '...' : ''}</dd>
+                                        <dt>Head(s)</dt>
+                                        <dd>${headsDisplay ? escapeHtml(headsDisplay) : '<span class="text-muted">No head assigned yet</span>'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Household ID</dt>
+                                        <dd><span class="badge bg-light text-dark border font-monospace">${escapeHtml(hhCode || '—')}</span></dd>
+                                    </div>
+                                    <div>
+                                        <dt>House No:</dt>
+                                        <dd>${escapeHtml(houseNoValue)}${houseNoEllipsis ? '...' : ''}</dd>
                                     </div>
                                     <div>
                                         <dt>Registered</dt>
