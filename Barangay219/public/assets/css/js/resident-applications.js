@@ -523,6 +523,7 @@ function viewApplication(id) {
             // (requested behavior to avoid empty/incorrect Proof of Residency display).
             const proofPath = app.proof_of_residency_path ? app.proof_of_residency_path : app.id_document_path;
             const proofDoc = buildFilePreview(proofPath, 'Proof of Residency');
+            const specialProofDoc = buildFilePreview(app.special_category_proof_path, 'Special Category Proof');
 
             const roleInfo = getHouseholdRoleInfo(app);
             const incomeDisplay = formatCurrency(
@@ -539,14 +540,12 @@ function viewApplication(id) {
                     <div class="col-md-6"><strong>Civil Status:</strong> ${esc(toTitleCase(app.civil_status || '-'))}</div>
                     <div class="col-md-6"><strong>Citizenship:</strong> ${esc(toTitleCase(app.citizenship || '-'))}</div>
                     <div class="col-md-12"><strong>Address:</strong> ${esc(toTitleCase(address || '-'))}</div>
-                    <div class="col-md-6"><strong>Purok/Sitio:</strong> ${esc(toTitleCase(app.purok_sitio || '-'))}</div>
                     <div class="col-md-6"><strong>Valid ID Type:</strong> ${esc(toTitleCase(app.valid_id_type || '-'))}</div>
                     <div class="col-md-6"><strong>Valid ID Number:</strong> ${esc(app.valid_id_number || '-')}</div>
                     <div class="col-md-6"><strong>Mobile:</strong> ${esc(formatPhoneNumber(app.mobile_number) || '-')}</div>
                     <div class="col-md-6"><strong>Email:</strong> ${esc(app.email || '-')}</div>
                     <div class="col-md-6"><strong>Household Role:</strong> ${esc(toTitleCase(roleInfo.label || '-'))}</div>
                     <div class="col-md-6"><strong>Relationship to Head:</strong> ${esc(toTitleCase(roleInfo.relationship || '-'))}</div>
-                    <div class="col-md-6"><strong>Household Type:</strong> ${esc(toTitleCase(app.household_type || '-'))}</div>
                     <div class="col-md-6"><strong>Voter Status:</strong> ${esc(toTitleCase(app.voter_status || '-'))}</div>
                     <div class="col-md-6"><strong>Precinct Number:</strong> ${esc(app.precinct_number || '-')}</div>
                     <div class="col-md-6"><strong>Education:</strong> ${esc(toTitleCase(app.educational_attainment || '-'))}</div>
@@ -563,6 +562,7 @@ function viewApplication(id) {
                     <div class="col-md-6"><strong>Status:</strong> ${getStatusBadge(app.record_status)}</div>
                     <div class="col-md-6"><strong>Valid ID:</strong> ${idDoc}</div>
                     <div class="col-md-6"><strong>Proof of Residency:</strong> ${proofDoc}</div>
+                    <div class="col-md-6"><strong>Special Category Proof:</strong> ${specialProofDoc}</div>
                 </div>
             `;
 
