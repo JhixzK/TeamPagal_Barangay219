@@ -106,10 +106,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 px-2 py-2 border-top bg-white rounded-bottom" id="complaintsPagerWrap" style="display:none;">
                 <span class="text-muted small" id="complaintsPagerInfo"></span>
-                <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-outline-secondary" id="complaintsPrevPage">Prev</button>
-                    <button type="button" class="btn btn-outline-secondary" id="complaintsNextPage">Next</button>
-                </div>
+                <div id="complaintsPagination" role="group"></div>
             </div>
         </div>
     </div>
@@ -125,16 +122,8 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 .complaints-page .complaints-table { margin-bottom: 0; }
 .complaints-page .complaints-table-scroll {
-    max-height: min(58vh, 600px);
-    overflow-y: auto;
     overflow-x: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #94a3b8 #f1f5f9;
-}
-.complaints-page .complaints-table-scroll thead th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
+    overflow-y: visible;
 }
 .complaints-page .complaints-table > :not(caption) > * > * {
     border-bottom: 1px solid #edf1f6;
