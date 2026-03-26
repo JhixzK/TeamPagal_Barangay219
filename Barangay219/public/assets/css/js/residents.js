@@ -28,15 +28,13 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('searchInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') searchResidents();
     });
-    
-    document.getElementById('btnEditFromView').addEventListener('click', function() {
-        const id = this.dataset.residentId;
-        if (id) { bootstrap.Modal.getInstance(document.getElementById('viewResidentModal')).hide(); editResident(parseInt(id)); }
-    });
 });
 
 function initResidentStatFilters() {
     const tabs = document.querySelectorAll('#statusTabs .nav-link');
+    if (!tabs.length) {
+        return;
+    }
     tabs.forEach(tab => {
         tab.addEventListener('click', function(e) {
             e.preventDefault();
@@ -106,10 +104,6 @@ function applyResidentPermissions() {
         const openBtn = document.getElementById('btnOpenCreate');
         if (openBtn) openBtn.style.display = 'none';
     }
-    if (!RESIDENT_PERMS.canEdit) {
-        const editBtn = document.getElementById('btnEditFromView');
-        if (editBtn) editBtn.style.display = 'none';
-    }
 }
 
 /**
@@ -166,8 +160,8 @@ function displayResidents(residents) {
     const statusRank = status => {
         const s = String(status || '').toLowerCase();
         if (s === 'active') return 0;
-        if (s === 'inactive') return 2;
-        return 1;
+        if (s === 'inactive' || s === 'suspended') return 1;
+        return 2;
     };
 
     const sortedResidents = residents
@@ -193,6 +187,11 @@ function displayResidents(residents) {
         const canRejectNow = RESIDENT_PERMS.canEdit && hasIdUpload && verificationStatus === 'pending';
         
         const isHead = String(resident.is_household_head) === '1';
+        const statusNorm = String(resident.status || '').toLowerCase();
+        const isActiveStatus = statusNorm === 'active';
+        const isInactiveStatus = statusNorm === 'inactive';
+        const isSuspendedStatus = statusNorm === 'suspended';
+        const canActivateResident = isInactiveStatus || isSuspendedStatus;
         const householdCode = resident.household_code
             ? `<span class="resident-code-badge">${escapeHtml(String(resident.household_code))}</span>`
             : '<span class="resident-secondary">-</span>';
@@ -213,11 +212,12 @@ function displayResidents(residents) {
                 <td class="text-center"><span class="resident-pill ${getStatusClass(resident.status)}">${formatStatus(resident.status)}</span></td>
                 <td class="text-center">
                     <div class="resident-actions">
-                        ${RESIDENT_PERMS.canEdit ? `<button class="action-icon-btn" title="Edit" aria-label="Edit" onclick="editResident(${resident.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
                         <button class="action-icon-btn" title="View" aria-label="View" onclick="viewResident(${resident.id})"><i class="bi bi-eye"></i></button>
+                        ${RESIDENT_PERMS.canEdit ? `<button class="action-icon-btn" title="Edit" aria-label="Edit" onclick="editResident(${resident.id})"><i class="bi bi-pencil-square"></i></button>` : ''}
                         ${canVerifyNow ? `<button class="action-icon-btn" title="Verify ID" aria-label="Verify ID" onclick="verifyResidentId(${resident.id}, 'verified')"><i class="bi bi-patch-check"></i></button>` : ''}
                         ${canRejectNow ? `<button class="action-icon-btn" title="Reject ID" aria-label="Reject ID" onclick="verifyResidentId(${resident.id}, 'rejected')"><i class="bi bi-patch-exclamation"></i></button>` : ''}
-                        ${RESIDENT_PERMS.canDelete ? `<button class="action-icon-btn action-delete" title="Delete" aria-label="Delete" onclick="deleteResident(${resident.id})"><i class="bi bi-trash"></i></button>` : ''}
+                        ${RESIDENT_PERMS.canEdit && isActiveStatus ? `<button class="action-icon-btn btn-suspend" title="Suspend" aria-label="Suspend" onclick="suspendResident(${resident.id})"><i class="bi bi-pause-circle"></i></button>` : ''}
+                        ${RESIDENT_PERMS.canEdit && canActivateResident ? `<button class="action-icon-btn btn-activate" title="Activate" aria-label="Activate" onclick="activateResident(${resident.id})"><i class="bi bi-play-circle"></i></button>` : ''}
                     </div>
                 </td>
             </tr>
@@ -304,6 +304,9 @@ function resetResidents() {
 }
 
 function syncResidentStatusTabs() {
+    if (!document.getElementById('statusTabs')) {
+        return;
+    }
     document.querySelectorAll('#statusTabs .nav-link').forEach(tab => {
         const tabStatus = tab.getAttribute('data-status') || '';
         tab.classList.toggle('active', tabStatus === (residentFilters.status || ''));
@@ -510,8 +513,6 @@ function viewResident(id) {
                     </div>
                 ` : ''}
             `;
-            document.getElementById('btnEditFromView').dataset.residentId = id;
-            document.getElementById('linkCertificates').href = (window.BASE_URL || '') + 'certificates.php';
             new bootstrap.Modal(document.getElementById('viewResidentModal')).show();
         })
         .catch(() => showAlert('error', 'Error loading resident'));
@@ -573,28 +574,26 @@ function saveResident() {
 }
 
 /**
- * Delete resident
+ * Suspend resident (set inactive) — same pattern as User Management
  */
-function deleteResident(id) {
-    if (!RESIDENT_PERMS.canDelete) {
+function suspendResident(id) {
+    if (!RESIDENT_PERMS.canEdit) {
         showAlert('error', 'Access denied');
         return;
     }
-    if (confirm('Are you sure you want to delete this resident?')) {
-        const formData = new FormData();
-        formData.append('action', 'delete');
-        formData.append('id', id);
-        
-        const apiUrl = window.API_URL;
-        if (!apiUrl) {
-            console.error('API_URL is not defined. Please check your configuration.');
-            showAlert('error', 'Configuration error. Please refresh the page.');
-            return;
-        }
-        fetch(`${apiUrl}resident.php`, {
-            method: 'POST',
-            body: formData
-        })
+    if (!confirm('Are you sure you want to suspend this resident?')) {
+        return;
+    }
+    const formData = new FormData();
+    formData.append('action', 'suspend');
+    formData.append('id', id);
+    const apiUrl = window.API_URL;
+    if (!apiUrl) {
+        console.error('API_URL is not defined. Please check your configuration.');
+        showAlert('error', 'Configuration error. Please refresh the page.');
+        return;
+    }
+    fetch(`${apiUrl}resident.php`, { method: 'POST', body: formData })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -606,9 +605,41 @@ function deleteResident(id) {
         })
         .catch(error => {
             console.error('Error:', error);
-            showAlert('error', 'Error deleting resident');
+            showAlert('error', 'Error suspending resident');
         });
+}
+
+/**
+ * Activate resident — same pattern as User Management
+ */
+function activateResident(id) {
+    if (!RESIDENT_PERMS.canEdit) {
+        showAlert('error', 'Access denied');
+        return;
     }
+    const formData = new FormData();
+    formData.append('action', 'activate');
+    formData.append('id', id);
+    const apiUrl = window.API_URL;
+    if (!apiUrl) {
+        console.error('API_URL is not defined. Please check your configuration.');
+        showAlert('error', 'Configuration error. Please refresh the page.');
+        return;
+    }
+    fetch(`${apiUrl}resident.php`, { method: 'POST', body: formData })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                loadResidents(currentPage);
+            } else {
+                showAlert('error', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('error', 'Error activating resident');
+        });
 }
 
 /**
@@ -659,17 +690,21 @@ function formatGender(gender) {
 }
 
 function formatStatus(status) {
-    return status ? status.charAt(0).toUpperCase() + status.slice(1) : '-';
+    const normalized = String(status || '').toLowerCase();
+    if (!normalized) return 'Unknown';
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 function getStatusClass(status) {
+    const normalized = String(status || '').toLowerCase();
     const classes = {
         'active': 'status-active',
         'inactive': 'status-inactive',
+        'suspended': 'status-suspended',
         'deceased': 'status-deceased',
         'transferred': 'status-transferred'
     };
-    return classes[status] || 'status-inactive';
+    return classes[normalized] || 'status-unknown';
 }
 
 function normalizeVerificationStatus(row) {
