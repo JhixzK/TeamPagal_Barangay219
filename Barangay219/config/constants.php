@@ -101,7 +101,7 @@ define('RESIDENT_TRANSFERRED', 'transferred');
 define('DEFAULT_INDIGENT_THRESHOLD_MONTHLY', 12000);
 
 // Pagination
-define('ITEMS_PER_PAGE', 20);
+define('ITEMS_PER_PAGE', 10);
 
 // Session Configuration
 define('SESSION_LIFETIME', 3600); // 1 hour
