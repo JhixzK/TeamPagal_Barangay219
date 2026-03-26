@@ -385,6 +385,11 @@ include __DIR__ . '/../includes/sidebar.php';
 window.CURRENT_USER_ID = <?php echo (int)getCurrentUserId(); ?>;
 window.IS_ADMIN = <?php echo isSystemAdmin() ? 'true' : 'false'; ?>;
 window.CAN_MANAGE_USER_2FA = <?php echo (isSuperAdmin() || hasRole(ROLE_SECRETARY)) ? 'true' : 'false'; ?>;
+window.USER_MANAGEMENT_PERMS = <?php echo json_encode([
+    'canCreate' => canPerformModulePermission('users', 'can_create'),
+    'canEdit' => canPerformModulePermission('users', 'can_edit'),
+    'canDelete' => canPerformModulePermission('users', 'can_delete'),
+]); ?>;
 </script>
 <script src="<?php echo ASSETS_URL; ?>css/js/module-stats.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo ASSETS_URL; ?>css/js/users.js?v=<?php echo time(); ?>"></script>
