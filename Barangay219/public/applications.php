@@ -79,7 +79,9 @@ include __DIR__ . '/../includes/sidebar.php';
                 </tbody>
             </table>
         </div>
-        <nav class="mt-3"><ul class="pagination justify-content-center" id="pagination"></ul></nav>
+        <div class="d-flex justify-content-center mt-3 mb-1 px-2" id="appsPaginationOuter" style="display:none;" aria-label="Certificate applications pages">
+            <div id="pagination" role="group"></div>
+        </div>
     </div>
 </div>
 
@@ -154,37 +156,8 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .apps-page .apps-table-scroll {
-    max-height: min(62vh, 640px);
-    overflow-y: auto;
     overflow-x: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #94a3b8 #f1f5f9;
-}
-
-.apps-page .apps-table-scroll::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-.apps-page .apps-table-scroll::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 999px;
-}
-
-.apps-page .apps-table-scroll::-webkit-scrollbar-thumb {
-    background: #94a3b8;
-    border-radius: 999px;
-    border: 2px solid #f1f5f9;
-}
-
-.apps-page .apps-table-scroll::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
-}
-
-.apps-page .apps-table-scroll thead th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
+    overflow-y: visible;
 }
 
 .apps-page .apps-table > :not(caption) > * > * {
@@ -642,6 +615,13 @@ include __DIR__ . '/../includes/sidebar.php';
             .then(data => {
                 if (!data.success) {
                     tbody.innerHTML = '<tr><td colspan="8" class="text-danger">' + (data.message || 'Error') + '</td></tr>';
+                    const po = document.getElementById('appsPaginationOuter');
+                    if (po) po.style.display = 'none';
+                    const pg = document.getElementById('pagination');
+                    if (pg) {
+                        pg.innerHTML = '';
+                        pg.className = '';
+                    }
                     return;
                 }
                 const apps = data.data.certificates || data.data || [];
@@ -676,10 +656,33 @@ include __DIR__ . '/../includes/sidebar.php';
                           </tr>
                       `).join('');
                 }
+                currentPage = data.data.page || currentPage;
+                const total = Number(data.data.total != null ? data.data.total : 0);
                 const totalPages = data.data.total_pages || 1;
-                renderPagination(totalPages, data.data.page || 1);
+                if (typeof window.renderModuleBtnPagination === 'function') {
+                    window.renderModuleBtnPagination({
+                        containerId: 'pagination',
+                        outerWrapId: 'appsPaginationOuter',
+                        currentPage,
+                        total,
+                        totalPages,
+                        onPage: function(pg) {
+                            currentPage = pg;
+                            loadApplications();
+                        }
+                    });
+                }
             })
-                .catch(() => { tbody.innerHTML = '<tr><td colspan="8" class="text-danger">Failed to load.</td></tr>'; });
+                .catch(() => {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-danger">Failed to load.</td></tr>';
+                    const po = document.getElementById('appsPaginationOuter');
+                    if (po) po.style.display = 'none';
+                    const pg = document.getElementById('pagination');
+                    if (pg) {
+                        pg.innerHTML = '';
+                        pg.className = '';
+                    }
+                });
     }
 
     function refreshApplicationsPage() {
@@ -695,21 +698,6 @@ include __DIR__ . '/../includes/sidebar.php';
         const nextUrl = new URL(window.location.href);
         nextUrl.searchParams.set('_refresh', Date.now().toString());
         window.location.replace(nextUrl.toString());
-    }
-
-    function renderPagination(totalPages, page) {
-        const ul = document.getElementById('pagination');
-        if (totalPages <= 1) { ul.innerHTML = ''; return; }
-        let html = '';
-        if (page > 1) html += '<li class="page-item"><a class="page-link" href="#" data-p="' + (page - 1) + '">Prev</a></li>';
-        for (let i = 1; i <= Math.min(totalPages, 10); i++) {
-            html += '<li class="page-item' + (i === page ? ' active' : '') + '"><a class="page-link" href="#" data-p="' + i + '">' + i + '</a></li>';
-        }
-        if (page < totalPages) html += '<li class="page-item"><a class="page-link" href="#" data-p="' + (page + 1) + '">Next</a></li>';
-        ul.innerHTML = html;
-        ul.querySelectorAll('a').forEach(a => {
-            a.addEventListener('click', e => { e.preventDefault(); currentPage = parseInt(a.dataset.p); loadApplications(); });
-        });
     }
 
     window.searchApplications = function() {
