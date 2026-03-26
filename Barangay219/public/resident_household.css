@@ -510,14 +510,6 @@
 
 /* Manage Members is now a custom modal (no Bootstrap overrides needed). */
 
-.transfer-head-reason-panel {
-  margin-top: 1rem;
-  padding: 14px 16px;
-  border: 1px solid #ced8ea;
-  border-radius: 10px;
-  background: #f8fbff;
-}
-
 .form-group {
   margin-bottom: 12px;
 }
