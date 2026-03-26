@@ -62,12 +62,6 @@ switch ($action) {
         }
         resolveResidentForApplication();
         break;
-    case 'smtp_test':
-        if (!canPerformModulePermission('resident_applications', 'can_edit')) {
-            sendResponse(false, 'Access denied', null, 403);
-        }
-        smtpTestSend();
-        break;
     default:
         sendResponse(false, 'Invalid action', null, 400);
         break;
@@ -1478,28 +1472,6 @@ function rejectApplication() {
         error_log('Reject application: ' . $e->getMessage());
         sendResponse(false, 'Rejection failed', null, 500);
     }
-}
-
-function smtpTestSend() {
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        sendResponse(false, 'POST required', null, 405);
-    }
-    $to = trim($_POST['test_to'] ?? '');
-    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
-        sendResponse(false, 'Valid test_to email address is required.', null, 400);
-    }
-    require_once __DIR__ . '/../includes/mail-helper.php';
-    $result = sendHtmlMailToResident(
-        $to,
-        APP_NAME . ' — SMTP test',
-        '<p>If you received this message, outbound SMTP from the barangay system is working.</p>',
-        'If you received this message, outbound SMTP from the barangay system is working.'
-    );
-    if (!empty($result['sent'])) {
-        sendResponse(true, 'Test email sent. Check inbox and spam folder.', $result);
-    }
-    $hint = (string)($result['error'] ?? 'unknown');
-    sendResponse(false, 'Test email was not sent: ' . $hint, $result, 400);
 }
 
 function getActivationLink() {
