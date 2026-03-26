@@ -65,7 +65,7 @@ function getRolePermissionsApi() {
     }
 
     if ($role_normalized === ROLE_SUPER_ADMIN) {
-        $modules = ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'officials', 'users', 'profile'];
+        $modules = ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'activity_logs', 'officials', 'users', 'profile'];
         $permissions = [];
         foreach ($modules as $module) {
             $permissions[$module] = [
@@ -80,7 +80,7 @@ function getRolePermissionsApi() {
     }
 
     if ($role_normalized === ROLE_BARANGAY_CAPTAIN) {
-        $modules = ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'officials', 'users', 'profile'];
+        $modules = ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'activity_logs', 'officials', 'users', 'profile'];
         $permissions = [];
         foreach ($modules as $module) {
             $permissions[$module] = [
@@ -137,7 +137,7 @@ function saveRolePermissionsApi() {
         return;
     }
 
-    $allowed_modules = ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'users', 'profile'];
+    $allowed_modules = ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'activity_logs', 'users', 'profile'];
 
     try {
         $db = Database::getInstance();
@@ -188,7 +188,7 @@ function getAllowedRoles() {
 }
 
 function getAllowedModules() {
-    return ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'users', 'profile'];
+    return ['dashboard', 'applications', 'resident_applications', 'residents', 'households', 'certificates', 'blotters', 'complaints', 'announcements', 'reports', 'activity_logs', 'users', 'profile'];
 }
 
 function getOfficialAssignableRoles() {
