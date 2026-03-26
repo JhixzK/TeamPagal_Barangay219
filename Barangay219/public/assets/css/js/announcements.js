@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 let announcementFilters = { q: '', status: '' };
+let announcementPage = 1;
 
 const ANNOUNCEMENT_PERMS = {
     canCreate: window.canModulePermission ? window.canModulePermission('announcements', 'can_create') : true,
@@ -42,7 +43,7 @@ function applyAnnouncementPermissions() {
  * Load all announcements from API
  */
 function loadAnnouncements() {
-    const params = new URLSearchParams({ action: 'list' });
+    const params = new URLSearchParams({ action: 'list', page: String(announcementPage) });
     if (announcementFilters.q) params.append('q', announcementFilters.q);
     if (announcementFilters.status) params.append('status', announcementFilters.status);
 
@@ -51,9 +52,29 @@ function loadAnnouncements() {
         .then(d => {
             const tbody = document.getElementById('announcementsTableBody');
             if (!tbody) return;
-            
-            if (d.success && d.data && Array.isArray(d.data)) {
-                tbody.innerHTML = d.data.map(a => `
+
+            if (d.success && d.data) {
+                const pack = d.data;
+                const rows = Array.isArray(pack.announcements)
+                    ? pack.announcements
+                    : (Array.isArray(pack) ? pack : []);
+                announcementPage = pack.page ? Number(pack.page) : announcementPage;
+                const total = pack.total != null ? Number(pack.total) : rows.length;
+                const totalPages = pack.total_pages != null ? Number(pack.total_pages) : 1;
+                if (typeof window.renderModuleBtnPagination === 'function') {
+                    window.renderModuleBtnPagination({
+                        containerId: 'announcementsPagination',
+                        outerWrapId: 'announcementsPaginationOuter',
+                        currentPage: announcementPage,
+                        total,
+                        totalPages,
+                        onPage: pg => {
+                            announcementPage = pg;
+                            loadAnnouncements();
+                        }
+                    });
+                }
+                tbody.innerHTML = rows.map(a => `
                     <tr>
                         <td class="text-center fw-semibold">${escapeHtml(toTitleCase(a.title || '-'))}</td>
                         <td class="text-center"><span class="announcement-pill ${getCategoryPillClass(a.category)}">${escapeHtml(toTitleCase(a.category || 'General'))}</span></td>
@@ -89,9 +110,16 @@ function loadAnnouncements() {
                             </div>
                         </td>
                     </tr>
-                `).join('');
+                `).join('') || '<tr><td colspan="8" class="text-center text-muted">No announcements</td></tr>';
             } else {
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No announcements</td></tr>';
+                const po = document.getElementById('announcementsPaginationOuter');
+                if (po) po.style.display = 'none';
+                const pg = document.getElementById('announcementsPagination');
+                if (pg) {
+                    pg.innerHTML = '';
+                    pg.className = '';
+                }
             }
             syncAnnouncementStatusTabs();
         })
@@ -99,6 +127,13 @@ function loadAnnouncements() {
             console.error('Error loading announcements:', err);
             const tbody = document.getElementById('announcementsTableBody');
             if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error loading announcements</td></tr>';
+            const po = document.getElementById('announcementsPaginationOuter');
+            if (po) po.style.display = 'none';
+            const pg = document.getElementById('announcementsPagination');
+            if (pg) {
+                pg.innerHTML = '';
+                pg.className = '';
+            }
         });
 }
 
@@ -110,6 +145,7 @@ function initAnnouncementStatusTabs() {
             tabs.forEach(t => t.classList.remove('active'));
             this.classList.add('active');
             announcementFilters.status = this.getAttribute('data-status') || '';
+            announcementPage = 1;
             loadAnnouncements();
         });
     });
@@ -200,6 +236,7 @@ function getStatusLabel(status) {
  * Search announcements
  */
 function searchAnnouncements() {
+    announcementPage = 1;
     const query = document.getElementById('searchInput')?.value.trim() || '';
     announcementFilters.q = query;
     loadAnnouncements();
@@ -209,6 +246,7 @@ function searchAnnouncements() {
  * Reset filters and reload
  */
 function resetAnnouncements() {
+    announcementPage = 1;
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.value = '';
     announcementFilters = { q: '', status: '' };
