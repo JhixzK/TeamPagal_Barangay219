@@ -90,9 +90,10 @@ define('USER_ACTIVE', 'active');
 define('USER_INACTIVE', 'inactive');
 define('USER_SUSPENDED', 'suspended');
 
-// Resident Status
+// Resident Status (active / inactive / suspended align with users; deceased & transferred are resident-only)
 define('RESIDENT_ACTIVE', 'active');
 define('RESIDENT_INACTIVE', 'inactive');
+define('RESIDENT_SUSPENDED', 'suspended');
 define('RESIDENT_DECEASED', 'deceased');
 define('RESIDENT_TRANSFERRED', 'transferred');
 
