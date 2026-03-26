@@ -604,6 +604,7 @@ include __DIR__ . '/../includes/sidebar.php';
     let currentReleaseBirthDate = '';
     let currentReleaseCivilStatus = '';
     let currentReleaseNationality = '';
+    let currentReleaseSex = '';
     let walkInResidentSearchTimer = null;
     const APP_PERMS = {
         canEdit: window.canModulePermission
@@ -929,6 +930,11 @@ include __DIR__ . '/../includes/sidebar.php';
             || normalizedType === 'certificate_indigency'
             || normalizedType === 'barangay_indigency'
         );
+        const isResidencyCertificate = (
+            normalizedType === 'certificate of residency'
+            || normalizedType === 'certificate residency'
+            || normalizedType === 'certificate_residency'
+        );
 
         if (isBarangayCertificate) {
             return [
@@ -964,6 +970,22 @@ include __DIR__ . '/../includes/sidebar.php';
                 'This is to further certify that the above mentioned name belongs to an indigent family of this barangay.',
                 '',
                 'Issued this [DATE_ISSUED] at Barangay 219 Zone 20 Manila.'
+            ].join('\n');
+        }
+
+        if (isResidencyCertificate) {
+            return [
+                'CERTIFICATE OF RESIDENCY',
+                '',
+                'TO WHOM IT MAY CONCERN:',
+                '',
+                'This is to certify that [NAME], Filipino, [SEX], [AGE] years old, [CIVIL_STATUS], is a bonafide resident of Barangay 219, Zone 20, District II, Tondo, Manila, with postal address at [ADDRESS].',
+                '',
+                'This certification is issued upon the request of the above-named person for whatever legal purpose it may serve.',
+                '',
+                'This certificate shall be considered inoperative and this office will not be held accountable should it be used for purposes other than the one stated herein.',
+                '',
+                'Issued this [DATE_ISSUED], City of Manila.'
             ].join('\n');
         }
 
@@ -1016,7 +1038,9 @@ include __DIR__ . '/../includes/sidebar.php';
         return String(template || '')
             .replace(/\[NAME\]/g, values.name)
             .replace(/\[NAME_UPPER\]/g, values.nameUpper || values.name)
+            .replace(/\[NATIONALITY\]/g, values.nationality || 'Filipino')
             .replace(/\[NATIONALITY_UPPER\]/g, values.nationalityUpper || values.nationality || 'FILIPINO')
+            .replace(/\[SEX\]/g, values.sex || '[SEX]')
             .replace(/\[AGE\]/g, values.age)
             .replace(/\[CIVIL_STATUS\]/g, values.civilStatus)
             .replace(/\[ADDRESS\]/g, values.address)
@@ -1037,12 +1061,14 @@ include __DIR__ . '/../includes/sidebar.php';
         const age = calculateAgeFromBirthDate(currentReleaseBirthDate) || '[AGE]';
         const civilStatus = toTitleCase((currentReleaseCivilStatus || '').trim()) || '[CIVIL_STATUS]';
         const nationality = (currentReleaseNationality || '').trim() || 'Filipino';
+        const sex = toTitleCase((currentReleaseSex || '').trim()) || '[SEX]';
 
         const values = {
             name: name || '[NAME]',
             nameUpper: (name || '[NAME]').toUpperCase(),
             nationality,
             nationalityUpper: nationality,
+            sex,
             age,
             civilStatus,
             address: address || '[ADDRESS]',
@@ -1268,6 +1294,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 currentReleaseBirthDate = (a.birth_date || '').trim();
                 currentReleaseCivilStatus = (a.civil_status || '').trim();
                 currentReleaseNationality = (a.nationality || a.citizenship || '').trim();
+                currentReleaseSex = (a.gender || a.sex || '').trim();
                 document.getElementById('releaseId').value = id;
                 document.getElementById('releaseCertName').value = a.cert_name || toTitleCase(a.resident_name || '');
                 document.getElementById('releaseCertAddress').value = a.cert_address || a.address || '';
@@ -1297,6 +1324,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         nameUpper: ((document.getElementById('releaseCertName').value || '').trim() || '[NAME]').toUpperCase(),
                         nationality: currentReleaseNationality || 'Filipino',
                         nationalityUpper: (currentReleaseNationality || 'Filipino').toUpperCase(),
+                        sex: toTitleCase((currentReleaseSex || '').trim()) || '[SEX]',
                         age: calculateAgeFromBirthDate(currentReleaseBirthDate) || '[AGE]',
                         civilStatus: toTitleCase((currentReleaseCivilStatus || '').trim()) || '[CIVIL_STATUS]',
                         address: (document.getElementById('releaseCertAddress').value || '').trim(),
