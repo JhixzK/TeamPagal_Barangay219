@@ -20,13 +20,6 @@ include __DIR__ . '/../includes/sidebar.php';
                     <h2 class="mb-1"><i class="bi bi-person-lines-fill me-2"></i>Resident Applications</h2>
                     <p class="module-subtitle mb-0">Review resident registration requests and process approvals with traceability.</p>
                 </div>
-                <?php if (function_exists('canPerformModulePermission') && canPerformModulePermission('resident_applications', 'can_edit')): ?>
-                <div class="d-flex flex-wrap gap-2">
-                    <button type="button" class="btn btn-outline-secondary" onclick="openSmtpTestModal()" title="Verify config/email_smtp.php">
-                        <i class="bi bi-envelope-check"></i> Test SMTP
-                    </button>
-                </div>
-                <?php endif; ?>
             </div>
         </div>
 
@@ -526,27 +519,6 @@ include __DIR__ . '/../includes/sidebar.php';
     }
 }
 </style>
-
-<!-- SMTP test (staff) -->
-<div class="modal fade" id="smtpTestModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Test outbound email</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="small text-muted mb-2">Sends one message using <code>config/email_smtp.php</code>. Check spam if nothing arrives in the inbox.</p>
-                <label class="form-label">Send test to</label>
-                <input type="email" class="form-control" id="smtpTestTo" placeholder="your.email@example.com">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="btnSmtpTestSend"><i class="bi bi-send"></i> Send test</button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- View Modal -->
 <div class="modal fade" id="viewModal" tabindex="-1">
