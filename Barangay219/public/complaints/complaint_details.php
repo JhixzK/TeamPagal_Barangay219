@@ -26,6 +26,11 @@ $complaint = ($moduleReady && $complaintId) ? residentComplaintsFetchById($db, $
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/resident-official-theme.css?v=<?php echo time(); ?>">
   <link rel="stylesheet" href="<?php echo BASE_URL; ?>resident_dashboard.css">
+  <style>
+    .cd-desc-box { background:#f0f4f8; border-radius:10px; padding:0.85rem 1rem; color:#334155; font-size:0.95rem; line-height:1.5; }
+    .cd-action-panel { background:#f0f4f8; border-radius:10px; padding:1rem; }
+    .cd-section-kicker { font-size:0.7rem; letter-spacing:0.08em; color:#64748b; font-weight:700; text-transform:uppercase; }
+  </style>
 </head>
 <body class="resident-view">
   <header class="top-header">
@@ -80,12 +85,12 @@ $complaint = ($moduleReady && $complaintId) ? residentComplaintsFetchById($db, $
       <div class="row g-4">
         <div class="col-lg-8">
           <div class="card border-0 shadow-sm mb-4"><div class="card-body p-4">
-            <h5 class="mb-3">Complaint Information</h5>
+            <p class="cd-section-kicker mb-2"><i class="bi bi-file-text me-2"></i>Issue Details</p>
             <div class="row g-3">
               <div class="col-md-6"><label class="text-muted small d-block">Reference Number</label><div class="fw-semibold"><?php echo htmlspecialchars($complaint['reference_number'] ?: 'Pending'); ?></div></div>
               <div class="col-md-6"><label class="text-muted small d-block">Category</label><div><?php echo htmlspecialchars($complaint['category'] ?: '-'); ?></div></div>
               <div class="col-12"><label class="text-muted small d-block">Title</label><div><?php echo htmlspecialchars($complaint['title'] ?: '-'); ?></div></div>
-              <div class="col-12"><label class="text-muted small d-block">Description</label><div><?php echo nl2br(htmlspecialchars($complaint['description'] ?: '-')); ?></div></div>
+              <div class="col-12"><label class="text-muted small d-block">Description</label><div class="cd-desc-box"><?php echo nl2br(htmlspecialchars($complaint['description'] ?: '-')); ?></div></div>
             </div>
           </div></div>
 
@@ -132,9 +137,13 @@ $complaint = ($moduleReady && $complaintId) ? residentComplaintsFetchById($db, $
 
         <div class="col-lg-4">
           <div class="card border-0 shadow-sm"><div class="card-body p-4">
-            <h5 class="mb-3">Case Handling</h5>
+            <p class="cd-section-kicker mb-3"><i class="bi bi-flag me-2"></i>Action Panel</p>
+            <div class="cd-action-panel mb-3">
+              <span class="text-muted small d-block text-uppercase fw-semibold mb-2" style="font-size:0.65rem;letter-spacing:0.06em;">Status</span>
+              <span class="badge text-bg-<?php echo residentComplaintsStatusClass($complaint['status'] ?? ''); ?> mb-2"><?php echo htmlspecialchars($displayStatus); ?></span>
+              <p class="text-muted small mb-0">Track updates here as barangay staff process your report.</p>
+            </div>
             <p class="mb-2"><span class="text-muted small d-block">Assigned Barangay Officer</span><?php echo htmlspecialchars($complaint['assigned_officer'] ?: 'Not yet assigned'); ?></p>
-            <p class="mb-2"><span class="text-muted small d-block">Complaint Status</span><span class="badge text-bg-<?php echo residentComplaintsStatusClass($displayStatus); ?>"><?php echo htmlspecialchars($displayStatus); ?></span></p>
             <p class="mb-2"><span class="text-muted small d-block">Jurisdiction Status</span><span class="badge text-bg-<?php echo ($complaint['jurisdiction_status'] ?? 'Valid') === 'Valid' ? 'success' : 'secondary'; ?>"><?php echo htmlspecialchars($complaint['jurisdiction_status'] ?: 'Valid'); ?></span></p>
             <p class="mb-2"><span class="text-muted small d-block">Resolution Notes</span><?php echo nl2br(htmlspecialchars($complaint['resolution_notes'] ?: 'No resolution notes yet.')); ?></p>
             <p class="mb-0"><span class="text-muted small d-block">Referral Notes</span><?php echo nl2br(htmlspecialchars($complaint['referral_notes'] ?: 'No referral notes.')); ?></p>
