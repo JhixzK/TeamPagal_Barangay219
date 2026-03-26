@@ -99,6 +99,7 @@ $certLabel = $certTypeLabels[$cert['certificate_type']] ?? ucfirst(str_replace('
 $normalizedCertType = strtolower(trim(str_replace('_', ' ', (string)($cert['certificate_type'] ?? ''))));
 $isBarangayCertificate = in_array($normalizedCertType, ['barangay certificate', 'transfer request'], true);
 $currentCertType = str_replace(' ', '_', $normalizedCertType);
+$usesTransferStyleLayout = in_array($currentCertType, ['transfer_request', 'certificate_residency'], true);
 $controlNum = $cert['control_number'] ?? 'BRGY219-' . date('Y') . '-' . str_pad((string)$id, 5, '0', STR_PAD_LEFT);
 $issuedBase = $cert['date_issued'] ?? $cert['issued_date'] ?? null;
 $issuedTs = $issuedBase ? strtotime((string)$issuedBase) : time();
@@ -324,7 +325,14 @@ $defaultParagraphsIndigency = [
 $defaultParagraphsTransferRequest = [
     '<strong>TO WHOM IT MAY CONCERN:</strong>',
     'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, <span class="resident-field">' . htmlspecialchars($residentNationality !== '' ? $residentNationality : 'N/A') . '</span>, <span class="resident-field">' . htmlspecialchars($residentSex !== '' ? ucfirst(strtolower($residentSex)) : 'N/A') . '</span>, <span class="resident-field">' . htmlspecialchars($residentAge !== '' ? $residentAge : 'N/A') . ' years old</span>, <strong>' . htmlspecialchars($residentCivilStatus !== '' ? ucfirst(strtolower($residentCivilStatus)) : 'N/A') . '</strong>, is a bonafide resident of Barangay 219, Zone 20, District II, Tondo, Manila with postal address at <strong>' . htmlspecialchars($certAddress) . '</strong>.',
-    'This certificate is being issued upon the request of the above-named person in connection with the transfer of residence, for the purpose of <strong>Travel/Transfer of Resident</strong>.',
+    'This certificate is being issued upon the request of the above-named person in connection with the transfer of residence, for the purpose of <strong>' . htmlspecialchars($purposeText !== '' ? $purposeText : 'N/A') . '</strong>.',
+    'This certificate shall be considered inoperative and this office will not be held accountable should it be used for purposes other than the one stated herein.',
+    'Issued this <strong><u>' . htmlspecialchars($issuedOrdinal) . ' day of ' . htmlspecialchars($issuedMonthYear) . '</u></strong>, City of Manila.'
+];
+$defaultParagraphsResidency = [
+    '<strong>TO WHOM IT MAY CONCERN:</strong>',
+    'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, <span class="resident-field">Filipino</span>, <span class="resident-field">' . htmlspecialchars($residentSex !== '' ? ucfirst(strtolower($residentSex)) : 'N/A') . '</span>, <span class="resident-field">' . htmlspecialchars($residentAge !== '' ? $residentAge : 'N/A') . ' years old</span>, <strong>' . htmlspecialchars($residentCivilStatus !== '' ? ucfirst(strtolower($residentCivilStatus)) : 'N/A') . '</strong>, is a bonafide resident of Barangay 219, Zone 20, District II, Tondo, Manila, with postal address at <strong>' . htmlspecialchars($certAddress) . '</strong>.',
+    'This certification is issued upon the request of the above-named person for whatever legal purpose it may serve.',
     'This certificate shall be considered inoperative and this office will not be held accountable should it be used for purposes other than the one stated herein.',
     'Issued this <strong><u>' . htmlspecialchars($issuedOrdinal) . ' day of ' . htmlspecialchars($issuedMonthYear) . '</u></strong>, City of Manila.'
 ];
@@ -333,9 +341,11 @@ $defaultParagraphs = ($currentCertType === 'barangay_clearance')
     ? $defaultParagraphsClearance
     : ((in_array($currentCertType, ['barangay_indigency', 'certificate_indigency'], true))
         ? $defaultParagraphsIndigency
-        : (($currentCertType === 'transfer_request') ? $defaultParagraphsTransferRequest : $defaultParagraphsGeneric));
+        : (($currentCertType === 'transfer_request')
+            ? $defaultParagraphsTransferRequest
+            : (($currentCertType === 'certificate_residency') ? $defaultParagraphsResidency : $defaultParagraphsGeneric)));
 
-if ($certBody !== '' && !in_array($currentCertType, ['transfer_request', 'barangay_indigency', 'certificate_indigency', 'barangay_clearance'], true)) {
+if ($certBody !== '' && !in_array($currentCertType, ['transfer_request', 'certificate_residency', 'barangay_indigency', 'certificate_indigency', 'barangay_clearance'], true)) {
     $resolvedBody = strtr($certBody, $placeholderValues);
     // Normalize legacy saved bodies that still include extended Manila suffix.
     $resolvedBody = preg_replace('/\bTondo,\s*Manila,\s*Metro Manila,\s*Manila\b/i', 'Tondo, Manila', $resolvedBody) ?? $resolvedBody;
@@ -812,18 +822,20 @@ $paragraphs = array_map(static function ($paragraph) use ($fullName, $certAddres
                         <div class="left-role">Barangay Treasurer</div>
                     </div>
                     <div class="right-panel">
-                        <?php if ($isBarangayCertificate): ?>
-                        <div class="<?php echo $currentCertType === 'transfer_request' ? 'transfer-title' : 'certification-title'; ?>">
+                        <?php if ($isBarangayCertificate || $usesTransferStyleLayout): ?>
+                        <div class="<?php echo $usesTransferStyleLayout ? 'transfer-title' : 'certification-title'; ?>">
                             <?php echo $currentCertType === 'transfer_request'
                                 ? 'CERTIFICATE FOR TRANSFER OF RESIDENT'
-                                : 'C E R T I F I C A T I O N'; ?>
+                                : (($currentCertType === 'certificate_residency')
+                                    ? 'CERTIFICATE OF RESIDENCY'
+                                    : 'C E R T I F I C A T I O N'); ?>
                         </div>
                         <?php else: ?>
                         <div class="document-title"><?php echo htmlspecialchars($subjectLine); ?></div>
                         <?php endif; ?>
 
                         <div class="body<?php echo $currentCertType === 'barangay_clearance' ? ' clearance-body' : ''; ?>">
-                            <?php if ($isBarangayCertificate): ?>
+                            <?php if ($isBarangayCertificate || $usesTransferStyleLayout): ?>
                             <br><br>
                             <?php endif; ?>
                             <?php foreach ($paragraphs as $paragraph): ?>
