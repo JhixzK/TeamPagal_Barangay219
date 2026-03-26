@@ -75,6 +75,13 @@ function listBlotters() {
             $params[] = $to;
         }
 
+        $countSql = "SELECT COUNT(*) AS total FROM blotter_records br LEFT JOIN residents r ON r.id = br.complainant_id WHERE $where";
+        $total = (int)($db->fetchOne($countSql, $params)['total'] ?? 0);
+
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $limit = min(50, max(10, (int)($_GET['limit'] ?? ITEMS_PER_PAGE)));
+        $offset = ($page - 1) * $limit;
+
         $rows = $db->fetchAll(
             "SELECT
                 br.*,
@@ -86,8 +93,9 @@ function listBlotters() {
              FROM blotter_records br
              LEFT JOIN residents r ON r.id = br.complainant_id
              WHERE $where
-             ORDER BY br.created_at DESC, br.id DESC",
-            $params
+             ORDER BY br.created_at DESC, br.id DESC
+             LIMIT ? OFFSET ?",
+            array_merge($params, [$limit, $offset])
         );
 
         $mapped = array_map(function ($row) {
@@ -113,7 +121,13 @@ function listBlotters() {
             ];
         }, $rows);
 
-        sendResponse(true, 'Retrieved', $mapped);
+        sendResponse(true, 'Retrieved', [
+            'blotters' => $mapped,
+            'total' => $total,
+            'page' => $page,
+            'limit' => $limit,
+            'total_pages' => max(1, (int)ceil($total / $limit)),
+        ]);
     } catch (Exception $e) {
         error_log('Admin blotter list error: ' . $e->getMessage());
         sendResponse(false, 'Error', null, 500);
