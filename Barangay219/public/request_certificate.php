@@ -308,20 +308,7 @@ $purposeOptionsByType = [
     'Utility Connection',
     'First Time Jobseeker (RA 11261)'
   ],
-  'Certificate of Residency' => [
-    'Application for Employment',
-    'School Admission/Requirement',
-    'Hospital Purpose',
-    'Processing of Calamity',
-    'Medical Purpose',
-    'For Livelihood Loan',
-    'Bank Transaction',
-    'Indigent Family',
-    'Organized Vending Permit',
-    'DSWD Requirement',
-    'For Travel Abroad',
-    'Transfer of Residence'
-  ]
+  'Certificate of Residency' => []
 ];
 
 $residentData = [
@@ -531,7 +518,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $isIndigencyRequest = ($formData['certificate_type'] === 'Barangay Indigency');
-    if (!$isIndigencyRequest) {
+    $isResidencyRequest = ($formData['certificate_type'] === 'Certificate of Residency');
+    if (!$isIndigencyRequest && !$isResidencyRequest) {
       $selectedPurposeOptions = $purposeOptionsByType[$formData['certificate_type']] ?? [];
       if (!in_array($formData['purpose'], $selectedPurposeOptions, true)) {
         $errors[] = 'Please select a valid purpose category.';
@@ -545,7 +533,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Please specify the purpose.';
       }
     } else {
-      // Purpose is not required for Barangay Indigency requests.
+      // Purpose is not required for Barangay Indigency and Certificate of Residency requests.
       $formData['purpose'] = '';
       $formData['purpose_other'] = '';
     }
@@ -660,11 +648,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors) && $mysqli) {
       $isIndigencyRequest = ($formData['certificate_type'] === 'Barangay Indigency');
+      $isResidencyRequest = ($formData['certificate_type'] === 'Certificate of Residency');
       $usesCustomPurpose = (
         ($formData['certificate_type'] === 'Barangay Certificate' && $formData['purpose'] === 'Others')
         || ($formData['certificate_type'] === 'Transfer Request' && $formData['purpose'] === 'Other (Please Specify)')
       );
-      $finalPurpose = $isIndigencyRequest
+      $finalPurpose = ($isIndigencyRequest || $isResidencyRequest)
         ? ''
         : ($usesCustomPurpose
             ? $formData['purpose_other']
@@ -709,7 +698,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $insertColumns[] = 'purpose_option';
           $placeholders[] = '?';
           $bindTypes .= 's';
-          $bindValues[] = $isIndigencyRequest ? null : $formData['purpose'];
+          $bindValues[] = ($isIndigencyRequest || $isResidencyRequest) ? null : $formData['purpose'];
         }
 
         if (rcColumnExists($mysqli, 'certificate_requests', 'purpose_other')) {
