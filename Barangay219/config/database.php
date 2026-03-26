@@ -78,9 +78,6 @@ class Database {
      */
     public function fetchOne($sql, $params = []) {
         $stmt = $this->query($sql, $params);
-        if ($stmt === false) {
-            return false;
-        }
         return $stmt->fetch();
     }
     
@@ -89,9 +86,6 @@ class Database {
      */
     public function fetchAll($sql, $params = []) {
         $stmt = $this->query($sql, $params);
-        if ($stmt === false) {
-            return [];
-        }
         return $stmt->fetchAll();
     }
     
@@ -120,7 +114,10 @@ class Database {
      * Rollback transaction
      */
     public function rollback() {
-        return $this->conn->rollBack();
+        if ($this->conn->inTransaction()) {
+            return $this->conn->rollBack();
+        }
+        return false;
     }
 }
 
