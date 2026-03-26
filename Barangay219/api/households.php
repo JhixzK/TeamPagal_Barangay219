@@ -1247,6 +1247,11 @@ function getHousehold() {
         $db = Database::getInstance();
         ensureIndigentClassificationSchema($db);
 
+        // Ensure residents table can store special category proof path
+        if (function_exists('addColumnIfMissing')) {
+            addColumnIfMissing($db, 'residents', 'special_category_proof_path', "VARCHAR(255) NULL AFTER proof_of_residency_path");
+        }
+
         $sql = "SELECT h.*, 
                        CONCAT(r.first_name, ' ', COALESCE(r.middle_name, ''), ' ', r.last_name) as family_head_name
                 FROM households h
