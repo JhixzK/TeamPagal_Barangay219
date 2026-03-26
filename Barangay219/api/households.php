@@ -2335,16 +2335,6 @@ function assignHeadOfficial() {
     $householdId = (int)($_POST['household_id'] ?? 0);
     $newHeadResidentId = (int)($_POST['new_head_resident_id'] ?? 0);
     $oldHeadResidentIdParam = (int)($_POST['old_head_resident_id'] ?? 0);
-    $reason = trim((string)($_POST['reason'] ?? ''));
-    if ($reason === '') {
-        sendResponse(false, 'Reason is required to transfer head role', null, 400);
-        return;
-    }
-    if (strlen($reason) > 200) {
-        sendResponse(false, 'Reason is too long', null, 400);
-        return;
-    }
-    $reasonForLog = htmlspecialchars($reason, ENT_QUOTES, 'UTF-8');
 
     if (!$householdId || !$newHeadResidentId) {
         sendResponse(false, 'household_id and new_head_resident_id are required', null, 400);
@@ -2479,7 +2469,7 @@ function assignHeadOfficial() {
                 $performedBy = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
                 $db->query(
                     "INSERT INTO household_history_logs (household_id, action, performed_by, target_resident_id, details) VALUES (?, ?, ?, ?, ?)",
-                    [$householdId, 'Head Changed', $performedBy, $newHeadResidentId, 'Household head transferred by official. Reason: ' . $reasonForLog]
+                    [$householdId, 'Head Changed', $performedBy, $newHeadResidentId, 'Household head transferred by official.']
                 );
             }
 
