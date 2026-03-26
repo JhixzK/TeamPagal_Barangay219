@@ -174,13 +174,8 @@ function listResidents() {
         } else {
             $householdCodeExpr = 'NULL AS household_code,';
         }
-        // Prefer per-resident family_head_code; for the designated household head, fall back to households.family_head_code
-        // when the resident row was not synced (e.g. after remove_member auto-reassign before this fix).
-        if ($hasResidentFamilyHeadCode && $hasHouseholdFamilyHeadCode && $hasHouseholdFamilyHeadId) {
-            $familyHeadCodeExpr = "CASE WHEN h.family_head_id IS NOT NULL AND h.family_head_id = r.id "
-                . "THEN COALESCE(NULLIF(NULLIF(TRIM(r.family_head_code), ''), '-'), h.family_head_code) "
-                . "ELSE r.family_head_code END AS family_head_code,";
-        } elseif ($hasResidentFamilyHeadCode) {
+        // Prefer per-resident family_head_code when available; fall back to household-level for older data.
+        if ($hasResidentFamilyHeadCode) {
             $familyHeadCodeExpr = 'r.family_head_code AS family_head_code,';
         } elseif ($hasHouseholdFamilyHeadCode) {
             $familyHeadCodeExpr = 'h.family_head_code AS family_head_code,';
@@ -972,11 +967,11 @@ function deleteResident() {
         $sql = "UPDATE residents SET status = 'inactive' WHERE id = ?";
         $db->query($sql, [$id]);
         
-        sendResponse(true, 'Resident deactivated successfully', null);
+        sendResponse(true, 'Resident deleted successfully', null);
         
     } catch (Exception $e) {
         error_log("Delete resident error: " . $e->getMessage());
-        sendResponse(false, 'Error deactivating resident', null, 500);
+        sendResponse(false, 'Error deleting resident', null, 500);
     }
 }
 
