@@ -28,6 +28,11 @@ include __DIR__ . '/../includes/sidebar.php';
     margin-bottom: 0;
 }
 
+.users-page .users-table-scroll {
+    overflow-x: auto;
+    overflow-y: visible;
+}
+
 .users-page .users-table thead th {
     border: 0;
     border-bottom: 1px solid #e9eef5;
@@ -237,6 +242,9 @@ include __DIR__ . '/../includes/sidebar.php';
                         </tr>
                     </tbody>
                 </table>
+            </div>
+            <div class="d-flex justify-content-center mt-2 mb-1 px-2 py-2 border-top bg-white" id="usersPaginationOuter" style="display:none;" aria-label="User list pages">
+                <div id="usersPagination" role="group"></div>
             </div>
         </div>
 
