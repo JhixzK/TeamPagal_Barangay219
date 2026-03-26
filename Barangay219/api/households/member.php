@@ -414,6 +414,12 @@ function assignHouseholdHead($residentId, $data) {
 
     $db->beginTransaction();
     try {
+        $oldHeadGroupFc = '';
+        if ($oldHeadResidentId > 0 && columnExists($db, 'residents', 'family_code')) {
+            $ogr = $db->fetchOne('SELECT family_code FROM residents WHERE id = ? LIMIT 1', [$oldHeadResidentId]);
+            $oldHeadGroupFc = $ogr ? trim((string)($ogr['family_code'] ?? '')) : '';
+        }
+
         if ($currentDesignatedId === $oldHeadResidentId) {
             $db->query("UPDATE households SET {$headColumn} = ? WHERE id = ?", [$newHeadResidentId, $householdId]);
             if (isset($houseCols['family_head_id']) && $headColumn !== 'family_head_id') {
@@ -433,6 +439,7 @@ function assignHouseholdHead($residentId, $data) {
         }
 
         // Ensure the new designated head always has a family_head_code; restore from old head or generate.
+        $transferredFamilyHeadCode = null;
         if (columnExists($db, 'residents', 'family_head_code')) {
             $oldFhc = '';
             $oldHead = $db->fetchOne('SELECT family_head_code FROM residents WHERE id = ? LIMIT 1', [$oldHeadResidentId]);
@@ -444,6 +451,7 @@ function assignHouseholdHead($residentId, $data) {
             if ($oldFhc === '' || $oldFhc === '-') {
                 $oldFhc = generateResidentFamilyHeadCode($db);
             }
+            $transferredFamilyHeadCode = $oldFhc;
             $db->query('UPDATE residents SET family_head_code = ? WHERE id = ?', [$oldFhc, $newHeadResidentId]);
             $db->query('UPDATE residents SET family_head_code = NULL WHERE id = ?', [$oldHeadResidentId]);
             if ($currentDesignatedId === $oldHeadResidentId && isset($houseCols['family_head_code'])) {
@@ -451,29 +459,54 @@ function assignHouseholdHead($residentId, $data) {
             }
         }
 
-        // Sync family_code for all members to match the new head
-        if (columnExists($db, 'residents', 'family_code')) {
+        // Sync family_code only within the transferring family group.
+        if (columnExists($db, 'residents', 'family_code') && $oldHeadResidentId > 0) {
             $newFcRow = $db->fetchOne('SELECT family_code FROM residents WHERE id = ? LIMIT 1', [$newHeadResidentId]);
             $newFc = trim((string)($newFcRow['family_code'] ?? ''));
             if ($newFc !== '') {
-                $db->query(
-                    'UPDATE residents SET family_code = ? WHERE household_id = ? AND id <> ?',
-                    [$newFc, $householdId, $newHeadResidentId]
-                );
+                $hasFhri = columnExists($db, 'residents', 'family_head_resident_id');
+                if ($oldHeadGroupFc !== '') {
+                    if ($hasFhri) {
+                        $db->query(
+                            "UPDATE residents SET family_code = ? WHERE household_id = ? AND id <> ? AND (
+                                TRIM(COALESCE(family_code,'')) = ?
+                                OR id = ?
+                                OR family_head_resident_id = ?
+                            )",
+                            [$newFc, $householdId, $newHeadResidentId, $oldHeadGroupFc, $oldHeadResidentId, $oldHeadResidentId]
+                        );
+                    } else {
+                        $db->query(
+                            "UPDATE residents SET family_code = ? WHERE household_id = ? AND id <> ? AND (
+                                TRIM(COALESCE(family_code,'')) = ?
+                                OR id = ?
+                            )",
+                            [$newFc, $householdId, $newHeadResidentId, $oldHeadGroupFc, $oldHeadResidentId]
+                        );
+                    }
+                } elseif ($hasFhri) {
+                    $db->query(
+                        'UPDATE residents SET family_code = ? WHERE household_id = ? AND id <> ? AND (family_head_resident_id = ? OR id = ?)',
+                        [$newFc, $householdId, $newHeadResidentId, $oldHeadResidentId, $oldHeadResidentId]
+                    );
+                } else {
+                    $db->query(
+                        'UPDATE residents SET family_code = ? WHERE household_id = ? AND id = ? AND id <> ?',
+                        [$newFc, $householdId, $oldHeadResidentId, $newHeadResidentId]
+                    );
+                }
             }
         }
-        // Ensure non-head members don't retain stale family_head_code
-        if (columnExists($db, 'residents', 'family_head_code')) {
+        if ($transferredFamilyHeadCode !== null && $transferredFamilyHeadCode !== '' && $transferredFamilyHeadCode !== '-') {
             $db->query(
-                "UPDATE residents SET family_head_code = NULL WHERE household_id = ? AND id <> ? AND family_head_code IS NOT NULL AND TRIM(family_head_code) <> ''",
-                [$householdId, $newHeadResidentId]
+                'UPDATE residents SET family_head_code = NULL WHERE household_id = ? AND id <> ? AND TRIM(family_head_code) = ?',
+                [$householdId, $newHeadResidentId, $transferredFamilyHeadCode]
             );
         }
-        // Point all members' family_head_resident_id to the new head
-        if (columnExists($db, 'residents', 'family_head_resident_id')) {
+        if (columnExists($db, 'residents', 'family_head_resident_id') && $oldHeadResidentId > 0) {
             $db->query(
-                'UPDATE residents SET family_head_resident_id = ? WHERE household_id = ? AND id <> ?',
-                [$newHeadResidentId, $householdId, $newHeadResidentId]
+                'UPDATE residents SET family_head_resident_id = ? WHERE household_id = ? AND family_head_resident_id = ?',
+                [$newHeadResidentId, $householdId, $oldHeadResidentId]
             );
         }
 
