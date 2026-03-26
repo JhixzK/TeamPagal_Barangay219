@@ -52,26 +52,30 @@ include __DIR__ . '/../includes/sidebar.php';
             <li class="nav-item"><a class="nav-link" href="#" data-status="rejected">Rejected</a></li>
         </ul>
 
-        <div class="table-responsive data-table resident-apps-table-wrap resident-apps-table-scroll">
-            <table class="table table-hover resident-apps-table align-middle">
-                <thead>
-                    <tr>
-                        <th class="text-center">Ref #</th>
-                        <th class="text-center">Applicant</th>
-                        <th class="text-center">Sex</th>
-                        <th class="text-center">Contact</th>
-                        <th class="text-center">Submitted</th>
-                        <th class="text-center" style="width: 140px;">Household Role</th>
-                        <th class="text-center">Status</th>
-                        <th class="text-center resident-apps-actions-col actions-col-compact">View</th>
-                    </tr>
-                </thead>
-                <tbody id="applicationsTableBody">
-                    <tr><td colspan="8" class="text-center py-4">Loading...</td></tr>
-                </tbody>
-            </table>
+        <div class="data-table resident-apps-table-wrap">
+            <div class="table-responsive resident-apps-table-scroll">
+                <table class="table table-hover resident-apps-table align-middle">
+                    <thead>
+                        <tr>
+                            <th class="text-center">Ref #</th>
+                            <th class="text-center">Applicant</th>
+                            <th class="text-center">Sex</th>
+                            <th class="text-center">Contact</th>
+                            <th class="text-center">Submitted</th>
+                            <th class="text-center" style="width: 140px;">Household Role</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center resident-apps-actions-col actions-col-compact">View</th>
+                        </tr>
+                    </thead>
+                    <tbody id="applicationsTableBody">
+                        <tr><td colspan="8" class="text-center py-4">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex justify-content-center mt-2 mb-1 px-2" id="residentAppsPaginationOuter" style="display:none;" aria-label="Resident applications pages">
+                <div id="pagination" role="group"></div>
+            </div>
         </div>
-        <nav class="mt-3"><ul class="pagination justify-content-center" id="pagination"></ul></nav>
     </div>
 </div>
 
@@ -193,37 +197,8 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .resident-apps-page .resident-apps-table-scroll {
-    max-height: min(62vh, 640px);
-    overflow-y: auto;
     overflow-x: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #94a3b8 #f1f5f9;
-}
-
-.resident-apps-page .resident-apps-table-scroll::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-.resident-apps-page .resident-apps-table-scroll::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 999px;
-}
-
-.resident-apps-page .resident-apps-table-scroll::-webkit-scrollbar-thumb {
-    background: #94a3b8;
-    border-radius: 999px;
-    border: 2px solid #f1f5f9;
-}
-
-.resident-apps-page .resident-apps-table-scroll::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
-}
-
-.resident-apps-page .resident-apps-table-scroll thead th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
+    overflow-y: visible;
 }
 
 .resident-apps-page .resident-apps-table > :not(caption) > * > * {
