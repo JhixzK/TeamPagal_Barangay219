@@ -151,6 +151,21 @@ if ($isResidentSidebar) {
             'url' => 'users.php',
             'module' => 'users',
             'section' => 'Administration'
+        ],
+        [
+            'title' => 'Role & Permissions',
+            'icon' => 'bi-shield-lock',
+            'url' => 'role-permissions.php',
+            'module' => 'users',
+            'section' => 'Administration',
+            'roles' => [ROLE_SUPER_ADMIN, ROLE_BARANGAY_CAPTAIN]
+        ],
+        [
+            'title' => 'Activity Logs',
+            'icon' => 'bi-clock-history',
+            'url' => 'activity-logs.php',
+            'module' => 'reports',
+            'section' => 'Administration'
         ]
     ];
 
