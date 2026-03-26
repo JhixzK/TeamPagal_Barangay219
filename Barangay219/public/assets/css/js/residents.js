@@ -428,6 +428,8 @@ function viewResident(id) {
             const residentCode = r.resident_code ? escapeHtml(r.resident_code) : '-';
             const verificationStatus = normalizeVerificationStatus(r);
             const idDocLink = buildResidentFileLink(r.id_document_path, 'View Uploaded ID');
+            const specialProofPath = pickFirstValue(r.special_category_proof_path, r.registration_special_category_proof_path, '');
+            const specialProofLink = buildResidentFileLink(specialProofPath, 'View Special Category Proof');
             const voterStatus = pickFirstValue(r.registration_voter_status, r.voter_status, '-');
             const precinctNumber = pickFirstValue(r.registration_precinct_number, r.precinct_number, '-');
             const houseType = pickFirstValue(r.registration_house_type, r.house_type, '-');
@@ -459,7 +461,6 @@ function viewResident(id) {
             const registrationAddressParts = [
                 r.registration_house_number,
                 r.registration_street,
-                r.registration_purok_sitio,
                 r.registration_barangay,
                 r.registration_city,
                 r.registration_province
@@ -498,6 +499,7 @@ function viewResident(id) {
                     <tr><td><strong>HEAD CODE</strong></td><td>${String(r.is_household_head) === '1' ? (r.family_head_code ? escapeHtml(String(r.family_head_code)) : '-') : ''}</td></tr>
                     <tr><td><strong>Verification</strong></td><td>${getVerificationBadge(verificationStatus)}</td></tr>
                     <tr><td><strong>Uploaded ID</strong></td><td>${idDocLink}</td></tr>
+                    <tr><td><strong>Special Category Proof</strong></td><td>${specialProofLink}</td></tr>
                     <tr><td><strong>Certificates</strong></td><td>${r.certificates_count || 0} issued</td></tr>
                     <tr><td><strong>Status</strong></td><td><span class="resident-pill ${getStatusClass(r.status)}">${formatStatus(r.status)}</span></td></tr>
                 </table>
@@ -751,7 +753,8 @@ function verifyResidentId(id, nextStatus) {
 function formatDate(dateString) {
     if (!dateString) return '-';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    if (isNaN(date.getTime())) return escapeHtml(String(dateString));
+    return date.toLocaleDateString();
 }
 
 function toTitleCase(text) {
