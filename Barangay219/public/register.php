@@ -650,6 +650,14 @@ $barangay219_purok_options = [
                                                 <label class="form-check-label" for="is_4ps">4Ps Beneficiary</label>
                                             </div>
                                         </div>
+
+                                        <div class="col-12" id="specialProofUploadContainer" style="display:none;">
+                                            <div class="mt-2">
+                                                <label class="form-label" id="specialProofUploadLabel" for="specialProofUpload">Upload proof</label>
+                                                <input class="form-control" type="file" id="specialProofUpload" name="special_category_proof" accept="image/*,.pdf">
+                                                <small class="text-muted d-block">Optional. Upload supporting proof for your selected category.</small>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1114,6 +1122,69 @@ initializeResidencyDatePicker();
         f.style.display = this.checked ? 'block' : 'none';
     });
 });
+
+// Dynamic proof upload placement/label for Special Categories (Optional)
+(function setupSpecialCategoryProofUpload() {
+    const container = document.getElementById('specialProofUploadContainer');
+    const label = document.getElementById('specialProofUploadLabel');
+    const fileInput = document.getElementById('specialProofUpload');
+    if (!container || !label || !fileInput) {
+        return;
+    }
+
+    const categoryConfig = [
+        { id: 'is_senior', label: 'Upload Senior Citizen ID' },
+        { id: 'is_pwd', label: 'Upload PWD ID' },
+        { id: 'is_solo', label: 'Upload Solo Parent ID' },
+        { id: 'is_4ps', label: 'Upload 4Ps Proof' },
+        { id: 'is_ip', label: 'Upload Certification' }
+    ];
+
+    function moveUploadUnder(checkboxId) {
+        const checkbox = document.getElementById(checkboxId);
+        if (!checkbox) {
+            return;
+        }
+
+        const col = checkbox.closest('.col-md-6') || checkbox.closest('[class*="col-"]');
+        if (col && col.parentNode) {
+            col.parentNode.insertBefore(container, col.nextSibling);
+        }
+    }
+
+    function getFirstCheckedCategory() {
+        for (const cfg of categoryConfig) {
+            const cb = document.getElementById(cfg.id);
+            if (cb && cb.checked) {
+                return cfg;
+            }
+        }
+        return null;
+    }
+
+    function syncSpecialProofUpload() {
+        const active = getFirstCheckedCategory();
+        if (!active) {
+            container.style.display = 'none';
+            label.textContent = 'Upload proof';
+            fileInput.value = '';
+            return;
+        }
+
+        label.textContent = active.label;
+        container.style.display = 'block';
+        moveUploadUnder(active.id);
+    }
+
+    categoryConfig.forEach(cfg => {
+        const cb = document.getElementById(cfg.id);
+        if (cb) {
+            cb.addEventListener('change', syncSpecialProofUpload);
+        }
+    });
+
+    syncSpecialProofUpload();
+})();
 
 function toggleHouseholdTypeField() {
     const householdRoleField = document.querySelector('select[name="household_role"]');
