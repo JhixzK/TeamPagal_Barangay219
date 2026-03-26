@@ -402,6 +402,22 @@ function getCertificateBodyTemplate(string $certificateType): string {
         ]);
     }
 
+    if ($normalized === 'certificate residency' || $normalized === 'certificate of residency') {
+        return implode("\n", [
+            'CERTIFICATE OF RESIDENCY',
+            '',
+            'TO WHOM IT MAY CONCERN:',
+            '',
+            'This is to certify that [NAME], Filipino, [SEX], [AGE] years old, [CIVIL_STATUS], is a bonafide resident of Barangay 219, Zone 20, District II, Tondo, Manila, with postal address at [ADDRESS].',
+            '',
+            'This certification is issued upon the request of the above-named person for whatever legal purpose it may serve.',
+            '',
+            'This certificate shall be considered inoperative and this office will not be held accountable should it be used for purposes other than the one stated herein.',
+            '',
+            'Issued this [DATE_ISSUED], City of Manila.'
+        ]);
+    }
+
     return implode("\n", [
         'TO WHOM IT MAY CONCERN:',
         '',
@@ -796,7 +812,7 @@ function directIssueCertificateByAdmin() {
         sendResponse(false, 'Resident and valid certificate type are required', null, 400);
     }
 
-    if ($purposeOption === '') {
+    if ($purposeOption === '' && $certificateType !== 'certificate_residency') {
         $purposeOption = 'Walk-in issuance';
     }
 
