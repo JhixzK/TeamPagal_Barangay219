@@ -48,7 +48,6 @@ $userInfo = getUserInfo();
         window.IS_ADMIN = <?php echo isSystemAdmin() ? 'true' : 'false'; ?>;
         window.ROLE_PERMISSIONS = <?php echo json_encode(getEffectivePermissionsForUser(getCurrentUserId(), getEffectiveUserRole())); ?>;
         window.canModulePermission = function(module, perm) {
-            if (window.IS_ADMIN) return true;
             var perms = window.ROLE_PERMISSIONS || {};
             var mod = perms[module] || {};
             if (!mod.can_access) return false;
