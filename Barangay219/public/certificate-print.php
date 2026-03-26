@@ -324,7 +324,7 @@ $defaultParagraphsIndigency = [
 $defaultParagraphsTransferRequest = [
     '<strong>TO WHOM IT MAY CONCERN:</strong>',
     'This is to certify that <strong>' . htmlspecialchars($fullName) . '</strong>, <span class="resident-field">' . htmlspecialchars($residentNationality !== '' ? $residentNationality : 'N/A') . '</span>, <span class="resident-field">' . htmlspecialchars($residentSex !== '' ? ucfirst(strtolower($residentSex)) : 'N/A') . '</span>, <span class="resident-field">' . htmlspecialchars($residentAge !== '' ? $residentAge : 'N/A') . ' years old</span>, <strong>' . htmlspecialchars($residentCivilStatus !== '' ? ucfirst(strtolower($residentCivilStatus)) : 'N/A') . '</strong>, is a bonafide resident of Barangay 219, Zone 20, District II, Tondo, Manila with postal address at <strong>' . htmlspecialchars($certAddress) . '</strong>.',
-    'This certificate is being issued upon the request of the above-named person in connection with the transfer of residence, for the purpose of <strong>Travel/Transfer of Resident</strong>.',
+    'This certificate is being issued upon the request of the above-named person in connection with the transfer of residence, for the purpose of <strong>' . htmlspecialchars($purposeText !== '' ? $purposeText : 'N/A') . '</strong>.',
     'This certificate shall be considered inoperative and this office will not be held accountable should it be used for purposes other than the one stated herein.',
     'Issued this <strong><u>' . htmlspecialchars($issuedOrdinal) . ' day of ' . htmlspecialchars($issuedMonthYear) . '</u></strong>, City of Manila.'
 ];
