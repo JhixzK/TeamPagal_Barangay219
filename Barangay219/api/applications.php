@@ -862,6 +862,9 @@ function approveApplication() {
         $resCols = array_flip(getTableColumns($db, 'residents'));
         $userCols = array_flip(getTableColumns($db, 'users'));
 
+        // Ensure residents table can store special category proof path (tolerant if already exists)
+        addColumnIfMissing($db, 'residents', 'special_category_proof_path', "VARCHAR(255) NULL AFTER proof_of_residency_path");
+
         // Build full address
         $addrParts = array_filter([$app['house_number'], $app['street'], $app['purok_sitio'], $app['barangay'], $app['city'], $app['province']]);
         $address = implode(', ', $addrParts);
@@ -898,6 +901,7 @@ function approveApplication() {
             'valid_id_number' => $app['valid_id_number'] ?? null,
             'id_document_path' => $app['id_document_path'] ?? null,
             'proof_of_residency_path' => $app['proof_of_residency_path'] ?? null,
+            'special_category_proof_path' => $app['special_category_proof_path'] ?? null,
             'address' => $address ?: ($app['barangay'] ?? ''),
             'house_number' => $app['house_number'] ?? null,
             'street' => $app['street'] ?? null,
