@@ -231,7 +231,6 @@ function editModalMemberTableHead() {
 function editModalRowHtml(m, asHead, ctx) {
     const allowEdit = !!(ctx && ctx.allowEdit);
     const transferTargetHeadId = ctx && ctx.transferTargetHeadId ? Number(ctx.transferTargetHeadId) : 0;
-    const headTransferPending = !!(ctx && ctx.headTransferPending);
     const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
     const role = asHead
         ? '<span class="badge bg-primary">Head</span>'
@@ -248,7 +247,7 @@ function editModalRowHtml(m, asHead, ctx) {
         if (asHead) {
             actionsHtml = `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${Number(m.id)})"><i class="bi bi-person-dash"></i></button>`;
         } else {
-            const canTransfer = !headTransferPending && transferTargetHeadId > 0 && residentMeetsMinimumHeadAge(m);
+            const canTransfer = transferTargetHeadId > 0 && residentMeetsMinimumHeadAge(m);
             const transferBtn = canTransfer
                 ? `<button type="button" class="action-icon-btn" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${Number(m.id)}, ${transferTargetHeadId})"><i class="bi bi-person-badge"></i></button>`
                 : '';
@@ -268,45 +267,6 @@ function getEditHouseholdPendingAdds() {
 
 function clearEditHouseholdPendingAdds() {
     window.__editHouseholdPendingAdds = [];
-}
-
-function getEditHouseholdPendingHeadTransfer() {
-    const p = window.__editHouseholdPendingHeadTransfer;
-    if (!p || !p.newHeadResidentId) return null;
-    return p;
-}
-
-function setEditHouseholdPendingHeadTransfer(obj) {
-    window.__editHouseholdPendingHeadTransfer = obj && obj.newHeadResidentId ? obj : null;
-}
-
-function clearEditHouseholdPendingHeadTransfer() {
-    window.__editHouseholdPendingHeadTransfer = null;
-}
-
-function flushPendingHeadTransfer(householdId) {
-    const p = getEditHouseholdPendingHeadTransfer();
-    if (!p) return Promise.resolve({ ok: true });
-    const hid = parseInt(householdId, 10) || 0;
-    if (hid <= 0) return Promise.resolve({ ok: false, message: 'Invalid household' });
-
-    const fd = new FormData();
-    fd.append('action', 'assign_head_official');
-    fd.append('household_id', String(hid));
-    fd.append('new_head_resident_id', String(p.newHeadResidentId));
-    if (p.oldHeadResidentId) fd.append('old_head_resident_id', String(p.oldHeadResidentId));
-    fd.append('reason', (p.reason || '').trim());
-
-    return fetch(window.API_URL + 'households.php', Object.assign({ method: 'POST', body: fd }, HOUSEHOLD_FETCH_INIT))
-        .then((r) => r.json())
-        .then((res) => {
-            if (!res.success) {
-                return { ok: false, message: res.message || 'Head transfer failed' };
-            }
-            clearEditHouseholdPendingHeadTransfer();
-            return { ok: true };
-        })
-        .catch(() => ({ ok: false, message: 'Network error during head transfer' }));
 }
 
 function editModalPendingRowHtml(p) {
@@ -369,15 +329,9 @@ function renderEditModalMembersList(h) {
     if (!host) return;
 
     const pending = getEditHouseholdPendingAdds();
-    const pendingHt = getEditHouseholdPendingHeadTransfer();
-    const headTransferPending = !!pendingHt;
-    const pendingHtName = pendingHt ? (resolveOfficialTransferTargetName(pendingHt.newHeadResidentId) || 'the selected member') : '';
-    const topBanner = pendingHt
-        ? `<div class="alert alert-warning py-2 px-3 mb-3 mb-md-3 mx-2 mx-md-3"><i class="bi bi-hourglass-split me-1"></i><strong>Head transfer pending:</strong> head role will move to <strong>${escapeHtml(pendingHtName)}</strong> when you click <strong>Save household details</strong>. <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="btnClearPendingHeadTransfer">Undo</button></div>`
-        : '';
     const { members, headGroups, ungrouped, isHead, designatedHeadId } = computeHouseholdHeadGroups(h);
     const allowEdit = HOUSEHOLD_PERMS.canEdit;
-    const rowCtx = (transferTargetHeadId) => ({ allowEdit, transferTargetHeadId, headTransferPending });
+    const rowCtx = (transferTargetHeadId) => ({ allowEdit, transferTargetHeadId });
 
     if (!members.length && !pending.length) {
         host.innerHTML = '';
@@ -389,7 +343,7 @@ function renderEditModalMembersList(h) {
     if (wrap) wrap.classList.remove('d-none');
 
     if (!members.length && pending.length) {
-        host.innerHTML = topBanner + '<p class="small text-muted mb-2 pt-2">No saved members on file yet.</p>' +
+        host.innerHTML = '<p class="small text-muted mb-2 pt-2">No saved members on file yet.</p>' +
             appendPendingMembersSectionHtml({ onlyPending: true });
         return;
     }
@@ -502,7 +456,7 @@ function renderEditModalMembersList(h) {
         html += panes;
     }
 
-    host.innerHTML = topBanner + html;
+    host.innerHTML = html;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -530,74 +484,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     const householdModalEl = document.getElementById('householdModal');
     if (householdModalEl) {
-        householdModalEl.addEventListener('click', function (e) {
-            const undo = e.target.closest && e.target.closest('#btnClearPendingHeadTransfer');
-            if (!undo) return;
-            e.preventDefault();
-            clearEditHouseholdPendingHeadTransfer();
-            const h = window.__editHouseholdLastPayload;
-            if (h) renderEditModalMembersList(h);
-        });
         householdModalEl.addEventListener('hidden.bs.modal', function () {
             clearEditHouseholdPendingAdds();
-            clearEditHouseholdPendingHeadTransfer();
             delete window.__editHouseholdLastPayload;
-            if (pendingTransferHead && pendingTransferHead.source === 'edit') {
-                pendingTransferHead = null;
-                householdMemberActionParent = null;
-            }
-            resetEditTransferHeadPanel();
             const collapseEl = document.getElementById('editHouseholdAddMemberCollapse');
             if (collapseEl && typeof bootstrap !== 'undefined') {
                 const inst = bootstrap.Collapse.getInstance(collapseEl);
                 if (inst) inst.hide();
             }
-        });
-    }
-
-    const editTransferHeadReason = document.getElementById('editTransferHeadReason');
-    if (editTransferHeadReason) {
-        editTransferHeadReason.addEventListener('change', function () {
-            const og = document.getElementById('editTransferHeadReasonOtherGroup');
-            const oi = document.getElementById('editTransferHeadReasonOther');
-            const isOther = editTransferHeadReason.value === 'Others';
-            if (og) og.style.display = isOther ? 'block' : 'none';
-            if (!isOther && oi) oi.value = '';
-        });
-    }
-    const editSubmitTransferHeadReasonBtn = document.getElementById('editSubmitTransferHeadReasonBtn');
-    if (editSubmitTransferHeadReasonBtn) {
-        editSubmitTransferHeadReasonBtn.addEventListener('click', submitEditOfficialTransferHead);
-    }
-    const editTransferHeadCancelBtn = document.getElementById('editTransferHeadCancelBtn');
-    if (editTransferHeadCancelBtn) {
-        editTransferHeadCancelBtn.addEventListener('click', cancelEditOfficialTransferHead);
-    }
-    const editTransferHeadReasonOther = document.getElementById('editTransferHeadReasonOther');
-    if (editTransferHeadReasonOther) {
-        editTransferHeadReasonOther.addEventListener('keydown', function (ev) {
-            if (ev.key === 'Enter') {
-                ev.preventDefault();
-                submitEditOfficialTransferHead(ev);
-            }
-        });
-    }
-
-    const modalTransferHeadReason = document.getElementById('modalTransferHeadReason');
-    if (modalTransferHeadReason) {
-        modalTransferHeadReason.addEventListener('change', function () {
-            const og = document.getElementById('modalTransferHeadReasonOtherGroup');
-            const oi = document.getElementById('modalTransferHeadReasonOther');
-            const isOther = modalTransferHeadReason.value === 'Others';
-            if (og) og.style.display = isOther ? 'block' : 'none';
-            if (!isOther && oi) oi.value = '';
-        });
-    }
-    const modalTransferHeadReasonForm = document.getElementById('modalTransferHeadReasonForm');
-    if (modalTransferHeadReasonForm) {
-        modalTransferHeadReasonForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-            confirmTransferHead();
         });
     }
     const hhSearchInput = document.getElementById('hhHouseholdSearchInput');
@@ -1238,42 +1132,31 @@ function saveHousehold() {
             }
             if (isUpdate) {
                 const hid = parseInt(householdId, 10);
-                const pendingAdds = getEditHouseholdPendingAdds();
-                const pendingHt = getEditHouseholdPendingHeadTransfer();
+                const pending = getEditHouseholdPendingAdds();
                 const finishAndClose = () => {
                     refreshCurrentView();
                     hideHouseholdFormModal();
                     resetForm();
                 };
-                if (!pendingAdds.length && !pendingHt) {
+                if (!pending.length) {
                     showHouseholdToast(d.message || 'Household saved.', 'success');
                     finishAndClose();
                     return;
                 }
-                flushPendingMemberAdds(hid)
-                    .then((addsRes) => flushPendingHeadTransfer(hid).then((htRes) => ({ addsRes, htRes })))
-                    .then(({ addsRes, htRes }) => {
-                        const hadAdds = pendingAdds.length > 0;
-                        const hadHt = !!pendingHt;
-                        const addFail = hadAdds && !addsRes.ok;
-                        const htFail = hadHt && !htRes.ok;
-                        if (!addFail && !htFail) {
-                            showHouseholdToast('Household details and pending changes saved.', 'success');
-                        } else {
-                            const parts = [];
-                            if (addFail) parts.push('members: ' + (addsRes.message || 'failed to add'));
-                            if (htFail) parts.push('head transfer: ' + (htRes.message || 'failed'));
-                            showHouseholdToast('Household saved, but ' + parts.join('; '), 'danger');
-                        }
-                        finishAndClose();
-                    });
+                flushPendingMemberAdds(hid).then((flushRes) => {
+                    if (flushRes.ok) {
+                        showHouseholdToast('Household details and pending members saved.', 'success');
+                    } else {
+                        showHouseholdToast('Household saved, but some members failed to add: ' + (flushRes.message || 'Unknown error'), 'danger');
+                    }
+                    finishAndClose();
+                });
             } else {
                 hideHouseholdFormModal();
                 refreshCurrentView();
                 form.reset();
                 householdIdEl.value = '';
                 clearEditHouseholdPendingAdds();
-                clearEditHouseholdPendingHeadTransfer();
             }
         })
         .catch(() => alert('Error saving household'));
@@ -1296,8 +1179,7 @@ function viewHousehold(id) {
                 return;
             }
             const h = d.data;
-            // View modal is read-only; transfer/remove only in Edit household.
-            const allowEditMembers = false;
+            const allowEditMembers = HOUSEHOLD_PERMS.canEdit;
             const {
                 members,
                 heads,
@@ -1708,84 +1590,6 @@ let householdMemberActionParent = null;
 
 let pendingTransferHead = null;
 
-function resolveOfficialTransferTargetName(newHeadResidentId) {
-    const h = window.__editHouseholdLastPayload;
-    if (!h || !Array.isArray(h.members)) return '';
-    const m = h.members.find((x) => Number(x.id) === Number(newHeadResidentId));
-    if (!m) return '';
-    const n = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
-    return n ? toTitleCase(n) : '';
-}
-
-function collectOfficialTransferReason(isEdit) {
-    const reasonEl = document.getElementById(isEdit ? 'editTransferHeadReason' : 'modalTransferHeadReason');
-    const otherEl = document.getElementById(isEdit ? 'editTransferHeadReasonOther' : 'modalTransferHeadReasonOther');
-    let reason = (reasonEl && reasonEl.value ? reasonEl.value : '').trim();
-    const other = (otherEl && otherEl.value ? otherEl.value : '').trim();
-    if (!reason) {
-        alert('Please select a reason for this transfer.');
-        return null;
-    }
-    if (reason === 'Others') {
-        if (!other) {
-            alert('Please specify the reason.');
-            return null;
-        }
-        reason = other;
-    }
-    if (reason.length > 200) {
-        alert('Reason is too long (max 200 characters).');
-        return null;
-    }
-    return reason;
-}
-
-function resetEditTransferHeadPanelFields() {
-    const sel = document.getElementById('editTransferHeadReason');
-    const oi = document.getElementById('editTransferHeadReasonOther');
-    if (sel) sel.value = '';
-    if (oi) oi.value = '';
-    const og = document.getElementById('editTransferHeadReasonOtherGroup');
-    if (og) og.style.display = 'none';
-}
-
-function resetEditTransferHeadPanel() {
-    const panel = document.getElementById('editTransferHeadReasonPanel');
-    resetEditTransferHeadPanelFields();
-    if (panel) panel.style.display = 'none';
-}
-
-function resetModalTransferHeadForm() {
-    const form = document.getElementById('modalTransferHeadReasonForm');
-    if (form) form.reset();
-    const og = document.getElementById('modalTransferHeadReasonOtherGroup');
-    if (og) og.style.display = 'none';
-}
-
-function showEditTransferHeadPanel(newHeadResidentId) {
-    const panel = document.getElementById('editTransferHeadReasonPanel');
-    const summary = document.getElementById('editTransferHeadTargetSummary');
-    resetEditTransferHeadPanelFields();
-    const name = resolveOfficialTransferTargetName(newHeadResidentId);
-    if (summary) {
-        summary.textContent = name
-            ? `Transfer head role to ${name}. Choose a reason below.`
-            : 'Choose a reason for transferring the head role.';
-    }
-    if (panel) {
-        panel.style.display = 'block';
-        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-}
-
-function cancelEditOfficialTransferHead() {
-    pendingTransferHead = null;
-    if (householdMemberActionParent === 'edit') {
-        householdMemberActionParent = null;
-    }
-    resetEditTransferHeadPanel();
-}
-
 function getHouseholdIdForMemberActions() {
     const formHid = parseInt(document.getElementById('householdId')?.value || '', 10);
     if (formHid > 0) return formHid;
@@ -1810,36 +1614,23 @@ function applyHouseholdDataToEditForm(h) {
 
 function transferHeadTo(newHeadResidentId, oldHeadResidentId) {
     if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
+    pendingTransferHead = { newHeadResidentId, oldHeadResidentId };
+    window._householdSwitchingToConfirm = true;
     const viewEl = document.getElementById('viewHouseholdModal');
     const editEl = document.getElementById('householdModal');
     const viewModal = viewEl ? bootstrap.Modal.getInstance(viewEl) : null;
-    const editOpen = editEl && editEl.classList.contains('show');
-    const viewOpen = viewEl && viewEl.classList.contains('show');
-
-    if (editOpen) {
-        householdMemberActionParent = 'edit';
-        pendingTransferHead = { newHeadResidentId, oldHeadResidentId, source: 'edit' };
-        showEditTransferHeadPanel(newHeadResidentId);
-        return;
-    }
-
-    pendingTransferHead = { newHeadResidentId, oldHeadResidentId, source: 'view' };
-    window._householdSwitchingToConfirm = true;
     const showTransferModal = () => {
         window._householdSwitchingToConfirm = false;
-        resetModalTransferHeadForm();
-        const summary = document.getElementById('modalTransferHeadTargetSummary');
-        if (summary) {
-            summary.textContent = 'The current head will become a member. Select a reason, then confirm.';
-        }
         const el = document.getElementById('transferHeadModal');
         let m = bootstrap.Modal.getInstance(el);
         if (!m) m = new bootstrap.Modal(el);
         el.addEventListener('hidden.bs.modal', function onHidden() {
-            if (pendingTransferHead && pendingTransferHead.source === 'view') {
+            if (pendingTransferHead) {
                 pendingTransferHead = null;
                 if (householdMemberActionParent === 'view' && viewModal && currentViewHouseholdId) {
                     viewModal.show();
+                } else if (householdMemberActionParent === 'edit') {
+                    showHouseholdFormModal();
                 }
             }
             householdMemberActionParent = null;
@@ -1847,7 +1638,13 @@ function transferHeadTo(newHeadResidentId, oldHeadResidentId) {
         }, { once: true });
         m.show();
     };
-    if (viewOpen && viewModal) {
+    const editOpen = editEl && editEl.classList.contains('show');
+    const viewOpen = viewEl && viewEl.classList.contains('show');
+    if (editOpen) {
+        householdMemberActionParent = 'edit';
+        editEl.addEventListener('hidden.bs.modal', showTransferModal, { once: true });
+        hideHouseholdFormModal();
+    } else if (viewOpen && viewModal) {
         householdMemberActionParent = 'view';
         viewEl.addEventListener('hidden.bs.modal', showTransferModal, { once: true });
         viewModal.hide();
@@ -1858,69 +1655,30 @@ function transferHeadTo(newHeadResidentId, oldHeadResidentId) {
 }
 
 function confirmTransferHead() {
-    if (!pendingTransferHead || pendingTransferHead.source !== 'view') return;
-    const reason = collectOfficialTransferReason(false);
-    if (reason === null) return;
-    performOfficialHeadTransfer(reason);
-}
-
-function submitEditOfficialTransferHead(e) {
-    if (e && e.preventDefault) e.preventDefault();
-    if (!pendingTransferHead || pendingTransferHead.source !== 'edit') {
-        alert('Choose a member to transfer head to again, then confirm.');
-        return;
-    }
-    if (getEditHouseholdPendingHeadTransfer()) {
-        alert('A head transfer is already pending. Undo it first or save household details.');
-        return;
-    }
-    const reason = collectOfficialTransferReason(true);
-    if (reason === null) return;
-
-    const { newHeadResidentId, oldHeadResidentId } = pendingTransferHead;
-    setEditHouseholdPendingHeadTransfer({
-        newHeadResidentId,
-        oldHeadResidentId,
-        reason
-    });
-    pendingTransferHead = null;
-    householdMemberActionParent = null;
-    resetEditTransferHeadPanel();
-
-    const h = window.__editHouseholdLastPayload;
-    if (h) renderEditModalMembersList(h);
-}
-
-function performOfficialHeadTransfer(finalReason) {
-    if (!pendingTransferHead || pendingTransferHead.source !== 'view') return;
+    if (!pendingTransferHead) return;
     const returnContext = householdMemberActionParent;
-    const ctx = pendingTransferHead;
-    const { newHeadResidentId, oldHeadResidentId } = ctx;
-    pendingTransferHead = null;
     householdMemberActionParent = null;
-
-    const btnModal = document.getElementById('transferHeadConfirmBtn');
-    if (btnModal) btnModal.disabled = true;
-
-    bootstrap.Modal.getInstance(document.getElementById('transferHeadModal'))?.hide();
-
+    const { newHeadResidentId, oldHeadResidentId } = pendingTransferHead;
+    pendingTransferHead = null;
+    const btn = document.getElementById('transferHeadConfirmBtn');
+    if (btn) btn.disabled = true;
     const hid = getHouseholdIdForMemberActions();
+    bootstrap.Modal.getInstance(document.getElementById('transferHeadModal'))?.hide();
     const fd = new FormData();
     fd.append('action', 'assign_head_official');
     fd.append('household_id', String(hid));
-    fd.append('new_head_resident_id', String(newHeadResidentId));
-    if (oldHeadResidentId) fd.append('old_head_resident_id', String(oldHeadResidentId));
-    fd.append('reason', finalReason);
-
+    fd.append('new_head_resident_id', newHeadResidentId);
+    if (oldHeadResidentId) fd.append('old_head_resident_id', oldHeadResidentId);
     function restoreAfterFailedConfirm() {
-        if (returnContext === 'view' && currentViewHouseholdId) {
+        if (returnContext === 'edit') {
+            showHouseholdFormModal();
+        } else if (returnContext === 'view' && currentViewHouseholdId) {
             const ve = document.getElementById('viewHouseholdModal');
             const vm = ve ? bootstrap.Modal.getInstance(ve) : null;
             if (vm) vm.show();
         }
     }
-
-    fetch(window.API_URL + 'households.php', Object.assign({ method: 'POST', body: fd }, HOUSEHOLD_FETCH_INIT))
+    fetch(window.API_URL + 'households.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(d => {
             if (!d.success) {
@@ -1930,15 +1688,25 @@ function performOfficialHeadTransfer(finalReason) {
             }
             showHouseholdToast('Head role transferred successfully.');
             refreshCurrentView();
-            viewHousehold(hid || currentViewHouseholdId);
+            if (returnContext === 'edit' && hid > 0) {
+                fetch(window.API_URL + 'households.php?action=get&id=' + encodeURIComponent(String(hid)), HOUSEHOLD_FETCH_INIT)
+                    .then(parseHouseholdApiJson)
+                    .then((hd) => {
+                        if (hd.success && hd.data) applyHouseholdDataToEditForm(hd.data);
+                        showHouseholdFormModal();
+                    })
+                    .catch(() => {
+                        showHouseholdFormModal();
+                    });
+            } else {
+                viewHousehold(hid || currentViewHouseholdId);
+            }
         })
         .catch(() => {
             alert('Error transferring head');
             restoreAfterFailedConfirm();
         })
-        .finally(() => {
-            if (btnModal) btnModal.disabled = false;
-        });
+        .finally(() => { if (btn) btn.disabled = false; });
 }
 
 let pendingRemoveMemberId = null;
@@ -2041,12 +1809,6 @@ function confirmRemoveMember() {
 function editHousehold(id) {
     if (!HOUSEHOLD_PERMS.canEdit) { alert('Access denied'); return; }
     clearEditHouseholdPendingAdds();
-    clearEditHouseholdPendingHeadTransfer();
-    resetEditTransferHeadPanel();
-    if (pendingTransferHead && pendingTransferHead.source === 'edit') {
-        pendingTransferHead = null;
-        householdMemberActionParent = null;
-    }
     fetch(window.API_URL + 'households.php?action=get&id=' + id, HOUSEHOLD_FETCH_INIT)
         .then(parseHouseholdApiJson)
         .then((householdData) => {
@@ -2142,13 +1904,7 @@ function resetForm() {
     if (relNote) relNote.classList.add('d-none');
     delete window.__addMemberEligibleRows;
     clearEditHouseholdPendingAdds();
-    clearEditHouseholdPendingHeadTransfer();
     delete window.__editHouseholdLastPayload;
-    if (pendingTransferHead && pendingTransferHead.source === 'edit') {
-        pendingTransferHead = null;
-        householdMemberActionParent = null;
-    }
-    resetEditTransferHeadPanel();
     const totalMembersGroup = document.getElementById('totalMembersGroup');
     if (totalMembersGroup) totalMembersGroup.style.display = '';
 }
