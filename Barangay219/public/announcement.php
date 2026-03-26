@@ -68,6 +68,9 @@ include __DIR__ . '/../includes/sidebar.php';
                     <tbody id="announcementsTableBody"><tr><td colspan="8" class="text-center">Loading...</td></tr></tbody>
                 </table>
             </div>
+            <div class="d-flex justify-content-center mt-2 mb-1 px-2 py-2 border-top bg-white" id="announcementsPaginationOuter" style="display:none;" aria-label="Announcements pages">
+                <div id="announcementsPagination" role="group"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -113,37 +116,8 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .announcements-page .announcements-table-scroll {
-    max-height: min(62vh, 640px);
-    overflow-y: auto;
     overflow-x: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #94a3b8 #f1f5f9;
-}
-
-.announcements-page .announcements-table-scroll::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-.announcements-page .announcements-table-scroll::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 999px;
-}
-
-.announcements-page .announcements-table-scroll::-webkit-scrollbar-thumb {
-    background: #94a3b8;
-    border-radius: 999px;
-    border: 2px solid #f1f5f9;
-}
-
-.announcements-page .announcements-table-scroll::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
-}
-
-.announcements-page .announcements-table-scroll thead th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
+    overflow-y: visible;
 }
 
 .announcements-page .announcements-table > :not(caption) > * > * {
