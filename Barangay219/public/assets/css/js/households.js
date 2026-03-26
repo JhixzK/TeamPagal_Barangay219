@@ -1535,7 +1535,6 @@ function viewHousehold(id) {
                 <p><strong>House Type:</strong> ${escapeHtml(formatStructureHouseTypeLabel(h.house_type))}</p>
                 <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
                 <p><strong>Total Members:</strong> ${members.length}</p>
-                <p><strong>Residency Start:</strong> ${formatDate(h.registration_date)}${residencyLength !== '-' ? ` <span class="text-muted">(${escapeHtml(residencyLength)})</span>` : ''}</p>
                 ${indigentSection}
             `;
 
