@@ -95,7 +95,7 @@ CREATE TABLE `residents` (
   `last_updated_by` INT(11) DEFAULT NULL,
   `last_updated_at` DATETIME DEFAULT NULL,
   `household_id` INT(11) DEFAULT NULL,
-  `status` ENUM('active', 'inactive', 'deceased', 'transferred') DEFAULT 'active',
+  `status` ENUM('active', 'inactive', 'suspended', 'deceased', 'transferred') DEFAULT 'active',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
