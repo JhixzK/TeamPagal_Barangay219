@@ -181,12 +181,9 @@ include __DIR__ . '/../includes/sidebar.php';
                 <div>
                     <p class="module-kicker text-uppercase small mb-1">Administration Module</p>
                     <h2 class="mb-1"><i class="bi bi-person-gear me-2"></i>User Management</h2>
-                    <p class="module-subtitle mb-0">Manage user accounts, access roles, status, and permission controls.</p>
+                    <p class="module-subtitle mb-0">Manage user accounts, role assignment, and account status.</p>
                 </div>
                 <div>
-                    <button class="btn btn-outline-secondary me-2" onclick="showActivityLogs()">
-                        <i class="bi bi-clock-history"></i> Activity Logs
-                    </button>
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" onclick="resetForm()">
                         <i class="bi bi-plus-circle"></i> Add New User
                     </button>
@@ -248,45 +245,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <!-- Activity Logs Panel -->
-        <div class="card mt-4" id="activityLogsPanel" style="display:none;">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-clock-history"></i> User Activity Logs</h5>
-                <button class="btn btn-sm btn-secondary" onclick="document.getElementById('activityLogsPanel').style.display='none'">Close</button>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead><tr><th>User</th><th>Summary</th><th>Date</th></tr></thead>
-                        <tbody id="activityLogsBody"><tr><td colspan="3" class="text-center">Loading...</td></tr></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <?php if (isSystemAdmin()): ?>
-        <!-- Role Permissions Panel -->
-        <div class="card mt-4 role-permissions-card" id="rolePermissionsPanel">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Role Permissions (Access Only)</h5>
-                <div class="d-flex align-items-center gap-2">
-                    <button class="btn btn-sm btn-primary" id="savePermissionsBtn" onclick="saveRolePermissions()">
-                        <i class="bi bi-save"></i> Save
-                    </button>
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="row g-3 align-items-end mb-3">
-                    <div class="col-12">
-                        <label class="form-label" for="permissionsRole">Role</label>
-                        <select class="form-select d-none" id="permissionsRole"></select>
-                        <div id="permissionsRoleIcons" class="permissions-role-icons" role="group" aria-label="Select role"></div>
-                    </div>
-                </div>
-                <div id="permissionsModuleTiles" class="permission-module-tiles access-only"></div>
-            </div>
-        </div>
-        <?php endif; ?>
     </div>
 </div>
 
