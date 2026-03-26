@@ -117,7 +117,7 @@ function loadResidents(page = 1) {
         showAlert('error', 'Configuration error. Please refresh the page.');
         return;
     }
-    const itemsPerPage = window.ITEMS_PER_PAGE || 20;
+    const itemsPerPage = window.ITEMS_PER_PAGE || 10;
     const params = new URLSearchParams({
         action: 'list',
         page: page.toString(),
@@ -226,41 +226,20 @@ function displayResidents(residents) {
 }
 
 /**
- * Display pagination
+ * Joined Previous | 1 | 2 | 3 | … | Next control (shared helper).
  */
 function displayPagination(data) {
-    const pagination = document.getElementById('pagination');
-    const totalPages = data.total_pages;
-    
-    if (totalPages <= 1) {
-        pagination.innerHTML = '';
+    if (typeof window.renderModuleBtnPagination !== 'function') {
         return;
     }
-    
-    let html = '';
-    
-    // Previous button
-    html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-        <a class="page-link" href="#" onclick="loadResidents(${currentPage - 1}); return false;">Previous</a>
-    </li>`;
-    
-    // Page numbers
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
-            html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
-                <a class="page-link" href="#" onclick="loadResidents(${i}); return false;">${i}</a>
-            </li>`;
-        } else if (i === currentPage - 3 || i === currentPage + 3) {
-            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
-        }
-    }
-    
-    // Next button
-    html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-        <a class="page-link" href="#" onclick="loadResidents(${currentPage + 1}); return false;">Next</a>
-    </li>`;
-    
-    pagination.innerHTML = html;
+    window.renderModuleBtnPagination({
+        containerId: 'pagination',
+        outerWrapId: 'residentsPaginationOuter',
+        currentPage,
+        total: Number(data.total ?? 0),
+        totalPages: Number(data.total_pages ?? 1),
+        onPage: pg => loadResidents(pg)
+    });
 }
 
 /**
