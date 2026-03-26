@@ -48,11 +48,6 @@ function bindActions() {
         approveBtn.addEventListener('click', submitApprove);
     }
 
-    const smtpTestBtn = document.getElementById('btnSmtpTestSend');
-    if (smtpTestBtn) {
-        smtpTestBtn.addEventListener('click', submitSmtpTest);
-    }
-
     const rejectBtn = document.getElementById('btnReject');
     if (rejectBtn) {
         rejectBtn.addEventListener('click', submitReject);
@@ -306,43 +301,6 @@ function openAssignHousehold(applicationId, residentId, isHead) {
 
     const modal = new bootstrap.Modal(document.getElementById('assignHouseholdModal'));
     modal.show();
-}
-
-function openSmtpTestModal() {
-    if (!RES_APP_PERMS.canEdit) return;
-    const inp = document.getElementById('smtpTestTo');
-    if (inp && !inp.value) inp.value = '';
-    new bootstrap.Modal(document.getElementById('smtpTestModal')).show();
-}
-
-function submitSmtpTest() {
-    if (!RES_APP_PERMS.canEdit) return;
-    const btn = document.getElementById('btnSmtpTestSend');
-    const to = (document.getElementById('smtpTestTo') || {}).value.trim();
-    if (!to) {
-        showAlert('error', 'Enter an email address.');
-        return;
-    }
-    const fd = new FormData();
-    fd.append('action', 'smtp_test');
-    fd.append('test_to', to);
-    if (btn) btn.disabled = true;
-    fetch(window.API_URL + 'applications.php', { method: 'POST', body: fd })
-        .then(r => r.json())
-        .then(data => {
-            if (!data.success) {
-                showAlert('error', data.message || 'SMTP test failed');
-                return;
-            }
-            showAlert('success', data.message || 'Test email sent');
-            const m = document.getElementById('smtpTestModal');
-            if (m) {
-                const inst = bootstrap.Modal.getInstance(m);
-                if (inst) inst.hide();
-            }
-        })
-        .catch(() => showAlert('error', 'SMTP test failed'))
-        .finally(() => { if (btn) btn.disabled = false; });
 }
 
 function openAssignHeadsModal() {
