@@ -254,6 +254,14 @@ function renderOfficialTile(o) {
         : `<button class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="deleteOfficial(${o.id}, '${nameJs}', '${posJs}')">
                 <i class="bi bi-trash"></i>
            </button>`;
+    const linkedUserId = Number(o.linked_user_id || 0);
+    const customPermissionsButton = linkedUserId > 0
+        ? `<a class="action-icon-btn" title="Custom Permissions" aria-label="Custom Permissions" href="role-permissions.php?mode=official&user_id=${linkedUserId}">
+                <i class="bi bi-sliders"></i>
+           </a>`
+        : `<button class="action-icon-btn" title="No linked account" aria-label="No linked account" disabled>
+                <i class="bi bi-slash-circle"></i>
+           </button>`;
     return `
         <div class="official-tile card border-0 shadow-sm">
             <div class="card-body">
@@ -274,6 +282,7 @@ function renderOfficialTile(o) {
                         </div>
                     </div>
                     <div class="official-actions text-nowrap">
+                        ${customPermissionsButton}
                         <button class="action-icon-btn" title="Edit" aria-label="Edit" onclick="editOfficial(${o.id})">
                             <i class="bi bi-pencil-square"></i>
                         </button>
@@ -359,6 +368,16 @@ function editOfficial(id) {
 function showConfirmModal(title, body, btnClass, onConfirm) {
     const modal = document.getElementById('confirmModal');
     if (!modal) { if (confirm(body)) onConfirm(); return; }
+
+    const officialModalEl = document.getElementById('officialModal');
+    const officialModal = officialModalEl ? bootstrap.Modal.getInstance(officialModalEl) : null;
+    let confirmed = false;
+
+    // Avoid nested Bootstrap modal overlap by hiding the form modal first.
+    if (officialModal) {
+        officialModal.hide();
+    }
+
     document.getElementById('confirmModalTitle').textContent = title;
     document.getElementById('confirmModalBody').innerHTML = body;
     const okBtn = document.getElementById('confirmModalOk');
@@ -367,11 +386,18 @@ function showConfirmModal(title, body, btnClass, onConfirm) {
     const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
     const handler = () => {
         okBtn.removeEventListener('click', handler);
+        confirmed = true;
         bsModal.hide();
         onConfirm();
     };
     okBtn.replaceWith(okBtn.cloneNode(true));
     document.getElementById('confirmModalOk').addEventListener('click', handler);
+    modal.addEventListener('hidden.bs.modal', function onHidden() {
+        modal.removeEventListener('hidden.bs.modal', onHidden);
+        if (!confirmed && officialModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(officialModalEl).show();
+        }
+    });
     bsModal.show();
 }
 
