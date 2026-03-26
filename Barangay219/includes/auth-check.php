@@ -403,6 +403,87 @@ function requireAdmin() {
 }
 
 /**
+ * Check if the user_permissions table exists.
+ */
+function userPermissionsTableExists() {
+    static $exists = null;
+
+    if ($exists !== null) {
+        return $exists;
+    }
+
+    try {
+        $db = Database::getInstance();
+        $result = $db->fetchOne("SHOW TABLES LIKE 'user_permissions'");
+        $exists = !empty($result);
+    } catch (Exception $e) {
+        $exists = false;
+    }
+
+    return $exists;
+}
+
+/**
+ * Load per-user permission overrides keyed by module.
+ */
+function getUserPermissions($userId) {
+    static $cache = [];
+    $userId = (int)$userId;
+    if ($userId <= 0) {
+        return [];
+    }
+
+    if (isset($cache[$userId])) {
+        return $cache[$userId];
+    }
+
+    if (!userPermissionsTableExists()) {
+        $cache[$userId] = [];
+        return $cache[$userId];
+    }
+
+    try {
+        $db = Database::getInstance();
+        $rows = $db->fetchAll(
+            "SELECT module, can_access, can_create, can_edit, can_delete
+             FROM user_permissions
+             WHERE user_id = ?",
+            [$userId]
+        );
+    } catch (Exception $e) {
+        $cache[$userId] = [];
+        return $cache[$userId];
+    }
+
+    $permissions = [];
+    foreach ($rows as $row) {
+        $permissions[$row['module']] = [
+            'can_access' => !empty($row['can_access']),
+            'can_create' => !empty($row['can_create']),
+            'can_edit' => !empty($row['can_edit']),
+            'can_delete' => !empty($row['can_delete']),
+        ];
+    }
+
+    $cache[$userId] = $permissions;
+    return $permissions;
+}
+
+/**
+ * Effective permissions with priority:
+ * user override -> role defaults.
+ */
+function getEffectivePermissionsForUser($userId, $role = null) {
+    $role = normalizeRole($role !== null ? $role : getEffectiveUserRole());
+    $base = getRolePermissions($role);
+    $overrides = getUserPermissions($userId);
+    if (empty($overrides)) {
+        return $base;
+    }
+    return array_replace($base, $overrides);
+}
+
+/**
  * Check if user can access a module based on role permissions
  */
 function canAccessModule($module) {
@@ -414,6 +495,12 @@ function canAccessModule($module) {
     // Demoted users: DB role is resident — never grant staff module access (even if session/view_mode was stale).
     if (normalizeRole(getRealUserRole()) === normalizeRole(ROLE_RESIDENT)) {
         return false;
+    }
+
+    $userId = (int)(getCurrentUserId() ?? 0);
+    $userOverrides = getUserPermissions($userId);
+    if (isset($userOverrides[$module])) {
+        return !empty($userOverrides[$module]['can_access']);
     }
 
     // Lock down sensitive modules to system admins only.
@@ -485,6 +572,22 @@ function canPerformModulePermission($module, $permission) {
     refreshSessionRole();
     if (normalizeRole(getRealUserRole()) === normalizeRole(ROLE_RESIDENT)) {
         return false;
+    }
+
+    $userId = (int)(getCurrentUserId() ?? 0);
+    $userOverrides = getUserPermissions($userId);
+    if (isset($userOverrides[$module])) {
+        $modulePerms = $userOverrides[$module];
+        if (empty($modulePerms['can_access'])) {
+            return false;
+        }
+        if ($permission === 'can_access' || $permission === 'access') {
+            return true;
+        }
+        if (array_key_exists($permission, $modulePerms)) {
+            return !empty($modulePerms[$permission]);
+        }
+        return !empty($modulePerms['can_access']);
     }
 
     // Lock down sensitive modules to system admins only.
