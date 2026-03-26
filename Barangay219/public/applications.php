@@ -481,7 +481,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <option value="Transfer of Residence">Transfer of Residence</option>
                         <option value="Others">Others</option>
                     </select>
-                    <input type="text" class="form-control mt-2 d-none" id="walkinPurposeOther" placeholder="Specify purpose for Others">
+                    <input type="text" class="form-control mt-2 d-none" id="walkinPurposeOther" placeholder="Specify custom purpose">
                 </div>
             </div>
             <div class="modal-footer">
@@ -836,22 +836,34 @@ include __DIR__ . '/../includes/sidebar.php';
     function isPurposeOthers(value = '', certificateType = '') {
         const normalizedSelected = normalizePurposeText(value);
         if (!normalizedSelected) return false;
-        if (normalizeCertificateType(certificateType) !== 'barangay certificate') return false;
-
-        const knownPurposes = [
-            'Application for Employment',
-            'School Admission/Requirement',
-            'Hospital Purpose',
-            'Processing of Calamity',
-            'Medical Purpose',
-            'For Livelihood Loan',
-            'Bank Transaction',
-            'Indigent Family',
-            'Organized Vending Permit',
-            'DSWD Requirement',
-            'For Travel Abroad',
-            'Transfer of Residence'
-        ];
+        const normalizedType = normalizeCertificateType(certificateType);
+        const knownPurposesByType = {
+            'barangay certificate': [
+                'Application for Employment',
+                'School Admission/Requirement',
+                'Hospital Purpose',
+                'Processing of Calamity',
+                'Medical Purpose',
+                'For Livelihood Loan',
+                'Bank Transaction',
+                'Indigent Family',
+                'Organized Vending Permit',
+                'DSWD Requirement',
+                'For Travel Abroad',
+                'Transfer of Residence'
+            ],
+            'transfer request': [
+                'Transfer of Residence (Relocation)',
+                'Change of Address',
+                'School Credentials / TOR Transfer',
+                'COMELEC Voter Transfer',
+                'Land Title / Ownership Transfer',
+                'Job Reassignment / Office Transfer',
+                'Transfer of Business Location'
+            ]
+        };
+        const knownPurposes = knownPurposesByType[normalizedType] || [];
+        if (!knownPurposes.length) return false;
 
         const isKnownPurpose = knownPurposes
             .some(item => normalizePurposeText(item) === normalizedSelected);
@@ -863,12 +875,17 @@ include __DIR__ . '/../includes/sidebar.php';
         if (!rawValue) return '-';
         const rawOption = String(purposeOption || '').trim();
         const rawDetails = String(purposeDetails || '').trim();
-        if (normalizeCertificateType(certificateType) === 'barangay certificate' && normalizePurposeText(rawOption) === 'others') {
+        const normalizedType = normalizeCertificateType(certificateType);
+        if (normalizedType === 'barangay certificate' && normalizePurposeText(rawOption) === 'others') {
+            return rawDetails ? `Others: ${rawDetails}` : 'Others';
+        }
+        if (normalizedType === 'transfer request' && normalizePurposeText(rawOption) === 'other (please specify)') {
             return rawDetails ? `Others: ${rawDetails}` : 'Others';
         }
         if (normalizePurposeText(rawValue) === 'others') return 'Others';
-        if (isPurposeOthers(rawValue, certificateType)) return `Others: ${toTitleCase(rawValue)}`;
-        return toTitleCase(rawValue);
+        if (normalizePurposeText(rawValue) === 'other (please specify)') return 'Others';
+        if (isPurposeOthers(rawValue, certificateType)) return `Others: ${rawValue}`;
+        return rawValue;
     }
 
     function buildBarangayPurposeChecklist(selectedPurpose = '') {
@@ -1552,6 +1569,16 @@ include __DIR__ . '/../includes/sidebar.php';
                 'Transfer of Residence',
                 'Others'
             ],
+            transfer_request: [
+                'Transfer of Residence (Relocation)',
+                'Change of Address',
+                'School Credentials / TOR Transfer',
+                'COMELEC Voter Transfer',
+                'Land Title / Ownership Transfer',
+                'Job Reassignment / Office Transfer',
+                'Transfer of Business Location',
+                'Other (Please Specify)'
+            ],
             barangay_clearance: [
                 'Job Application',
                 'National ID Application',
@@ -1611,7 +1638,7 @@ include __DIR__ . '/../includes/sidebar.php';
             const certType = document.getElementById('walkinCertType')?.value || '';
             const purposeSelectVal = document.getElementById('walkinPurposeSelect')?.value || '';
             const purposeOtherVal = (document.getElementById('walkinPurposeOther')?.value || '').trim();
-            const requiresPurpose = certType === 'barangay_certificate' || certType === 'barangay_clearance';
+            const requiresPurpose = certType === 'barangay_certificate' || certType === 'barangay_clearance' || certType === 'transfer_request';
 
             if (!residentId || !certType) {
                 alert('Resident and certificate type are required.');
@@ -1623,8 +1650,9 @@ include __DIR__ . '/../includes/sidebar.php';
                 return;
             }
 
-            if (requiresPurpose && purposeSelectVal === 'Others' && !purposeOtherVal) {
-                alert('Please specify purpose for Others.');
+            const needsCustomPurpose = purposeSelectVal === 'Others' || purposeSelectVal === 'Other (Please Specify)';
+            if (requiresPurpose && needsCustomPurpose && !purposeOtherVal) {
+                alert('Please specify the custom purpose.');
                 return;
             }
 
@@ -1634,7 +1662,7 @@ include __DIR__ . '/../includes/sidebar.php';
             fd.append('certificate_type', certType);
             if (requiresPurpose) {
                 fd.append('purpose', purposeSelectVal);
-                if (purposeSelectVal === 'Others') {
+                if (needsCustomPurpose) {
                     fd.append('purpose_other', purposeOtherVal);
                 }
             }
