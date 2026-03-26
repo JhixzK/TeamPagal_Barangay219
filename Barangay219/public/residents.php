@@ -56,14 +56,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <ul class="nav nav-tabs app-tabs mb-3" id="statusTabs">
-            <li class="nav-item"><a class="nav-link active" href="#" data-status="">All</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" data-status="active">Active</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" data-status="inactive">Inactive</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" data-status="deceased">Deceased</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" data-status="transferred">Transferred</a></li>
-        </ul>
-
         <!-- Residents Table -->
         <div class="data-table residents-table-wrap">
             <div class="table-responsive residents-table-scroll">
@@ -105,34 +97,6 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <style>
-.residents-page .app-tabs {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 0.45rem;
-    border-bottom: 0;
-}
-
-.residents-page .app-tabs .nav-item {
-    margin: 0;
-}
-
-.residents-page .app-tabs .nav-link {
-    width: 100%;
-    text-align: center;
-    border: 1px solid #dbe3ee;
-    border-radius: 999px;
-    color: #475569;
-    font-weight: 600;
-    padding: 0.5rem 0.8rem;
-    background: #ffffff;
-}
-
-.residents-page .app-tabs .nav-link.active {
-    color: #1d4ed8;
-    background: #e8f0ff;
-    border-color: #bfdbfe;
-}
-
 .residents-page .residents-table-wrap {
     border: 1px solid #e7ecf3;
     border-radius: 14px;
@@ -241,8 +205,13 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .residents-page .resident-pill.status-inactive {
-    background: #eef2f7;
+    background: #f3f4f6;
     color: #4b5563;
+}
+
+.residents-page .resident-pill.status-suspended {
+    background: #fff1f2;
+    color: #b4233f;
 }
 
 .residents-page .resident-pill.status-deceased {
@@ -253,6 +222,11 @@ include __DIR__ . '/../includes/sidebar.php';
 .residents-page .resident-pill.status-transferred {
     background: #eaf6ff;
     color: #1f5f8b;
+}
+
+.residents-page .resident-pill.status-unknown {
+    background: #f8fafc;
+    color: #475569;
 }
 
 .residents-page .resident-pill.verify-pending {
@@ -293,18 +267,35 @@ include __DIR__ . '/../includes/sidebar.php';
     transform: translateY(-1px);
 }
 
-.residents-page .action-icon-btn.action-delete:hover,
-.residents-page .action-icon-btn.action-delete:focus-visible {
-    background: #fff1f3;
-    border-color: #f6ccd3;
-    color: #9f2f3e;
+.residents-page .action-icon-btn.btn-activate {
+    color: #1f7a4f;
+    border-color: #c9f0dc;
+    background: #f3fcf7;
+}
+
+.residents-page .action-icon-btn.btn-activate:hover,
+.residents-page .action-icon-btn.btn-activate:focus-visible {
+    background: #e8f8f0;
+    border-color: #aadfca;
+    color: #1f7a4f;
+    transform: translateY(-1px);
+}
+
+.residents-page .action-icon-btn.btn-suspend {
+    color: #9a3412;
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+
+.residents-page .action-icon-btn.btn-suspend:hover,
+.residents-page .action-icon-btn.btn-suspend:focus-visible {
+    background: #ffedd5;
+    border-color: #fdba74;
+    color: #9a3412;
+    transform: translateY(-1px);
 }
 
 @media (max-width: 768px) {
-    .residents-page .app-tabs {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
     .residents-page .residents-table > :not(caption) > * > * {
         padding: 0.75rem 0.6rem;
     }
@@ -327,6 +318,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <option value="">All</option>
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
+                        <option value="suspended">Suspended</option>
                         <option value="deceased">Deceased</option>
                         <option value="transferred">Transferred</option>
                     </select>
@@ -427,6 +419,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <select class="form-select" id="status" name="status" required>
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
+                                <option value="suspended">Suspended</option>
                                 <option value="deceased">Deceased</option>
                                 <option value="transferred">Transferred</option>
                             </select>
@@ -531,8 +524,6 @@ include __DIR__ . '/../includes/sidebar.php';
             <div class="modal-body" id="viewResidentBody"></div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="btnEditFromView"><i class="bi bi-pencil"></i> Edit</button>
-                <a href="#" id="linkCertificates" class="btn btn-info"><i class="bi bi-file-earmark-text"></i> Certificates</a>
             </div>
         </div>
     </div>
