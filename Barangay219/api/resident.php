@@ -56,7 +56,21 @@ switch ($action) {
         }
         deleteResident();
         break;
-    
+
+    case 'suspend':
+        if (!canPerformModulePermission('residents', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        suspendResident();
+        break;
+
+    case 'activate':
+        if (!canPerformModulePermission('residents', 'can_edit')) {
+            sendResponse(false, 'Access denied', null, 403);
+        }
+        activateResident();
+        break;
+
     case 'search':
         searchResidents();
         break;
@@ -932,10 +946,12 @@ function updateResident() {
 
         $sql = 'UPDATE residents SET ' . $setSql . ' WHERE id = ?';
         $db->query($sql, $params);
-        
+
+        syncLinkedUserStatusFromResident($db, $id, $status);
+
         // Get updated resident
         $resident = $db->fetchOne("SELECT * FROM residents WHERE id = ?", [$id]);
-        
+
         sendResponse(true, 'Resident updated successfully', $resident);
         
     } catch (Exception $e) {
@@ -945,33 +961,114 @@ function updateResident() {
 }
 
 /**
- * Delete resident (soft delete)
+ * When a resident's status changes, mirror it to linked portal accounts (users.resident_id).
+ * Only updates users with role "resident" so staff accounts linked to a profile row are untouched.
+ */
+function syncLinkedUserStatusFromResident($db, int $residentId, string $residentStatus): void {
+    if ($residentId <= 0 || !function_exists('tableExists') || !tableExists($db, 'users')) {
+        return;
+    }
+    if (!columnExists($db, 'users', 'resident_id') || !columnExists($db, 'users', 'status') || !columnExists($db, 'users', 'role')) {
+        return;
+    }
+
+    $s = strtolower(trim($residentStatus));
+    $userStatus = null;
+    if ($s === RESIDENT_ACTIVE || $s === 'active') {
+        $userStatus = USER_ACTIVE;
+    } elseif ($s === RESIDENT_INACTIVE || $s === 'inactive') {
+        $userStatus = USER_INACTIVE;
+    } elseif ($s === RESIDENT_SUSPENDED || $s === 'suspended') {
+        $userStatus = USER_SUSPENDED;
+    } elseif ($s === RESIDENT_DECEASED || $s === 'deceased' || $s === RESIDENT_TRANSFERRED || $s === 'transferred') {
+        $userStatus = USER_INACTIVE;
+    }
+    if ($userStatus === null) {
+        return;
+    }
+
+    $db->query(
+        'UPDATE users SET status = ? WHERE resident_id = ? AND LOWER(TRIM(role)) = ?',
+        [$userStatus, $residentId, ROLE_RESIDENT]
+    );
+}
+
+/**
+ * Mark resident inactive (legacy action; prefers suspend + can_edit in UI)
  */
 function deleteResident() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         sendResponse(false, 'Invalid request method', null, 405);
         return;
     }
-    
+
     $id = intval($_POST['id'] ?? 0);
-    
+
     if (!$id) {
         sendResponse(false, 'Resident ID is required', null, 400);
         return;
     }
-    
+
     try {
         $db = Database::getInstance();
-        
-        // Soft delete by setting status to inactive
-        $sql = "UPDATE residents SET status = 'inactive' WHERE id = ?";
-        $db->query($sql, [$id]);
-        
-        sendResponse(true, 'Resident deleted successfully', null);
-        
+        $db->query("UPDATE residents SET status = ? WHERE id = ?", [RESIDENT_SUSPENDED, $id]);
+        syncLinkedUserStatusFromResident($db, $id, RESIDENT_SUSPENDED);
+        sendResponse(true, 'Resident suspended successfully', null);
     } catch (Exception $e) {
         error_log("Delete resident error: " . $e->getMessage());
-        sendResponse(false, 'Error deleting resident', null, 500);
+        sendResponse(false, 'Error suspending resident', null, 500);
+    }
+}
+
+/**
+ * Suspend resident (set suspended) — mirrors users management suspend
+ */
+function suspendResident() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'Invalid request method', null, 405);
+        return;
+    }
+
+    $id = intval($_POST['id'] ?? 0);
+    if (!$id) {
+        sendResponse(false, 'Resident ID is required', null, 400);
+        return;
+    }
+
+    try {
+        $db = Database::getInstance();
+        $db->query("UPDATE residents SET status = ? WHERE id = ?", [RESIDENT_SUSPENDED, $id]);
+        syncLinkedUserStatusFromResident($db, $id, RESIDENT_SUSPENDED);
+        sendResponse(true, 'Resident suspended successfully', null);
+    } catch (Exception $e) {
+        error_log("Suspend resident error: " . $e->getMessage());
+        sendResponse(false, 'Error suspending resident', null, 500);
+    }
+}
+
+/**
+ * Activate resident — mirrors users management activate (from inactive or suspended)
+ */
+function activateResident() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendResponse(false, 'Invalid request method', null, 405);
+        return;
+    }
+
+    $id = intval($_POST['id'] ?? 0);
+    if (!$id) {
+        sendResponse(false, 'Resident ID is required', null, 400);
+        return;
+    }
+
+    try {
+        $db = Database::getInstance();
+        $db->query("UPDATE residents SET status = ? WHERE id = ?", [RESIDENT_ACTIVE, $id]);
+        syncLinkedUserStatusFromResident($db, $id, RESIDENT_ACTIVE);
+        sendResponse(true, 'Resident activated successfully', null);
+    } catch (Exception $e) {
+        error_log("Activate resident error: " . $e->getMessage());
+        sendResponse(false, 'Error activating resident', null, 500);
     }
 }
 
@@ -1149,6 +1246,10 @@ function updateVerificationStatus($targetStatus) {
 
         $sql = "UPDATE residents SET " . implode(', ', $setParts) . " WHERE id = ?";
         $db->query($sql, $params);
+
+        if (isset($cols['status']) && $targetStatus === 'verified') {
+            syncLinkedUserStatusFromResident($db, $id, RESIDENT_ACTIVE);
+        }
 
         sendResponse(true, $targetStatus === 'verified' ? 'Resident ID verified successfully.' : 'Resident ID rejected successfully.', [
             'id' => $id,
