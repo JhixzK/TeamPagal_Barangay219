@@ -4,6 +4,8 @@ define('ACCESS_ALLOWED', true);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 require_once __DIR__ . '/../includes/notifications-store.php';
+require_once __DIR__ . '/../includes/complaint-categories.php';
+require_once __DIR__ . '/../includes/complaint-statuses.php';
 
 requireLogin();
 requireModuleAccess('complaints');
@@ -34,6 +36,23 @@ switch ($action) {
     default: sendResponse(false, 'Invalid action', null, 400);
 }
 
+function complaintsTableColumns($db) {
+    static $cols = null;
+    if ($cols === null) {
+        try {
+            $rows = $db->fetchAll("SHOW COLUMNS FROM complaints");
+            $cols = array_column($rows, 'Field');
+        } catch (Exception $e) {
+            $cols = [];
+        }
+    }
+    return $cols;
+}
+
+function complaintsHasColumn($db, $name) {
+    return in_array($name, complaintsTableColumns($db), true);
+}
+
 function listComplaints() {
     try {
         $db = Database::getInstance();
@@ -41,6 +60,8 @@ function listComplaints() {
         $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
         $from = sanitizeInput($_GET['from'] ?? '');
         $to = sanitizeInput($_GET['to'] ?? '');
+        $listScope = strtolower(trim(sanitizeInput($_GET['list_scope'] ?? 'all')));
+        $category = sanitizeInput($_GET['category'] ?? $_GET['type'] ?? '');
         $page = max(1, (int)($_GET['page'] ?? 1));
         $limit = min(50, max(10, (int)($_GET['limit'] ?? ITEMS_PER_PAGE)));
         $offset = ($page - 1) * $limit;
@@ -57,28 +78,43 @@ function listComplaints() {
                 c.category LIKE ? OR
                 c.narrative LIKE ? OR
                 c.description LIKE ? OR
-                c.reference_number LIKE ?
+                c.reference_number LIKE ? OR
+                c.incident_house_street LIKE ? OR
+                c.incident_landmark LIKE ?
             )";
-            $params = array_merge($params, [$term, $term, $term, $term, $term, $term, $term, $term, $term]);
+            $params = array_merge($params, [$term, $term, $term, $term, $term, $term, $term, $term, $term, $term, $term]);
         }
         if ($status !== '') {
             list($statusClause, $statusParams) = complaintStatusClause($status);
             $where .= ' AND ' . $statusClause;
             $params = array_merge($params, $statusParams);
         }
+        if ($listScope === 'active') {
+            $where .= " AND c.status IN ('pending','approved','assigned','in_progress')";
+        } elseif ($listScope === 'archive') {
+            $where .= " AND c.status IN ('resolved','rejected')";
+        }
+        if ($category !== '') {
+            $where .= " AND (c.category = ? OR c.complaint_type = ?)";
+            $params[] = $category;
+            $params[] = $category;
+        }
+        $dateExpr = "DATE(COALESCE(c.date_submitted, c.created_at, c.filing_date))";
         if (!empty($from)) {
-            $where .= " AND DATE(c.filing_date) >= ?";
+            $where .= " AND $dateExpr >= ?";
             $params[] = $from;
         }
         if (!empty($to)) {
-            $where .= " AND DATE(c.filing_date) <= ?";
+            $where .= " AND $dateExpr <= ?";
             $params[] = $to;
         }
         $countSql = "SELECT COUNT(*) as total FROM complaints c WHERE $where";
         $total = (int)$db->fetchOne($countSql, $params)['total'];
-        $hasResident = !empty($db->getConnection()->query("SHOW COLUMNS FROM complaints LIKE 'resident_id'")->fetchAll());
+        $hasResident = complaintsHasColumn($db, 'resident_id');
         $join = $hasResident ? " LEFT JOIN residents r ON c.resident_id = r.id " : " ";
-        $residentSelect = $hasResident ? ", CONCAT(r.first_name, ' ', r.last_name) as resident_name " : ", NULL as resident_name ";
+        $residentSelect = $hasResident
+            ? ", TRIM(CONCAT(COALESCE(r.first_name,''),' ',COALESCE(r.middle_name,''),' ',COALESCE(r.last_name,''))) as resident_name, r.contact_number as resident_contact "
+            : ", NULL as resident_name, NULL as resident_contact ";
         $sql = "SELECT c.* $residentSelect FROM complaints c $join WHERE $where ORDER BY COALESCE(c.date_submitted, c.created_at, c.filing_date) DESC, c.id DESC LIMIT ? OFFSET ?";
         $params[] = $limit;
         $params[] = $offset;
@@ -88,7 +124,7 @@ function listComplaints() {
             'total' => $total,
             'page' => $page,
             'limit' => $limit,
-            'total_pages' => ceil($total / $limit)
+            'total_pages' => max(1, (int)ceil($total / $limit))
         ]);
     } catch (Exception $e) {
         sendResponse(false, 'Error: ' . $e->getMessage(), null, 500);
@@ -100,10 +136,10 @@ function getComplaint() {
     if (!$id) { sendResponse(false, 'ID required', null, 400); return; }
     try {
         $db = Database::getInstance();
-        $hasResident = !empty($db->getConnection()->query("SHOW COLUMNS FROM complaints LIKE 'resident_id'")->fetchAll());
+        $hasResident = complaintsHasColumn($db, 'resident_id');
         $sql = $hasResident
-            ? "SELECT c.*, CONCAT(r.first_name, ' ', r.last_name) as resident_name FROM complaints c LEFT JOIN residents r ON c.resident_id = r.id WHERE c.id = ?"
-            : "SELECT c.*, NULL as resident_name FROM complaints c WHERE c.id = ?";
+            ? "SELECT c.*, TRIM(CONCAT(COALESCE(r.first_name,''),' ',COALESCE(r.middle_name,''),' ',COALESCE(r.last_name,''))) as resident_name, r.contact_number as resident_contact FROM complaints c LEFT JOIN residents r ON c.resident_id = r.id WHERE c.id = ?"
+            : "SELECT c.*, NULL as resident_name, NULL as resident_contact FROM complaints c WHERE c.id = ?";
         $c = $db->fetchOne($sql, [$id]);
         sendResponse($c ? true : false, $c ? 'Found' : 'Not found', $c);
     } catch (Exception $e) {
@@ -135,6 +171,10 @@ function createComplaint() {
         $respondent_name = sanitizeInput(trim($_POST['respondent_name'] ?? ''));
     }
     $complaint_type = sanitizeInput($_POST['complaint_type'] ?? '');
+    if ($complaint_type !== '' && !complaintCategoriesIsValid($complaint_type)) {
+        sendResponse(false, 'Invalid complaint category', null, 400);
+        return;
+    }
     $narrative = sanitizeInput($_POST['narrative'] ?? '');
     $filing_date = $_POST['filing_date'] ?? date('Y-m-d');
     $resident_id = intval($_POST['resident_id'] ?? 0);
@@ -142,12 +182,32 @@ function createComplaint() {
     if (!$complaint_title || !$complainant_name || !$narrative) { sendResponse(false, 'Title, complainant, and narrative required', null, 400); return; }
     try {
         $db = Database::getInstance();
-        $hasResident = !empty($db->getConnection()->query("SHOW COLUMNS FROM complaints LIKE 'resident_id'")->fetchAll());
-        $hasRemarks = !empty($db->getConnection()->query("SHOW COLUMNS FROM complaints LIKE 'remarks'")->fetchAll());
+        $hasResident = complaintsHasColumn($db, 'resident_id');
+        $hasRemarks = complaintsHasColumn($db, 'remarks');
         $cols = ['complaint_title', 'complainant_name', 'respondent_name', 'complaint_type', 'narrative', 'filing_date', 'handled_by'];
         $vals = [$complaint_title, $complainant_name, $respondent_name, $complaint_type, $narrative, $filing_date, getCurrentUserId()];
         if ($hasResident) { $cols[] = 'resident_id'; $vals[] = $resident_id ?: null; }
         if ($hasRemarks) { $cols[] = 'remarks'; $vals[] = $remarks ?: null; }
+        if (complaintsHasColumn($db, 'status')) {
+            $cols[] = 'status';
+            $vals[] = 'pending';
+        }
+        if (complaintsHasColumn($db, 'category') && $complaint_type !== '') {
+            $cols[] = 'category';
+            $vals[] = $complaint_type;
+        }
+        if (complaintsHasColumn($db, 'title')) {
+            $cols[] = 'title';
+            $vals[] = $complaint_title;
+        }
+        if (complaintsHasColumn($db, 'description')) {
+            $cols[] = 'description';
+            $vals[] = $narrative;
+        }
+        if (complaintsHasColumn($db, 'date_submitted')) {
+            $cols[] = 'date_submitted';
+            $vals[] = date('Y-m-d H:i:s');
+        }
         $db->query("INSERT INTO complaints (" . implode(', ', $cols) . ") VALUES (" . implode(', ', array_fill(0, count($vals), '?')) . ")", $vals);
         $id = (int)$db->lastInsertId();
         try { logActivity('create', 'complaints', $id); } catch (Exception $e) { /* activity_logs may not exist */ }
@@ -191,10 +251,27 @@ function updateComplaint() {
     if (!$prev) {
         sendResponse(false, 'Not found', null, 404);
     }
-    $hasRemarks = !empty($db->getConnection()->query("SHOW COLUMNS FROM complaints LIKE 'remarks'")->fetchAll());
-    $hasResident = !empty($db->getConnection()->query("SHOW COLUMNS FROM complaints LIKE 'resident_id'")->fetchAll());
-    $baseFields = ['complaint_title', 'complainant_name', 'respondent_name', 'complaint_type', 'narrative', 'filing_date', 'status', 'resolution_date'];
-    if ($hasRemarks) $baseFields[] = 'remarks';
+    $hasRemarks = complaintsHasColumn($db, 'remarks');
+    $hasResident = complaintsHasColumn($db, 'resident_id');
+    $baseFields = ['complaint_title', 'complainant_name', 'respondent_name', 'complaint_type', 'narrative', 'filing_date', 'resolution_date'];
+    if (complaintsHasColumn($db, 'status')) {
+        $baseFields[] = 'status';
+    }
+    if ($hasRemarks) {
+        $baseFields[] = 'remarks';
+    }
+    if (complaintsHasColumn($db, 'category')) {
+        $baseFields[] = 'category';
+    }
+    if (complaintsHasColumn($db, 'title')) {
+        $baseFields[] = 'title';
+    }
+    if (complaintsHasColumn($db, 'description')) {
+        $baseFields[] = 'description';
+    }
+    if (complaintsHasColumn($db, 'assigned_officer')) {
+        $baseFields[] = 'assigned_officer';
+    }
     $updates = [];
     $params = [];
     $fromSplitComplainant = array_key_exists('complainant_first_name', $_POST) || array_key_exists('complainant_last_name', $_POST);
@@ -215,6 +292,24 @@ function updateComplaint() {
         $updates[] = 'respondent_name = ?';
         $params[] = trim($rf . ' ' . $rl);
     }
+    if (isset($_POST['status'])) {
+        $st = sanitizeInput($_POST['status']);
+        if (!complaintStatusIsValid($st)) {
+            sendResponse(false, 'Invalid status', null, 400);
+            return;
+        }
+        $_POST['status'] = strtolower(trim($st));
+    }
+    if (isset($_POST['complaint_type'])) {
+        $ct = sanitizeInput($_POST['complaint_type']);
+        if ($ct !== '' && !complaintCategoriesIsValid($ct)) {
+            sendResponse(false, 'Invalid complaint category', null, 400);
+            return;
+        }
+        if (complaintsHasColumn($db, 'category')) {
+            $_POST['category'] = $ct;
+        }
+    }
     foreach ($baseFields as $field) {
         if ($field === 'complainant_name' && $fromSplitComplainant) {
             continue;
@@ -224,7 +319,7 @@ function updateComplaint() {
         }
         if (isset($_POST[$field])) {
             $updates[] = "$field = ?";
-            $params[] = in_array($field, ['filing_date', 'resolution_date']) ? $_POST[$field] : sanitizeInput($_POST[$field]);
+            $params[] = in_array($field, ['filing_date', 'resolution_date'], true) ? $_POST[$field] : sanitizeInput($_POST[$field]);
         }
     }
     if ($hasResident && isset($_POST['resident_id'])) {
@@ -237,15 +332,16 @@ function updateComplaint() {
         $db->query("UPDATE complaints SET " . implode(', ', $updates) . " WHERE id = ?", $params);
         logActivity('update', 'complaints', $id);
         if ($hasResident && isset($_POST['status'])) {
-            $newStatus = sanitizeInput($_POST['status']);
-            $oldStatus = (string)($prev['status'] ?? '');
+            $newStatus = strtolower(trim(sanitizeInput($_POST['status'])));
+            $oldStatus = strtolower(trim((string)($prev['status'] ?? '')));
             $rid = (int)($prev['resident_id'] ?? 0);
             if ($rid > 0 && $newStatus !== '' && $newStatus !== $oldStatus) {
                 $ct = (string)($prev['complaint_title'] ?? 'Your complaint');
+                $label = complaintStatusLabel($newStatus);
                 notificationsInsertForResident(
                     $rid,
                     'Complaint status updated',
-                    'Your complaint "' . $ct . '" status is now: ' . $newStatus . '.',
+                    'Your complaint "' . $ct . '" status is now: ' . $label . '.',
                     'info',
                     'complaint_status_changed',
                     BASE_URL . 'complaints/my_complaints.php',
@@ -280,22 +376,12 @@ function sendResponse($success, $message, $data = null, $httpCode = 200) {
 }
 
 function complaintStatusClause($status) {
-    $normalized = strtolower(trim((string)$status));
-
-    $map = [
-        'pending' => ['pending', 'Pending Review'],
-        'pending review' => ['pending', 'Pending Review'],
-        'under_review' => ['under_review', 'Under Investigation', 'Scheduled for Mediation'],
-        'under investigation' => ['under_review', 'Under Investigation'],
-        'scheduled for mediation' => ['Scheduled for Mediation'],
-        'referred' => ['Referred to Other Barangay'],
-        'referred to other barangay' => ['Referred to Other Barangay'],
-        'resolved' => ['resolved', 'Resolved'],
-        'dismissed' => ['dismissed', 'Dismissed']
-    ];
-
-    $values = $map[$normalized] ?? [$status];
-    $placeholders = implode(', ', array_fill(0, count($values), '?'));
-
-    return ["c.status IN ($placeholders)", $values];
+    $s = strtolower(trim((string)$status));
+    if ($s === '' || $s === 'all') {
+        return ['1=1', []];
+    }
+    if (complaintStatusIsValid($s)) {
+        return ['c.status = ?', [$s]];
+    }
+    return ['c.status = ?', [$status]];
 }
