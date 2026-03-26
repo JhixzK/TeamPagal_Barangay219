@@ -53,12 +53,6 @@ if ($isResidentSidebar) {
             'section' => 'Cases'
         ],
         [
-            'title' => 'Submit Complaint',
-            'icon' => 'bi-pencil-square',
-            'url' => 'complaints/submit_complaint.php',
-            'section' => 'Cases'
-        ],
-        [
             'title' => 'Report Incident',
             'icon' => 'bi-journal-plus',
             'url' => 'report_incident.php',
