@@ -83,6 +83,9 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
               <button class="btn-secondary btn-small" id="leaveHouseholdBtn" data-action="leaveHousehold" style="display:none;">
                 <i class="bi bi-box-arrow-right"></i> Leave Household
               </button>
+              <button class="btn-primary btn-small" id="btnUpdateOverview" data-action="openUpdateOverview" style="display:none;">
+                <i class="bi bi-pencil-square"></i> Update Overview
+              </button>
             </div>
           </div>
           <div class="panel-body">
@@ -212,6 +215,53 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
         </div>
       </div>
 
+      <!-- Update Household Overview Modal -->
+      <div id="overviewUpdateModal" class="modal custom-modal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Update Household Overview</h3>
+            <button class="modal-close" data-action="closeOverviewModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="overviewFormContainer">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="overviewHouseholdType">Household Type</label>
+                  <select id="overviewHouseholdType">
+                    <option value="">Select Household Type</option>
+                    <option value="Family Household">Family Household</option>
+                    <option value="Couple Only">Couple Only</option>
+                    <option value="Single Inhabitant">Single Inhabitant</option>
+                    <option value="Non-Relative Household (Shared / Boarders)">Non-Relative Household (Shared / Boarders)</option>
+                    <option value="Other (Specify)">Other (Specify)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="overviewHousingStatus">Housing Status *</label>
+                  <select id="overviewHousingStatus" required>
+                    <option value="owned">Owned</option>
+                    <option value="renting">Renting</option>
+                    <option value="informal_settler">Informal Settler</option>
+                    <option value="government_housing">Government Housing</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="overviewYearsResidency">Years of Residency *</label>
+                <input type="number" id="overviewYearsResidency" min="0" max="120" required>
+              </div>
+
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" data-action="closeOverviewModal">Cancel</button>
+            <button class="btn-primary" id="submitOverviewUpdateBtn" data-action="submitOverviewUpdate">Save Overview</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Member Join Modal -->
       <div id="memberJoinModal" class="modal custom-modal" style="display: none;">
         <div class="modal-backdrop"></div>
@@ -296,35 +346,44 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
                 <tbody id="manageMembersTableBody"></tbody>
               </table>
             </div>
-            <div id="transferHeadReasonPanel" class="transfer-head-reason-panel" style="display: none;">
-              <p class="small text-muted mb-2" id="transferHeadTargetSummary"></p>
-              <h4 class="h6 mb-2">Reason for transfer</h4>
-              <form id="transferHeadReasonForm">
-                <div class="form-group">
-                  <label for="transferHeadReason">Reason *</label>
-                  <select id="transferHeadReason" required>
-                    <option value="">-- Select reason --</option>
-                    <option value="Work relocation">Work relocation</option>
-                    <option value="Health condition">Health condition</option>
-                    <option value="Travel / long absence">Travel / long absence</option>
-                    <option value="Separation / family arrangement">Separation / family arrangement</option>
-                    <option value="Deceased">Deceased</option>
-                    <option value="Others">Others</option>
-                  </select>
-                </div>
-                <div class="form-group" id="transferHeadReasonOtherGroup" style="display:none;">
-                  <label for="transferHeadReasonOther">Specify (Others) *</label>
-                  <input type="text" id="transferHeadReasonOther" maxlength="200" placeholder="Enter reason">
-                </div>
-                <div class="d-flex gap-2 justify-content-end flex-wrap mt-3">
-                  <button type="button" class="btn-secondary" data-action="closeTransferHeadReasonModal">Cancel</button>
-                  <button type="submit" class="btn-primary" id="submitTransferHeadReasonBtn">Confirm transfer</button>
-                </div>
-              </form>
-            </div>
           </div>
           <div class="modal-footer">
             <button class="btn-secondary" data-action="closeManageMembersModal">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transfer Head Reason Modal -->
+      <div id="transferHeadReasonModal" class="modal custom-modal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Transfer Head Role</h3>
+            <button class="modal-close" data-action="closeTransferHeadReasonModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="transferHeadReasonForm">
+              <div class="form-group">
+                <label for="transferHeadReason">Reason *</label>
+                <select id="transferHeadReason" required>
+                  <option value="">-- Select reason --</option>
+                  <option value="Work relocation">Work relocation</option>
+                  <option value="Health condition">Health condition</option>
+                  <option value="Travel / long absence">Travel / long absence</option>
+                  <option value="Separation / family arrangement">Separation / family arrangement</option>
+                  <option value="Deceased">Deceased</option>
+                  <option value="Others">Others</option>
+                </select>
+              </div>
+              <div class="form-group" id="transferHeadReasonOtherGroup" style="display:none;">
+                <label for="transferHeadReasonOther">Specify (Others) *</label>
+                <input type="text" id="transferHeadReasonOther" maxlength="200" placeholder="Enter reason">
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" data-action="closeTransferHeadReasonModal">Cancel</button>
+            <button class="btn-primary" id="submitTransferHeadReasonBtn" data-action="submitTransferHeadReason">Continue</button>
           </div>
         </div>
       </div>
