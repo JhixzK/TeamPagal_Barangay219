@@ -55,6 +55,7 @@ const BLOTTER_PERMS = {
 };
 
 let blotterFilters = { q: '', status: '', from: '', to: '' };
+let blotterListPage = 1;
 let searchDebounceTimer = null;
 let residentDirectoryCache = null;
 let currentViewingCaseId = null;
@@ -76,7 +77,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const searchTerm = this.value.trim();
             blotterFilters.q = searchTerm;
             if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
-            searchDebounceTimer = setTimeout(() => loadBlotters(), 250);
+            searchDebounceTimer = setTimeout(() => {
+                blotterListPage = 1;
+                loadBlotters();
+            }, 250);
         });
     }
 });
@@ -92,6 +96,7 @@ function initBlotterStatFilters() {
             blotterFilters.status = status;
             const statusSel = document.getElementById('filterStatus');
             if (statusSel) statusSel.value = status;
+            blotterListPage = 1;
             loadBlotters();
         });
     });
@@ -105,7 +110,7 @@ function applyBlotterPermissions() {
 }
 
 function loadBlotters() {
-    const params = new URLSearchParams({ action: 'list' });
+    const params = new URLSearchParams({ action: 'list', page: String(blotterListPage) });
     if (blotterFilters.q) params.append('q', blotterFilters.q);
     if (blotterFilters.status) params.append('status', blotterFilters.status);
     if (blotterFilters.from) params.append('from', blotterFilters.from);
@@ -121,8 +126,29 @@ function loadBlotters() {
         .then(d => {
             const tbody = document.getElementById('blotterTableBody');
             if (d.success) {
-                tbody.innerHTML = d.data.map(b => {
-                    const comp = extractPartyNamesOnly(b.complainant_name);
+                const pack = d.data;
+                const list = pack && Array.isArray(pack.blotters) ? pack.blotters : (Array.isArray(pack) ? pack : []);
+                blotterListPage = pack && pack.page ? Number(pack.page) : blotterListPage;
+                const total = pack && pack.total != null ? Number(pack.total) : list.length;
+                const totalPages = pack && pack.total_pages != null ? Number(pack.total_pages) : 1;
+                if (typeof window.renderModuleBtnPagination === 'function') {
+                    window.renderModuleBtnPagination({
+                        containerId: 'blotterPagination',
+                        outerWrapId: 'blotterPaginationOuter',
+                        currentPage: blotterListPage,
+                        total,
+                        totalPages,
+                        onPage: pg => {
+                            blotterListPage = pg;
+                            loadBlotters();
+                        }
+                    });
+                }
+                if (!list.length) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No blotter records found</td></tr>';
+                } else {
+                    tbody.innerHTML = list.map(b => {
+                        const comp = extractPartyNamesOnly(b.complainant_name);
 
                         const incidentType = b.incident_type ? formatIncidentType(b.incident_type) : '-';
                         const incidentLocation = b.incident_location ? escapeHtml(toTitleCase(b.incident_location)) : '-';
@@ -143,9 +169,17 @@ function loadBlotters() {
                                 </div>
                             </td>
                         </tr>`;
-                }).join('');
+                    }).join('');
+                }
             } else {
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No blotter records found or access denied</td></tr>';
+                const po = document.getElementById('blotterPaginationOuter');
+                if (po) po.style.display = 'none';
+                const pg = document.getElementById('blotterPagination');
+                if (pg) {
+                    pg.innerHTML = '';
+                    pg.className = '';
+                }
                 console.warn('Blotter API returned error:', d.message);
             }
         })
@@ -153,6 +187,13 @@ function loadBlotters() {
             console.error('Error loading blotters:', err);
             const tbody = document.getElementById('blotterTableBody');
             tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error loading blotters</td></tr>';
+            const po = document.getElementById('blotterPaginationOuter');
+            if (po) po.style.display = 'none';
+            const pg = document.getElementById('blotterPagination');
+            if (pg) {
+                pg.innerHTML = '';
+                pg.className = '';
+            }
         });
 }
 
@@ -189,6 +230,7 @@ function applyFilters() {
     blotterFilters.from = document.getElementById('filterFrom')?.value || '';
     blotterFilters.to = document.getElementById('filterTo')?.value || '';
     syncBlotterStatusTabs();
+    blotterListPage = 1;
     loadBlotters();
     const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
     if (modal) modal.hide();
