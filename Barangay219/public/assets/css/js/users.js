@@ -191,9 +191,17 @@ function editUser(id) {
                 document.getElementById('username').value = user.username;
                 document.getElementById('email').value = user.email || '';
                 setRoleSelectValue(user.role);
-                document.getElementById('resident_id').value = user.resident_id || '';
                 document.getElementById('status').value = user.status;
-                document.getElementById('password').required = false;
+                const pwInput = document.getElementById('password');
+                if (pwInput) {
+                    pwInput.value = '';
+                    pwInput.required = false;
+                    pwInput.disabled = true;
+                }
+                const np = document.getElementById('new_password');
+                const cp = document.getElementById('confirm_password');
+                if (np) np.value = '';
+                if (cp) cp.value = '';
                 togglePasswordField(false);
                 document.getElementById('userModalTitle').textContent = 'Edit User';
 
@@ -250,10 +258,21 @@ function saveUser() {
     if (userId) {
         formData.append('id', userId);
     }
-    
-    // Remove password if empty during update
-    if (userId && !formData.get('password')) {
+
+    if (userId) {
         formData.delete('password');
+        const newPw = (document.getElementById('new_password') && document.getElementById('new_password').value) || '';
+        const confirmPw = (document.getElementById('confirm_password') && document.getElementById('confirm_password').value) || '';
+        if (newPw || confirmPw) {
+            if (newPw !== confirmPw) {
+                showAlert('error', 'New password and confirmation do not match.');
+                return;
+            }
+            formData.append('password', newPw);
+        }
+    } else if (!formData.get('password')) {
+        showAlert('error', 'Password is required for new users.');
+        return;
     }
 
     if (userId && form && (form.dataset.currentRole === 'barangay_captain' || form.dataset.currentRole === 'super_admin')) {
@@ -393,7 +412,15 @@ function deleteUser(id) {
 function resetForm() {
     document.getElementById('userForm').reset();
     document.getElementById('userId').value = '';
-    document.getElementById('password').required = true;
+    const pwInput = document.getElementById('password');
+    if (pwInput) {
+        pwInput.required = true;
+        pwInput.disabled = false;
+    }
+    const np = document.getElementById('new_password');
+    const cp = document.getElementById('confirm_password');
+    if (np) np.value = '';
+    if (cp) cp.value = '';
     document.getElementById('userModalTitle').textContent = 'Add New User';
     togglePasswordField(true);
     toggleEditFieldLocks(false);
@@ -711,13 +738,17 @@ function showAlert(type, message) {
 
 function togglePasswordField(show) {
     const field = document.getElementById('passwordField');
+    const changeSection = document.getElementById('changePasswordSection');
     if (field) {
-        field.style.display = show ? '' : 'none';
+        field.classList.toggle('d-none', !show);
+    }
+    if (changeSection) {
+        changeSection.classList.toggle('d-none', show);
     }
 }
 
 function toggleEditFieldLocks(isEditing) {
-    const lockIds = ['username', 'email', 'resident_id', 'status'];
+    const lockIds = ['username', 'email'];
     lockIds.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
