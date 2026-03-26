@@ -421,14 +421,6 @@ include __DIR__ . '/../includes/sidebar.php';
 #householdModal #editHouseholdAddMemberCollapse {
     background: #f8fafc;
 }
-
-.hh-transfer-head-panel {
-    margin: 0 1rem 1rem;
-    padding: 14px 16px;
-    border: 1px solid #dee2e6;
-    border-radius: 10px;
-    background: #f8fafc;
-}
 </style>
 
 <!-- Filter Modal -->
@@ -627,33 +619,6 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <div id="editHouseholdMembersHost" class="px-2 py-2 px-md-3"></div>
                             </div>
                             <p class="text-muted small mb-0 p-3 d-none" id="editHouseholdMembersEmpty">No members recorded yet.</p>
-                            <div id="editTransferHeadReasonPanel" class="hh-transfer-head-panel" style="display: none;">
-                                <p class="small text-muted mb-2" id="editTransferHeadTargetSummary"></p>
-                                <h6 class="mb-2">Reason for transfer</h6>
-                                <!-- Must not nest <form> inside #householdForm — use a div so Confirm does not submit the main household form -->
-                                <div id="editTransferHeadReasonFields">
-                                    <div class="mb-3">
-                                        <label class="form-label" for="editTransferHeadReason">Reason <span class="text-danger">*</span></label>
-                                        <select class="form-select" id="editTransferHeadReason">
-                                            <option value="">— Select reason —</option>
-                                            <option value="Work relocation">Work relocation</option>
-                                            <option value="Health condition">Health condition</option>
-                                            <option value="Travel / long absence">Travel / long absence</option>
-                                            <option value="Separation / family arrangement">Separation / family arrangement</option>
-                                            <option value="Deceased">Deceased</option>
-                                            <option value="Others">Others</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-3" id="editTransferHeadReasonOtherGroup" style="display: none;">
-                                        <label class="form-label" for="editTransferHeadReasonOther">Specify (Others) <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="editTransferHeadReasonOther" maxlength="200" placeholder="Enter reason">
-                                    </div>
-                                    <div class="d-flex gap-2 justify-content-end flex-wrap">
-                                        <button type="button" class="btn btn-secondary btn-sm" id="editTransferHeadCancelBtn">Cancel</button>
-                                        <button type="button" class="btn btn-primary btn-sm" id="editSubmitTransferHeadReasonBtn"><i class="bi bi-person-badge me-1"></i>Confirm transfer</button>
-                                    </div>
-                                </div>
-                            </div>
                             <div class="collapse border-top" id="editHouseholdAddMemberCollapse">
                                 <div class="p-3 hh-add-member-inline">
                                     <fieldset id="editHouseholdAddMemberFieldset" class="border-0 p-0 m-0 min-w-0">
@@ -706,7 +671,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             </div>
                         </div>
                     </div>
-                    <p class="small text-muted border-top pt-2 mt-3 mb-0 px-1"><i class="bi bi-info-circle me-1"></i>Address, registration, and other fields above, residents you add with <strong>Add member</strong>, and <strong>transfer head</strong> choices, are only written to the server when you click <strong>Save household details</strong>.</p>
+                    <p class="small text-muted border-top pt-2 mt-3 mb-0 px-1"><i class="bi bi-info-circle me-1"></i>Address, registration, and other fields above, and residents you add with <strong>Add member</strong>, are only written to the server when you click <strong>Save household details</strong>.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -739,7 +704,7 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </div>
 
-<!-- Transfer Head (from view household; reason required) -->
+<!-- Transfer Head Confirmation Modal -->
 <div class="modal fade" id="transferHeadModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -747,31 +712,13 @@ include __DIR__ . '/../includes/sidebar.php';
                 <h5 class="modal-title"><i class="bi bi-person-badge me-2"></i>Transfer Head Role</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="modalTransferHeadReasonForm">
-                <div class="modal-body">
-                    <p class="small text-muted mb-3" id="modalTransferHeadTargetSummary">The current head will become a member.</p>
-                    <div class="mb-3">
-                        <label class="form-label" for="modalTransferHeadReason">Reason <span class="text-danger">*</span></label>
-                        <select class="form-select" id="modalTransferHeadReason" required>
-                            <option value="">— Select reason —</option>
-                            <option value="Work relocation">Work relocation</option>
-                            <option value="Health condition">Health condition</option>
-                            <option value="Travel / long absence">Travel / long absence</option>
-                            <option value="Separation / family arrangement">Separation / family arrangement</option>
-                            <option value="Deceased">Deceased</option>
-                            <option value="Others">Others</option>
-                        </select>
-                    </div>
-                    <div class="mb-0" id="modalTransferHeadReasonOtherGroup" style="display: none;">
-                        <label class="form-label" for="modalTransferHeadReasonOther">Specify (Others) <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="modalTransferHeadReasonOther" maxlength="200" placeholder="Enter reason">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" id="transferHeadConfirmBtn"><i class="bi bi-person-badge me-1"></i> Transfer</button>
-                </div>
-            </form>
+            <div class="modal-body">
+                <p class="mb-0">Transfer head role to this member? The current head will become a member.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="transferHeadConfirmBtn" onclick="confirmTransferHead()"><i class="bi bi-person-badge me-1"></i> Transfer</button>
+            </div>
         </div>
     </div>
 </div>
