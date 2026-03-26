@@ -59,15 +59,18 @@ function listAnnouncements() {
         $columns = getAnnouncementColumns($db);
         $status = $_GET['status'] ?? '';
         $q = sanitizeInput($_GET['q'] ?? $_GET['search'] ?? '');
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $limit = min(50, max(10, (int)($_GET['limit'] ?? ITEMS_PER_PAGE)));
+        $offset = ($page - 1) * $limit;
         $where = "1=1";
         $params = [];
-        
+
         if (!empty($q)) {
             $term = '%' . $q . '%';
             $where .= " AND (a.title LIKE ? OR a.content LIKE ?)";
             $params = array_merge($params, [$term, $term]);
         }
-        
+
         if (in_array($status, ['draft', 'published'])) {
             $where .= " AND a.status = ?";
             $params[] = mapApiStatusToDbStatus($status, $columns);
@@ -78,19 +81,29 @@ function listAnnouncements() {
         $authorSelect = $authorColumn ? ", u.username as created_by_name" : ", NULL as created_by_name";
         $orderBy = !empty($columns['is_pinned']) ? "a.is_pinned DESC, " : "";
         $orderBy .= !empty($columns['created_at']) ? "a.created_at DESC" : "a.date_posted DESC";
-        
+
+        $countSql = "SELECT COUNT(*) AS total FROM announcements a $authorJoin WHERE $where";
+        $total = (int)($db->fetchOne($countSql, $params)['total'] ?? 0);
+
         $sql = "SELECT a.* $authorSelect
                 FROM announcements a 
                 $authorJoin
                 WHERE $where 
-                ORDER BY $orderBy";
+                ORDER BY $orderBy
+                LIMIT ? OFFSET ?";
 
-        $rows = $db->fetchAll($sql, $params);
+        $rows = $db->fetchAll($sql, array_merge($params, [$limit, $offset]));
         $rows = array_map(function ($row) use ($columns) {
             return normalizeAnnouncementRowForApi($row, $columns);
         }, $rows ?: []);
 
-        sendResponse(true, 'Retrieved', $rows);
+        sendResponse(true, 'Retrieved', [
+            'announcements' => $rows,
+            'total' => $total,
+            'page' => $page,
+            'limit' => $limit,
+            'total_pages' => max(1, (int)ceil($total / $limit)),
+        ]);
     } catch (Exception $e) {
         error_log('[Announcements] Error listing: ' . $e->getMessage());
         sendResponse(false, 'Error', null, 500);
