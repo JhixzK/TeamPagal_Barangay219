@@ -1381,11 +1381,11 @@ $heroSlides = [
                     <ul class="footer-contact-list">
                         <li>
                             <i class="bi bi-envelope-fill" aria-hidden="true"></i>
-                            <span>barangay219@tondo.gov.ph</span>
+                            <span>barangay219official@gmail.com</span>
                         </li>
                         <li>
                             <i class="bi bi-telephone-fill" aria-hidden="true"></i>
-                            <span>+63 9XX-XXX-XXXX</span>
+                            <span>+63 925-742-5677</span>
                         </li>
                         <li>
                             <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
