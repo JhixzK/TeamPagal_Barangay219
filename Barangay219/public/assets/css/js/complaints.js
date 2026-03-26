@@ -64,24 +64,6 @@ function initComplaintFilterControls() {
             loadComplaints();
         });
     }
-    const prev = document.getElementById('complaintsPrevPage');
-    const next = document.getElementById('complaintsNextPage');
-    if (prev) {
-        prev.addEventListener('click', function() {
-            if (complaintFilters.page > 1) {
-                complaintFilters.page--;
-                loadComplaints();
-            }
-        });
-    }
-    if (next) {
-        next.addEventListener('click', function() {
-            if (complaintFilters.page < complaintListMeta.total_pages) {
-                complaintFilters.page++;
-                loadComplaints();
-            }
-        });
-    }
 }
 
 function splitFullNameForForm(full) {
@@ -134,14 +116,27 @@ function loadComplaints() {
                 complaintListMeta.total_pages = payload.total_pages || 1;
                 complaintListMeta.limit = payload.limit || complaintListMeta.limit;
                 if (pagerWrap && pagerInfo) {
-                    pagerWrap.style.display = complaintListMeta.total_pages > 1 ? 'flex' : 'none';
                     const from = list.length ? (complaintFilters.page - 1) * complaintListMeta.limit + 1 : 0;
                     const to = from + list.length - 1;
                     pagerInfo.textContent = list.length
                         ? `Showing ${from}–${to} of ${complaintListMeta.total}`
                         : 'No results';
                 }
-                tbody.innerHTML = list.map(c => `
+                if (typeof window.renderModuleBtnPagination === 'function') {
+                    window.renderModuleBtnPagination({
+                        containerId: 'complaintsPagination',
+                        outerWrapId: 'complaintsPagerWrap',
+                        currentPage: complaintFilters.page,
+                        total: complaintListMeta.total,
+                        totalPages: complaintListMeta.total_pages,
+                        onPage: pg => {
+                            complaintFilters.page = pg;
+                            loadComplaints();
+                        }
+                    });
+                }
+                tbody.innerHTML = list.length
+                    ? list.map(c => `
                     <tr>
                         <td class="text-center"><span class="complaints-code-badge">#${c.id}</span></td>
                         <td class="text-center">${escapeHtml(c.category || c.complaint_type || '—')}</td>
@@ -159,15 +154,28 @@ function loadComplaints() {
                             </div>
                         </td>
                     </tr>
-                `).join('');
+                `).join('')
+                    : '<tr><td colspan="9" class="text-center text-muted">No complaints found</td></tr>';
             } else {
                 tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No complaints found</td></tr>';
                 if (pagerWrap) pagerWrap.style.display = 'none';
+                const cp = document.getElementById('complaintsPagination');
+                if (cp) {
+                    cp.innerHTML = '';
+                    cp.className = '';
+                }
             }
         })
         .catch(() => {
             const tbody = document.getElementById('complaintsTableBody');
             if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Error loading</td></tr>';
+            const pw = document.getElementById('complaintsPagerWrap');
+            if (pw) pw.style.display = 'none';
+            const cp = document.getElementById('complaintsPagination');
+            if (cp) {
+                cp.innerHTML = '';
+                cp.className = '';
+            }
         });
 }
 
