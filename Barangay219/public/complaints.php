@@ -68,16 +68,15 @@ include __DIR__ . '/../includes/sidebar.php';
                 <table class="table table-hover complaints-table align-middle">
                     <thead>
                         <tr>
-                            <th class="text-center">ID</th>
                             <th class="text-center">Title</th>
                             <th class="text-center">Complainant</th>
-                            <th class="text-center">Resident</th>
+                            <th class="text-center">Respondent</th>
                             <th class="text-center">Date</th>
                             <th class="text-center">Status</th>
                             <th class="text-center complaints-actions-col actions-col-compact">Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="complaintsTableBody"><tr><td colspan="7" class="text-center">Loading...</td></tr></tbody>
+                    <tbody id="complaintsTableBody"><tr><td colspan="6" class="text-center">Loading...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -295,6 +294,78 @@ include __DIR__ . '/../includes/sidebar.php';
         padding: 0.75rem 0.6rem;
     }
 }
+
+.complaints-page .complaint-detail-view {
+    font-size: 0.94rem;
+}
+
+.complaints-page .complaint-detail-view .detail-section-title {
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-top: 1.1rem;
+    margin-bottom: 0.45rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid #e8edf4;
+}
+
+.complaints-page .complaint-detail-view .detail-section-title:first-child {
+    margin-top: 0;
+}
+
+.complaints-page .complaint-detail-view .detail-grid {
+    display: grid;
+    grid-template-columns: minmax(7rem, 9.5rem) 1fr;
+    gap: 0.35rem 1rem;
+    align-items: baseline;
+}
+
+.complaints-page .complaint-detail-view .detail-label {
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.complaints-page .complaint-detail-view .detail-value {
+    color: #1f2937;
+    font-weight: 500;
+    word-break: break-word;
+}
+
+.complaints-page .complaint-detail-view .detail-value.detail-value-muted {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.complaints-page .complaint-detail-view .detail-block {
+    margin-top: 0.35rem;
+    padding: 0.65rem 0.75rem;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e8edf4;
+    color: #334155;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.complaints-page .complaint-detail-view .form-control:read-only,
+.complaints-page .complaint-detail-view textarea:read-only {
+    background-color: #f8fafc;
+    border-color: #e2e8f0;
+    color: #1f2937;
+    cursor: default;
+}
+
+.complaints-page .complaint-detail-view .form-label.detail-field-label {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
 </style>
 
 <!-- Filter Modal -->
@@ -365,12 +436,20 @@ include __DIR__ . '/../includes/sidebar.php';
                         <input type="text" class="form-control" id="editTitle" required>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Complainant</label>
-                        <input type="text" class="form-control" id="editComplainant" required>
+                        <label class="form-label">Complainant First Name *</label>
+                        <input type="text" class="form-control" id="editComplainantFirst" required>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Respondent</label>
-                        <input type="text" class="form-control" id="editRespondent">
+                        <label class="form-label">Complainant Last Name *</label>
+                        <input type="text" class="form-control" id="editComplainantLast" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Respondent First Name</label>
+                        <input type="text" class="form-control" id="editRespondentFirst">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Respondent Last Name</label>
+                        <input type="text" class="form-control" id="editRespondentLast">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Type</label>
@@ -424,17 +503,31 @@ include __DIR__ . '/../includes/sidebar.php';
             <div class="modal-body">
                 <form id="createForm">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-12 mb-3">
                             <label class="form-label">Title *</label>
                             <input type="text" class="form-control" name="complaint_title" required>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Complainant Name *</label>
-                            <input type="text" class="form-control" name="complainant_name" required>
+                        <div class="col-12 mb-1">
+                            <span class="small text-uppercase text-muted fw-semibold">Complainant</span>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Respondent</label>
-                            <input type="text" class="form-control" name="respondent_name">
+                            <label class="form-label">First name *</label>
+                            <input type="text" class="form-control" name="complainant_first_name" required autocomplete="given-name">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last name *</label>
+                            <input type="text" class="form-control" name="complainant_last_name" required autocomplete="family-name">
+                        </div>
+                        <div class="col-12 mb-1">
+                            <span class="small text-uppercase text-muted fw-semibold">Respondent</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">First name</label>
+                            <input type="text" class="form-control" name="respondent_first_name" autocomplete="given-name">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last name</label>
+                            <input type="text" class="form-control" name="respondent_last_name" autocomplete="family-name">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Type</label>
@@ -457,7 +550,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="btnCreate">Create</button>
+                <button type="submit" form="createForm" class="btn btn-primary" id="btnCreate">Create</button>
             </div>
         </div>
     </div>
@@ -465,20 +558,33 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
 <script>
-document.getElementById('btnCreate').addEventListener('click', function() {
-    const f = document.getElementById('createForm');
+document.getElementById('createForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const f = this;
+    ['complaint_title', 'complainant_first_name', 'complainant_last_name', 'respondent_first_name', 'respondent_last_name', 'narrative'].forEach(function(name) {
+        const el = f.elements.namedItem(name);
+        if (el && typeof el.value === 'string') {
+            el.value = el.value.trim();
+        }
+    });
+    if (!f.checkValidity()) {
+        f.reportValidity();
+        return;
+    }
     if (window.applyTitleCaseToCreateForm) {
         window.applyTitleCaseToCreateForm(f);
     }
     const fd = new FormData();
     fd.append('action', 'create');
     fd.append('complaint_title', f.complaint_title.value);
-    fd.append('complainant_name', f.complainant_name.value);
-    fd.append('respondent_name', f.respondent_name.value);
-    fd.append('complaint_type', f.complaint_type.value);
+    fd.append('complainant_first_name', f.complainant_first_name.value);
+    fd.append('complainant_last_name', f.complainant_last_name.value);
+    fd.append('respondent_first_name', f.respondent_first_name.value.trim());
+    fd.append('respondent_last_name', f.respondent_last_name.value.trim());
+    fd.append('complaint_type', f.complaint_type.value.trim());
     fd.append('narrative', f.narrative.value);
     fd.append('filing_date', f.filing_date.value);
-    fd.append('remarks', f.remarks.value);
+    fd.append('remarks', f.remarks.value.trim());
     fetch(window.API_URL + 'complaints.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(d => {
