@@ -132,10 +132,61 @@ function listOfficials() {
             sendResponse(true, 'Officials table not found', []);
         }
         $rows = $db->fetchAll("SELECT * FROM officials ORDER BY status DESC, position ASC, full_name ASC");
+        foreach ($rows as &$row) {
+            $row['linked_user_id'] = resolvePrimaryUserIdForOfficial($db, $row);
+        }
+        unset($row);
         sendResponse(true, 'Officials loaded', $rows);
     } catch (Exception $e) {
         sendResponse(false, 'Error loading officials', null, 500);
     }
+}
+
+function resolvePrimaryUserIdForOfficial($db, $officialRow) {
+    $residentId = (int)($officialRow['resident_id'] ?? 0);
+    if ($residentId > 0) {
+        try {
+            $row = $db->fetchOne(
+                "SELECT id FROM users
+                 WHERE resident_id = ? AND status = 'active'
+                 ORDER BY id DESC
+                 LIMIT 1",
+                [$residentId]
+            );
+            if (!empty($row['id'])) {
+                return (int)$row['id'];
+            }
+        } catch (Exception $e) {
+        }
+    }
+
+    $fullName = trim((string)($officialRow['full_name'] ?? ''));
+    if ($fullName !== '') {
+        $parts = preg_split('/\s+/', $fullName);
+        if (is_array($parts) && count($parts) >= 2) {
+            $first = $parts[0];
+            $last = $parts[count($parts) - 1];
+            try {
+                $res = $db->fetchOne(
+                    "SELECT u.id
+                     FROM users u
+                     INNER JOIN residents r ON u.resident_id = r.id
+                     WHERE u.status = 'active'
+                       AND LOWER(TRIM(r.first_name)) = LOWER(?)
+                       AND LOWER(TRIM(r.last_name)) = LOWER(?)
+                     ORDER BY u.id DESC
+                     LIMIT 1",
+                    [$first, $last]
+                );
+                if (!empty($res['id'])) {
+                    return (int)$res['id'];
+                }
+            } catch (Exception $e) {
+            }
+        }
+    }
+
+    return 0;
 }
 
 function residentSearch() {
