@@ -269,6 +269,10 @@ include __DIR__ . '/../includes/sidebar.php';
     margin-left: auto;
 }
 
+#viewHouseholdModal .view-household-modal-dialog {
+    max-width: min(1320px, 96vw);
+}
+
 .households-page .action-icon-btn,
 #viewHouseholdModal .action-icon-btn,
 #householdModal .action-icon-btn {
@@ -725,7 +729,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <!-- View Household Modal -->
 <div class="modal fade" id="viewHouseholdModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered view-household-modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Household Details</h5>
