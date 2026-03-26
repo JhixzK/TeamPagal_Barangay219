@@ -5,6 +5,7 @@ if (!defined('ACCESS_ALLOWED')) {
 
 require_once __DIR__ . '/db_connection.php';
 require_once __DIR__ . '/auth-check.php';
+require_once __DIR__ . '/complaint-statuses.php';
 
 function residentComplaintsRequireResident() {
     requireLogin();
@@ -53,13 +54,13 @@ function residentComplaintsResolveJurisdiction($incidentBarangay) {
     if ($incidentBarangay !== '' && $incidentBarangay === $systemBarangay) {
         return [
             'jurisdiction_status' => 'Valid',
-            'status' => 'Pending Review'
+            'status' => 'pending'
         ];
     }
 
     return [
         'jurisdiction_status' => 'Outside Jurisdiction',
-        'status' => 'Referred to Other Barangay'
+        'status' => 'rejected'
     ];
 }
 
@@ -203,29 +204,46 @@ function residentComplaintsHandleUpload($file) {
 }
 
 function residentComplaintsDisplayStatus($status) {
-    $labels = [
-        'pending' => 'Pending Review',
-        'under_review' => 'Under Investigation',
-        'resolved' => 'Resolved',
-        'dismissed' => 'Dismissed'
+    $code = strtolower(trim((string)$status));
+    if ($code === '') {
+        return complaintStatusLabel('pending');
+    }
+    if (complaintStatusIsValid($code)) {
+        return complaintStatusLabel($code);
+    }
+    $legacy = [
+        'pending review' => 'pending',
+        'under review' => 'in_progress',
+        'under_review' => 'in_progress',
+        'under investigation' => 'in_progress',
+        'scheduled for mediation' => 'in_progress',
+        'referred to other barangay' => 'rejected',
+        'resolved' => 'resolved',
+        'dismissed' => 'rejected',
     ];
-
-    return $labels[$status] ?? ($status ?: 'Pending Review');
+    if (isset($legacy[$code])) {
+        return complaintStatusLabel($legacy[$code]);
+    }
+    return complaintStatusLabel('pending');
 }
 
 function residentComplaintsStatusClass($status) {
-    $status = residentComplaintsDisplayStatus($status);
-
+    $code = strtolower(trim((string)$status));
     $map = [
-        'Pending Review' => 'warning',
-        'Under Investigation' => 'info',
-        'Scheduled for Mediation' => 'primary',
-        'Referred to Other Barangay' => 'secondary',
-        'Resolved' => 'success',
-        'Dismissed' => 'danger'
+        'pending' => 'warning',
+        'approved' => 'primary',
+        'assigned' => 'info',
+        'in_progress' => 'info',
+        'resolved' => 'success',
+        'rejected' => 'danger',
+        'pending review' => 'warning',
+        'under_review' => 'info',
+        'under investigation' => 'info',
+        'scheduled for mediation' => 'info',
+        'referred to other barangay' => 'secondary',
+        'dismissed' => 'danger',
     ];
-
-    return $map[$status] ?? 'secondary';
+    return $map[$code] ?? 'secondary';
 }
 
 function residentComplaintsEvidenceUrl($path) {
