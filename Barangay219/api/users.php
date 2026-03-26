@@ -91,6 +91,9 @@ function listUsers() {
         $q = sanitizeInput($_GET['q'] ?? '');
         $role = sanitizeInput($_GET['role'] ?? '');
         $status = sanitizeInput($_GET['status'] ?? '');
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $limit = min(50, max(10, (int)($_GET['limit'] ?? ITEMS_PER_PAGE)));
+        $offset = ($page - 1) * $limit;
 
         $where = '1=1';
         $params = [];
@@ -107,7 +110,10 @@ function listUsers() {
             $where .= " AND u.status = ?";
             $params[] = $status;
         }
-        
+
+        $countSql = "SELECT COUNT(*) AS total FROM users u LEFT JOIN residents r ON u.resident_id = r.id WHERE $where";
+        $total = (int)($db->fetchOne($countSql, $params)['total'] ?? 0);
+
         $tfCol = userTableHasColumn($db, 'two_factor_enabled') ? ', u.two_factor_enabled' : '';
         $sql = "SELECT u.id, u.username, u.email, u.role, u.status, u.created_at, u.resident_id,
                        r.first_name, r.last_name, r.middle_name
@@ -115,10 +121,11 @@ function listUsers() {
                 FROM users u
                 LEFT JOIN residents r ON u.resident_id = r.id
                 WHERE $where
-                ORDER BY u.created_at DESC";
-        
-        $users = $db->fetchAll($sql, $params);
-        
+                ORDER BY u.created_at DESC
+                LIMIT ? OFFSET ?";
+
+        $users = $db->fetchAll($sql, array_merge($params, [$limit, $offset]));
+
         // Remove sensitive data; align role with active officials (fixes stale Resident when assigned as official)
         foreach ($users as &$user) {
             unset($user['password']);
@@ -126,9 +133,15 @@ function listUsers() {
             reconcileUserRoleWithOfficialsTable($db, $user);
         }
         unset($user);
-        
-        sendResponse(true, 'Users retrieved successfully', $users);
-        
+
+        sendResponse(true, 'Users retrieved successfully', [
+            'users' => $users,
+            'total' => $total,
+            'page' => $page,
+            'limit' => $limit,
+            'total_pages' => max(1, (int)ceil($total / $limit)),
+        ]);
+
     } catch (Exception $e) {
         error_log("List users error: " . $e->getMessage());
         sendResponse(false, 'Error retrieving users', null, 500);
