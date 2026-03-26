@@ -1426,7 +1426,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
     function buildWalkInResidentMeta(resident) {
         const code = String(resident.resident_code || '').trim();
-        const address = String(resident.address || resident.purok_sitio || '').trim();
+        const address = String(resident.address || '').trim();
         if (code && address) return `${code} • ${address}`;
         if (code) return code;
         if (address) return address;
