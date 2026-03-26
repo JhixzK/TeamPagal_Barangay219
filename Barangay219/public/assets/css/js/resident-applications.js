@@ -140,11 +140,33 @@ function loadApplications() {
         .then(data => {
             if (!data.success) {
                 tbody.innerHTML = '<tr><td colspan="8" class="text-danger">' + esc(data.message || 'Error') + '</td></tr>';
+                const po = document.getElementById('residentAppsPaginationOuter');
+                if (po) po.style.display = 'none';
+                const pg = document.getElementById('pagination');
+                if (pg) {
+                    pg.innerHTML = '';
+                    pg.className = '';
+                }
                 return;
             }
             const apps = data.data.applications || [];
+            currentPage = data.data.page || currentPage;
             renderApplications(apps);
-            renderPagination(data.data.total_pages || 1);
+            const total = Number(data.data.total != null ? data.data.total : 0);
+            const totalPages = data.data.total_pages || 1;
+            if (typeof window.renderModuleBtnPagination === 'function') {
+                window.renderModuleBtnPagination({
+                    containerId: 'pagination',
+                    outerWrapId: 'residentAppsPaginationOuter',
+                    currentPage,
+                    total,
+                    totalPages,
+                    onPage: pg => {
+                        currentPage = pg;
+                        loadApplications();
+                    }
+                });
+            }
         })
         .catch(err => {
             console.error(err);
@@ -152,6 +174,13 @@ function loadApplications() {
                 ? 'Failed to load applications (session/API host mismatch).'
                 : 'Failed to load applications';
             tbody.innerHTML = '<tr><td colspan="8" class="text-danger">' + esc(message) + '</td></tr>';
+            const po = document.getElementById('residentAppsPaginationOuter');
+            if (po) po.style.display = 'none';
+            const pg = document.getElementById('pagination');
+            if (pg) {
+                pg.innerHTML = '';
+                pg.className = '';
+            }
         });
 }
 
@@ -437,29 +466,6 @@ function submitAssignHousehold() {
             console.error(err);
             showAlert('error', 'Failed to assign household');
         });
-}
-
-function renderPagination(totalPages) {
-    const pagination = document.getElementById('pagination');
-    if (!pagination) return;
-
-    if (totalPages <= 1) {
-        pagination.innerHTML = '';
-        return;
-    }
-
-    let html = '';
-    for (let i = 1; i <= totalPages; i++) {
-        html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
-            <a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a>
-        </li>`;
-    }
-    pagination.innerHTML = html;
-}
-
-function goToPage(page) {
-    currentPage = page;
-    loadApplications();
 }
 
 function viewApplication(id) {
