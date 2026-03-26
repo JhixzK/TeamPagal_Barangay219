@@ -36,6 +36,7 @@ const MODULES = [
 ];
 
 let userFilters = { q: '', role: '', status: '' };
+let usersPage = 1;
 const USER_MANAGEMENT_PERMS = {
     canCreate: window.canModulePermission ? window.canModulePermission('users', 'can_create') : true,
     canEdit: window.canModulePermission ? window.canModulePermission('users', 'can_edit') : true,
@@ -58,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
  * Load all users
  */
 function loadUsers() {
-    const params = new URLSearchParams({ action: 'list' });
+    const params = new URLSearchParams({ action: 'list', page: String(usersPage) });
     if (userFilters.q) params.append('q', userFilters.q);
     if (userFilters.role) params.append('role', userFilters.role);
     if (userFilters.status) params.append('status', userFilters.status);
@@ -67,7 +68,27 @@ function loadUsers() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                displayUsers(data.data);
+                const payload = data.data;
+                const list = payload && Array.isArray(payload.users)
+                    ? payload.users
+                    : (Array.isArray(payload) ? payload : []);
+                usersPage = (payload && payload.page) ? Number(payload.page) : usersPage;
+                displayUsers(list);
+                if (typeof window.renderModuleBtnPagination === 'function') {
+                    const total = payload && payload.total != null ? Number(payload.total) : list.length;
+                    const totalPages = payload && payload.total_pages != null ? Number(payload.total_pages) : 1;
+                    window.renderModuleBtnPagination({
+                        containerId: 'usersPagination',
+                        outerWrapId: 'usersPaginationOuter',
+                        currentPage: usersPage,
+                        total,
+                        totalPages,
+                        onPage: pg => {
+                            usersPage = pg;
+                            loadUsers();
+                        }
+                    });
+                }
             } else {
                 showAlert('error', data.message);
             }
@@ -79,12 +100,14 @@ function loadUsers() {
 }
 
 function searchUsers() {
+    usersPage = 1;
     const query = document.getElementById('searchInput')?.value.trim() || '';
     userFilters.q = query;
     loadUsers();
 }
 
 function applyUserFilters() {
+    usersPage = 1;
     userFilters.role = document.getElementById('filterRole')?.value || '';
     userFilters.status = document.getElementById('filterStatus')?.value || '';
     loadUsers();
@@ -93,6 +116,7 @@ function applyUserFilters() {
 }
 
 function resetUsers() {
+    usersPage = 1;
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.value = '';
     userFilters = { q: '', role: '', status: '' };
