@@ -164,7 +164,7 @@ if ($isResidentSidebar) {
             'title' => 'Activity Logs',
             'icon' => 'bi-clock-history',
             'url' => 'activity-logs.php',
-            'module' => 'reports',
+            'module' => 'activity_logs',
             'section' => 'Administration'
         ]
     ];
