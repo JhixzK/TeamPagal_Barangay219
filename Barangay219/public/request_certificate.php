@@ -281,18 +281,14 @@ $purposeOptionsByType = [
     'Others'
   ],
   'Transfer Request' => [
-    'Application for Employment',
-    'School Admission/Requirement',
-    'Hospital Purpose',
-    'Processing of Calamity',
-    'Medical Purpose',
-    'For Livelihood Loan',
-    'Bank Transaction',
-    'Indigent Family',
-    'Organized Vending Permit',
-    'DSWD Requirement',
-    'For Travel Abroad',
-    'Transfer of Residence'
+    'Transfer of Residence (Relocation)',
+    'Change of Address',
+    'School Credentials / TOR Transfer',
+    'COMELEC Voter Transfer',
+    'Land Title / Ownership Transfer',
+    'Job Reassignment / Office Transfer',
+    'Transfer of Business Location',
+    'Other (Please Specify)'
   ],
   'Barangay Indigency' => [
     'Financial Assistance',
@@ -541,7 +537,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Please select a valid purpose category.';
       }
 
-      if ($formData['certificate_type'] === 'Barangay Certificate' && $formData['purpose'] === 'Others' && $formData['purpose_other'] === '') {
+      $requiresPurposeOther = (
+        ($formData['certificate_type'] === 'Barangay Certificate' && $formData['purpose'] === 'Others')
+        || ($formData['certificate_type'] === 'Transfer Request' && $formData['purpose'] === 'Other (Please Specify)')
+      );
+      if ($requiresPurposeOther && $formData['purpose_other'] === '') {
         $errors[] = 'Please specify the purpose.';
       }
     } else {
@@ -660,9 +660,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors) && $mysqli) {
       $isIndigencyRequest = ($formData['certificate_type'] === 'Barangay Indigency');
+      $usesCustomPurpose = (
+        ($formData['certificate_type'] === 'Barangay Certificate' && $formData['purpose'] === 'Others')
+        || ($formData['certificate_type'] === 'Transfer Request' && $formData['purpose'] === 'Other (Please Specify)')
+      );
       $finalPurpose = $isIndigencyRequest
         ? ''
-        : (($formData['certificate_type'] === 'Barangay Certificate' && $formData['purpose'] === 'Others')
+        : ($usesCustomPurpose
             ? $formData['purpose_other']
             : $formData['purpose']);
       $attachmentValue = $uploadedPaths[0] ?? ($residentValidIdPath !== '' ? $residentValidIdPath : null);
@@ -712,14 +716,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $insertColumns[] = 'purpose_other';
           $placeholders[] = '?';
           $bindTypes .= 's';
-          $bindValues[] = ($formData['certificate_type'] === 'Barangay Certificate' && $formData['purpose'] === 'Others') ? $formData['purpose_other'] : null;
+          $bindValues[] = $usesCustomPurpose ? $formData['purpose_other'] : null;
         }
 
         if (rcColumnExists($mysqli, 'certificate_requests', 'purpose_details')) {
           $insertColumns[] = 'purpose_details';
           $placeholders[] = '?';
           $bindTypes .= 's';
-          $bindValues[] = ($formData['certificate_type'] === 'Barangay Certificate' && $formData['purpose'] === 'Others') ? $formData['purpose_other'] : null;
+          $bindValues[] = $usesCustomPurpose ? $formData['purpose_other'] : null;
         }
 
         if (rcColumnExists($mysqli, 'certificate_requests', 'application_ref')) {
