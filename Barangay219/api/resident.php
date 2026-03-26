@@ -639,6 +639,7 @@ function getLatestApprovedRegistrationSnapshot($db, array $resident) {
         'is_ip_member' => 'registration_is_ip_member',
         'ip_group' => 'registration_ip_group',
         'is_4ps_beneficiary' => 'registration_is_4ps_beneficiary',
+        'special_category_proof_path' => 'registration_special_category_proof_path',
     ];
 
     $selectCols = [];
@@ -1056,6 +1057,7 @@ function addColumnIfMissing($db, $table, $column, $definition) {
 
 function ensureResidentVerificationColumns($db) {
     addColumnIfMissing($db, 'residents', 'id_document_path', "VARCHAR(255) NULL AFTER email");
+    addColumnIfMissing($db, 'residents', 'special_category_proof_path', "VARCHAR(255) NULL AFTER proof_of_residency_path");
     addColumnIfMissing($db, 'residents', 'verification_status', "ENUM('pending','verified','rejected') DEFAULT 'pending' AFTER record_status");
     addColumnIfMissing($db, 'residents', 'rejection_reason', "TEXT NULL AFTER remarks");
 }
