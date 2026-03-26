@@ -1532,7 +1532,6 @@ function viewHousehold(id) {
             infoEl.innerHTML = `
                 <p><strong>Household ID Code:</strong> ${escapeHtml((h.household_id_code || '-'))}</p>
                 <p><strong>Head:</strong> <span id="viewInfoHeadName">${escapeHtml(firstHeadName)}</span></p>
-                <p><strong>Household Type:</strong> <span id="viewInfoHouseholdType">--</span></p>
                 <p><strong>House Type:</strong> ${escapeHtml(formatStructureHouseTypeLabel(h.house_type))}</p>
                 <p><strong>Address:</strong> ${escapeHtml(toTitleCase(h.address || '-'))}</p>
                 <p><strong>Total Members:</strong> ${members.length}</p>
@@ -1540,15 +1539,7 @@ function viewHousehold(id) {
                 ${indigentSection}
             `;
 
-            // Set initial household type for the first head now that groups are built
-            if (headGroups.length > 0) {
-                const initType = deriveHouseholdType(headGroups[0].head, headGroups[0].headMembers);
-                const typeEl = document.getElementById('viewInfoHouseholdType');
-                if (typeEl) typeEl.textContent = initType;
-            } else {
-                const typeEl = document.getElementById('viewInfoHouseholdType');
-                if (typeEl) typeEl.textContent = householdTypeVal || '--';
-            }
+            // Household type display removed by requirement (logic retained for internal derivations if needed)
 
             if (!members.length) {
                 membersHost.innerHTML = '<p class="text-muted">No members yet.</p>';
@@ -1634,13 +1625,11 @@ function viewHousehold(id) {
                     `<h6 class="mb-2">Family Groups <span class="badge bg-secondary">${heads.length} heads</span></h6>`
                     + tabNav + tabContent;
 
-                // When a head tab is clicked, update the info section dynamically
+                // When a head tab is clicked, update the displayed head name dynamically
                 document.querySelectorAll('#viewHouseholdMembers .nav-link[data-head-name]').forEach(btn => {
                     btn.addEventListener('click', function () {
                         const nameEl = document.getElementById('viewInfoHeadName');
-                        const typeEl = document.getElementById('viewInfoHouseholdType');
                         if (nameEl) nameEl.textContent = this.getAttribute('data-head-name') || '-';
-                        if (typeEl) typeEl.textContent = this.getAttribute('data-head-type') || '--';
                     });
                 });
             }
