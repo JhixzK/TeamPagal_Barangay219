@@ -394,6 +394,7 @@ $province = 'Metro Manila';
 // File uploads
 $id_document_path = null;
 $proof_of_residency_path = null;
+$special_category_proof_path = null;
 
 if (isset($_FILES['id_document']) && $_FILES['id_document']['error'] === UPLOAD_ERR_OK) {
     $ext = strtolower(pathinfo($_FILES['id_document']['name'], PATHINFO_EXTENSION));
@@ -427,6 +428,24 @@ if (isset($_FILES['proof_of_residency']) && $_FILES['proof_of_residency']['error
     }
 } else {
     $errors[] = 'Proof of residency upload is required.';
+}
+
+// Optional: Special category proof (Senior/PWD/Solo/4Ps/IP)
+if (isset($_FILES['special_category_proof']) && $_FILES['special_category_proof']['error'] === UPLOAD_ERR_OK) {
+    $ext = strtolower(pathinfo($_FILES['special_category_proof']['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowed_ext) || $_FILES['special_category_proof']['size'] > $max_file_size) {
+        $errors[] = 'Special category proof: PDF, JPG, PNG, max 5MB.';
+    } else {
+        $filename = date('Ymd') . '_' . uniqid() . '_special.' . $ext;
+        $special_category_proof_path = 'uploads/applications/' . $filename;
+        $dest = $UPLOAD_DIR . $filename;
+        if (!move_uploaded_file($_FILES['special_category_proof']['tmp_name'], $dest)) {
+            $errors[] = 'Failed to save special category proof.';
+            $special_category_proof_path = null;
+        }
+    }
+} elseif (isset($_FILES['special_category_proof']) && $_FILES['special_category_proof']['error'] !== UPLOAD_ERR_NO_FILE) {
+    $errors[] = 'Special category proof upload failed.';
 }
 
 if (!empty($errors)) {
@@ -615,6 +634,7 @@ try {
     addColumnIfMissing($db, 'resident_applications', 'house_ownership', "VARCHAR(50) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'voter_status', "VARCHAR(80) DEFAULT NULL");
     addColumnIfMissing($db, 'resident_applications', 'precinct_number', "VARCHAR(50) DEFAULT NULL");
+    addColumnIfMissing($db, 'resident_applications', 'special_category_proof_path', "VARCHAR(255) DEFAULT NULL");
 
     $existingCols = array_flip(getTableColumns($db, 'resident_applications'));
 
@@ -673,6 +693,7 @@ try {
         'valid_id_number' => $valid_id_number,
         'id_document_path' => $id_document_path,
         'proof_of_residency_path' => $proof_of_residency_path,
+        'special_category_proof_path' => $special_category_proof_path,
         'verification_status' => 'pending',
         'data_privacy_consent' => 1,
         'record_status' => 'pending'
