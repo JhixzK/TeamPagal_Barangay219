@@ -346,44 +346,41 @@ $cssVersion = urlencode((string)@filemtime(__DIR__ . '/resident_household.css'))
                 <tbody id="manageMembersTableBody"></tbody>
               </table>
             </div>
+
+            <div id="transferHeadInlinePanel" class="transfer-head-inline-panel" style="display:none; margin-top: 12px;">
+              <form id="transferHeadReasonForm" class="transfer-head-inline-form">
+                <div class="form-group">
+                  <label for="transferHeadTargetName">Transferring Head *</label>
+                  <input type="text" id="transferHeadTargetName" readonly placeholder="Select a member to transfer head role">
+                </div>
+                <div class="form-group">
+                  <label for="transferHeadReason">Reason *</label>
+                  <select id="transferHeadReason" required>
+                    <option value="">-- Select reason --</option>
+                    <option value="Work relocation">Work relocation</option>
+                    <option value="Health condition">Health condition</option>
+                    <option value="Travel / long absence">Travel / long absence</option>
+                    <option value="Separation / family arrangement">Separation / family arrangement</option>
+                    <option value="Deceased">Deceased</option>
+                    <option value="Others">Others</option>
+                  </select>
+                  <small class="text-muted" style="display:block; margin-top:6px;">
+                    This reason is recorded in household history to document why head role was transferred.
+                  </small>
+                </div>
+                <div class="form-group" id="transferHeadReasonOtherGroup" style="display:none;">
+                  <label for="transferHeadReasonOther">Specify (Others) *</label>
+                  <input type="text" id="transferHeadReasonOther" maxlength="200" placeholder="Enter reason">
+                </div>
+                <div class="d-flex gap-2 justify-content-end">
+                  <button type="button" class="btn-secondary" data-action="closeTransferHeadReasonModal">Cancel</button>
+                  <button type="button" class="btn-primary" id="submitTransferHeadReasonBtn" data-action="submitTransferHeadReason">Continue</button>
+                </div>
+              </form>
+            </div>
           </div>
           <div class="modal-footer">
             <button class="btn-secondary" data-action="closeManageMembersModal">Close</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Transfer Head Reason Modal -->
-      <div id="transferHeadReasonModal" class="modal custom-modal" style="display: none;">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Transfer Head Role</h3>
-            <button class="modal-close" data-action="closeTransferHeadReasonModal">&times;</button>
-          </div>
-          <div class="modal-body">
-            <form id="transferHeadReasonForm">
-              <div class="form-group">
-                <label for="transferHeadReason">Reason *</label>
-                <select id="transferHeadReason" required>
-                  <option value="">-- Select reason --</option>
-                  <option value="Work relocation">Work relocation</option>
-                  <option value="Health condition">Health condition</option>
-                  <option value="Travel / long absence">Travel / long absence</option>
-                  <option value="Separation / family arrangement">Separation / family arrangement</option>
-                  <option value="Deceased">Deceased</option>
-                  <option value="Others">Others</option>
-                </select>
-              </div>
-              <div class="form-group" id="transferHeadReasonOtherGroup" style="display:none;">
-                <label for="transferHeadReasonOther">Specify (Others) *</label>
-                <input type="text" id="transferHeadReasonOther" maxlength="200" placeholder="Enter reason">
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" data-action="closeTransferHeadReasonModal">Cancel</button>
-            <button class="btn-primary" id="submitTransferHeadReasonBtn" data-action="submitTransferHeadReason">Continue</button>
           </div>
         </div>
       </div>

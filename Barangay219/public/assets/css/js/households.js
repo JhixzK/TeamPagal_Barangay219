@@ -242,6 +242,7 @@ function editModalRowHtml(m, asHead, ctx) {
     const dob = m.birth_date || m.date_of_birth;
     const ageVal = calculateAge(dob);
     const ageDisp = typeof ageVal === 'number' && !Number.isNaN(ageVal) ? String(ageVal) : '—';
+
     let actionsHtml = '';
     if (allowEdit) {
         if (asHead) {
@@ -255,6 +256,7 @@ function editModalRowHtml(m, asHead, ctx) {
             actionsHtml = transferBtn + removeBtn;
         }
     }
+
     return `<tr><td>${escapeHtml(toTitleCase(name))}</td><td>${role}</td><td>${relDisp}</td><td>${sexDisp}</td><td>${ageDisp}</td><td class="text-end text-nowrap household-detail-actions">${actionsHtml}</td></tr>`;
 }
 
@@ -1256,16 +1258,14 @@ function viewHousehold(id) {
                 let html = '<h6 class="mb-3">Members</h6>';
                 if (headGroups.length === 1) {
                     const g = headGroups[0];
-                    const removeBtn = allowEditMembers ? `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${g.head.id})"><i class="bi bi-person-dash"></i></button>` : '';
                     html += `
-                        <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-2 bg-light">
+                        <div class="d-flex align-items-center py-2 px-3 border rounded mb-2 bg-light">
                             <div>
                                 <span class="fw-semibold">${escapeHtml(toName(g.head))}</span>
                                 <span class="badge bg-primary ms-2">Head</span>
                                 <small class="text-muted ms-2">(${escapeHtml(g.headDisplayCode)})</small>
                                 ${memberMonthlyIncomeNote(g.head)}
                             </div>
-                            <div class="household-detail-actions">${removeBtn}</div>
                         </div>`;
                     html += buildMemberRows(g.headMembers, g.head.id, allowEditMembers);
                 }
@@ -1290,18 +1290,16 @@ function viewHousehold(id) {
                             </button>
                         </li>`;
 
-                    const removeBtn = allowEditMembers ? `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${g.head.id})"><i class="bi bi-person-dash"></i></button>` : '';
 
                     tabContent += `
                         <div class="tab-pane fade${active ? ' show active' : ''}" id="${paneId}" role="tabpanel" aria-labelledby="${tabId}">
-                            <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-2 bg-light">
+                            <div class="d-flex align-items-center py-2 px-3 border rounded mb-2 bg-light">
                                 <div>
                                     <span class="fw-semibold">${escapeHtml(toName(g.head))}</span>
                                     <span class="badge bg-primary ms-2">Head</span>
                                     <small class="text-muted ms-2">(${escapeHtml(g.headDisplayCode)})</small>
                                     ${memberMonthlyIncomeNote(g.head)}
                                 </div>
-                                <div class="household-detail-actions">${removeBtn}</div>
                             </div>
                             ${g.headMembers.length > 0
                                 ? buildMemberRows(g.headMembers, g.head.id, allowEditMembers)
@@ -1372,17 +1370,13 @@ function buildMemberRows(memberArr, headId, allowEdit) {
     if (!memberArr.length) return '';
     return memberArr.map(m => {
         const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
-        const canTransfer = allowEdit && residentMeetsMinimumHeadAge(m);
-        const transferBtn = canTransfer ? `<button type="button" class="action-icon-btn" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${headId})"><i class="bi bi-person-badge"></i></button>` : '';
-        const removeBtn = allowEdit ? `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : '';
         return `
-            <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1 ms-3" style="border-left: 3px solid var(--bs-primary) !important;">
+            <div class="d-flex align-items-center py-2 px-3 border rounded mb-1 ms-3" style="border-left: 3px solid var(--bs-primary) !important;">
                 <div>
                     <span>${escapeHtml(toTitleCase(name))}</span>
                     <span class="badge bg-light text-dark border ms-2">Member</span>
                     ${memberMonthlyIncomeNote(m)}
                 </div>
-                <div class="household-detail-actions">${transferBtn}${removeBtn}</div>
             </div>`;
     }).join('');
 }
@@ -1392,17 +1386,13 @@ function buildUngroupedRows(ungroupedArr, designatedHeadId, allowEdit) {
     let html = '<div class="mt-2"><div class="small text-muted mb-1 px-2">Unassigned members</div>';
     ungroupedArr.forEach(m => {
         const name = `${m.first_name || ''} ${m.middle_name || ''} ${m.last_name || ''}`.trim();
-        const canTransfer = allowEdit && designatedHeadId > 0 && residentMeetsMinimumHeadAge(m);
-        const transferBtn = canTransfer ? `<button type="button" class="action-icon-btn" title="Transfer Head" aria-label="Transfer Head" onclick="transferHeadTo(${m.id}, ${designatedHeadId})"><i class="bi bi-person-badge"></i></button>` : '';
-        const removeBtn = allowEdit ? `<button type="button" class="action-icon-btn action-delete" title="Remove" aria-label="Remove" onclick="removeMember(${m.id})"><i class="bi bi-person-dash"></i></button>` : '';
         html += `
-            <div class="d-flex align-items-center justify-content-between py-2 px-3 border rounded mb-1">
+            <div class="d-flex align-items-center py-2 px-3 border rounded mb-1">
                 <div>
                     <span>${escapeHtml(toTitleCase(name))}</span>
                     <span class="badge bg-light text-dark border ms-2">Member</span>
                     ${memberMonthlyIncomeNote(m)}
                 </div>
-                <div class="household-detail-actions">${transferBtn}${removeBtn}</div>
             </div>`;
     });
     html += '</div>';

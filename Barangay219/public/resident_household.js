@@ -396,6 +396,7 @@ function openManageMembersModal() {
 }
 
 function closeManageMembersModal() {
+  closeTransferHeadReasonModal();
   const modal = document.getElementById("manageMembersModal");
   if (modal) {
     modal.style.display = "none";
@@ -708,23 +709,45 @@ function assignNewHeadByResident(residentId) {
   openTransferHeadReasonModal();
 }
 
+function getPendingTransferHeadName() {
+  if (!pendingTransferHeadTarget) return "";
+  const memberId = Number(pendingTransferHeadTarget.member_id || 0);
+  const residentId = Number(pendingTransferHeadTarget.resident_id || 0);
+  const member = (currentMembers || []).find((m) => {
+    const mId = Number(m.id || 0);
+    const rId = Number(m.resident_id || 0);
+    return (memberId > 0 && mId === memberId) || (residentId > 0 && rId === residentId);
+  });
+  return (member?.name || "").toString().trim();
+}
+
 function openTransferHeadReasonModal() {
-  const modal = document.getElementById("transferHeadReasonModal");
+  const panel = document.getElementById("transferHeadInlinePanel");
   const form = document.getElementById("transferHeadReasonForm");
   if (form) form.reset();
+  const targetNameInput = document.getElementById("transferHeadTargetName");
+  if (targetNameInput) {
+    const selectedName = getPendingTransferHeadName();
+    targetNameInput.value = selectedName || "Selected member";
+  }
   const otherGroup = document.getElementById("transferHeadReasonOtherGroup");
   if (otherGroup) otherGroup.style.display = "none";
-  if (modal) {
-    modal.style.display = "flex";
-    document.body.style.overflow = "hidden";
+  if (panel) {
+    panel.style.display = "block";
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 }
 
 function closeTransferHeadReasonModal() {
-  const modal = document.getElementById("transferHeadReasonModal");
-  if (modal) {
-    modal.style.display = "none";
-    document.body.style.overflow = "auto";
+  const panel = document.getElementById("transferHeadInlinePanel");
+  const form = document.getElementById("transferHeadReasonForm");
+  if (form) form.reset();
+  const targetNameInput = document.getElementById("transferHeadTargetName");
+  if (targetNameInput) targetNameInput.value = "";
+  const otherGroup = document.getElementById("transferHeadReasonOtherGroup");
+  if (otherGroup) otherGroup.style.display = "none";
+  if (panel) {
+    panel.style.display = "none";
   }
   pendingTransferHeadTarget = null;
 }
