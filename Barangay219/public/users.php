@@ -341,8 +341,26 @@ include __DIR__ . '/../includes/sidebar.php';
                         
                         <div class="col-md-6 mb-3" id="passwordField">
                             <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" id="password" name="password">
-                            <small class="text-muted">Leave blank to keep current password</small>
+                            <input type="password" class="form-control" id="password" name="password" autocomplete="new-password">
+                            <small class="text-muted">Required for new accounts</small>
+                        </div>
+                    </div>
+
+                    <div class="row d-none" id="changePasswordSection">
+                        <div class="col-12 mb-3">
+                            <label class="form-label fw-semibold"><i class="bi bi-key me-1"></i>Change password</label>
+                            <p class="small text-muted mb-2">Leave both fields blank to keep the current password.</p>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="new_password" class="form-label">New password</label>
+                                    <input type="password" class="form-control" id="new_password" autocomplete="new-password">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="confirm_password" class="form-label">Confirm new password</label>
+                                    <input type="password" class="form-control" id="confirm_password" autocomplete="new-password">
+                                </div>
+                            </div>
+                            <small class="text-muted d-block mt-1">Use letters and numbers only; length must meet system rules.</small>
                         </div>
                     </div>
                     
@@ -367,11 +385,6 @@ include __DIR__ . '/../includes/sidebar.php';
                     </div>
                     
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="resident_id" class="form-label">Resident ID (Optional)</label>
-                            <input type="number" class="form-control" id="resident_id" name="resident_id">
-                        </div>
-                        
                         <div class="col-md-6 mb-3">
                             <label for="status" class="form-label">Status</label>
                             <select class="form-select" id="status" name="status">
