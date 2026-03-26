@@ -280,7 +280,12 @@ function normalizeCertificateType(string $type): string {
 
 function resolvePurpose(string $certificateType, string $purposeOption, string $purposeOther): string {
     $normalizedType = normalizeCertificateType($certificateType);
-    if ($normalizedType === 'barangay_certificate' && strtolower(trim($purposeOption)) === 'others') {
+    $normalizedOption = strtolower(trim($purposeOption));
+    $usesPurposeOther = (
+        ($normalizedType === 'barangay_certificate' && $normalizedOption === 'others')
+        || ($normalizedType === 'transfer_request' && $normalizedOption === 'other (please specify)')
+    );
+    if ($usesPurposeOther) {
         return trim($purposeOther) !== '' ? trim($purposeOther) : 'Others';
     }
     return trim($purposeOption);
@@ -389,7 +394,7 @@ function getCertificateBodyTemplate(string $certificateType): string {
             '',
             'This is to certify that [NAME], [NATIONALITY], [SEX], [AGE] years old, [CIVIL_STATUS], is a bonafide resident of Barangay 219, Zone 20, District II, Tondo, Manila with postal address at [ADDRESS].',
             '',
-            'This certificate is being issued upon the request of the above-named person in connection with the transfer of residence, for the purpose of Travel/Transfer of Resident.',
+            'This certificate is being issued upon the request of the above-named person in connection with the transfer of residence, for the purpose of [PURPOSE].',
             '',
             'This certificate shall be considered inoperative and this office will not be held accountable should it be used for purposes other than the one stated herein.',
             '',
@@ -791,10 +796,7 @@ function directIssueCertificateByAdmin() {
         sendResponse(false, 'Resident and valid certificate type are required', null, 400);
     }
 
-    if ($certificateType === 'transfer_request') {
-        $purposeOption = 'Travel/Transfer of Resident';
-        $purposeOther = '';
-    } elseif ($purposeOption === '') {
+    if ($purposeOption === '') {
         $purposeOption = 'Walk-in issuance';
     }
 
