@@ -11,11 +11,21 @@ if (typeof window.API_URL === 'undefined' || window.API_URL === null || window.A
 
 let userFilters = { q: '', role: '', status: '' };
 let usersPage = 1;
-const USER_MANAGEMENT_PERMS = {
-    canCreate: window.canModulePermission ? window.canModulePermission('users', 'can_create') : true,
-    canEdit: window.canModulePermission ? window.canModulePermission('users', 'can_edit') : true,
-    canDelete: window.canModulePermission ? window.canModulePermission('users', 'can_delete') : true
-};
+const USER_MANAGEMENT_PERMS = (() => {
+    // Prefer server-evaluated permissions to keep UI aligned with backend authorization.
+    if (window.USER_MANAGEMENT_PERMS && typeof window.USER_MANAGEMENT_PERMS === 'object') {
+        return {
+            canCreate: !!window.USER_MANAGEMENT_PERMS.canCreate,
+            canEdit: !!window.USER_MANAGEMENT_PERMS.canEdit,
+            canDelete: !!window.USER_MANAGEMENT_PERMS.canDelete
+        };
+    }
+    return {
+        canCreate: window.canModulePermission ? window.canModulePermission('users', 'can_create') : true,
+        canEdit: window.canModulePermission ? window.canModulePermission('users', 'can_edit') : true,
+        canDelete: window.canModulePermission ? window.canModulePermission('users', 'can_delete') : true
+    };
+})();
 
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
