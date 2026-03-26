@@ -114,8 +114,26 @@ function getComplaint() {
 function createComplaint() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') { sendResponse(false, 'POST required', null, 405); return; }
     $complaint_title = sanitizeInput($_POST['complaint_title'] ?? '');
-    $complainant_name = sanitizeInput($_POST['complainant_name'] ?? '');
-    $respondent_name = sanitizeInput($_POST['respondent_name'] ?? '');
+    $complainant_name = '';
+    if (array_key_exists('complainant_first_name', $_POST) || array_key_exists('complainant_last_name', $_POST)) {
+        $cf = sanitizeInput(trim($_POST['complainant_first_name'] ?? ''));
+        $cl = sanitizeInput(trim($_POST['complainant_last_name'] ?? ''));
+        if ($cf === '' || $cl === '') {
+            sendResponse(false, 'Complainant first and last name are required', null, 400);
+            return;
+        }
+        $complainant_name = trim($cf . ' ' . $cl);
+    } else {
+        $complainant_name = sanitizeInput(trim($_POST['complainant_name'] ?? ''));
+    }
+    $respondent_name = '';
+    if (array_key_exists('respondent_first_name', $_POST) || array_key_exists('respondent_last_name', $_POST)) {
+        $rf = sanitizeInput(trim($_POST['respondent_first_name'] ?? ''));
+        $rl = sanitizeInput(trim($_POST['respondent_last_name'] ?? ''));
+        $respondent_name = trim($rf . ' ' . $rl);
+    } else {
+        $respondent_name = sanitizeInput(trim($_POST['respondent_name'] ?? ''));
+    }
     $complaint_type = sanitizeInput($_POST['complaint_type'] ?? '');
     $narrative = sanitizeInput($_POST['narrative'] ?? '');
     $filing_date = $_POST['filing_date'] ?? date('Y-m-d');
@@ -179,7 +197,31 @@ function updateComplaint() {
     if ($hasRemarks) $baseFields[] = 'remarks';
     $updates = [];
     $params = [];
+    $fromSplitComplainant = array_key_exists('complainant_first_name', $_POST) || array_key_exists('complainant_last_name', $_POST);
+    $fromSplitRespondent = array_key_exists('respondent_first_name', $_POST) || array_key_exists('respondent_last_name', $_POST);
+    if ($fromSplitComplainant) {
+        $cf = sanitizeInput(trim($_POST['complainant_first_name'] ?? ''));
+        $cl = sanitizeInput(trim($_POST['complainant_last_name'] ?? ''));
+        if ($cf === '' || $cl === '') {
+            sendResponse(false, 'Complainant first and last name are required', null, 400);
+            return;
+        }
+        $updates[] = 'complainant_name = ?';
+        $params[] = trim($cf . ' ' . $cl);
+    }
+    if ($fromSplitRespondent) {
+        $rf = sanitizeInput(trim($_POST['respondent_first_name'] ?? ''));
+        $rl = sanitizeInput(trim($_POST['respondent_last_name'] ?? ''));
+        $updates[] = 'respondent_name = ?';
+        $params[] = trim($rf . ' ' . $rl);
+    }
     foreach ($baseFields as $field) {
+        if ($field === 'complainant_name' && $fromSplitComplainant) {
+            continue;
+        }
+        if ($field === 'respondent_name' && $fromSplitRespondent) {
+            continue;
+        }
         if (isset($_POST[$field])) {
             $updates[] = "$field = ?";
             $params[] = in_array($field, ['filing_date', 'resolution_date']) ? $_POST[$field] : sanitizeInput($_POST[$field]);
