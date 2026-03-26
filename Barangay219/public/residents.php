@@ -86,12 +86,10 @@ include __DIR__ . '/../includes/sidebar.php';
                     </tbody>
                 </table>
             </div>
-            
-            <!-- Pagination -->
-            <nav aria-label="Page navigation" class="mt-3">
-                <ul class="pagination justify-content-center" id="pagination">
-                </ul>
-            </nav>
+
+            <div class="d-flex justify-content-center mt-2 mb-1 px-2" id="residentsPaginationOuter" aria-label="Resident list pages">
+                <div id="pagination" role="group"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -109,37 +107,8 @@ include __DIR__ . '/../includes/sidebar.php';
 }
 
 .residents-page .residents-table-scroll {
-    max-height: min(62vh, 640px);
-    overflow-y: auto;
     overflow-x: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #94a3b8 #f1f5f9;
-}
-
-.residents-page .residents-table-scroll::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-.residents-page .residents-table-scroll::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 999px;
-}
-
-.residents-page .residents-table-scroll::-webkit-scrollbar-thumb {
-    background: #94a3b8;
-    border-radius: 999px;
-    border: 2px solid #f1f5f9;
-}
-
-.residents-page .residents-table-scroll::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
-}
-
-.residents-page .residents-table-scroll thead th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
+    overflow-y: visible;
 }
 
 .residents-page .residents-table > :not(caption) > * > * {
